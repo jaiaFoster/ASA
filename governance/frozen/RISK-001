@@ -1,0 +1,308 @@
+# RISK-001: Organizational Risk Classification Standard
+
+**Status:** Draft v0.1 — for independent governance review
+**Class:** Constitutional Engineering Document
+**Owner:** Founder / Product Owner
+**Depends on:** RES-001 (AI Role Engineering Standard), RES-002 (AI Role Specification Standard), POS-RS (Project Operating System Requirements Specification), PM-SPEC, ARCH-SPEC
+**Precedence:** See §5
+
+---
+
+## Document Control
+
+| Field | Value |
+|---|---|
+| Document ID | RISK-001 |
+| Title | Organizational Risk Classification Standard |
+| Version | 0.1.0 |
+| Status | Draft |
+| Depends on | RES-001, RES-002, POS-RS, PM-SPEC, ARCH-SPEC |
+| Review cycle | Proposed quarterly; see §25 Open Questions |
+
+---
+
+## 1. Purpose
+
+This standard defines **how much organizational governance is required before a given piece of work may proceed**, by assigning every unit of work to exactly one Risk Class and binding each Risk Class to a fixed set of governance requirements.
+
+This standard does not define priority, scheduling, or resourcing — those remain the Project Manager's domain under PM-SPEC. It does not define technical correctness — that remains the System Architect's domain under ARCH-SPEC. It defines a single, orthogonal axis: **how much process a piece of work must pass through before it is allowed to become real**, independent of how urgent, valuable, or technically interesting that work is.
+
+**RISK-001-REQ-1.1:** Every unit of work tracked by the POS MUST be assigned exactly one Risk Class before it may proceed past the boundary defined in §12 (Approval Requirements).
+
+**RISK-001-REQ-1.2:** Risk Class is a governance input, not a priority input. No role, human or AI, may treat Risk Class as a substitute for, or proxy of, scheduling priority (see §7 Organizational Philosophy).
+
+---
+
+## 2. Scope
+
+**RISK-001-REQ-2.1:** This standard applies to all work items, artifacts, and decisions tracked by the POS across every product the organization builds (the trading application, the market-intelligence platform, the POS itself, and any future product), and to changes to the governance corpus itself (§5.4).
+
+**RISK-001-REQ-2.2 (Non-Scope):** This standard does not define:
+- Technical acceptance criteria (ARCH-SPEC's domain).
+- Scheduling or resourcing (PM-SPEC's domain).
+- The POS's implementation (POS-RS governs requirements only).
+- Any specific Risk Class's *technical* review checklist beyond the minimum governance floor defined here — a Risk Class's governance requirements are a floor other standards may raise, never a technical specification in themselves.
+
+**RISK-001-REQ-2.3:** This standard is not a cybersecurity control framework, a software risk register, or a trading-risk-management document. Where those concerns exist, they are addressed by other documents; this standard only determines *how much governance those other documents' outputs must pass through*.
+
+---
+
+## 3. Definitions
+
+Terminology here is binding and MUST NOT be used inconsistently with RES-002 §4, which this document extends rather than duplicates.
+
+| Term | Definition |
+|---|---|
+| **Risk Class** | One of six fixed classifications (R0–R5, §8) determining the governance floor for a unit of work. |
+| **Unit of work** | Any discrete change, decision, artifact modification, or deliverable tracked as a POS work item. |
+| **Governance floor** | The minimum required review, approval, evidence, verification, escalation, rollback, merge, deployment, and acceptance requirements for a given Risk Class (§10). A floor may be raised by manual override (§9) but never lowered. |
+| **Deterministic classification** | A classification produced by applying fixed, stated rules to a unit of work's declared inputs, such that any two correctly-operating classifiers (human or AI) produce the same result from the same inputs. |
+| **Manual override** | A human- or role-initiated reclassification that raises a unit of work's effective Risk Class above its deterministic minimum. |
+| **Effective Risk Class** | The Risk Class actually governing a unit of work: the higher of (a) the deterministic classification and (b) any manual override (§9). |
+| **Priority** | A PM-SPEC-governed scheduling concept, wholly independent of Risk Class (§7.2). |
+| **Governance requirement** | Any one of the specific obligations listed in §10.1 attached to a Risk Class. |
+
+---
+
+## 4. Relationship to RES Documents
+
+**RISK-001-REQ-4.1:** This standard does not redefine authority tiers, artifact ownership, rehydration, or role structure — those remain governed by RES-001 and RES-002 in full. This standard introduces a new, orthogonal classification axis (Risk Class) that *modulates* how those existing mechanisms apply to a given unit of work, without altering their definitions.
+
+**RISK-001-REQ-4.2:** Where this standard requires a governance action (e.g., "Independent Review required"), the *mechanics* of that action (how Independent Review is instantiated, what a review record contains) are governed by RES-002 §13 and §20 and POS-RS §7.11; this standard only determines *whether and at what tier* that action is triggered for a given Risk Class.
+
+**RISK-001-REQ-4.3:** Where this standard requires an approval action, the authority performing that approval (Founder, Architect, PM) is determined by the applicable RoleSpec's Authority Definition (RES-002 §8); this standard states *which decision classes require which tier of approval at minimum*, not who holds that tier — that remains each RoleSpec's own declaration.
+
+**RISK-001-REQ-4.4:** Any future amendment to this standard that would alter an existing RoleSpec's Authority Definition (RES-002 §8) is itself a `MAJOR` change under RES-002 §19 for every RoleSpec so affected, and MUST be reviewed against those RoleSpecs before promotion.
+
+**RISK-001-REQ-4.5:** This standard is itself a governance artifact (see §8, R4/R5) and is therefore subject to its own classification rules once active — see §22 (Regression Expectations) and §24 (Evolution Policy) for the reflexive application.
+
+---
+
+## 5. Precedence
+
+**RISK-001-REQ-5.1:** Where this standard's governance floor for a unit of work conflicts with a lower requirement stated elsewhere (e.g., a RoleSpec that appears to permit unilateral action on something this standard classifies at R3 or above), this standard's floor governs. A RoleSpec MUST NOT be read as silently exempting a unit of work from its deterministic Risk Class.
+
+**RISK-001-REQ-5.2:** The Constitution and Governance Handbook remain supreme over this standard on all matters of ultimate human authority; this standard operationalizes *how much process precedes* a decision, not *who* ultimately holds authority over it.
+
+**RISK-001-REQ-5.3:** RES-001 and RES-002 remain supreme over this standard on matters of role structure and specification format; this standard consumes those mechanisms rather than redefining them (§4).
+
+---
+
+## 6. Organizational Philosophy
+
+**RISK-001-REQ-6.1 (Single classification):** Every unit of work belongs to exactly one Risk Class at any given time. A unit of work MUST NOT be simultaneously governed by two different Risk Classes' floors.
+
+**RISK-001-REQ-6.2 (Highest applicable governs):** Where a unit of work could plausibly be classified under more than one Risk Class's criteria (§8), its effective Risk Class is the **highest** applicable classification, without exception. This applies before any manual override is considered (§9).
+
+**RISK-001-REQ-6.3 (Risk ≠ priority, strict separation):** Risk Class MUST NOT be used, by any role, as an input to scheduling, sequencing, or prioritization decisions. PM-SPEC's Decision Rights over scheduling (PM-SPEC §3) are unaffected by a unit of work's Risk Class; a high-risk item is not thereby high-priority, and a low-risk item is not thereby low-priority. The two concepts are computed and consumed independently, even though both may appear in the same work-item record.
+
+**RISK-001-REQ-6.4 (Determinism as a goal, not a guarantee):** Risk classification SHOULD be deterministic wherever the applicable criteria can be reduced to checkable properties of the unit of work (e.g., "touches broker integration code" is checkable; "feels risky" is not). Where full determinism is not yet achievable (§14 Bootstrap Behavior), classification MUST still follow the same fixed criteria applied consistently, even if applied manually.
+
+**RISK-001-REQ-6.5 (Floor, never ceiling, for humans):** No human or AI role may manually assign a Risk Class lower than the deterministic minimum computed from a unit of work's declared properties. Manual action may only raise the effective classification (§9).
+
+---
+
+## 7. Priority Independence (Elaboration)
+
+This section elaborates §6.3 because conflating risk and priority was identified as a specific outcome this standard must prevent, and a single sentence in the philosophy section is not sufficient to make the separation operationally durable.
+
+**RISK-001-REQ-7.1:** A POS work-item record MUST store Risk Class and Priority as two separate, independently-settable fields. No default computation may derive one from the other.
+
+**RISK-001-REQ-7.2:** A RoleSpec or work-item template MUST NOT present Risk Class and Priority as a single combined field (e.g., a single "urgency" score). Where a role needs to reason about both together (e.g., PM sequencing high-priority, high-risk work), it MUST do so by reading both fields independently, not a derived composite.
+
+**RISK-001-REQ-7.3:** Raising a unit of work's priority MUST NOT be used as a justification for lowering, bypassing, or expediting its governance floor. Urgency does not reduce required review, approval, evidence, or verification (§10); at most, urgency may justify parallelizing governance steps that do not have a sequencing dependency on each other, never omitting them.
+
+---
+
+## 8. Risk Classes
+
+**RISK-001-REQ-8.1:** The organization recognizes exactly six Risk Classes, R0 through R5, in strictly increasing order of governance floor. No work item may be assigned a Risk Class outside this set, and no seventh class may be introduced except as a `MAJOR` amendment to this standard (§24).
+
+| Class | Name | Representative Examples | Direct Effect on Production Financial Behavior or Constitutional Governance? |
+|---|---|---|---|
+| **R0** | Administrative | Formatting, documentation, meeting notes, planning, roadmap cleanup | No |
+| **R1** | Internal Engineering | Tooling, internal scripts, refactoring, generated documentation, developer experience | No |
+| **R2** | Technical Change | APIs, schemas, infrastructure, architecture, internal technical behavior with no direct effect on approved trading or organizational policy | No |
+| **R3** | Protected Technical | Broker integrations, authentication, security, strategy implementation, market-data interpretation, recommendation logic, production financial behavior | Yes — technical/financial |
+| **R4** | Organizational Governance | RES documents, RoleSpecs, POS requirements, governance rules, approval rules, interaction standards, execution profiles, authority definitions | Yes — governance |
+| **R5** | Constitutional | Constitutional philosophy, authority hierarchy, human authority, canonical truth model, organizational operating model, foundational governance | Yes — foundational |
+
+**RISK-001-REQ-8.2:** These classes and their examples are illustrative anchors, not an exhaustive enumeration. A unit of work not obviously matching a listed example MUST still be classified by matching the closest applicable *criterion* (the column definitions and the qualitative description), not left unclassified pending a future update to the examples list.
+
+**RISK-001-REQ-8.3:** This standard, and the RES-001/RES-002/POS-RS corpus, are themselves R4 (Organizational Governance) artifacts, except for statements of foundational authority or canonical-truth philosophy, which are R5 (Constitutional). A change to this standard's governance-floor tables (§10) is R4; a change to §6 (Organizational Philosophy) or §1 (Purpose) touching the risk-vs-priority separation itself is R5, as it alters foundational operating model, not merely a rule within it.
+
+---
+
+## 9. Deterministic Classification and Multiple-Class Resolution
+
+**RISK-001-REQ-9.1:** Deterministic classification is computed by evaluating a unit of work against the criteria in §8's table (and any future POS-encoded rule set, §16) and selecting the single highest-matching class per §6.2.
+
+**RISK-001-REQ-9.2:** Where a unit of work's declared properties match criteria in more than one Risk Class (e.g., a change that is both an internal refactor (R1) and touches broker-integration code (R3)), the effective Risk Class MUST be the highest match (R3 in this example), computed before considering any manual override.
+
+**RISK-001-REQ-9.3:** A unit of work's properties used for classification (what artifacts it touches, what systems it affects) MUST be declared explicitly as part of the work item, not inferred silently by the classifying role. An undeclared property that would have raised the classification, if later discovered, requires immediate reclassification and, if governance already proceeded under the lower class, an incident record (POS-RS §7.7).
+
+**RISK-001-REQ-9.4:** Reclassification upward at any point MUST immediately apply that class's full governance floor to any remaining ungoverned steps; it does not retroactively invalidate governance steps already correctly completed under the lower class, but any step still pending MUST be re-evaluated against the new floor.
+
+### 9.1 Manual Override Rules
+
+**RISK-001-REQ-9.1.1:** Any role holding CONSULT or higher authority (RES-002 §8.1) over a unit of work MAY manually raise its effective Risk Class above the deterministic minimum, with a stated rationale recorded as a POS decision record (POS-RS §7.6).
+
+**RISK-001-REQ-9.1.2:** No role, including the Founder, may manually lower a unit of work's effective Risk Class below its deterministic minimum. This is an absolute constraint, not a tiered authority right — it is not subject to any DECIDE/RECOMMEND tier, because it is not a decision this standard grants to any role (RES-002 §8.3's default-deny principle applies: an action not explicitly granted is denied, and lowering below the deterministic floor is never explicitly granted).
+
+**RISK-001-REQ-9.1.3:** A manual override raising classification MUST be logged with the specific rationale and remains in effect for the life of the unit of work unless a subsequent, separately-justified override further raises it. Overrides are never silently reverted to the deterministic minimum.
+
+---
+
+## 10. Governance Requirements
+
+**RISK-001-REQ-10.1:** Each Risk Class carries a fixed governance floor across the following dimensions: required review, required approval, required evidence, required verification, escalation posture, rollback expectation, merge authority, deployment authority, and acceptance rules. These are floors: any RoleSpec or product-specific standard MAY impose additional requirements, but MUST NOT impose fewer than the applicable row below.
+
+| Dimension | R0 | R1 | R2 | R3 | R4 | R5 |
+|---|---|---|---|---|---|---|
+| **Review** | None required | Self-review by acting role | Peer or Architect review | Independent Review mandatory (RES-002 §13.1) | Independent Review + Structural Review (RES-002 §20) | Independent Review + Structural Review + Constitutional Review (§11.4) |
+| **Approval** | Acting role (implicit) | Acting role | Architect (technical) or PM (delivery), per domain | Architect approval mandatory; Founder INFORM | Founder approval mandatory (RES-002 §22.2 pattern) | Founder approval mandatory, no delegation permitted |
+| **Evidence** | None required | Informal (commit message sufficient) | Test result or equivalent artifact (POS-RS §7.5) | Test result + dry-run output + data citation as applicable | Regression test evidence (RES-002 §21) + changelog | Regression test evidence + changelog + explicit rationale tied to constitutional principle affected |
+| **Verification** | None | Author-asserted | Reviewer-asserted | Independent Reviewer verifies against Architect-defined acceptance criteria (ARCH-SPEC §6) | Structural Review verifies conformance to RES-002 §6/§20 | Same as R4, plus verification that no lower-tier document silently conflicts (§5.1) |
+| **Escalation posture** | N/A | Self-resolve; escalate only if blocked | Escalate per role's Escalation Rules (RES-002 §16) if ambiguous | Any ambiguity escalates to Architect/Founder before proceeding | Any ambiguity escalates to Founder; no AI role may resolve unilaterally | Any ambiguity halts work pending Founder resolution; no default-forward path (§16.3 of RES-002 does not apply at R5) |
+| **Rollback expectation** | Not applicable | Recommended, not mandatory | Mandatory rollback plan for infra/schema changes | Mandatory, tested rollback plan required before deployment | Mandatory documented reversion path (supersession per RES-001 §9) | Mandatory documented reversion path; reversion itself requires Founder approval at R5 |
+| **Merge authority** | Acting role | Acting role, or PM per delivery norms | Architect or delegated reviewer | Founder only (per existing organizational practice) | Founder only | Founder only |
+| **Deployment authority** | N/A | PM/Architect per existing delegation | Architect certifies readiness; Founder authorizes (ARCH-SPEC §3 pattern) | Founder authorizes; Architect certifies; Independent Review confirms | Founder authorizes; treated as a governance release (POS-RS §7.9) | Founder authorizes; treated as a constitutional amendment event |
+| **Acceptance rules** | Self-accepted | Self-accepted or PM-accepted | Distinct acceptor from assignor if PM-SPEC/ARCH-SPEC scope applies | Distinct acceptor mandatory (RES-002 §13.1) | Distinct acceptor mandatory; Founder is final acceptor | Distinct acceptor mandatory; Founder is sole acceptor |
+
+**RISK-001-REQ-10.2:** A unit of work MUST NOT proceed past any governance dimension's floor for its effective Risk Class without satisfying that dimension. Partial satisfaction (e.g., approval obtained but evidence missing) does not permit proceeding.
+
+**RISK-001-REQ-10.3:** The table in §10.1 is itself an R4 artifact (§8.3); any change to a cell's requirement is a `MAJOR` amendment to this standard.
+
+---
+
+## 11. Approval Requirements (Elaboration)
+
+**RISK-001-REQ-11.1:** "Approval" in §10.1 means the specific authority named in that row has recorded a POS decision record (POS-RS §7.6) with status `approved` before the unit of work may proceed to merge/deployment.
+
+**RISK-001-REQ-11.2:** Approval MUST NOT be inferred from silence, delay, or the absence of an objection. An explicit `approved` record is required at R2 and above; R0/R1 MAY rely on implicit self-approval per §10.1.
+
+**RISK-001-REQ-11.3:** Approval authority named in §10.1 is a floor, not a ceiling: a RoleSpec MAY require additional approvals (e.g., a specific role's RoleSpec requiring its own sign-off), but MUST NOT substitute a lower-tier approver for the one named here.
+
+**RISK-001-REQ-11.4 (Constitutional Review, R5 only):** For R5 units of work, "Constitutional Review" means an explicit, separately-recorded check that the change does not silently alter human authority, the canonical-truth model, or the fixed authority hierarchy (RES-001 §4) without those specific changes being the stated subject of the amendment. This is a distinct check from Structural Review (RES-002 §20) and MUST be recorded separately.
+
+---
+
+## 12. Independent Review Requirements (Elaboration)
+
+**RISK-001-REQ-12.1:** Independent Review, wherever required by §10.1 (R3 and above), follows the mechanics defined in RES-002 §13.1 and produces a POS review record per POS-RS §7.11. This standard adds no new review mechanism; it only determines the classes at which review is mandatory versus optional.
+
+**RISK-001-REQ-12.2:** The Independent Review instance for an R3+ unit of work MUST NOT be the same instance (or role, where a role would otherwise be permitted to self-review at lower classes) that authored or assigned the work, consistent with RES-002 §13.1's assignment/acceptance separation.
+
+---
+
+## 13. Verification and Evidence Expectations (Elaboration)
+
+**RISK-001-REQ-13.1:** "Verification" is the act of checking evidence against acceptance criteria; "evidence" is the artifact being checked. §10.1 fixes the minimum evidence type and verifying party per class; this standard does not define what constitutes technically sufficient evidence content for a given change — that is ARCH-SPEC's acceptance-criteria domain (ARCH-SPEC §6).
+
+**RISK-001-REQ-13.2:** Evidence for R3+ units of work MUST be typed per POS-RS §15.1 (e.g., `test_result`, `dry_run_output`, `data_citation`) so that Automation can validate evidence-type-appropriateness before the unit of work is marked review-ready (POS-RS §10.3).
+
+---
+
+## 14. Merge/Deployment Implications (Elaboration)
+
+**RISK-001-REQ-14.1:** Merge authority and deployment authority in §10.1 are independent of technical readiness certification: Architect certification of technical readiness (ARCH-SPEC §3) is necessary but never sufficient at R2 and above; the named approver in §10.1 must additionally act.
+
+**RISK-001-REQ-14.2:** No unit of work may be deployed to a production system carrying financial or governance consequence (R3–R5) without a rollback plan meeting the §10.1 row's expectation existing and being reviewed before deployment, not drafted retroactively after an incident.
+
+---
+
+## 15. Escalation Rules (Elaboration)
+
+**RISK-001-REQ-15.1:** Escalation triggered by ambiguity in Risk Class assignment itself (i.e., a role is unsure which class applies) is always resolved upward: when in doubt, classify at the higher candidate class and escalate the ambiguity for confirmation, never proceed at the lower class pending resolution.
+
+**RISK-001-REQ-15.2:** Escalation postures in §10.1 govern *whether* a default-forward path (RES-002 §16.3) is permitted for CONSULT relationships tied to a unit of work; at R4–R5, no default-forward path is permitted regardless of what an individual RoleSpec's §16.3 provision might otherwise allow — this standard's stricter rule controls per §5.1.
+
+---
+
+## 16. Relationship to the POS
+
+**RISK-001-REQ-16.1:** The POS is the canonical system of record for every unit of work's declared properties, deterministic classification result, any manual overrides with rationale, and the full governance-dimension satisfaction state (§10.1) at any point in time.
+
+**RISK-001-REQ-16.2:** The POS MUST prevent (or, where not yet technically enforceable, detect and flag, per POS-RS §16.2's enforcement/detection distinction) any attempt to advance a unit of work past a governance dimension's floor without the required record existing.
+
+**RISK-001-REQ-16.3:** The POS MUST retain full history of classification, override, and governance-satisfaction events per unit of work, immutably, consistent with POS-RS §8.1 (Auditability).
+
+---
+
+## 17. Automation Expectations
+
+**RISK-001-REQ-17.1:** The POS SHOULD (Recommendation, escalating to Requirement once technically implemented per §18 Bootstrap Behavior) compute deterministic Risk Class automatically from a unit of work's declared properties, applying §8's criteria and §6.2's highest-applicable rule without human judgment, whenever those properties are structurally declared (e.g., "this change touches file path X mapped to broker-integration scope").
+
+**RISK-001-REQ-17.2:** Automation MAY compute and surface a deterministic classification but MUST NOT be granted authority to lower a classification below what a human override has set, nor to approve, merge, or deploy on the strength of its own classification alone — classification is deterministic bookkeeping (RES-001 §13.3); the governance actions it triggers remain role-held decisions.
+
+**RISK-001-REQ-17.3:** Where Automation's computed classification and a role's manual assessment differ, the higher of the two governs (§6.2, §9.1.2), and the discrepancy MUST be logged, not silently resolved in favor of either source.
+
+---
+
+## 18. Failure Behavior
+
+**RISK-001-REQ-18.1:** If a unit of work's Risk Class cannot be determined with confidence (neither deterministic rule nor manual assessment clearly applies), the default behavior is to classify at the higher of the plausible candidates (§15.1) and escalate for confirmation before any governance dimension is marked satisfied.
+
+**RISK-001-REQ-18.2:** If a governance dimension's required record (approval, evidence, review) is missing or invalid at the moment a unit of work is proposed for merge or deployment, the unit of work MUST be blocked at that step; no dimension may be skipped and back-filled after the fact.
+
+**RISK-001-REQ-18.3:** Discovery, after the fact, that a unit of work proceeded under an incorrect (too-low) classification is an incident (POS-RS §7.7), not merely a data-correction event: it MUST produce an incident record identifying what governance was missed and whether any consequence resulted, independent of whether the underlying work was otherwise correct.
+
+---
+
+## 19. Bootstrap Behavior (Before Automation Exists)
+
+**RISK-001-REQ-19.1:** Before the POS implements automated deterministic classification (§17.1), every unit of work MUST still be classified manually against the fixed criteria in §8, by the role assigning or performing the work, with the classification and rationale recorded as a POS artifact exactly as if Automation had produced it.
+
+**RISK-001-REQ-19.2:** Manual bootstrap-era classification is held to the same §6.4 determinism goal: two different roles presented with the same declared properties MUST be expected to reach the same classification. A recurring discrepancy between manual classifiers on similar work is itself a signal that §8's criteria need clarification (§24 Evolution Policy), not that manual judgment should be trusted over the written criteria.
+
+**RISK-001-REQ-19.3:** Bootstrap-era manual classifications are not exempt from any governance dimension in §10.1; the absence of Automation reduces *who* computes the classification, never *what* governance floor results from it.
+
+**RISK-001-REQ-19.4:** Once Automation is capable of deterministic classification for a given category of work, that category's manual classification step is retired for that category specifically (not organization-wide in one cut-over), and the transition itself is logged as a POS release record (POS-RS §7.9).
+
+---
+
+## 20. Regression Expectations
+
+**RISK-001-REQ-20.1:** This standard's classification criteria (§8) and governance table (§10.1) MUST be validated against a maintained set of representative scenarios (at minimum one per Risk Class, plus at least two multiple-class-resolution scenarios per §6.2 and one manual-override scenario per §9.1), analogous to RES-002 §21's regression discipline.
+
+**RISK-001-REQ-20.2:** Any amendment to §8 or §10.1 MUST NOT be promoted (§24) without passing the existing regression scenario set or explicitly revising a scenario with stated rationale.
+
+**RISK-001-REQ-20.3:** A regression scenario demonstrating the risk/priority independence property (§7) MUST be included: a case where a high-priority, low-risk item and a low-priority, high-risk item are both processed correctly according to their respective, independently-determined governance floors and schedules.
+
+---
+
+## 21. Versioning
+
+**RISK-001-REQ-21.1:** This standard uses the semantic versioning scheme defined in RES-001 §10 and RES-002 §19: `MAJOR` for changes to Risk Class definitions (§8), governance-floor table cells (§10.1), or the risk/priority independence principle (§6–§7); `MINOR` for changes to elaboration sections (§11–§19) that do not alter a floor; `PATCH` for non-behavioral clarification.
+
+**RISK-001-REQ-21.2:** Per RES-002 §19.2, version numbers for this standard are monotonic and non-reusable, enforced by the POS once available, and by manual discipline during bootstrap (§19).
+
+---
+
+## 22. Evolution Policy
+
+**RISK-001-REQ-22.1:** This standard is an R4 artifact except where noted otherwise (§8.3); amendments follow the R4 governance floor defined in its own §10.1 table — meaning a change to this document requires Founder approval, Independent Review, and Structural Review, applied reflexively to itself.
+
+**RISK-001-REQ-22.2:** A proposed change to §6 (Organizational Philosophy) affecting the risk/priority independence principle itself is classified R5 under this standard's own criteria (§8.3) and requires Constitutional Review (§11.4) in addition to the standard R4 floor.
+
+**RISK-001-REQ-22.3:** Introducing a seventh Risk Class, or removing one of R0–R5, is a `MAJOR`, R5-classified change requiring the fullest governance floor this standard defines, since it alters the foundational classification model every other governance document depends on.
+
+**RISK-001-REQ-22.4:** As with RES-002 §22.4, this standard's own evolution is subject to the same discipline it imposes on others: any revision is versioned, reviewed, and regression-tested against the current governance corpus before promotion to `active`.
+
+---
+
+## 23. Non-Goals
+
+To prevent scope drift (a named risk in the assignment context), this standard explicitly does not:
+- Define technical review checklists (ARCH-SPEC's domain).
+- Define scheduling or sequencing rules (PM-SPEC's domain).
+- Specify POS implementation details for automated classification (POS-RS governs requirements; a future POS technical design governs implementation, per POS-RS §23's requirements/implementation-suggestion distinction).
+- Define cybersecurity controls, a software risk register, or trading-specific risk management — those may reference this standard's classes but are not defined by it.
+
+---
+
+## 24. Open Questions
+
+- **OQ-24.1:** Whether R2 "Architect or delegated reviewer" merge authority (§10.1) should be tightened to Founder-only, consistent with the organization's current universal practice of Founder-only merges, or whether this standard should formalize a narrower delegation path once volume justifies it, is not resolved by the approved decisions provided and requires Founder clarification before this standard leaves `draft`.
+- **OQ-24.2:** The precise structural/technical properties the POS will eventually use to compute deterministic classification (§17.1) — e.g., file-path-to-scope mapping, dependency-graph analysis — are implementation detail intentionally deferred to a future POS technical design, consistent with §23's non-goals; this standard fixes only the classification *criteria* (§8), not the *mechanism* for evaluating them.
+- **OQ-24.3:** Whether a recurring manual-classification discrepancy during the bootstrap period (§19.2) should trigger a mandatory criteria-clarification review after a fixed number of occurrences, or be left to Founder discretion per instance, is unresolved and flagged for a future amendment once bootstrap-era data exists.
