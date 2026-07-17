@@ -1,7 +1,10 @@
 ---
 # Work Item Schema — JSON Schema Draft 2020-12 expressed as YAML
-# Note: The constraint that effective_risk_class may not fall below deterministic_class
-# cannot be expressed purely in JSON Schema. This is enforced by the POS validator.
+#
+# Acceptance prerequisites (validator responsibility, not expressible in JSON Schema):
+#   - accepted status requires: complete result, completed review,
+#     acceptance evidence, and a decided Founder decision.
+#   - effective_risk_class may not fall below deterministic_class.
 "$schema": "https://json-schema.org/draft/2020-12/schema"
 "$id": "asa2/pos/work-item"
 title: Work Item
@@ -16,14 +19,19 @@ required:
   - owner_role
   - acceptance_authority
   - dependencies
-  - artifacts
+  - risk_record
+  - assignments
+  - results
+  - reviews
   - evidence
+  - decisions
+  - artifacts
   - created_at
   - updated_at
 properties:
   id:
     type: string
-    pattern: "^WI-[0-9]+"
+    pattern: "^ASA2-WORK-[0-9]+"
   title:
     type: string
     minLength: 1
@@ -73,11 +81,35 @@ properties:
     type: array
     items:
       type: string
-  artifacts:
+  risk_record:
+    type: [string, "null"]
+    description: "ID of the ASA2-RISK-* record for this work item"
+  assignments:
     type: array
     items:
       type: string
+    description: "IDs of assignment records"
+  results:
+    type: array
+    items:
+      type: string
+    description: "IDs of worker result records"
+  reviews:
+    type: array
+    items:
+      type: string
+    description: "IDs of review records"
   evidence:
+    type: array
+    items:
+      type: string
+    description: "IDs of evidence records"
+  decisions:
+    type: array
+    items:
+      type: string
+    description: "IDs of decision records"
+  artifacts:
     type: array
     items:
       type: string

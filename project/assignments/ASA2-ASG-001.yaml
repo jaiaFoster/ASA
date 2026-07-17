@@ -1,0 +1,77 @@
+---
+id: ASA2-ASG-001
+work_item_id: ASA2-WORK-001
+risk_record: ASA2-RISK-001
+worker_type: implementation_worker
+status: submitted
+base_commit: a7174f931b0ece3ec813460ce90ace525ad83f51
+objective: >
+  Implement the first complete POS Lite lifecycle per POS-BOOTSTRAP-02 assignment:
+  normalize governance manifest, add risk-record schema, create lifecycle records,
+  extend validator with cross-record and lifecycle checks, update generator to use
+  real records with deterministic output, fix CI dependencies, and expand test suite
+  to 30+ tests covering valid and invalid lifecycle states.
+allowed_scope:
+  - tools/pos/validate.py
+  - tools/pos/generate.py
+  - tools/pos/schemas.py
+  - tools/pos/transitions.py
+  - tools/pos/requirements.txt
+  - tools/pos/README.md
+  - project/schemas/
+  - project/work/
+  - project/assignments/
+  - project/results/
+  - project/decisions/
+  - project/reviews/
+  - project/evidence/
+  - project/risks/
+  - project/generated/
+  - project/BOOTSTRAP_STATUS.yaml
+  - project/README.md
+  - tests/pos/
+  - governance/manifest.yaml
+  - governance/README.md
+  - .github/workflows/validate-pos.yml
+  - README.md
+  - AGENTS.md
+  - CURRENT_STATE.md
+  - MANAGER_INBOX.md
+forbidden_scope:
+  - governance/frozen/ (no body edits to frozen documents)
+  - Any application features, trading logic, broker integrations
+  - Deployment automation, merge automation
+  - Autonomous approval logic of any kind
+  - Unrelated refactors outside POS scope
+  - Creation of new permanent organizational roles
+  - Changes to authority hierarchy
+required_tests:
+  - All records parse as valid YAML
+  - All records validate against their schemas
+  - Cross-record references resolve
+  - Invalid lifecycle states fail validation
+  - Risk class floor enforcement fails on bad input
+  - Generator output is deterministic
+  - Generated files contain the required warning banner
+  - Frozen file hashes match manifest
+  - Validator output avoids forbidden authority language
+required_outputs:
+  - project/schemas/risk-record.schema.yaml
+  - project/work/ASA2-WORK-001.yaml
+  - project/risks/ASA2-RISK-001.yaml
+  - project/assignments/ASA2-ASG-001.yaml
+  - project/results/ASA2-RESULT-001.yaml
+  - project/reviews/ASA2-REVIEW-001.yaml
+  - project/evidence/ASA2-EVIDENCE-001.yaml
+  - project/decisions/ASA2-DECISION-001.yaml
+  - Updated tools/pos/validate.py with cross-record validation
+  - Updated tools/pos/generate.py using real records
+  - Updated tools/pos/schemas.py with new constants
+  - New tools/pos/transitions.py
+  - Updated tools/pos/requirements.txt with pytest
+  - Expanded tests/pos/test_repository_bootstrap.py
+result_path: project/results/ASA2-RESULT-001.yaml
+assigned_by: Founder
+acceptance_authority: Founder
+created_at: "2026-07-17T00:00:00Z"
+updated_at: "2026-07-17T00:00:00Z"

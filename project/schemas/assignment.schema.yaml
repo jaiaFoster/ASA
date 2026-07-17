@@ -6,6 +6,7 @@ type: object
 required:
   - id
   - work_item_id
+  - risk_record
   - worker_type
   - status
   - base_commit
@@ -22,9 +23,12 @@ required:
 properties:
   id:
     type: string
-    pattern: "^ASSIGN-[0-9]+"
+    pattern: "^ASA2-ASG-[0-9]+"
   work_item_id:
     type: string
+  risk_record:
+    type: [string, "null"]
+    description: "ID of the risk record for this assignment's work item"
   worker_type:
     type: string
   status:
@@ -39,6 +43,7 @@ properties:
       - cancelled
   base_commit:
     type: string
+    minLength: 1
   objective:
     type: string
     minLength: 1
@@ -46,10 +51,12 @@ properties:
     type: array
     items:
       type: string
+    minItems: 1
   forbidden_scope:
     type: array
     items:
       type: string
+    minItems: 1
   required_tests:
     type: array
     items:
