@@ -1,26 +1,48 @@
 ---
 project: ASA2
-phase: POS_BOOTSTRAP
-status: awaiting_founder_acceptance
+phase: ROLE_BOOTSTRAP
+status: awaiting_founder_merge
 
 governance:
   frozen: true
   manifest: governance/manifest.yaml
   amendment_register: governance/amendments/GOV-AMD-001.md
   interpretation_rule: amendments_apply_over_frozen_documents
-  generated_from_pos: true
+  note: all GOV-AMD-001 amendments are Proposed, none Accepted
+
+pos_status:
+  bootstrap_01: merged_and_accepted
+  bootstrap_02:
+    branch: pos-bootstrap-02
+    pr: 2
+    status: merged_and_accepted
+    note: >
+      Merged by Founder into main. Constitutes acceptance per the GitHub
+      acceptance model. No separate acceptance record required.
+
+role_package_status:
+  manager:
+    status: prepared
+    instantiated: false
+    instructions: roles/manager/INSTRUCTIONS.md
+    instantiation_prompt: roles/manager/INSTANTIATION_PROMPT.md
+  architect:
+    status: prepared
+    instantiated: false
+    instructions: roles/architect/INSTRUCTIONS.md
+    instantiation_prompt: roles/architect/INSTANTIATION_PROMPT.md
+    first_assignment: roles/architect/FIRST_ASSIGNMENT.md
 
 current_objective:
-  id: POS-BOOTSTRAP-02
-  title: Complete first Git-backed POS Lite lifecycle
+  id: ROLE-BOOTSTRAP-01
+  title: Prepare Manager and Architect role packages
   status: review
 
 next_action:
-  id: FOUNDER-DECISION-001
   description: >
-    Founder reviews POS-BOOTSTRAP-02 implementation (branch pos-bootstrap-02),
-    inspects the diff, runs validation and tests, and records acceptance or
-    requested changes in ASA2-DECISION-001.
+    Founder reviews and merges this PR (role-bootstrap-01).
+    Then: instantiate Manager, instantiate Architect, assign ARCH-POS-001.
+    See roles/FOUNDER_INSTANTIATION_GUIDE.md for exact steps.
 
 authority:
   permanent_role_creation: founder_only
@@ -28,6 +50,7 @@ authority:
   final_acceptance: founder_only
   merge: founder_only
   deployment: founder_only
+  acceptance_model: founder_merge_is_acceptance
 
 automation:
   mode: advisory_and_mechanical_only

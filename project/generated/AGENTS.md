@@ -14,12 +14,12 @@ Regenerate with: python tools/pos/generate.py
 ## Project
 
 **Name:** ASA2
-**Phase:** POS_BOOTSTRAP
+**Phase:** ROLE_BOOTSTRAP
 
 ## Current Objective
 
-**ID:** POS-BOOTSTRAP-02
-**Title:** Complete first Git-backed POS Lite lifecycle
+**ID:** ROLE-BOOTSTRAP-01
+**Title:** Prepare Manager and Architect role packages
 **Status:** review
 
 ## Current Work Item
