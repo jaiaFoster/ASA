@@ -1,0 +1,63 @@
+---
+# Review schema.
+# NOTE: review completion does NOT constitute automatic approval.
+# A complete review is a record that a review occurred and what was found.
+# Approval authority remains with the designated human authority.
+"$schema": "https://json-schema.org/draft/2020-12/schema"
+"$id": "asa2/pos/review"
+title: Review
+type: object
+required:
+  - id
+  - subject_type
+  - subject_id
+  - reviewer
+  - reviewer_role
+  - status
+  - scope
+  - findings
+  - evidence_reviewed
+  - conclusion
+  - created_at
+  - completed_at
+properties:
+  id:
+    type: string
+    pattern: "^REV-[0-9]+"
+  subject_type:
+    type: string
+  subject_id:
+    type: string
+  reviewer:
+    type: string
+  reviewer_role:
+    type: string
+  status:
+    type: string
+    enum:
+      - requested
+      - in_progress
+      - changes_requested
+      - complete
+      - cancelled
+  scope:
+    type: string
+    minLength: 1
+  findings:
+    type: array
+    items:
+      type: object
+      additionalProperties: true
+  evidence_reviewed:
+    type: array
+    items:
+      type: string
+  conclusion:
+    type: [string, "null"]
+  created_at:
+    type: string
+    format: date-time
+  completed_at:
+    type: [string, "null"]
+    format: date-time
+additionalProperties: false

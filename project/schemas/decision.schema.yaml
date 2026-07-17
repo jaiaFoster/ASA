@@ -1,0 +1,60 @@
+---
+"$schema": "https://json-schema.org/draft/2020-12/schema"
+"$id": "asa2/pos/decision"
+title: Decision
+type: object
+required:
+  - id
+  - title
+  - question
+  - status
+  - decision_authority
+  - context
+  - options
+  - decision
+  - rationale
+  - affected_records
+  - created_at
+  - decided_at
+properties:
+  id:
+    type: string
+    pattern: "^DEC-[0-9]+"
+  title:
+    type: string
+    minLength: 1
+  question:
+    type: string
+    minLength: 1
+  status:
+    type: string
+    enum:
+      - proposed
+      - pending
+      - decided
+      - superseded
+      - cancelled
+  decision_authority:
+    type: string
+  context:
+    type: string
+  options:
+    type: array
+    items:
+      type: object
+      additionalProperties: true
+  decision:
+    type: [string, "null"]
+  rationale:
+    type: [string, "null"]
+  affected_records:
+    type: array
+    items:
+      type: string
+  created_at:
+    type: string
+    format: date-time
+  decided_at:
+    type: [string, "null"]
+    format: date-time
+additionalProperties: false

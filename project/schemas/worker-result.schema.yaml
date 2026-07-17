@@ -1,0 +1,55 @@
+---
+"$schema": "https://json-schema.org/draft/2020-12/schema"
+"$id": "asa2/pos/worker-result"
+title: Worker Result
+type: object
+required:
+  - id
+  - assignment_id
+  - status
+  - summary
+  - files_changed
+  - tests_run
+  - verification
+  - known_limitations
+  - unresolved_questions
+  - submitted_at
+properties:
+  id:
+    type: string
+    pattern: "^RESULT-[0-9]+"
+  assignment_id:
+    type: string
+  status:
+    type: string
+    enum:
+      - partial
+      - complete
+      - failed
+      - blocked
+  summary:
+    type: string
+    minLength: 1
+  files_changed:
+    type: array
+    items:
+      type: string
+  tests_run:
+    type: array
+    items:
+      type: string
+  verification:
+    type: object
+    additionalProperties: true
+  known_limitations:
+    type: array
+    items:
+      type: string
+  unresolved_questions:
+    type: array
+    items:
+      type: string
+  submitted_at:
+    type: string
+    format: date-time
+additionalProperties: false

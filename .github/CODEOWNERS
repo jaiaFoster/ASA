@@ -1,0 +1,13 @@
+# CODEOWNERS for ASA2 repository
+#
+# PLACEHOLDER: Replace @FOUNDER_GITHUB_USERNAME with the actual GitHub username
+# of the Founder/repository owner before merging this file.
+# This file cannot be verified automatically — requires manual Founder confirmation.
+#
+# The following paths require Founder review on all pull requests.
+
+/governance/                  @FOUNDER_GITHUB_USERNAME
+/.github/CODEOWNERS           @FOUNDER_GITHUB_USERNAME
+/.github/workflows/           @FOUNDER_GITHUB_USERNAME
+/tools/pos/                   @FOUNDER_GITHUB_USERNAME
+/project/schemas/             @FOUNDER_GITHUB_USERNAME

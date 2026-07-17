@@ -1,0 +1,27 @@
+---
+roles:
+  - id: ROLE-FOUNDER
+    name: Founder
+    type: human_authority
+    status: active
+    specification: null
+    authority:
+      - final_organizational_authority
+      - permanent_role_creation
+      - constitutional_amendment
+      - protected_approval
+      - final_acceptance
+      - merge
+      - deployment
+
+  - id: ROLE-PM
+    name: Project Manager
+    type: permanent_ai_role
+    status: specified_not_instantiated
+    specification: governance/frozen/PM-SPEC-v0.2.md
+
+  - id: ROLE-ARCH
+    name: System Architect
+    type: permanent_ai_role
+    status: specified_not_instantiated
+    specification: governance/frozen/ARCH-SPEC-v0.2.md

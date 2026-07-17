@@ -1,0 +1,57 @@
+---
+"$schema": "https://json-schema.org/draft/2020-12/schema"
+"$id": "asa2/pos/evidence"
+title: Evidence
+type: object
+required:
+  - id
+  - subject_type
+  - subject_id
+  - evidence_type
+  - location
+  - description
+  - producer
+  - collected_at
+  - integrity
+  - notes
+properties:
+  id:
+    type: string
+    pattern: "^EVID-[0-9]+"
+  subject_type:
+    type: string
+  subject_id:
+    type: string
+  evidence_type:
+    type: string
+    enum:
+      - test_output
+      - command_output
+      - screenshot
+      - log
+      - deployment_verification
+      - source_reference
+      - diff
+      - review_record
+      - manual_observation
+  location:
+    type: string
+  description:
+    type: string
+    minLength: 1
+  producer:
+    type: string
+  collected_at:
+    type: string
+    format: date-time
+  integrity:
+    type: object
+    properties:
+      method:
+        type: string
+      value:
+        type: [string, "null"]
+    additionalProperties: true
+  notes:
+    type: [string, "null"]
+additionalProperties: false

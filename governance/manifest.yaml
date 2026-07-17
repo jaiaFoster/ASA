@@ -1,0 +1,94 @@
+---
+# Governance Manifest
+# Lists every governance artifact with metadata and integrity hashes.
+# Hashes computed after files reached their final locations.
+# DO NOT edit frozen document bodies. See frozen_document_policy below.
+
+frozen_document_policy:
+  body_edits_allowed: false
+  moves_allowed: true
+  renames_allowed: true
+  amendments_applied_in_place: false
+  integrity_method: sha256
+
+documents:
+  - id: RES-001
+    filename: governance/frozen/RES-001-v0.2.md
+    class: governance_standard
+    status: frozen
+    version: "0.2"
+    sha256: "c253d1204a11c574de3774165d7603e32adf81bc56e3e7ce7f3fb0bac0bc2da2"
+    original_path: "RES-001-v0.2.md"
+    notes: null
+
+  - id: RES-002
+    filename: governance/frozen/RES-002-v0.2.md
+    class: governance_standard
+    status: frozen
+    version: "0.2"
+    sha256: "1aa7fb66cac17966da5b9d1f9d0e794bca08bd065d95e5a942a5872b0e454885"
+    original_path: "RES-002-v0.2.md"
+    notes: null
+
+  - id: RISK-001
+    filename: null
+    class: governance_standard
+    status: missing
+    version: null
+    sha256: null
+    original_path: null
+    notes: "RISK-001 was not found in the repository at bootstrap time. Do not create a synthetic version. Tracked here for completeness."
+
+  - id: PM-SPEC
+    filename: governance/frozen/PM-SPEC-v0.2.md
+    class: role_specification
+    status: frozen
+    version: "0.2"
+    sha256: "7f695f0e43c75e976b6f23d842fe1b0f457d496e7bae1678fe51361b3688ce08"
+    original_path: "PM-SPEC-v0.2.md"
+    notes: null
+
+  - id: ARCH-SPEC
+    filename: governance/frozen/ARCH-SPEC-v0.2.md
+    class: role_specification
+    status: frozen
+    version: "0.2"
+    sha256: "4114ccfcd5c08f01148b0dc90d7f94826316297fd0590881fa9e8be825cc12d6"
+    original_path: "ARCH-SPEC-v0.2.md"
+    notes: null
+
+  - id: POS-RS
+    filename: governance/frozen/POS-RS-v0.2.md
+    class: engineering_specification
+    status: frozen
+    version: "0.2"
+    sha256: "eadfedea83c306a657894ff32f8881137ebe53310425e0223c2bdae5445c4e6b"
+    original_path: "POS-RS-v0.2.md"
+    notes: null
+
+  - id: GOV-AMD-001
+    filename: governance/amendments/GOV-AMD-001.md
+    class: amendment
+    status: active
+    version: "0.2-revised"
+    sha256: "cb2d22dc0ab7bc463722fb3bdefb8da223aefbf0c3b3521bf2fc4ee2484bc5e6"
+    original_path: "governance/AMD-001-v0.2-revised.md"
+    notes: "Renamed from AMD-001-v0.2-revised.md to GOV-AMD-001.md for consistency. Content unchanged."
+
+  - id: GOV-AUDIT-001
+    filename: null
+    class: audit
+    status: missing
+    version: null
+    sha256: null
+    original_path: null
+    notes: "Primary governance audit was not found in the repository at bootstrap time. Do not create a synthetic version."
+
+  - id: RISK-001-AUDIT-001
+    filename: null
+    class: audit
+    status: missing
+    version: null
+    sha256: null
+    original_path: null
+    notes: "RISK-001 audit was not found in the repository at bootstrap time. Do not create a synthetic version."
