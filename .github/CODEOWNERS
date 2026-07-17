@@ -6,8 +6,8 @@
 #
 # The following paths require Founder review on all pull requests.
 
-/governance/                  @FOUNDER_GITHUB_USERNAME
-/.github/CODEOWNERS           @FOUNDER_GITHUB_USERNAME
-/.github/workflows/           @FOUNDER_GITHUB_USERNAME
-/tools/pos/                   @FOUNDER_GITHUB_USERNAME
-/project/schemas/             @FOUNDER_GITHUB_USERNAME
+/governance/                  @jaiaFoster
+/.github/CODEOWNERS           @jaiaFoster
+/.github/workflows/           @jaiaFoster
+/tools/pos/                   @jaiaFoster
+/project/schemas/             @jaiaFoster
