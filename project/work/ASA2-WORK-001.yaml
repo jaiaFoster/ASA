@@ -1,0 +1,61 @@
+---
+id: ASA2-WORK-001
+title: Implement POS Lite lifecycle validation
+status: review
+objective: >
+  Implement the first complete Git-backed POS Lite lifecycle covering:
+  work item, risk record, assignment, worker result, review, acceptance evidence,
+  and a pending Founder decision. Extend the validator with cross-record validation,
+  lifecycle prerequisite checks, and risk consistency checks. Update the generator
+  to use real canonical records. Add comprehensive tests.
+scope: >
+  POS tooling (tools/pos/), POS schemas (project/schemas/), POS test suite
+  (tests/pos/), generated operational views (project/generated/), and this
+  set of canonical lifecycle records. No application code, broker integrations,
+  trading logic, or autonomous authority changes.
+owner_role: ROLE-PM
+acceptance_authority: Founder
+dependencies: []
+risk:
+  declared_properties:
+    touches_governance: true
+    touches_pos_tooling: true
+    touches_production: false
+    touches_broker: false
+    touches_strategy: false
+    touches_security: false
+    touches_credentials: false
+    touches_external_users: false
+    changes_authority: false
+    changes_risk_rules: false
+    data_destructive: false
+    reversible: true
+  deterministic_class: R2
+  manual_override: null
+  effective_class: R2
+risk_record: ASA2-RISK-001
+assignments:
+  - ASA2-ASG-001
+results:
+  - ASA2-RESULT-001
+reviews:
+  - ASA2-REVIEW-001
+evidence:
+  - ASA2-EVID-001
+decisions:
+  - ASA2-DECISION-001
+artifacts:
+  - tools/pos/validate.py
+  - tools/pos/generate.py
+  - tools/pos/schemas.py
+  - tools/pos/transitions.py
+  - tools/pos/requirements.txt
+  - project/schemas/risk-record.schema.yaml
+  - project/schemas/work-item.schema.yaml
+  - project/schemas/assignment.schema.yaml
+  - project/schemas/worker-result.schema.yaml
+  - project/schemas/review.schema.yaml
+  - tests/pos/test_repository_bootstrap.py
+  - .github/workflows/validate-pos.yml
+created_at: "2026-07-17T00:00:00Z"
+updated_at: "2026-07-17T00:00:00Z"

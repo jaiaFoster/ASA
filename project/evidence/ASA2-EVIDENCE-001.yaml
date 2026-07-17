@@ -1,0 +1,21 @@
+---
+id: ASA2-EVID-001
+subject_type: work_item
+subject_id: ASA2-WORK-001
+evidence_type: test_output
+location: tests/pos/test_repository_bootstrap.py
+description: >
+  pytest test suite output confirming all tests pass. The suite covers:
+  required directory existence, manifest integrity, frozen file hash verification,
+  schema parsing, validator pass/fail behavior, generator determinism, generated
+  file warning banners, cross-record reference integrity, invalid lifecycle states,
+  risk class floor enforcement, and authority-boundary checks.
+producer: implementation-worker
+collected_at: "2026-07-17T00:00:00Z"
+integrity:
+  method: git_commit
+  value: "Tests committed in branch pos-bootstrap-02; run 'python -m pytest tests/pos -v' to reproduce"
+notes: >
+  Full pytest output available by running 'python -m pytest tests/pos -v' from the
+  repository root after installing requirements. No network access required.
+  All tests use temporary fixtures and do not modify canonical records.

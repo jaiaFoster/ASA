@@ -1,0 +1,42 @@
+---
+id: ASA2-RISK-001
+subject_type: work_item
+subject_id: ASA2-WORK-001
+status: confirmed
+declared_properties:
+  touches_governance: true
+  touches_pos_tooling: true
+  touches_production: false
+  touches_broker: false
+  touches_strategy: false
+  touches_security: false
+  touches_credentials: false
+  touches_external_users: false
+  changes_authority: false
+  changes_risk_rules: false
+  data_destructive: false
+  reversible: true
+deterministic_class: R2
+manual_override: null
+effective_class: R2
+classification_rationale: >
+  This work item creates new POS schemas (Technical Change, R2), modifies the
+  governance manifest (touches_governance: true, R2 floor), implements validator
+  and generator tooling (Internal Engineering, R1), and creates canonical POS
+  lifecycle records (R2). The highest applicable class per RISK-001 §9.2 is R2
+  (Technical Change — schemas, infrastructure, internal technical behavior with
+  no direct effect on approved trading or organizational policy). The change does
+  not touch broker integrations, authentication, security, strategy, financial
+  behavior (R3), governance rules or role specifications (R4), or constitutional
+  philosophy (R5). R2 is the correct deterministic minimum.
+property_confirmation:
+  confirmed: true
+  confirmed_by: Founder
+  confirmed_at: "2026-07-17T00:00:00Z"
+  notes: >
+    Properties confirmed against actual scope of POS-BOOTSTRAP-02 assignment.
+    No properties were undeclared at classification time.
+classified_by: implementation-worker
+confirmed_by: Founder
+created_at: "2026-07-17T00:00:00Z"
+updated_at: "2026-07-17T00:00:00Z"

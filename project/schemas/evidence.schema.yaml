@@ -17,7 +17,7 @@ required:
 properties:
   id:
     type: string
-    pattern: "^EVID-[0-9]+"
+    pattern: "^ASA2-EVID-[0-9]+"
   subject_type:
     type: string
   subject_id:

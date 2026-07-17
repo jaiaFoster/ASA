@@ -19,7 +19,7 @@ required:
 properties:
   id:
     type: string
-    pattern: "^DEC-[0-9]+"
+    pattern: "^ASA2-DECISION-[0-9]+"
   title:
     type: string
     minLength: 1

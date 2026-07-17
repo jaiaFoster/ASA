@@ -1,0 +1,36 @@
+---
+id: ASA2-DECISION-001
+title: Accept POS-BOOTSTRAP-02
+question: >
+  Does the Founder accept the POS-BOOTSTRAP-02 implementation (work item ASA2-WORK-001)
+  as meeting the required outcomes, or are changes requested before acceptance?
+status: pending
+decision_authority: Founder
+context: >
+  POS-BOOTSTRAP-02 implemented the first complete POS Lite lifecycle. The implementation
+  includes: RISK-001 governance manifest entry, removal of audit placeholders, risk-record
+  schema, seven canonical lifecycle records, cross-record validator checks, lifecycle
+  prerequisite checks, risk consistency validation, deterministic generator using real
+  records, pytest added to CI, and 60+ tests. The technical review (ASA2-REVIEW-001)
+  is complete and found all required outputs present. This decision records the pending
+  Founder acceptance review.
+options:
+  - id: accept
+    description: >
+      Accept the implementation. Work item transitions to accepted. Branch may be
+      merged by Founder. POS-BOOTSTRAP-03 may be initiated.
+  - id: changes_requested
+    description: >
+      Request specific changes. Work item returns to in_progress. A new assignment
+      will be issued for the requested changes.
+affected_records:
+  - ASA2-WORK-001
+  - ASA2-ASG-001
+  - ASA2-RESULT-001
+  - ASA2-REVIEW-001
+  - ASA2-EVID-001
+  - ASA2-RISK-001
+decision: null
+rationale: null
+created_at: "2026-07-17T00:00:00Z"
+decided_at: null

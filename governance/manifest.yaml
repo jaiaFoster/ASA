@@ -3,6 +3,9 @@
 # Lists every governance artifact with metadata and integrity hashes.
 # Hashes computed after files reached their final locations.
 # DO NOT edit frozen document bodies. See frozen_document_policy below.
+#
+# NOTE: Governance audits are external review artifacts and are not
+# required repository contents. They are not tracked in this manifest.
 
 frozen_document_policy:
   body_edits_allowed: false
@@ -31,13 +34,13 @@ documents:
     notes: null
 
   - id: RISK-001
-    filename: null
+    filename: governance/frozen/RISK-001
     class: governance_standard
-    status: missing
-    version: null
-    sha256: null
-    original_path: null
-    notes: "RISK-001 was not found in the repository at bootstrap time. Do not create a synthetic version. Tracked here for completeness."
+    status: frozen
+    version: "0.1"
+    sha256: "eed3c82889b1745c92e66658b2aee95837bb020702c3eadce77331fbd03570b8"
+    original_path: "governance/frozen/RISK-001"
+    notes: "Added to repository after initial bootstrap. Filename has no version suffix; identity confirmed by document header."
 
   - id: PM-SPEC
     filename: governance/frozen/PM-SPEC-v0.2.md
@@ -74,21 +77,3 @@ documents:
     sha256: "cb2d22dc0ab7bc463722fb3bdefb8da223aefbf0c3b3521bf2fc4ee2484bc5e6"
     original_path: "governance/AMD-001-v0.2-revised.md"
     notes: "Renamed from AMD-001-v0.2-revised.md to GOV-AMD-001.md for consistency. Content unchanged."
-
-  - id: GOV-AUDIT-001
-    filename: null
-    class: audit
-    status: missing
-    version: null
-    sha256: null
-    original_path: null
-    notes: "Primary governance audit was not found in the repository at bootstrap time. Do not create a synthetic version."
-
-  - id: RISK-001-AUDIT-001
-    filename: null
-    class: audit
-    status: missing
-    version: null
-    sha256: null
-    original_path: null
-    notes: "RISK-001 audit was not found in the repository at bootstrap time. Do not create a synthetic version."

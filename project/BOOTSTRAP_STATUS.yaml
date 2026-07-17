@@ -1,23 +1,26 @@
 ---
 project: ASA2
 phase: POS_BOOTSTRAP
-status: initializing
+status: awaiting_founder_acceptance
 
 governance:
   frozen: true
   manifest: governance/manifest.yaml
   amendment_register: governance/amendments/GOV-AMD-001.md
   interpretation_rule: amendments_apply_over_frozen_documents
-  generated_from_pos: false
+  generated_from_pos: true
 
 current_objective:
-  id: POS-BOOTSTRAP-01
-  title: Create Git-backed POS Lite
-  status: proposed
+  id: POS-BOOTSTRAP-02
+  title: Complete first Git-backed POS Lite lifecycle
+  status: review
 
 next_action:
-  id: POS-BOOTSTRAP-02
-  description: Implement and verify the first deterministic POS validator and generator.
+  id: FOUNDER-DECISION-001
+  description: >
+    Founder reviews POS-BOOTSTRAP-02 implementation (branch pos-bootstrap-02),
+    inspects the diff, runs validation and tests, and records acceptance or
+    requested changes in ASA2-DECISION-001.
 
 authority:
   permanent_role_creation: founder_only

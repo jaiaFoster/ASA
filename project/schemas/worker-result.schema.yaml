@@ -6,19 +6,23 @@ type: object
 required:
   - id
   - assignment_id
+  - work_item_id
   - status
   - summary
   - files_changed
   - tests_run
   - verification
+  - evidence
   - known_limitations
   - unresolved_questions
   - submitted_at
 properties:
   id:
     type: string
-    pattern: "^RESULT-[0-9]+"
+    pattern: "^ASA2-RESULT-[0-9]+"
   assignment_id:
+    type: string
+  work_item_id:
     type: string
   status:
     type: string
@@ -41,6 +45,11 @@ properties:
   verification:
     type: object
     additionalProperties: true
+  evidence:
+    type: array
+    items:
+      type: string
+    description: "IDs of evidence records"
   known_limitations:
     type: array
     items:

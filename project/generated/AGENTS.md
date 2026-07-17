@@ -6,6 +6,11 @@ Regenerate with: python tools/pos/generate.py
 
 # AGENTS.md — Worker Context
 
+**Generated:** 2026-07-17T00:00:00Z
+
+> **WARNING:** Mechanical validation passing does NOT constitute approval, merge authorization, or deployment authorization.
+> **WARNING:** Founder acceptance is still required for any work item to be accepted.
+
 ## Project
 
 **Name:** ASA2
@@ -13,17 +18,33 @@ Regenerate with: python tools/pos/generate.py
 
 ## Current Objective
 
-**ID:** POS-BOOTSTRAP-01
-**Title:** Create Git-backed POS Lite
-**Status:** proposed
+**ID:** POS-BOOTSTRAP-02
+**Title:** Complete first Git-backed POS Lite lifecycle
+**Status:** review
+
+## Current Work Item
+
+**ID:** ASA2-WORK-001
+**Status:** review
+**Effective Risk Class:** R2
 
 ## Current Active Assignment
 
 None at this time.
 
-## Canonical State Locations
+## Acceptance Authority
 
-- POS records: `project/work/`, `project/assignments/`, `project/results/`, `project/decisions/`, `project/reviews/`, `project/evidence/`
+**founder_only**
+
+## Canonical POS Record Locations
+
+- Work items: `project/work/`
+- Assignments: `project/assignments/`
+- Results: `project/results/`
+- Decisions: `project/decisions/`
+- Reviews: `project/reviews/`
+- Evidence: `project/evidence/`
+- Risk records: `project/risks/`
 - Bootstrap status: `project/BOOTSTRAP_STATUS.yaml`
 - Role registry: `project/roles/registry.yaml`
 
@@ -42,10 +63,6 @@ None at this time.
 - Workers may NOT modify frozen governance documents.
 - Workers MUST produce result records for all assigned work.
 
-## Acceptance Authority
-
-**founder_only**
-
 ## Automation Boundaries
 
 - Mode: `advisory_and_mechanical_only`
@@ -53,10 +70,3 @@ None at this time.
 - May reject: `False`
 - May merge: `False`
 - May deploy: `False`
-
----
-
-> **WARNING:** This is a generated file. Do not edit manually.
-> Regenerate with: `python tools/pos/generate.py`
->
-> **WARNING:** Mechanical validation passing does NOT constitute approval, merge authorization, or deployment authorization.
