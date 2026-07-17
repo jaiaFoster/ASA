@@ -82,4 +82,32 @@ These are noted in `governance/manifest.yaml`. Do not create synthetic versions.
 
 ## Current Phase
 
-`POS_BOOTSTRAP` — See `project/BOOTSTRAP_STATUS.yaml` and `project/generated/CURRENT_STATE.md`.
+`ROLE_BOOTSTRAP` — Role packages prepared; awaiting Founder merge and agent instantiation. See `project/BOOTSTRAP_STATUS.yaml`.
+
+---
+
+## Role Operating Model
+
+ASA 2 operates through a four-level hierarchy:
+
+| Role | Authority | Scope |
+|------|-----------|-------|
+| **Founder** | Sets direction. Merges PRs. | Final authority on all decisions |
+| **Manager** | Coordinates work. Issues tickets. | Delivery coordination only |
+| **Architect** | Designs systems. Owns technical quality. | Architecture and technical contracts |
+| **Workers** | Implement bounded assignments. | Within assignment scope only |
+
+**Founder merging a PR is acceptance.** No separate paperwork required.
+
+The POS is currently being redesigned to reduce bookkeeping overhead. The Architect's first task (ARCH-POS-001) is to design Lean POS v1.
+
+### Quick Links for Founders and Agents
+
+| Item | Link |
+|------|------|
+| Instantiate the Manager | [roles/manager/INSTANTIATION_PROMPT.md](roles/manager/INSTANTIATION_PROMPT.md) |
+| Instantiate the Architect | [roles/architect/INSTANTIATION_PROMPT.md](roles/architect/INSTANTIATION_PROMPT.md) |
+| Architect first assignment | [roles/architect/FIRST_ASSIGNMENT.md](roles/architect/FIRST_ASSIGNMENT.md) |
+| Authority boundaries | [roles/shared/AUTHORITY_BOUNDARIES.md](roles/shared/AUTHORITY_BOUNDARIES.md) |
+| GitHub acceptance model | [roles/shared/GITHUB_ACCEPTANCE_MODEL.md](roles/shared/GITHUB_ACCEPTANCE_MODEL.md) |
+| Founder instantiation guide | [roles/FOUNDER_INSTANTIATION_GUIDE.md](roles/FOUNDER_INSTANTIATION_GUIDE.md) |

@@ -12,12 +12,12 @@ Regenerate with: python tools/pos/generate.py
 ## Project
 
 **Name:** ASA2
-**Phase:** POS_BOOTSTRAP
-**Status:** awaiting_founder_acceptance
+**Phase:** ROLE_BOOTSTRAP
+**Status:** awaiting_founder_merge
 
 ## Current Objective
 
-Complete first Git-backed POS Lite lifecycle
+Prepare Manager and Architect role packages
 
 ## Active Work
 
@@ -45,7 +45,7 @@ ASA2-RESULT-001 (complete) — submitted 2026-07-17T00:00:00Z
 
 ## Next Action
 
-Founder reviews POS-BOOTSTRAP-02 implementation (branch pos-bootstrap-02), inspects the diff, runs validation and tests, and records acceptance or requested changes in ASA2-DECISION-001.
+Founder reviews and merges this PR (role-bootstrap-01). Then: instantiate Manager, instantiate Architect, assign ARCH-POS-001. See roles/FOUNDER_INSTANTIATION_GUIDE.md for exact steps.
 
 
 ---

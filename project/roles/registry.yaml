@@ -15,13 +15,22 @@ roles:
       - deployment
 
   - id: ROLE-PM
-    name: Project Manager
+    name: ASA Manager
     type: permanent_ai_role
-    status: specified_not_instantiated
+    status: prepared
     specification: governance/frozen/PM-SPEC-v0.2.md
+    instructions: roles/manager/INSTRUCTIONS.md
+    instantiation_prompt: roles/manager/INSTANTIATION_PROMPT.md
+    authority: operational_coordination
+    instantiated: false
 
   - id: ROLE-ARCH
-    name: System Architect
+    name: ASA System Architect
     type: permanent_ai_role
-    status: specified_not_instantiated
+    status: prepared
     specification: governance/frozen/ARCH-SPEC-v0.2.md
+    instructions: roles/architect/INSTRUCTIONS.md
+    instantiation_prompt: roles/architect/INSTANTIATION_PROMPT.md
+    authority: architecture_design
+    instantiated: false
+    first_assignment: roles/architect/FIRST_ASSIGNMENT.md
