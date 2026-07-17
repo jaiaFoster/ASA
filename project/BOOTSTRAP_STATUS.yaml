@@ -1,0 +1,20 @@
+project: ASA2
+phase: POS_BOOTSTRAP
+status: initializing
+
+governance:
+  frozen: true
+  amendment_register: governance/amendments/GOV-AMD-001.md
+  active_interpretation: amendments_apply_over_frozen_documents
+
+current_objective:
+  id: POS-BOOTSTRAP-01
+  title: Create Git-backed POS Lite
+
+next_action:
+  Create initial structured schemas and deterministic validation.
+
+founder_authority:
+  agent_creation: founder_only
+  merge: founder_only
+  deployment: founder_only
