@@ -1,0 +1,29 @@
+repository: jaiaFoster/ASA
+observed_at: "2026-07-18T12:00:00Z"
+authority:
+  authorized_mergers:
+    - jaiaFoster
+issue:
+  number: 12
+  state: open
+  labels: []
+  state_reason: null
+pull_request:
+  number: 4
+  state: closed
+  merged: true
+  draft: false
+  merged_by: jaiaFoster
+  merged_at: "2026-07-18T11:55:00Z"
+  merge_commit_sha: abc1234def5678
+  head_ref: claude/lean-pos-foundation-3n2thb
+  base_ref: main
+  reviews:
+    - login: jaiaFoster
+      state: APPROVED
+  checks:
+    required:
+      - validate-pos
+    statuses:
+      - context: validate-pos
+        state: success

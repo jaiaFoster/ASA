@@ -1,0 +1,21 @@
+# No issue provided; only a PR snapshot (PR is open)
+repository: jaiaFoster/ASA
+observed_at: "2026-07-18T10:00:00Z"
+authority:
+  authorized_mergers:
+    - jaiaFoster
+issue: null
+pull_request:
+  number: 5
+  state: open
+  merged: false
+  draft: false
+  merged_by: null
+  merged_at: null
+  merge_commit_sha: null
+  head_ref: feature/lean-pos-02
+  base_ref: main
+  reviews: []
+  checks:
+    required: []
+    statuses: []

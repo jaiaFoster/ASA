@@ -1,0 +1,27 @@
+repository: jaiaFoster/ASA
+observed_at: "2026-07-18T10:00:00Z"
+authority:
+  authorized_mergers:
+    - jaiaFoster
+issue:
+  number: 12
+  state: open
+  labels: []
+  state_reason: null
+pull_request:
+  number: 5
+  state: open
+  merged: false
+  draft: false
+  merged_by: null
+  merged_at: null
+  merge_commit_sha: null
+  head_ref: feature/lean-pos-02
+  base_ref: main
+  reviews: []
+  checks:
+    required:
+      - validate-pos
+    statuses:
+      - context: validate-pos
+        state: failure

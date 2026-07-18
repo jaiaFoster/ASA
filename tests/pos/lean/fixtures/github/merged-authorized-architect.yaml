@@ -1,0 +1,26 @@
+# Authorized merge by an Architect role (multi-authorized-merger config)
+repository: jaiaFoster/ASA
+observed_at: "2026-07-18T12:00:00Z"
+authority:
+  authorized_mergers:
+    - jaiaFoster
+    - arch-bot
+issue:
+  number: 13
+  state: open
+  labels: []
+  state_reason: null
+pull_request:
+  number: 6
+  state: closed
+  merged: true
+  draft: false
+  merged_by: arch-bot
+  merged_at: "2026-07-18T11:55:00Z"
+  merge_commit_sha: def9876abc1234
+  head_ref: feature/arch-fix
+  base_ref: main
+  reviews: []
+  checks:
+    required: []
+    statuses: []

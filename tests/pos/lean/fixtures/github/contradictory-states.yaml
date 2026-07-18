@@ -1,0 +1,34 @@
+# Contradictory: PR has blocker label AND an approval AND changes-requested
+# Also has a failing check — multiple blockers simultaneously
+repository: jaiaFoster/ASA
+observed_at: "2026-07-18T10:00:00Z"
+authority:
+  authorized_mergers:
+    - jaiaFoster
+issue:
+  number: 12
+  state: open
+  labels:
+    - blocked
+  state_reason: null
+pull_request:
+  number: 5
+  state: open
+  merged: false
+  draft: false
+  merged_by: null
+  merged_at: null
+  merge_commit_sha: null
+  head_ref: feature/lean-pos-02
+  base_ref: main
+  reviews:
+    - login: jaiaFoster
+      state: APPROVED
+    - login: reviewer-b
+      state: CHANGES_REQUESTED
+  checks:
+    required:
+      - validate-pos
+    statuses:
+      - context: validate-pos
+        state: failure
