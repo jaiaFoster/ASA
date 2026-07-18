@@ -1,11 +1,11 @@
-generated_at: '2026-07-18T22:00:00Z'
+generated_at: '2026-07-18T00:00:00Z'
 summary:
   total_capabilities: 19
-  replaced: 14
+  replaced: 15
   replaced_with_different_mechanism: 1
   partially_replaced: 4
-  blocked: 1
-  gaps_requiring_blockers: 5
+  blocked: 0
+  gaps_requiring_blockers: 1
 capabilities:
 - id: structural_validation
   description: Validate canonical records against JSON Schema
@@ -56,8 +56,8 @@ capabilities:
   lean_implementation: worker-handoff.schema.yaml records risk class manually; lean validate.py checks enum only; RISK-001
     §9 property-to-class algorithm not implemented in lean
   gap: Lean has no equivalent of the RISK-001 §9.2 deterministic classification from declared_properties. Risk class is manually
-    declared, not derived.
-  blocker: BLKR-001
+    declared, not derived. Gap accepted — Founder approved github_satisfies_pos_record_requirement (BLKR-001 resolved).
+  blocker: null
 - id: authority_awareness
   description: Know which actors are authorized to approve/merge
   legacy_implementation: project/BOOTSTRAP_STATUS.yaml authority block
@@ -115,17 +115,18 @@ capabilities:
   status: partially_replaced
   lean_implementation: GitHub PR reviews + CI check runs serve as audit trail; derived.py surfaces review/check facts (F006–F009);
     no lean equivalent of explicit evidence/ or review/ records
-  gap: Lean relies on GitHub PR audit trail; no offline audit record equivalent. If GitHub history is unavailable or the record
-    must be self-contained, audit traceability is incomplete.
-  blocker: BLKR-001
+  gap: Lean relies on GitHub PR audit trail; no offline audit record equivalent. Gap accepted — Founder approved github_satisfies_pos_record_requirement
+    (BLKR-001 resolved).
+  blocker: null
 - id: migration_reversibility
   description: Ability to return to dual-POS or legacy-only operation
   legacy_implementation: N/A — pre-migration
-  status: blocked
-  lean_implementation: Cutover plan includes rollback steps for each phase; git history preserves all legacy artifacts; rollback
-    not executable until CUTOVER-01 blockers resolved
-  gap: Cannot execute reversible cutover until BLKR-001 and BLKR-002 resolved
-  blocker: BLKR-001
+  status: partially_replaced
+  lean_implementation: Cutover plan includes rollback steps for each phase; git history preserves all legacy artifacts; governance
+    and canonical-data blockers (BLKR-001, BLKR-002, BLKR-004) resolved — CUTOVER-01 complete
+  gap: Reversible cutover sequence (CUTOVER-02 through CUTOVER-06) not yet executed; ci_dependency (BLKR-003) and documentation_dependency
+    (BLKR-005) remain
+  blocker: null
 - id: offline_operation
   description: All validation operates without network access
   legacy_implementation: tools/pos/validate.py (no network calls)
@@ -139,16 +140,16 @@ capabilities:
     git-diff check'
   status: partially_replaced
   lean_implementation: CI triggers on tools/pos/** (includes lean) and tests/pos** and runs pytest tests/pos (includes lean
-    tests); BUT lean validator and generate.py are NOT explicit CI steps; git-diff check targets project/generated/ not project/lean/generated/
+    tests) and tools/pos/lean/check_integrity.py; BUT lean validator and generate.py are NOT explicit CI steps; git-diff check
+    targets project/generated/ not project/lean/generated/
   gap: CI does not explicitly invoke tools/pos/lean/validate.py or tools/pos/lean/generate.py; diff check targets legacy generated
     dir
   blocker: BLKR-003
 - id: frozen_governance_integrity
   description: Verify frozen governance files match manifest SHA-256 hashes
   legacy_implementation: tools/pos/validate.py check_frozen_files(); tests/pos/test_repository_bootstrap.py test_frozen_hashes_match_manifest
-  status: partially_replaced
-  lean_implementation: tools/pos/lean/validate.py validates lean schemas only; does NOT check governance/manifest.yaml hashes;
-    no lean equivalent of manifest integrity verification
-  gap: After legacy tool removal, no remaining CI step verifies frozen governance file integrity against manifest hashes.
-    This check must be added to lean tooling before CUTOVER-05.
-  blocker: BLKR-006
+  status: replaced
+  lean_implementation: tools/pos/lean/check_integrity.py (I001-I005 error codes, stdlib only); CI step 'Check frozen governance
+    integrity' added; 19 tests in tests/pos/lean/test_integrity.py. Added in LEAN-POS-05.
+  gap: null
+  blocker: null
