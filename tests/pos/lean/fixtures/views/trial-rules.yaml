@@ -1,0 +1,28 @@
+# List of trial rule records for view generation tests
+- v: 1
+  id: lean-tr-001
+  title: Workers must not modify frozen governance without Founder authorization
+  state: active_trial
+  rule: >
+    Any file under governance/frozen/ is immutable. Workers must stop and
+    report a blocker rather than modifying these files unilaterally.
+  github_issue: "jaiaFoster/asa#1"
+  created_at: "2026-07-18T00:00:00Z"
+- v: 1
+  id: lean-tr-002
+  title: Offline validator must never require network access
+  state: active_trial
+  rule: >
+    The offline validator (tools/pos/lean/validate.py) must complete
+    without any network call. Tests must fail if a network dependency
+    is introduced.
+  github_issue: null
+  created_at: "2026-07-18T00:00:00Z"
+- v: 1
+  id: lean-tr-003
+  title: Legacy generate.py retained without modification
+  state: adopted
+  rule: >
+    tools/pos/generate.py must not be modified by lean workers.
+  github_issue: null
+  created_at: "2026-07-18T00:00:00Z"

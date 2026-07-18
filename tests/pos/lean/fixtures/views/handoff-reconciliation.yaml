@@ -1,0 +1,15 @@
+# Reconciliation fixture for worker-context tests (review state — PR open, checks passing)
+repository: jaiaFoster/ASA
+observed_at: "2026-07-18T10:00:00Z"
+sources:
+  - jaiaFoster/ASA
+derived_state: review
+facts:
+  - code: F004
+    source: pr#5
+    detail: PR is open and not draft
+  - code: F009
+    source: pr#5/check/validate-pos
+    detail: check 'validate-pos' passed (success)
+conflicts: []
+undetermined: []

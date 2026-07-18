@@ -1,0 +1,18 @@
+# Reconciliation output fixture — blocked state (failing required check)
+repository: jaiaFoster/ASA
+observed_at: "2026-07-18T10:00:00Z"
+sources:
+  - jaiaFoster/ASA
+derived_state: blocked
+facts:
+  - code: F001
+    source: issue#12
+    detail: issue is open
+  - code: F004
+    source: pr#5
+    detail: PR is open and not draft
+  - code: F010
+    source: pr#5/check/validate-pos
+    detail: check 'validate-pos' failed (failure)
+conflicts: []
+undetermined: []
