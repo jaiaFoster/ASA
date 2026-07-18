@@ -1,0 +1,20 @@
+# Reconciliation output fixture — conflict state (unauthorized merge)
+repository: jaiaFoster/ASA
+observed_at: "2026-07-18T12:00:00Z"
+sources:
+  - jaiaFoster/ASA
+derived_state: conflict
+facts:
+  - code: F001
+    source: issue#12
+    detail: issue is open
+  - code: F005
+    source: pr#5
+    detail: merged by unauthorized-bot at 2026-07-18T11:55:00Z
+conflicts:
+  - code: G005
+    source: pr#5
+    detail: >-
+      PR merged by 'unauthorized-bot' who is not in authorized_mergers
+      ['jaiaFoster']
+undetermined: []

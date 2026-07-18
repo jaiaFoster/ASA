@@ -1,0 +1,12 @@
+# Reconciliation output fixture — planned state (open issue, no PR)
+repository: jaiaFoster/ASA
+observed_at: "2026-07-18T10:00:00Z"
+sources:
+  - jaiaFoster/ASA
+derived_state: planned
+facts:
+  - code: F001
+    source: issue#12
+    detail: issue is open
+conflicts: []
+undetermined: []

@@ -1,0 +1,17 @@
+# Reconciliation output fixture — undetermined state (missing authority)
+repository: jaiaFoster/ASA
+observed_at: "2026-07-18T12:00:00Z"
+sources:
+  - jaiaFoster/ASA
+derived_state: undetermined
+facts:
+  - code: F005
+    source: pr#5
+    detail: merged by jaiaFoster at 2026-07-18T11:55:00Z
+conflicts: []
+undetermined:
+  - code: G004
+    source: pr#5
+    detail: >-
+      PR merged by 'jaiaFoster' but no authority configuration was provided;
+      cannot determine whether merger was authorized

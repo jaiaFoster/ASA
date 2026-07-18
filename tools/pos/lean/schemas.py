@@ -63,6 +63,25 @@ DERIVED_STATES = (
 )
 
 
+LEAN_GENERATED_DIR = REPO_ROOT / "project" / "lean" / "generated"
+
+LEAN_GENERATED_HEADER = (
+    "<!-- THIS FILE IS GENERATED. DO NOT EDIT MANUALLY.\n"
+    "     Regenerate with: python tools/pos/lean/generate.py\n"
+    "     This file is not a canonical record. -->\n"
+)
+
+# Estimated token budget thresholds (1 token ≈ 4 chars)
+TOKEN_BUDGET_CURRENT_STATE = 3500
+TOKEN_BUDGET_WORKER_CONTEXT_NORMAL = 2000
+TOKEN_BUDGET_WORKER_CONTEXT_ELEVATED = 3500  # R3+
+
+
+def estimate_tokens(text: str) -> int:
+    """Rough token estimate: 1 token ≈ 4 characters."""
+    return max(1, len(text) // 4)
+
+
 def load_yaml(path: Path):
     with open(path, "r", encoding="utf-8") as f:
         return yaml.safe_load(f)

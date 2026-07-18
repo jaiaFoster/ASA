@@ -1,0 +1,18 @@
+# Reconciliation output fixture — accepted state (authorized merge)
+repository: jaiaFoster/ASA
+observed_at: "2026-07-18T12:00:00Z"
+sources:
+  - jaiaFoster/ASA
+derived_state: accepted
+facts:
+  - code: F001
+    source: issue#12
+    detail: issue is open
+  - code: F005
+    source: pr#4
+    detail: merged by jaiaFoster at 2026-07-18T11:55:00Z
+  - code: F007
+    source: pr#4/review/jaiaFoster
+    detail: jaiaFoster approved
+conflicts: []
+undetermined: []
