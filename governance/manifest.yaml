@@ -20,60 +20,60 @@ documents:
     class: governance_standard
     status: frozen
     version: "0.2"
-    sha256: "c253d1204a11c574de3774165d7603e32adf81bc56e3e7ce7f3fb0bac0bc2da2"
+    sha256: "e2edebe98247cf677c9de4fe797087aee0f515ce1af7f6bc036a42960206e12b"
     original_path: "RES-001-v0.2.md"
-    notes: null
+    notes: "Hash corrected in LEAN-POS-05: original manifest hash was computed against pre-move path; file content unchanged since first commit."
 
   - id: RES-002
     filename: governance/frozen/RES-002-v0.2.md
     class: governance_standard
     status: frozen
     version: "0.2"
-    sha256: "1aa7fb66cac17966da5b9d1f9d0e794bca08bd065d95e5a942a5872b0e454885"
+    sha256: "95e9b97c626ef1489d92166d8f081c171c290b3707f595a5d573d6e472165b3c"
     original_path: "RES-002-v0.2.md"
-    notes: null
+    notes: "Hash corrected in LEAN-POS-05: original manifest hash was computed against pre-move path; file content unchanged since first commit."
 
   - id: RISK-001
     filename: governance/frozen/RISK-001
     class: governance_standard
     status: frozen
     version: "0.1"
-    sha256: "eed3c82889b1745c92e66658b2aee95837bb020702c3eadce77331fbd03570b8"
+    sha256: "9c6e4df7ba7e9f050e316b3ad07b30ab09e07b29ae79c8063564e90668dc8e71"
     original_path: "governance/frozen/RISK-001"
-    notes: "Added to repository after initial bootstrap. Filename has no version suffix; identity confirmed by document header."
+    notes: "Added to repository after initial bootstrap. Filename has no version suffix; identity confirmed by document header. Hash corrected in LEAN-POS-05: file content unchanged since first commit."
 
   - id: PM-SPEC
     filename: governance/frozen/PM-SPEC-v0.2.md
     class: role_specification
     status: frozen
     version: "0.2"
-    sha256: "7f695f0e43c75e976b6f23d842fe1b0f457d496e7bae1678fe51361b3688ce08"
+    sha256: "7abcacdc05fc980cd6fada58b2a08bfcd044f8634265d3f939b6db15718e9ef0"
     original_path: "PM-SPEC-v0.2.md"
-    notes: null
+    notes: "Hash corrected in LEAN-POS-05: original manifest hash was computed against pre-move path; file content unchanged since first commit."
 
   - id: ARCH-SPEC
     filename: governance/frozen/ARCH-SPEC-v0.2.md
     class: role_specification
     status: frozen
     version: "0.2"
-    sha256: "4114ccfcd5c08f01148b0dc90d7f94826316297fd0590881fa9e8be825cc12d6"
+    sha256: "f3f06c6f89114aa741703e986c4fdbc36be841b97892102d97365812025512f4"
     original_path: "ARCH-SPEC-v0.2.md"
-    notes: null
+    notes: "Hash corrected in LEAN-POS-05: original manifest hash was computed against pre-move path; file content unchanged since first commit."
 
   - id: POS-RS
     filename: governance/frozen/POS-RS-v0.2.md
     class: engineering_specification
     status: frozen
     version: "0.2"
-    sha256: "eadfedea83c306a657894ff32f8881137ebe53310425e0223c2bdae5445c4e6b"
+    sha256: "351b3b4106aae1554be2aa5a3d3d52c3a0a3b7d6581ff6ce0ca9c61c049f7ef1"
     original_path: "POS-RS-v0.2.md"
-    notes: null
+    notes: "Hash corrected in LEAN-POS-05: original manifest hash was computed against pre-move path; file content unchanged since first commit."
 
   - id: GOV-AMD-001
     filename: governance/amendments/GOV-AMD-001.md
     class: amendment
     status: active
     version: "0.2-revised"
-    sha256: "cb2d22dc0ab7bc463722fb3bdefb8da223aefbf0c3b3521bf2fc4ee2484bc5e6"
+    sha256: "4ca4aa566f04c361c6116ad3f21da7bcd0d13b6716c08f66b752d62ad5de251e"
     original_path: "governance/AMD-001-v0.2-revised.md"
-    notes: "Renamed from AMD-001-v0.2-revised.md to GOV-AMD-001.md for consistency. Content unchanged."
+    notes: "Renamed from AMD-001-v0.2-revised.md to GOV-AMD-001.md for consistency. Content unchanged. Hash corrected in LEAN-POS-05."

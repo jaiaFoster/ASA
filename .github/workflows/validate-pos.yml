@@ -32,6 +32,9 @@ jobs:
       - name: Run tests
         run: python -m pytest tests/pos -v
 
+      - name: Check frozen governance integrity
+        run: python tools/pos/lean/check_integrity.py
+
       - name: Run validator
         run: python tools/pos/validate.py
 
