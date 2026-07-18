@@ -40,6 +40,28 @@ ERR_SCOPE_LOCK_OVERLAP = "E008"
 ERR_SCHEMA_VALIDATION = "E009"
 ERR_INVALID_REFERENCE = "E010"
 
+# Reconciliation error codes (online layer only)
+RECON_INVALID_INPUT = "G001"
+RECON_REMOTE_UNAVAILABLE = "G002"
+RECON_INCOMPLETE_DATA = "G003"
+RECON_AUTHORITY_UNKNOWN = "G004"
+RECON_UNAUTHORIZED_MERGE = "G005"
+RECON_CONFLICTING_STATE = "G006"
+RECON_UNSUPPORTED_RESPONSE = "G007"
+RECON_WRITE_ATTEMPT_PROHIBITED = "G008"
+
+# Derived states produced by reconciliation (never stored as canonical)
+DERIVED_STATES = (
+    "planned",
+    "active",
+    "review",
+    "blocked",
+    "accepted",
+    "cancelled",
+    "conflict",
+    "undetermined",
+)
+
 
 def load_yaml(path: Path):
     with open(path, "r", encoding="utf-8") as f:

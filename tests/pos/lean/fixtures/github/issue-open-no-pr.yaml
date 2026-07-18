@@ -1,0 +1,11 @@
+repository: jaiaFoster/ASA
+observed_at: "2026-07-18T10:00:00Z"
+authority:
+  authorized_mergers:
+    - jaiaFoster
+issue:
+  number: 12
+  state: open
+  labels: []
+  state_reason: null
+pull_request: null
