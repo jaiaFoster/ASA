@@ -1,0 +1,14 @@
+# INVALID: contains unknown top-level field 'foo'
+v: 1
+id: lean-wh-bad-004
+goal: Do something
+scope:
+  - tools/pos/lean/**
+lock:
+  - governance/frozen/**
+accept:
+  - something passes
+risk: R2
+deliver:
+  - result.yaml
+foo: this_field_is_not_in_schema

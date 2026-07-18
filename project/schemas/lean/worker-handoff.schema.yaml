@@ -1,0 +1,100 @@
+---
+# Lean POS — Worker Handoff schema
+# Compact YAML format for bounded worker assignments.
+# Required fields enforce completeness; format stays plain YAML.
+"$schema": "https://json-schema.org/draft/2020-12/schema"
+"$id": "asa2/lean/worker-handoff"
+title: WorkerHandoff
+type: object
+required:
+  - v
+  - id
+  - goal
+  - scope
+  - lock
+  - accept
+  - risk
+  - deliver
+properties:
+  v:
+    type: integer
+    minimum: 1
+    description: Handoff format version
+  id:
+    type: string
+    minLength: 1
+    description: Stable handoff identifier
+  title:
+    type: string
+    description: Optional human-readable title
+  goal:
+    type: string
+    minLength: 1
+    description: What the worker must accomplish
+  principles:
+    type: array
+    items:
+      type: string
+      minLength: 1
+    description: Optional guiding principles for this handoff
+  refs:
+    type: array
+    items:
+      type: string
+      minLength: 1
+    description: Paths or supported identifiers the worker should consult
+  design:
+    description: Optional design notes; any YAML value is permitted
+  scope:
+    type: array
+    items:
+      type: string
+      minLength: 1
+    minItems: 1
+    description: Paths or patterns the worker is authorised to modify
+  lock:
+    type: array
+    items:
+      type: string
+      minLength: 1
+    minItems: 1
+    description: Paths or patterns the worker must not touch
+  accept:
+    type: array
+    items:
+      type: string
+      minLength: 1
+    minItems: 1
+    description: Acceptance criteria the worker must satisfy
+  risk:
+    type: string
+    enum:
+      - R0
+      - R1
+      - R2
+      - R3
+      - R4
+      - R5
+    description: Risk class for this handoff
+  deliver:
+    type: array
+    items:
+      type: string
+      minLength: 1
+    minItems: 1
+    description: Required deliverables
+  execute:
+    type: array
+    items:
+      type: string
+      minLength: 1
+    description: Optional ordered execution steps
+  depends:
+    type: array
+    items:
+      type: string
+      minLength: 1
+    description: Optional handoff IDs this work depends on
+  notes:
+    description: Optional freeform notes
+additionalProperties: false

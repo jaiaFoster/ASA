@@ -1,0 +1,12 @@
+v: 1
+id: lean-tr-001
+title: Workers must not modify frozen governance without Founder authorization
+state: active_trial
+rule: >
+  Any file under governance/frozen/ is immutable. Workers must stop and
+  report a blocker rather than modifying these files unilaterally.
+github_issue: jaiafoster/asa#1
+superseded_by: null
+notes: First operational trial rule under Lean POS.
+created_at: "2026-07-18T00:00:00Z"
+updated_at: null

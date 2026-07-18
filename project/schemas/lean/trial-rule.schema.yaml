@@ -1,0 +1,51 @@
+---
+# Lean POS — Trial Rule schema
+# Represents an active bounded operational rule with its lifecycle state.
+# Links to the originating GitHub issue when available.
+"$schema": "https://json-schema.org/draft/2020-12/schema"
+"$id": "asa2/lean/trial-rule"
+title: TrialRule
+type: object
+required:
+  - v
+  - id
+  - title
+  - state
+  - rule
+  - created_at
+properties:
+  v:
+    type: integer
+    minimum: 1
+  id:
+    type: string
+    minLength: 1
+  title:
+    type: string
+    minLength: 1
+  state:
+    type: string
+    enum:
+      - active_trial
+      - adopted
+      - withdrawn
+      - superseded
+  rule:
+    type: string
+    minLength: 1
+    description: The operational rule in plain language
+  github_issue:
+    type: [string, "null"]
+    description: "Originating GitHub issue identifier (e.g. owner/repo#123)"
+  superseded_by:
+    type: [string, "null"]
+    description: ID of the rule that supersedes this one (required when state=superseded)
+  notes:
+    type: string
+  created_at:
+    type: string
+    format: date-time
+  updated_at:
+    type: [string, "null"]
+    format: date-time
+additionalProperties: false

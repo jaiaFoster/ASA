@@ -1,0 +1,13 @@
+# INVALID: risk class not in supported enum
+v: 1
+id: lean-wh-bad-002
+goal: Do something
+scope:
+  - tools/pos/lean/**
+lock:
+  - governance/frozen/**
+accept:
+  - something passes
+risk: HIGH
+deliver:
+  - tools/pos/lean/validate.py

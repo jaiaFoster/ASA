@@ -1,0 +1,11 @@
+v: 1
+id: lean-ps-001
+objective: Establish Lean POS foundation with offline validation
+constraints:
+  - must not modify locked governance files
+  - must not require network access during validation
+refs:
+  - roles/architect/INSTRUCTIONS.md
+  - project/BOOTSTRAP_STATUS.yaml
+notes: Initial project state for Lean POS v1 work.
+updated_at: "2026-07-18T00:00:00Z"
