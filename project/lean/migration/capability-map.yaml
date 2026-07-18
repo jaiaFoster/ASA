@@ -1,0 +1,154 @@
+generated_at: '2026-07-18T22:00:00Z'
+summary:
+  total_capabilities: 19
+  replaced: 14
+  replaced_with_different_mechanism: 1
+  partially_replaced: 4
+  blocked: 1
+  gaps_requiring_blockers: 5
+capabilities:
+- id: structural_validation
+  description: Validate canonical records against JSON Schema
+  legacy_implementation: tools/pos/validate.py (Phase 1–3)
+  status: replaced
+  lean_implementation: tools/pos/lean/validate.py (all 4 lean schemas)
+  gap: null
+  blocker: null
+- id: deterministic_validation
+  description: Validation output is identical for identical input
+  legacy_implementation: tools/pos/validate.py (stateless checks)
+  status: replaced
+  lean_implementation: tools/pos/lean/validate.py (offline, no clock dependency)
+  gap: null
+  blocker: null
+- id: github_reconciliation
+  description: Derive project operational state from GitHub API snapshot
+  legacy_implementation: none — legacy POS does not query GitHub
+  status: replaced
+  lean_implementation: tools/pos/lean/reconcile.py + tools/pos/lean/derived.py (8 derived states, F001–F012 facts)
+  gap: null
+  blocker: null
+- id: work_bounding
+  description: Define and enforce the scope of a unit of work
+  legacy_implementation: assignment.schema.yaml (allowed_scope/forbidden_scope fields)
+  status: replaced
+  lean_implementation: project/schemas/lean/worker-handoff.schema.yaml (scope + lock fields with minItems:1)
+  gap: null
+  blocker: null
+- id: scope_protection
+  description: Record which paths must not be modified
+  legacy_implementation: assignment.yaml forbidden_scope field
+  status: replaced
+  lean_implementation: worker-handoff.schema.yaml lock field (minItems:1)
+  gap: null
+  blocker: null
+- id: risk_class_recording
+  description: Record and expose the risk class of a unit of work
+  legacy_implementation: work-item.schema.yaml + risk-record.schema.yaml
+  status: replaced
+  lean_implementation: worker-handoff.schema.yaml risk field (enum R0–R5)
+  gap: null
+  blocker: null
+- id: risk_floor_enforcement
+  description: Apply RISK-001 deterministic classification algorithm from declared properties; effective_class >= deterministic_class
+  legacy_implementation: tools/pos/validate.py check_risk_records(); risk-record.schema.yaml with declared_properties
+  status: partially_replaced
+  lean_implementation: worker-handoff.schema.yaml records risk class manually; lean validate.py checks enum only; RISK-001
+    §9 property-to-class algorithm not implemented in lean
+  gap: Lean has no equivalent of the RISK-001 §9.2 deterministic classification from declared_properties. Risk class is manually
+    declared, not derived.
+  blocker: BLKR-001
+- id: authority_awareness
+  description: Know which actors are authorized to approve/merge
+  legacy_implementation: project/BOOTSTRAP_STATUS.yaml authority block
+  status: replaced
+  lean_implementation: tools/pos/lean/derived.py (authorized_mergers from fixture); configurable per reconciliation snapshot
+  gap: null
+  blocker: null
+- id: acceptance_detection
+  description: Detect when a unit of work has been accepted
+  legacy_implementation: work_item.status=accepted + ASA2-DECISION-001 decided
+  status: replaced
+  lean_implementation: 'tools/pos/lean/derived.py: F005 (merged by authorized) + F007 (approved by authorized) → state=accepted'
+  gap: null
+  blocker: null
+- id: governance_conflict_reporting
+  description: Report governance violations without resolving them
+  legacy_implementation: tools/pos/validate.py FAIL outputs (non-authority language)
+  status: replaced
+  lean_implementation: 'tools/pos/lean/derived.py: G005 (unauthorized merge), G006 (conflicting state) → state=conflict; tools/pos/lean/validate.py:
+    E001–E010 error codes'
+  gap: null
+  blocker: null
+- id: generated_project_orientation
+  description: Produce a human-readable current project state view
+  legacy_implementation: tools/pos/generate.py → project/generated/CURRENT_STATE.md
+  status: replaced
+  lean_implementation: tools/pos/lean/generate.py current-state → project/lean/generated/CURRENT_STATE.md
+  gap: null
+  blocker: null
+- id: generated_worker_context
+  description: Produce a bounded, token-budgeted worker context package
+  legacy_implementation: tools/pos/generate.py → project/generated/AGENTS.md
+  status: replaced_with_different_mechanism
+  lean_implementation: tools/pos/lean/generate.py worker-context → project/lean/generated/WORKER_CONTEXT.yaml (YAML structured,
+    token-budgeted; legacy was Markdown)
+  gap: null
+  blocker: null
+- id: exceptional_coordination
+  description: Track work requiring coordination beyond a single PR
+  legacy_implementation: none — legacy POS has no exceptional-work record type
+  status: replaced
+  lean_implementation: project/schemas/lean/exceptional-work.schema.yaml (trigger enum, open/resolved/cancelled states)
+  gap: null
+  blocker: null
+- id: trial_rule_tracking
+  description: Track active governance trial rules
+  legacy_implementation: none — legacy POS has no trial-rule record type
+  status: replaced
+  lean_implementation: project/schemas/lean/trial-rule.schema.yaml (active_trial/adopted/withdrawn/superseded states)
+  gap: null
+  blocker: null
+- id: audit_traceability
+  description: Produce explicit records of evidence, reviews, and decisions for each unit of work
+  legacy_implementation: project/evidence/, project/reviews/, project/decisions/ with cross-referenced records
+  status: partially_replaced
+  lean_implementation: GitHub PR reviews + CI check runs serve as audit trail; derived.py surfaces review/check facts (F006–F009);
+    no lean equivalent of explicit evidence/ or review/ records
+  gap: Lean relies on GitHub PR audit trail; no offline audit record equivalent. If GitHub history is unavailable or the record
+    must be self-contained, audit traceability is incomplete.
+  blocker: BLKR-001
+- id: migration_reversibility
+  description: Ability to return to dual-POS or legacy-only operation
+  legacy_implementation: N/A — pre-migration
+  status: blocked
+  lean_implementation: Cutover plan includes rollback steps for each phase; git history preserves all legacy artifacts; rollback
+    not executable until CUTOVER-01 blockers resolved
+  gap: Cannot execute reversible cutover until BLKR-001 and BLKR-002 resolved
+  blocker: BLKR-001
+- id: offline_operation
+  description: All validation operates without network access
+  legacy_implementation: tools/pos/validate.py (no network calls)
+  status: replaced
+  lean_implementation: 'tools/pos/lean/validate.py (proven offline: test_validate_does_not_import_github)'
+  gap: null
+  blocker: null
+- id: ci_validation
+  description: CI checks are run on every PR touching POS paths
+  legacy_implementation: '.github/workflows/validate-pos.yml: pytest tests/pos, tools/pos/validate.py, tools/pos/generate.py,
+    git-diff check'
+  status: partially_replaced
+  lean_implementation: CI triggers on tools/pos/** (includes lean) and tests/pos** and runs pytest tests/pos (includes lean
+    tests); BUT lean validator and generate.py are NOT explicit CI steps; git-diff check targets project/generated/ not project/lean/generated/
+  gap: CI does not explicitly invoke tools/pos/lean/validate.py or tools/pos/lean/generate.py; diff check targets legacy generated
+    dir
+  blocker: BLKR-003
+- id: frozen_governance_integrity
+  description: Verify frozen governance files match manifest SHA-256 hashes
+  legacy_implementation: tools/pos/validate.py check_frozen_files(); tests/pos/test_repository_bootstrap.py test_frozen_hashes_match_manifest
+  status: partially_replaced
+  lean_implementation: tools/pos/lean/validate.py validates lean schemas only; does NOT check governance/manifest.yaml hashes;
+    no lean equivalent of manifest integrity verification
+  gap: After legacy tool removal, no remaining CI step verifies frozen governance file integrity against manifest hashes.
+    This check must be added to lean tooling before CUTOVER-05.
+  blocker: BLKR-006

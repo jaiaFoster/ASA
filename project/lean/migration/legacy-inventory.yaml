@@ -1,0 +1,599 @@
+generated_at: '2026-07-18T22:00:00Z'
+artifacts:
+- &id001
+  path: project/schemas/assignment.schema.yaml
+  category: schema
+  status: active
+  referenced_by:
+  - tools/pos/validate.py
+  - tools/pos/schemas.py
+  - tests/pos/test_repository_bootstrap.py
+  references: []
+  canonical_data: yes — schema definitions are not in GitHub
+  github_derivable_data: 'no'
+  lean_replacement: project/schemas/lean/worker-handoff.schema.yaml
+  proposed_disposition: archive
+  removal_blockers:
+  - BLKR-002
+  - BLKR-003
+- &id002
+  path: project/schemas/decision.schema.yaml
+  category: schema
+  status: active
+  referenced_by:
+  - tools/pos/validate.py
+  - tools/pos/schemas.py
+  - tests/pos/test_repository_bootstrap.py
+  references: []
+  canonical_data: yes — schema definitions are not in GitHub
+  github_derivable_data: 'no'
+  lean_replacement: github_issue_or_pr (GitHub is canonical for decisions)
+  proposed_disposition: archive
+  removal_blockers:
+  - BLKR-002
+  - BLKR-003
+- &id003
+  path: project/schemas/evidence.schema.yaml
+  category: schema
+  status: active
+  referenced_by:
+  - tools/pos/validate.py
+  - tools/pos/schemas.py
+  - tests/pos/test_repository_bootstrap.py
+  references: []
+  canonical_data: yes — schema definitions are not in GitHub
+  github_derivable_data: 'no'
+  lean_replacement: github_pr_checks (GitHub is canonical for CI evidence)
+  proposed_disposition: archive
+  removal_blockers:
+  - BLKR-002
+  - BLKR-003
+- &id004
+  path: project/schemas/review.schema.yaml
+  category: schema
+  status: active
+  referenced_by:
+  - tools/pos/validate.py
+  - tools/pos/schemas.py
+  - tests/pos/test_repository_bootstrap.py
+  references: []
+  canonical_data: yes — schema definitions are not in GitHub
+  github_derivable_data: 'no'
+  lean_replacement: github_pr_review (GitHub is canonical for reviews)
+  proposed_disposition: archive
+  removal_blockers:
+  - BLKR-002
+  - BLKR-003
+- &id005
+  path: project/schemas/risk-record.schema.yaml
+  category: schema
+  status: active
+  referenced_by:
+  - tools/pos/validate.py
+  - tools/pos/schemas.py
+  - tests/pos/test_repository_bootstrap.py
+  references: []
+  canonical_data: yes — schema definitions are not in GitHub
+  github_derivable_data: 'no'
+  lean_replacement: project/schemas/lean/worker-handoff.schema.yaml (risk field)
+  proposed_disposition: archive
+  removal_blockers:
+  - BLKR-002
+  - BLKR-003
+- &id006
+  path: project/schemas/work-item.schema.yaml
+  category: schema
+  status: active
+  referenced_by:
+  - tools/pos/validate.py
+  - tools/pos/schemas.py
+  - tests/pos/test_repository_bootstrap.py
+  references: []
+  canonical_data: yes — schema definitions are not in GitHub
+  github_derivable_data: 'no'
+  lean_replacement: project/schemas/lean/worker-handoff.schema.yaml
+  proposed_disposition: archive
+  removal_blockers:
+  - BLKR-002
+  - BLKR-003
+- &id007
+  path: project/schemas/worker-result.schema.yaml
+  category: schema
+  status: active
+  referenced_by:
+  - tools/pos/validate.py
+  - tools/pos/schemas.py
+  - tests/pos/test_repository_bootstrap.py
+  references: []
+  canonical_data: yes — schema definitions are not in GitHub
+  github_derivable_data: 'no'
+  lean_replacement: project/schemas/lean/worker-handoff.schema.yaml (deliver field)
+  proposed_disposition: archive
+  removal_blockers:
+  - BLKR-002
+  - BLKR-003
+- path: project/assignments/ASA2-ASG-001.yaml
+  category: assignment_record
+  status: submitted
+  record_id: ASA2-ASG-001
+  referenced_by:
+  - project/work/
+  - tools/pos/validate.py
+  references:
+  - ASA2-RISK-001
+  - ASA2-WORK-001
+  canonical_data: unique
+  github_derivable_data: 'no'
+  lean_replacement: project/lean/handoffs/ (scope/lock/accept fields replace assignment); archive for historical items
+  proposed_disposition: archive
+  removal_blockers:
+  - BLKR-001
+- path: project/decisions/ASA2-DECISION-001.yaml
+  category: decision_record
+  status: pending
+  record_id: ASA2-DECISION-001
+  referenced_by:
+  - project/work/
+  - tools/pos/generate.py
+  references:
+  - ASA2-ASG-001
+  - ASA2-EVID-001
+  - ASA2-RESULT-001
+  - ASA2-REVIEW-001
+  - ASA2-RISK-001
+  - ASA2-WORK-001
+  canonical_data: unique
+  github_derivable_data: 'no'
+  lean_replacement: founder_decision_required before archiving — open decision has no lean equivalent (BLKR-004)
+  proposed_disposition: archive
+  removal_blockers:
+  - BLKR-004
+  - BLKR-001
+- path: project/evidence/ASA2-EVIDENCE-001.yaml
+  category: evidence_record
+  status: unknown
+  record_id: ASA2-EVID-001
+  referenced_by:
+  - project/reviews/
+  - tools/pos/validate.py
+  references:
+  - ASA2-WORK-001
+  canonical_data: github_derivable
+  github_derivable_data: partial — test output reproducible from git; manual observations are unique
+  lean_replacement: archive_in_place — content largely derivable from GitHub PR history
+  proposed_disposition: archive
+  removal_blockers:
+  - BLKR-001
+- path: project/results/ASA2-RESULT-001.yaml
+  category: result_record
+  status: complete
+  record_id: ASA2-RESULT-001
+  referenced_by:
+  - project/assignments/
+  - tools/pos/validate.py
+  - tools/pos/generate.py
+  references:
+  - ASA2-ASG-001
+  - ASA2-EVID-001
+  - ASA2-WORK-001
+  canonical_data: github_derivable
+  github_derivable_data: partial — test counts and file lists are GitHub-visible; free-text summaries are not
+  lean_replacement: archive_in_place — content largely derivable from GitHub PR history
+  proposed_disposition: archive
+  removal_blockers:
+  - BLKR-001
+- path: project/reviews/ASA2-REVIEW-001.yaml
+  category: review_record
+  status: complete
+  record_id: ASA2-REVIEW-001
+  referenced_by:
+  - project/work/
+  - tools/pos/validate.py
+  references:
+  - ASA2-EVID-001
+  - ASA2-WORK-001
+  canonical_data: github_derivable
+  github_derivable_data: partial — findings may duplicate PR review comments
+  lean_replacement: archive_in_place — content largely derivable from GitHub PR history
+  proposed_disposition: archive
+  removal_blockers:
+  - BLKR-001
+- path: project/risks/ASA2-RISK-001.yaml
+  category: risk_record
+  status: confirmed
+  record_id: ASA2-RISK-001
+  referenced_by:
+  - project/work/
+  - project/assignments/
+  - tools/pos/validate.py
+  references:
+  - ASA2-WORK-001
+  canonical_data: unique
+  github_derivable_data: 'no'
+  lean_replacement: project/lean/handoffs/ (risk field in worker-handoff)
+  proposed_disposition: archive
+  removal_blockers:
+  - BLKR-001
+- path: project/work/ASA2-WORK-001.yaml
+  category: work_record
+  status: review
+  record_id: ASA2-WORK-001
+  referenced_by:
+  - tools/pos/generate.py
+  - tools/pos/validate.py
+  references:
+  - ASA2-ASG-001
+  - ASA2-DECISION-001
+  - ASA2-EVID-001
+  - ASA2-RESULT-001
+  - ASA2-REVIEW-001
+  - ASA2-RISK-001
+  canonical_data: unique
+  github_derivable_data: 'no'
+  lean_replacement: project/lean/handoffs/ (worker-handoff record for active items); archive for accepted items
+  proposed_disposition: archive
+  removal_blockers:
+  - BLKR-004
+  - BLKR-001
+- &id008
+  path: tools/pos/validate.py
+  category: tool
+  status: active
+  referenced_by:
+  - .github/workflows/validate-pos.yml
+  - tests/pos/test_repository_bootstrap.py
+  references:
+  - project/schemas/
+  - governance/manifest.yaml
+  - project/BOOTSTRAP_STATUS.yaml
+  canonical_data: yes — tool logic not stored in GitHub
+  github_derivable_data: 'no'
+  lean_replacement: tools/pos/lean/validate.py
+  proposed_disposition: delete_after_cutover
+  removal_blockers:
+  - BLKR-003
+  - BLKR-006
+- &id009
+  path: tools/pos/generate.py
+  category: tool
+  status: active
+  referenced_by:
+  - .github/workflows/validate-pos.yml
+  - tests/pos/test_repository_bootstrap.py
+  references:
+  - project/BOOTSTRAP_STATUS.yaml
+  - project/work/
+  - project/assignments/
+  - project/results/
+  - project/decisions/
+  canonical_data: yes — tool logic not stored in GitHub
+  github_derivable_data: 'no'
+  lean_replacement: tools/pos/lean/generate.py
+  proposed_disposition: delete_after_cutover
+  removal_blockers:
+  - BLKR-003
+  - BLKR-006
+- &id010
+  path: tools/pos/schemas.py
+  category: tool
+  status: active
+  referenced_by:
+  - .github/workflows/validate-pos.yml
+  - tests/pos/test_repository_bootstrap.py
+  references:
+  - governance/manifest.yaml
+  canonical_data: yes — tool logic not stored in GitHub
+  github_derivable_data: 'no'
+  lean_replacement: tools/pos/lean/schemas.py
+  proposed_disposition: delete_after_cutover
+  removal_blockers:
+  - BLKR-003
+  - BLKR-006
+- &id011
+  path: tools/pos/transitions.py
+  category: tool
+  status: active
+  referenced_by:
+  - .github/workflows/validate-pos.yml
+  - tests/pos/test_repository_bootstrap.py
+  references: []
+  canonical_data: yes — tool logic not stored in GitHub
+  github_derivable_data: 'no'
+  lean_replacement: none (lean uses GitHub state transitions via derived.py)
+  proposed_disposition: delete_after_cutover
+  removal_blockers:
+  - BLKR-003
+- &id012
+  path: tools/pos/requirements.txt
+  category: tool
+  status: active
+  referenced_by:
+  - .github/workflows/validate-pos.yml
+  - tests/pos/test_repository_bootstrap.py
+  references: []
+  canonical_data: yes — tool logic not stored in GitHub
+  github_derivable_data: 'no'
+  lean_replacement: retain (shared; lean tools use same deps)
+  proposed_disposition: delete_after_cutover
+  removal_blockers: []
+- &id013
+  path: tools/pos/README.md
+  category: tool
+  status: active
+  referenced_by:
+  - .github/workflows/validate-pos.yml
+  - tests/pos/test_repository_bootstrap.py
+  references: []
+  canonical_data: yes — tool logic not stored in GitHub
+  github_derivable_data: 'no'
+  lean_replacement: none (retire; lean tools are self-documenting via --help)
+  proposed_disposition: delete_after_cutover
+  removal_blockers: []
+- &id014
+  path: project/generated/AGENTS.md
+  category: generated_view
+  status: stale_or_current
+  referenced_by:
+  - AGENTS.md
+  - CURRENT_STATE.md
+  - MANAGER_INBOX.md
+  - .github/workflows/validate-pos.yml
+  references:
+  - project/BOOTSTRAP_STATUS.yaml
+  - project/work/
+  - project/assignments/
+  - project/results/
+  - project/decisions/
+  canonical_data: no — generated from canonical records
+  github_derivable_data: yes — content derived from POS records and GitHub state
+  lean_replacement: project/lean/generated/WORKER_CONTEXT.yaml
+  proposed_disposition: delete_after_cutover
+  removal_blockers:
+  - BLKR-003
+  - BLKR-005
+- &id015
+  path: project/generated/CURRENT_STATE.md
+  category: generated_view
+  status: stale_or_current
+  referenced_by:
+  - AGENTS.md
+  - CURRENT_STATE.md
+  - MANAGER_INBOX.md
+  - .github/workflows/validate-pos.yml
+  references:
+  - project/BOOTSTRAP_STATUS.yaml
+  - project/work/
+  - project/assignments/
+  - project/results/
+  - project/decisions/
+  canonical_data: no — generated from canonical records
+  github_derivable_data: yes — content derived from POS records and GitHub state
+  lean_replacement: project/lean/generated/CURRENT_STATE.md
+  proposed_disposition: delete_after_cutover
+  removal_blockers:
+  - BLKR-003
+  - BLKR-005
+- &id016
+  path: project/generated/MANAGER_INBOX.md
+  category: generated_view
+  status: stale_or_current
+  referenced_by:
+  - AGENTS.md
+  - CURRENT_STATE.md
+  - MANAGER_INBOX.md
+  - .github/workflows/validate-pos.yml
+  references:
+  - project/BOOTSTRAP_STATUS.yaml
+  - project/work/
+  - project/assignments/
+  - project/results/
+  - project/decisions/
+  canonical_data: no — generated from canonical records
+  github_derivable_data: yes — content derived from POS records and GitHub state
+  lean_replacement: project/lean/generated/CURRENT_STATE.md (blockers section)
+  proposed_disposition: delete_after_cutover
+  removal_blockers:
+  - BLKR-003
+  - BLKR-005
+- &id017
+  path: tests/pos/test_repository_bootstrap.py
+  category: test
+  status: active
+  referenced_by:
+  - .github/workflows/validate-pos.yml
+  references:
+  - tools/pos/validate.py
+  - tools/pos/generate.py
+  - tools/pos/schemas.py
+  - governance/manifest.yaml
+  canonical_data: yes — test logic encoding governance requirements
+  github_derivable_data: 'no'
+  lean_replacement: 'tests/pos/lean/test_lean_validator.py + tests/pos/lean/test_reconcile.py + tests/pos/lean/test_generate.py
+    + tests/pos/lean/test_migration_assessment.py (manifest integrity check gap: BLKR-006)'
+  proposed_disposition: archive
+  removal_blockers:
+  - BLKR-005
+  - BLKR-006
+- &id018
+  path: tests/pos/test_role_bootstrap.py
+  category: test
+  status: active
+  referenced_by:
+  - .github/workflows/validate-pos.yml
+  references:
+  - tools/pos/validate.py
+  - tools/pos/generate.py
+  - tools/pos/schemas.py
+  - governance/manifest.yaml
+  canonical_data: yes — test logic encoding governance requirements
+  github_derivable_data: 'no'
+  lean_replacement: unresolved — role bootstrap may not have lean equivalent
+  proposed_disposition: archive
+  removal_blockers:
+  - BLKR-005
+  - BLKR-006
+- &id019
+  path: .github/workflows/validate-pos.yml
+  category: workflow
+  status: active
+  referenced_by:
+  - GitHub Actions
+  references:
+  - tools/pos/validate.py
+  - tools/pos/generate.py
+  - tests/pos/
+  - project/generated/
+  - AGENTS.md
+  - CURRENT_STATE.md
+  - MANAGER_INBOX.md
+  canonical_data: yes — CI behavior definition
+  github_derivable_data: 'no'
+  lean_replacement: new_workflow_step — lean validator + lean tests (CUTOVER-03)
+  proposed_disposition: retain
+  removal_blockers:
+  - BLKR-003
+- &id020
+  path: AGENTS.md
+  category: root_pointer
+  status: active
+  referenced_by:
+  - GitHub UI
+  - AI worker initial context
+  references:
+  - project/generated/AGENTS.md
+  canonical_data: no — pointer only
+  github_derivable_data: yes — pointer content derivable from generated view path
+  lean_replacement: pointer to project/lean/generated/WORKER_CONTEXT.yaml
+  proposed_disposition: replace_with_pointer
+  removal_blockers:
+  - BLKR-003
+- &id021
+  path: CURRENT_STATE.md
+  category: root_pointer
+  status: active
+  referenced_by:
+  - GitHub UI
+  - AI worker initial context
+  references:
+  - project/generated/CURRENT_STATE.md
+  canonical_data: no — pointer only
+  github_derivable_data: yes — pointer content derivable from generated view path
+  lean_replacement: pointer to project/lean/generated/CURRENT_STATE.md
+  proposed_disposition: replace_with_pointer
+  removal_blockers:
+  - BLKR-003
+- &id022
+  path: MANAGER_INBOX.md
+  category: root_pointer
+  status: active
+  referenced_by:
+  - GitHub UI
+  - AI worker initial context
+  references:
+  - project/generated/MANAGER_INBOX.md
+  canonical_data: no — pointer only
+  github_derivable_data: yes — pointer content derivable from generated view path
+  lean_replacement: pointer to project/lean/generated/CURRENT_STATE.md (blockers section)
+  proposed_disposition: replace_with_pointer
+  removal_blockers:
+  - BLKR-003
+- path: project/BOOTSTRAP_STATUS.yaml
+  category: root_config
+  status: active
+  referenced_by:
+  - tools/pos/schemas.py
+  - tools/pos/validate.py
+  - tools/pos/generate.py
+  references: []
+  canonical_data: yes — project operational state and role registry
+  github_derivable_data: partial — phase/status derivable from git; role definitions are unique
+  lean_replacement: project/lean/fixtures/valid/project-state.yaml (only current objective + constraints needed)
+  proposed_disposition: retain
+  removal_blockers:
+  - BLKR-001
+  - BLKR-004
+- path: project/roles/registry.yaml
+  category: root_config
+  status: active
+  referenced_by:
+  - tools/pos/schemas.py
+  - tools/pos/validate.py
+  - tools/pos/generate.py
+  references: []
+  canonical_data: yes — project operational state and role registry
+  github_derivable_data: partial — phase/status derivable from git; role definitions are unique
+  lean_replacement: retain (roles are independent of POS system)
+  proposed_disposition: retain
+  removal_blockers:
+  - BLKR-001
+  - BLKR-004
+- path: project/README.md
+  category: root_config
+  status: active
+  referenced_by:
+  - tools/pos/schemas.py
+  - tools/pos/validate.py
+  - tools/pos/generate.py
+  references: []
+  canonical_data: yes — project operational state and role registry
+  github_derivable_data: partial — phase/status derivable from git; role definitions are unique
+  lean_replacement: retain (repository entry point)
+  proposed_disposition: retain
+  removal_blockers:
+  - BLKR-001
+  - BLKR-004
+directories:
+- path: project/schemas/
+  contents:
+  - project/schemas/assignment.schema.yaml
+  - project/schemas/decision.schema.yaml
+  - project/schemas/evidence.schema.yaml
+  - project/schemas/review.schema.yaml
+  - project/schemas/risk-record.schema.yaml
+  - project/schemas/work-item.schema.yaml
+  - project/schemas/worker-result.schema.yaml
+  consumer: tools/pos/validate.py
+  lean_equivalent: project/schemas/lean/
+  proposed_disposition: archive
+- path: project/work/
+  contents:
+  - project/work/ASA2-WORK-001.yaml
+  consumer: tools/pos/validate.py, tools/pos/generate.py
+  lean_equivalent: project/lean/handoffs/ (worker-handoff records)
+  proposed_disposition: archive
+- path: project/generated/
+  contents:
+  - project/generated/AGENTS.md
+  - project/generated/CURRENT_STATE.md
+  - project/generated/MANAGER_INBOX.md
+  consumer: .github/workflows/validate-pos.yml, root pointer files
+  lean_equivalent: project/lean/generated/
+  proposed_disposition: delete_after_cutover
+schemas:
+- *id001
+- *id002
+- *id003
+- *id004
+- *id005
+- *id006
+- *id007
+tools:
+- *id008
+- *id009
+- *id010
+- *id011
+- *id012
+- *id013
+generated_views:
+- *id014
+- *id015
+- *id016
+tests:
+- *id017
+- *id018
+workflows:
+- *id019
+root_pointers:
+- *id020
+- *id021
+- *id022
