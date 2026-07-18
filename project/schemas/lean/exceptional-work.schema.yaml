@@ -1,0 +1,64 @@
+---
+# Lean POS — Exceptional Work schema
+# Persists coordination only when GitHub issues and PRs are insufficient.
+# Ordinary bugs, features, chores, and maintenance must NOT use this record.
+"$schema": "https://json-schema.org/draft/2020-12/schema"
+"$id": "asa2/lean/exceptional-work"
+title: ExceptionalWork
+type: object
+required:
+  - v
+  - id
+  - title
+  - trigger
+  - description
+  - state
+  - created_at
+properties:
+  v:
+    type: integer
+    minimum: 1
+  id:
+    type: string
+    minLength: 1
+  title:
+    type: string
+    minLength: 1
+  trigger:
+    type: string
+    description: The condition that justifies this record
+    enum:
+      - multi_pr_coordination
+      - multi_worker_coordination
+      - cross_repository_work
+      - durable_external_blocker
+      - risk_requires_structured_controls
+      - explicitly_requested
+  description:
+    type: string
+    minLength: 1
+    description: Why ordinary GitHub artifacts are insufficient
+  state:
+    type: string
+    enum:
+      - open
+      - resolved
+      - cancelled
+  github_refs:
+    type: array
+    items:
+      type: string
+      minLength: 1
+    description: GitHub issue or PR identifiers related to this work
+  resolution:
+    type: [string, "null"]
+    description: How the exceptional work was resolved (required when state=resolved)
+  notes:
+    type: string
+  created_at:
+    type: string
+    format: date-time
+  updated_at:
+    type: [string, "null"]
+    format: date-time
+additionalProperties: false

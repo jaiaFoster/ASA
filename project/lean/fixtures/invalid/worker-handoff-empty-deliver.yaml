@@ -1,0 +1,12 @@
+# INVALID: deliver is empty (minItems: 1 violated)
+v: 1
+id: lean-wh-bad-005
+goal: Do something
+scope:
+  - tools/pos/lean/**
+lock:
+  - governance/frozen/**
+accept:
+  - something passes
+risk: R0
+deliver: []

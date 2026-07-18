@@ -1,0 +1,8 @@
+# INVALID: missing required field 'objective'
+v: 1
+id: lean-ps-bad-001
+constraints:
+  - some constraint
+refs:
+  - roles/architect/INSTRUCTIONS.md
+updated_at: "2026-07-18T00:00:00Z"

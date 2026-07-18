@@ -1,0 +1,12 @@
+# INVALID: accept is empty (minItems: 1 violated)
+v: 1
+id: lean-wh-bad-001
+goal: Do something
+scope:
+  - tools/pos/lean/**
+lock:
+  - governance/frozen/**
+accept: []
+risk: R1
+deliver:
+  - tools/pos/lean/validate.py

@@ -1,0 +1,47 @@
+---
+# Lean POS — Project State schema
+# Stores the current objective, active constraints, and relevant durable
+# references. Never duplicates GitHub lifecycle metadata.
+"$schema": "https://json-schema.org/draft/2020-12/schema"
+"$id": "asa2/lean/project-state"
+title: ProjectState
+type: object
+required:
+  - v
+  - id
+  - objective
+  - constraints
+  - refs
+  - updated_at
+properties:
+  v:
+    type: integer
+    minimum: 1
+    description: Schema version
+  id:
+    type: string
+    minLength: 1
+    description: Stable identifier for this project state document
+  objective:
+    type: string
+    minLength: 1
+    description: Current primary objective in plain language
+  constraints:
+    type: array
+    items:
+      type: string
+      minLength: 1
+    description: Active constraints that bound current work
+  refs:
+    type: array
+    items:
+      type: string
+      minLength: 1
+    description: Durable references (file paths or supported identifiers)
+  notes:
+    type: string
+    description: Optional human-readable context
+  updated_at:
+    type: string
+    format: date-time
+additionalProperties: false

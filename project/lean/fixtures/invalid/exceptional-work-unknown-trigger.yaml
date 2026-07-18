@@ -1,0 +1,8 @@
+# INVALID: trigger not in supported enum
+v: 1
+id: lean-ew-bad-001
+title: Some exceptional work
+trigger: routine_bug
+description: This should not be exceptional work.
+state: open
+created_at: "2026-07-18T00:00:00Z"

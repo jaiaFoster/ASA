@@ -1,0 +1,16 @@
+# INVALID: scope and lock overlap — the same path appears in both, making
+# edits to it impossible within the handoff's own rules.
+# The validator checks for syntactic overlap between scope and lock.
+v: 1
+id: lean-wh-bad-003
+goal: Do something
+scope:
+  - tools/pos/lean/**
+  - governance/frozen/**
+lock:
+  - governance/frozen/**
+accept:
+  - something passes
+risk: R1
+deliver:
+  - result.yaml

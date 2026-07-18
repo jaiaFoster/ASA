@@ -1,0 +1,30 @@
+v: 1
+id: lean-wh-001
+title: Add offline lean validator CLI
+goal: Implement tools/pos/lean/validate.py with a working CLI entrypoint
+principles:
+  - deterministic
+  - no_network_calls
+refs:
+  - tools/pos/validate.py
+  - project/schemas/lean/
+scope:
+  - tools/pos/lean/**
+  - tests/pos/lean/**
+lock:
+  - governance/frozen/**
+  - tools/pos/validate.py
+  - tools/pos/schemas.py
+accept:
+  - validator exits 0 on valid fixtures
+  - validator exits non-zero on invalid fixtures
+  - no network calls during validation
+risk: R2
+deliver:
+  - tools/pos/lean/validate.py
+  - tests/pos/lean/test_lean_validator.py
+execute:
+  - inspect existing validator patterns
+  - implement lean schemas
+  - implement offline validator
+  - write tests
