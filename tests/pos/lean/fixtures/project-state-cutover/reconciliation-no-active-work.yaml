@@ -1,0 +1,15 @@
+repository: jaiaFoster/ASA
+derived_state: accepted
+observed_at: "2026-07-18T00:00:00Z"
+facts:
+  - code: F001
+    source: "issue/1"
+    detail: "GitHub issue #1 open"
+  - code: F005
+    source: "pr/8"
+    detail: "PR #8 merged by authorized merger"
+conflicts: []
+undetermined: []
+sources:
+  - jaiaFoster/ASA/issues
+  - jaiaFoster/ASA/pulls

@@ -116,15 +116,16 @@ capabilities:
   lean_implementation: GitHub PR reviews + CI check runs serve as audit trail; derived.py surfaces review/check facts (F006–F009);
     no lean equivalent of explicit evidence/ or review/ records
   gap: Lean relies on GitHub PR audit trail; no offline audit record equivalent. Gap accepted — Founder approved github_satisfies_pos_record_requirement
-    (BLKR-001 resolved).
+    (BLKR-001 resolved). Confirmed in LEAN-POS-06: project state plus GitHub and git history preserve required traceability
+    without legacy lifecycle duplication.
   blocker: null
 - id: migration_reversibility
   description: Ability to return to dual-POS or legacy-only operation
   legacy_implementation: N/A — pre-migration
   status: partially_replaced
-  lean_implementation: Cutover plan includes rollback steps for each phase; git history preserves all legacy artifacts; governance
-    and canonical-data blockers (BLKR-001, BLKR-002, BLKR-004) resolved — CUTOVER-01 complete
-  gap: Reversible cutover sequence (CUTOVER-02 through CUTOVER-06) not yet executed; ci_dependency (BLKR-003) and documentation_dependency
+  lean_implementation: Cutover plan includes rollback steps for each phase; git history preserves all legacy artifacts; CUTOVER-01
+    and CUTOVER-02 complete; canonical lean state exists at project/lean/state/project-state.yaml
+  gap: Reversible cutover sequence (CUTOVER-03 through CUTOVER-06) not yet executed; ci_dependency (BLKR-003) and documentation_dependency
     (BLKR-005) remain
   blocker: null
 - id: offline_operation
