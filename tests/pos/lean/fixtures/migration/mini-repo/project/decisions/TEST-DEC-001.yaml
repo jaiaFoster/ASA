@@ -1,0 +1,9 @@
+id: TEST-DEC-001
+title: Accept TEST-WORK-001
+status: pending
+decision_authority: Founder
+decision: null
+rationale: null
+affected_records: [TEST-WORK-001]
+created_at: "2026-07-18T00:00:00Z"
+decided_at: null

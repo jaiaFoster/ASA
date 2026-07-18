@@ -1,0 +1,20 @@
+id: TEST-WORK-001
+title: Test work item
+status: review
+objective: Test objective
+scope: Test scope
+owner_role: ROLE-PM
+acceptance_authority: Founder
+dependencies: []
+risk:
+  deterministic_class: R1
+  effective_class: R1
+risk_record: TEST-RISK-001
+assignments: [TEST-ASG-001]
+results: [TEST-RESULT-001]
+reviews: []
+evidence: []
+decisions: [TEST-DEC-001]
+artifacts: []
+created_at: "2026-07-18T00:00:00Z"
+updated_at: "2026-07-18T00:00:00Z"
