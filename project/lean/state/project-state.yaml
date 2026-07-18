@@ -1,0 +1,23 @@
+v: 1
+id: lean-ps-cutover
+objective: >
+  Replace the dual legacy/Lean POS operation with Lean POS as the sole
+  active project operating system.
+constraints:
+  - github_is_canonical_for_issues_prs_reviews_checks_and_merges
+  - lean_pos_stores_only_non_derivable_governance_state
+  - frozen_governance_changes_require_authorized_process
+  - governance_conflicts_are_reported_not_silently_resolved
+  - founder_merge_or_other_required_authority_merge_implies_acceptance
+  - migration_must_remain_reversible_until_legacy_removal_is_verified
+  - total_token_cost_is_an_architectural_constraint
+refs:
+  - governance/frozen/**
+  - roles/shared/AUTHORITY_BOUNDARIES.md
+  - roles/shared/RISK_SCALED_PROCESS.md
+  - project/lean/migration/cutover-plan.yaml
+notes: >
+  project=ASA-II repository=jaiaFoster/ASA
+  active_phase=CUTOVER-02 (establish_canonical_lean_project_state)
+  next_phase=CUTOVER-03 (switch_ci_and_documentation_entrypoints)
+updated_at: "2026-07-18T00:00:00Z"

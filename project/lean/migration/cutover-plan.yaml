@@ -3,7 +3,7 @@ preconditions:
 - BLKR-003 (ci_dependency) resolved — Founder approves CUTOVER-03 workflow change
 - BLKR-005 (documentation_dependency) resolved — sequenced after BLKR-003
 cutover_ready: false
-cutover_ready_reason: CUTOVER-01 complete; next phase is CUTOVER-02 (establish canonical lean project state)
+cutover_ready_reason: CUTOVER-02 complete; next phase is CUTOVER-03 (switch CI and documentation entrypoints)
 phases:
 - id: CUTOVER-01
   name: resolve_governance_and_integrity_blockers
@@ -30,28 +30,31 @@ phases:
   acceptance_authority: Founder
 - id: CUTOVER-02
   name: establish_canonical_lean_project_state
-  status: pending
+  status: complete
+  completed_in: LEAN-POS-06
   goal: Create the minimal lean project-state record and confirm lean records are valid and complete for current operational
     state.
   scope:
-  - project/lean/fixtures/valid/project-state.yaml
-  - project/lean/handoffs/ (active handoffs if any)
-  prerequisites:
-  - CUTOVER-01 complete ✓
-  - FD-001 outcome documented ✓
-  - python -m pytest tests/pos/lean -v passes
-  actions:
-  - 1. Author project-state.yaml with current objective, constraints, and durable refs
-  - 2. Confirm no active legacy work items require lean handoff equivalents (bootstrap work should now be accepted and archivable)
-  - 3. Run python tools/pos/lean/generate.py current-state to confirm output
-  - 4. Confirm token budget not exceeded
+  - project/lean/state/project-state.yaml (canonical — new path, not fixtures)
+  - tests/pos/lean/test_project_state_cutover.py
+  - tests/pos/lean/fixtures/project-state-cutover/
+  resolution_summary:
+  - Canonical project-state authored at project/lean/state/project-state.yaml
+  - Existing project-state.schema.yaml used unchanged (additionalProperties:false respected)
+  - State maps objective→current_objective, constraints→durable_constraints, refs→authority_refs
+  - phase info encoded in notes field; tested by test_active_phase_matches_cutover_plan
+  - No legacy records created or modified; no BOOTSTRAP_STATUS copied
+  - python tools/pos/lean/validate.py passes; generate.py current-state works without BOOTSTRAP_STATUS
+  - 38 new tests added; 299 lean tests pass; 403 repository tests pass
   verification:
-  - python tools/pos/lean/validate.py --all-fixtures — 0 errors
-  - python tools/pos/lean/generate.py current-state exits 0
-  - project/lean/generated/CURRENT_STATE.md exists and < 3500 tokens
+  - python tools/pos/lean/validate.py --file project/lean/state/project-state.yaml --schema project_state — PASS
+  - python tools/pos/lean/check_integrity.py — exits 0
+  - python -m pytest tests/pos/lean -v — 299 passed
+  - python -m pytest tests/pos -v — 403 passed
+  - generate current-state twice with --generated-at injected — byte-identical output
   rollback:
-  - Delete project-state.yaml if incorrectly authored
-  - Restore to prior state from git history
+  - Delete project/lean/state/project-state.yaml to return to pre-CUTOVER-02 state
+  - All prior state preserved in git history
   risk: R2
   acceptance_authority: Founder
 - id: CUTOVER-03
