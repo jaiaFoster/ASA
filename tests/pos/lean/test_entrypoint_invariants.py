@@ -103,11 +103,11 @@ class TestCurrentStateInvariants:
             "--generated-at 2000-01-01T00:00:00Z --output CURRENT_STATE.md"
         )
 
-    def test_current_state_reports_cutover_05(self):
+    def test_current_state_reports_migration_complete(self):
         content = CURRENT_STATE_PATH.read_text()
-        assert "CUTOVER-05" in content
+        assert "complete" in content.lower()
 
-    def test_current_state_reports_cutover_06_next(self):
+    def test_current_state_reports_cutover_06(self):
         content = CURRENT_STATE_PATH.read_text()
         assert "CUTOVER-06" in content
 

@@ -205,7 +205,7 @@ class TestManagerInbox:
 # ---------------------------------------------------------------------------
 
 class TestMigrationState:
-    GENERATED_AT = "2026-07-18T00:00:00Z"
+    GENERATED_AT = "2026-07-19T00:00:00Z"
 
     def test_no_open_migration_blockers(self):
         bl = build_blockers(self.GENERATED_AT)

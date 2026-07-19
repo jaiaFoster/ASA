@@ -42,7 +42,7 @@ LEAN_GENERATOR_CMD = [
 
 from tools.pos.lean.migration import build_blockers, build_cutover_plan
 
-GENERATED_AT = "2026-07-18T00:00:00Z"
+GENERATED_AT = "2026-07-19T00:00:00Z"
 
 # Legacy record groups and their archive paths
 ARCHIVE_GROUPS = [

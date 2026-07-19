@@ -728,7 +728,7 @@ def build_capability_map(generated_at: str) -> dict:
                                     "canonical lean state exists at project/lean/state/project-state.yaml; "
                                     "archived records recoverable via git or archive path; "
                                     "legacy runtime deleted in LEAN-POS-10 (CUTOVER-05)"),
-            "gap": ("CUTOVER-06 (verify_lean_only_repository) not yet complete"),
+            "gap": ("None — CUTOVER-06 complete; migration fully verified in LEAN-POS-11"),
             "blocker": None,
         },
         {
@@ -954,8 +954,8 @@ def build_blockers(generated_at: str) -> dict:
             "by_type": sorted(set(b["type"] for b in blockers)),
             "cutover_ready": True,
             "cutover_ready_reason": (
-                "All blockers resolved; CUTOVER-05 complete; next phase is CUTOVER-06 "
-                "(verify_lean_only_repository)"
+                "All blockers resolved; all six cutover phases complete; "
+                "migration complete in LEAN-POS-11"
             ),
         },
         "blockers": blockers,
@@ -1173,30 +1173,24 @@ def build_cutover_plan(generated_at: str) -> dict:
         {
             "id": "CUTOVER-06",
             "name": "verify_lean_only_repository",
-            "status": "pending",
+            "status": "complete",
+            "completed_in": "LEAN-POS-11",
             "goal": ("Confirm the repository operates correctly with lean POS only. "
                      "No dual canonical system remains."),
-            "scope": [
-                "tests/pos/test_repository_bootstrap.py (retire or rewrite for lean)",
-                "tests/pos/test_role_bootstrap.py (assess for lean relevance)",
-            ],
-            "prerequisites": [
-                "CUTOVER-05 complete",
-                "CI green with lean-only toolchain",
-            ],
-            "actions": [
-                "1. Run full test suite python -m pytest tests/ -v",
-                "2. Confirm no test imports from tools.pos.validate or tools.pos.generate (legacy)",
-                "3. Retire or rewrite tests/pos/test_repository_bootstrap.py for lean",
-                "4. Confirm no project/ directory contains both legacy and lean records",
-                "5. Confirm project/lean/generated/ is the sole generated view directory",
-                "6. Tag git commit as lean-cutover-complete",
+            "resolution_summary": [
+                "Corrected fail-open merge conflict preflight (check_merge_conflicts) — now fails closed",
+                "Added real conflict tests: text, delete/modify, add/add, rename",
+                "Verified all legacy runtime paths absent from filesystem and active references",
+                "Preserved durable role authority assertions in test_role_authority_integrity.py",
+                "Created project/lean/migration/FINAL_REPORT.md — migration sealed",
+                "project-state.yaml updated: migration_status=complete, no next cutover phase",
+                "AGENTS.md updated: migration complete, Lean POS sole active system",
             ],
             "verification": [
-                "python -m pytest tests/ -v — all lean tests pass; no legacy-only tests remain",
-                "grep -r 'tools.pos.validate' tests/ — no matches (only lean)",
-                "grep -r 'tools.pos.generate' tests/ — no matches (only lean)",
-                "project/lean/generated/CURRENT_STATE.md exists and < 3500 tokens",
+                "python -m pytest tests/pos -v — all tests pass, no legacy imports",
+                "python tools/pos/lean/check_entrypoints.py — OK",
+                "python tools/pos/lean/check_integrity.py — OK",
+                "rg tools/pos/(validate|generate|schemas|transitions) . --glob !.git — no active matches",
                 "project/generated/ does not exist",
             ],
             "rollback": [
@@ -1229,13 +1223,13 @@ def build_cutover_plan(generated_at: str) -> dict:
         "generated_at": generated_at,
         "preconditions": [
             "All BLKR-001–BLKR-006 resolved",
-            "CUTOVER-01, CUTOVER-02, CUTOVER-03, CUTOVER-04, CUTOVER-05 complete",
+            "CUTOVER-01 through CUTOVER-06 complete",
             "Founder has approved FD-001 through FD-004",
         ],
         "cutover_ready": True,
         "cutover_ready_reason": (
-            "All blockers resolved; CUTOVER-05 complete; "
-            "next phase is CUTOVER-06 (verify_lean_only_repository)"
+            "All blockers resolved; all six cutover phases complete; "
+            "migration complete in LEAN-POS-11"
         ),
         "phases": phases,
         "rollback": {

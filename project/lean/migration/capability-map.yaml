@@ -1,4 +1,4 @@
-generated_at: '2026-07-18T00:00:00Z'
+generated_at: '2026-07-19T00:00:00Z'
 summary:
   total_capabilities: 22
   replaced: 19
@@ -126,7 +126,7 @@ capabilities:
   lean_implementation: Cutover plan includes rollback steps for each phase; git history preserves all legacy artifacts; CUTOVER-01
     through CUTOVER-05 complete; canonical lean state exists at project/lean/state/project-state.yaml; archived records recoverable
     via git or archive path; legacy runtime deleted in LEAN-POS-10 (CUTOVER-05)
-  gap: CUTOVER-06 (verify_lean_only_repository) not yet complete
+  gap: None — CUTOVER-06 complete; migration fully verified in LEAN-POS-11
   blocker: null
 - id: offline_operation
   description: All validation operates without network access

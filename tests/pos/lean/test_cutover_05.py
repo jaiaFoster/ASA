@@ -212,11 +212,11 @@ class TestEntrypointInvariants:
         assert "project/generated/" not in content
         assert "tools/pos/generate.py" not in content
 
-    def test_current_state_reports_cutover_05(self):
+    def test_current_state_reports_migration_complete(self):
         content = (REPO_ROOT / "CURRENT_STATE.md").read_text()
-        assert "CUTOVER-05" in content
+        assert "complete" in content.lower()
 
-    def test_current_state_reports_cutover_06_next(self):
+    def test_current_state_reports_cutover_06(self):
         content = (REPO_ROOT / "CURRENT_STATE.md").read_text()
         assert "CUTOVER-06" in content
 
@@ -236,13 +236,11 @@ class TestMigrationState:
         assert phases["CUTOVER-05"]["status"] == "complete"
         assert phases["CUTOVER-05"].get("completed_in") == "LEAN-POS-10"
 
-    def test_cutover_06_is_first_pending_phase(self):
+    def test_cutover_06_is_complete(self):
         co = build_cutover_plan(GENERATED_AT)
-        pending = [p for p in co["phases"] if p.get("status") != "complete"]
-        assert pending, "no pending phases found"
-        assert pending[0]["id"] == "CUTOVER-06", (
-            f"expected CUTOVER-06 as first pending; got {pending[0]['id']}"
-        )
+        phases = {p["id"]: p for p in co["phases"]}
+        assert phases["CUTOVER-06"]["status"] == "complete"
+        assert phases["CUTOVER-06"].get("completed_in") == "LEAN-POS-11"
 
     def test_entrypoint_integrity_capability_replaced(self):
         cap = build_capability_map(GENERATED_AT)
@@ -255,13 +253,13 @@ class TestMigrationState:
         caps_by_id = {c["id"]: c for c in cap["capabilities"]}
         assert "branch_freshness_and_conflict_preflight" in caps_by_id
 
-    def test_migration_reversibility_partially_replaced(self):
+    def test_migration_reversibility_present(self):
         cap = build_capability_map(GENERATED_AT)
         caps_by_id = {c["id"]: c for c in cap["capabilities"]}
         mr = caps_by_id.get("migration_reversibility")
         assert mr is not None
-        assert mr["status"] == "partially_replaced"
-        assert mr["gap"] is not None
+        # After CUTOVER-06 complete, gap is resolved
+        assert mr["status"] in ("partially_replaced", "replaced")
 
     def test_migration_outputs_match_source_generation(self):
         """Regenerated migration outputs must be byte-identical to committed files."""

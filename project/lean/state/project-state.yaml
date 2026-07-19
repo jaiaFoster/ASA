@@ -9,15 +9,14 @@ constraints:
   - frozen_governance_changes_require_authorized_process
   - governance_conflicts_are_reported_not_silently_resolved
   - founder_merge_or_other_required_authority_merge_implies_acceptance
-  - migration_must_remain_reversible_until_legacy_removal_is_verified
   - total_token_cost_is_an_architectural_constraint
 refs:
   - governance/frozen/**
   - roles/shared/AUTHORITY_BOUNDARIES.md
   - roles/shared/RISK_SCALED_PROCESS.md
-  - project/lean/migration/cutover-plan.yaml
+  - project/lean/migration/FINAL_REPORT.md
 notes: >
   project=ASA-II repository=jaiaFoster/ASA
-  active_phase=CUTOVER-05 (remove_legacy_runtime_and_generated_views)
-  next_phase=CUTOVER-06 (verify_lean_only_repository)
+  migration_status=complete completed_phase=CUTOVER-06
+  active_operating_system=Lean_POS
 updated_at: "2026-07-19T00:00:00Z"

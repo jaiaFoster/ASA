@@ -37,7 +37,6 @@ LEGACY_POINTER_TEXTS = [
 AGENTS_REQUIRED = [
     "project/lean/state/project-state.yaml",
     "tools/pos/lean/",
-    "cutover-plan",
     "CURRENT_STATE.md",
 ]
 
