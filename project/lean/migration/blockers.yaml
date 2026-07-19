@@ -1,61 +1,15 @@
 generated_at: '2026-07-18T00:00:00Z'
 summary:
-  total_blockers: 2
-  resolved_blockers: 4
+  total_blockers: 0
+  resolved_blockers: 6
   by_severity:
     high: 0
-    medium: 2
+    medium: 0
     low: 0
-  by_type:
-  - ci_dependency
-  - documentation_dependency
-  cutover_ready: false
-  cutover_ready_reason: Two medium-severity blockers remain (BLKR-003, BLKR-005); CUTOVER-02 complete; next phase is CUTOVER-03
-blockers:
-- id: BLKR-003
-  type: ci_dependency
-  severity: medium
-  code: M006
-  description: 'CI workflow (.github/workflows/validate-pos.yml) runs: pytest tests/pos, tools/pos/validate.py, tools/pos/generate.py,
-    and git-diff check on project/generated/. After lean cutover these steps must change to: pytest tests/pos/lean, tools/pos/lean/validate.py
-    (or equivalent), tools/pos/lean/generate.py, and git-diff check on project/lean/generated/. Workflow modification is a
-    locked path in this task and requires Founder approval.'
-  evidence:
-  - '.github/workflows/validate-pos.yml: step ''Run validator'' runs tools/pos/validate.py'
-  - '.github/workflows/validate-pos.yml: step ''Run generator'' runs tools/pos/generate.py'
-  - '.github/workflows/validate-pos.yml: git diff check targets project/generated/ AGENTS.md CURRENT_STATE.md MANAGER_INBOX.md'
-  - Lean tools are not explicit CI steps (integrity check added in LEAN-POS-05)
-  affected_paths:
-  - .github/workflows/validate-pos.yml
-  - project/generated/
-  - project/lean/generated/
-  affected_capabilities:
-  - ci_validation
-  resolution_authority: Founder
-  smallest_required_decision: Approve modification of .github/workflows/validate-pos.yml to replace legacy validator/generator
-    steps with lean equivalents as part of CUTOVER-03.
-  recommendation: CUTOVER-03 defines the exact workflow changes required. Founder approves and merges CUTOVER-03 PR.
-- id: BLKR-005
-  type: documentation_dependency
-  severity: medium
-  code: M007
-  description: CI git-diff step checks project/generated/AGENTS.md, project/generated/CURRENT_STATE.md, project/generated/MANAGER_INBOX.md,
-    and root-level AGENTS.md, CURRENT_STATE.md, MANAGER_INBOX.md. These files are locked paths and are consumed by CI. Removing
-    them without updating the workflow first will cause CI to fail spuriously.
-  evidence:
-  - '.github/workflows/validate-pos.yml: git diff --exit-code project/generated/ AGENTS.md CURRENT_STATE.md MANAGER_INBOX.md'
-  affected_paths:
-  - project/generated/AGENTS.md
-  - project/generated/CURRENT_STATE.md
-  - project/generated/MANAGER_INBOX.md
-  - AGENTS.md
-  - CURRENT_STATE.md
-  - MANAGER_INBOX.md
-  affected_capabilities:
-  - ci_validation
-  resolution_authority: Founder
-  smallest_required_decision: 'Approve CUTOVER-03: update CI workflow before deleting legacy generated files.'
-  recommendation: 'Sequence: CUTOVER-03 (CI switch) before CUTOVER-05 (file removal).'
+  by_type: []
+  cutover_ready: true
+  cutover_ready_reason: All blockers resolved; CUTOVER-03 complete; next phase is CUTOVER-04 (archive_historical_legacy_records)
+blockers: []
 resolved_blockers:
 - id: BLKR-001
   type: governance_conflict
@@ -91,6 +45,27 @@ resolved_blockers:
     of ASA2-WORK-001 and closes ASA2-DECISION-001 as decided. Bootstrap records are archivable without creating lean equivalents.
   affected_capabilities:
   - audit_traceability
+- id: BLKR-003
+  type: ci_dependency
+  severity: medium
+  code: M006
+  status: resolved
+  resolved_in: LEAN-POS-08
+  resolution: Lean validator, generator, integrity checker, tests, and deterministic root generated-output diff check are
+    active in CI. Legacy validator (tools/pos/validate.py) and legacy generator (tools/pos/generate.py) are no longer invoked
+    by CI.
+  affected_capabilities:
+  - ci_validation
+- id: BLKR-005
+  type: documentation_dependency
+  severity: medium
+  code: M007
+  status: resolved
+  resolved_in: LEAN-POS-08
+  resolution: Root operational documentation (AGENTS.md, CURRENT_STATE.md) updated to point to Lean POS. MANAGER_INBOX.md
+    deleted — no lean equivalent. CI diff check retargeted to CURRENT_STATE.md only.
+  affected_capabilities:
+  - ci_validation
 - id: BLKR-006
   type: missing_capability
   severity: high

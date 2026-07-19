@@ -116,7 +116,8 @@ class TestLegacyInventory:
     def test_root_pointers_listed(self):
         inv = _inventory()
         rp_paths = {r["path"] for r in inv["root_pointers"]}
-        assert {"AGENTS.md", "CURRENT_STATE.md", "MANAGER_INBOX.md"}.issubset(rp_paths)
+        # MANAGER_INBOX.md deleted in CUTOVER-03 — AGENTS.md and CURRENT_STATE.md remain
+        assert {"AGENTS.md", "CURRENT_STATE.md"}.issubset(rp_paths)
 
     def test_every_artifact_has_required_fields(self):
         inv = _inventory()
@@ -235,7 +236,7 @@ class TestCapabilityMap:
         cap = _cap_map()
         caps_by_id = {c["id"]: c for c in cap["capabilities"]}
         assert caps_by_id["risk_floor_enforcement"]["status"] == "partially_replaced"
-        assert caps_by_id["ci_validation"]["status"] == "partially_replaced"
+        assert caps_by_id["ci_validation"]["status"] == "replaced"
         assert caps_by_id["frozen_governance_integrity"]["status"] == "replaced"
 
     def test_partially_replaced_has_gap(self):
@@ -322,10 +323,13 @@ class TestBlockerDetection:
         resolution_text = " ".join(b.get("resolution", "") for b in resolved)
         assert "ASA2-WORK-001" in resolution_text or "founder_merge" in resolution_text
 
-    def test_ci_dependency_blocker_present(self):
+    def test_ci_dependency_blocker_resolved(self):
         bl = _blockers()
-        ci_blockers = [b for b in bl["blockers"] if b["type"] == "ci_dependency"]
-        assert len(ci_blockers) >= 1
+        open_ci = [b for b in bl["blockers"] if b["type"] == "ci_dependency"]
+        assert len(open_ci) == 0, "ci_dependency blocker BLKR-003 should be resolved"
+        resolved_ci = [b for b in bl.get("resolved_blockers", [])
+                       if b["type"] == "ci_dependency"]
+        assert len(resolved_ci) >= 1
 
     def test_missing_capability_blocker_for_governance_integrity_resolved(self):
         bl = _blockers()
@@ -365,9 +369,9 @@ class TestBlockerDetection:
             for field in ("id", "type", "description"):
                 assert b.get(field), f"blocker {b.get('id')} missing {field}"
 
-    def test_cutover_not_ready_while_blockers_present(self):
+    def test_cutover_ready_when_no_blockers(self):
         bl = _blockers()
-        assert bl["summary"]["cutover_ready"] is False
+        assert bl["summary"]["cutover_ready"] is True
 
     def test_founder_decisions_recorded(self):
         bl = _blockers()
@@ -611,14 +615,14 @@ class TestDeterminismAndSafety:
 # ===========================================================================
 
 class TestCLIContract:
-    def test_exit_1_with_blockers(self, tmp_path):
+    def test_exit_0_no_blockers(self, tmp_path):
         result = subprocess.run(
             [sys.executable, "tools/pos/lean/assess_migration.py",
              "--repo-root", ".", "--generated-at", GENERATED_AT,
              "--output-dir", str(tmp_path)],
             capture_output=True, text=True, cwd=REPO_ROOT,
         )
-        assert result.returncode == 1
+        assert result.returncode == 0, f"Expected exit 0 (no blockers): {result.stdout}"
 
     def test_exit_2_on_invalid_repo_root(self, tmp_path):
         result = subprocess.run(

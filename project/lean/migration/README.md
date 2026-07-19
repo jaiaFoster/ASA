@@ -25,21 +25,19 @@ Outputs are byte-identical for identical repository state and `--generated-at`.
 
 ## Current status
 
-Assessment exits 1 (blockers present). See `blockers.yaml` for details.
+Assessment exits 0 (no open blockers). All 6 blockers resolved.
 
-**Resolved decisions (LEAN-POS-05):**
-- FD-001: github_satisfies_pos_record_requirement — approved (BLKR-001 closed)
-- FD-002: manifest_resolution=update_hashes — approved (BLKR-002 closed)
-- FD-003: founder_merge_implies_acceptance — approved (BLKR-004 closed)
-- FD-004: lean_integrity_checker=approved_minimal — approved (BLKR-006 closed)
-
-**Remaining open blockers:**
-- BLKR-003: CI dependency (medium) — workflow update requires Founder approval
-- BLKR-005: Documentation dependency (medium) — sequenced after BLKR-003
+**Resolved decisions:**
+- FD-001 (LEAN-POS-05): github_satisfies_pos_record_requirement — approved (BLKR-001 closed)
+- FD-002 (LEAN-POS-05): manifest_resolution=update_hashes — approved (BLKR-002 closed)
+- FD-003 (LEAN-POS-05): founder_merge_implies_acceptance — approved (BLKR-004 closed)
+- FD-004 (LEAN-POS-05): lean_integrity_checker=approved_minimal — approved (BLKR-006 closed)
+- BLKR-003 (LEAN-POS-08): CI switched to lean validator, generator, and integrity checker
+- BLKR-005 (LEAN-POS-08): AGENTS.md and CURRENT_STATE.md point to lean POS; MANAGER_INBOX deleted
 
 ## Capability summary
 
-See `capability-map.yaml`. 15 capabilities replaced, 4 partially replaced,
+See `capability-map.yaml`. 16 capabilities replaced, 3 partially replaced,
 0 blocked, 1 replaced with different mechanism.
 
 ## Cutover phases
@@ -48,8 +46,8 @@ See `capability-map.yaml`. 15 capabilities replaced, 4 partially replaced,
 |---|---|---|
 | CUTOVER-01 | resolve_governance_and_integrity_blockers | complete |
 | CUTOVER-02 | establish_canonical_lean_project_state | complete |
-| CUTOVER-03 | switch_ci_and_documentation_entrypoints | pending |
-| CUTOVER-04 | archive_historical_legacy_records | pending |
+| CUTOVER-03 | switch_ci_and_documentation_entrypoints | complete |
+| CUTOVER-04 | archive_historical_legacy_records | pending (next) |
 | CUTOVER-05 | remove_legacy_runtime_and_generated_views | pending |
 | CUTOVER-06 | verify_lean_only_repository | pending |
 

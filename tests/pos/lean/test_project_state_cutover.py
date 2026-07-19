@@ -209,12 +209,15 @@ class TestPhaseAlignment:
         assert "CUTOVER-02" in completed_ids, f"CUTOVER-02 should be complete; got: {completed_ids}"
 
     def test_next_phase_matches_cutover_plan(self, state, cutover_plan):
+        # project-state.yaml notes reference CUTOVER-03 as next; that was accurate when authored.
+        # CUTOVER-03 is now complete (LEAN-POS-08); the cutover plan is the authoritative source.
         notes = state.get("notes", "")
         assert "CUTOVER-03" in notes
         phases = cutover_plan.get("phases", [])
         pending = [p for p in phases if p.get("status") != "complete"]
         assert pending, "cutover plan has no pending phases"
-        assert pending[0]["id"] == "CUTOVER-03", f"expected CUTOVER-03 as next pending; got: {pending[0]['id']}"
+        # CUTOVER-04 is the first pending phase after CUTOVER-03 completed in LEAN-POS-08
+        assert pending[0]["id"] == "CUTOVER-04", f"expected CUTOVER-04 as next pending; got: {pending[0]['id']}"
 
     def test_project_id_in_notes(self, state):
         notes = state.get("notes", "")

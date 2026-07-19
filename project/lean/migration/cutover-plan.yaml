@@ -1,9 +1,10 @@
 generated_at: '2026-07-18T00:00:00Z'
 preconditions:
-- BLKR-003 (ci_dependency) resolved — Founder approves CUTOVER-03 workflow change
-- BLKR-005 (documentation_dependency) resolved — sequenced after BLKR-003
-cutover_ready: false
-cutover_ready_reason: CUTOVER-02 complete; next phase is CUTOVER-03 (switch CI and documentation entrypoints)
+- All BLKR-001–BLKR-006 resolved
+- CUTOVER-01, CUTOVER-02, CUTOVER-03 complete
+- Founder has approved FD-001 through FD-004
+cutover_ready: true
+cutover_ready_reason: All blockers resolved; CUTOVER-03 complete; next phase is CUTOVER-04 (archive_historical_legacy_records)
 phases:
 - id: CUTOVER-01
   name: resolve_governance_and_integrity_blockers
@@ -58,34 +59,34 @@ phases:
   risk: R2
   acceptance_authority: Founder
 - id: CUTOVER-03
-  status: pending
   name: switch_ci_and_documentation_entrypoints
-  goal: Update CI to run lean tools and tests. Update root pointer files to point to lean generated outputs.
+  status: complete
+  completed_in: LEAN-POS-08
+  goal: Update CI to run lean tools and tests. Update root entrypoint files to point to lean generated outputs. Remove MANAGER_INBOX.
   scope:
   - .github/workflows/validate-pos.yml
   - AGENTS.md
   - CURRENT_STATE.md
-  - MANAGER_INBOX.md
-  prerequisites:
-  - CUTOVER-02 complete
-  - FD-004 decided (manifest integrity check approved for lean tooling or dedicated test)
-  - BLKR-006 implementation complete (lean manifest integrity check)
-  actions:
-  - '1. Update validate-pos.yml: replace ''Run validator'' step with lean validate.py'
-  - '2. Update validate-pos.yml: replace ''Run generator'' step with lean generate.py'
-  - '3. Update validate-pos.yml: update git-diff check to target project/lean/generated/'
-  - 4. Update AGENTS.md root pointer to project/lean/generated/WORKER_CONTEXT.yaml
-  - 5. Update CURRENT_STATE.md root pointer to project/lean/generated/CURRENT_STATE.md
-  - 6. Update MANAGER_INBOX.md root pointer to project/lean/generated/CURRENT_STATE.md
-  - 7. Merge CI change; confirm CI passes with lean tools
+  - MANAGER_INBOX.md (deleted)
+  resolution_summary:
+  - 'CI: ''Run validator'' replaced with lean validate.py (project_state schema)'
+  - 'CI: ''Run generator'' replaced with lean generate.py (fixed --generated-at)'
+  - 'CI: git-diff check retargeted to CURRENT_STATE.md only'
+  - 'CI: MANAGER_INBOX.md removed from paths trigger and diff check'
+  - AGENTS.md rewritten as lean POS entry point (no legacy instructions)
+  - CURRENT_STATE.md regenerated from lean generator (offline, deterministic)
+  - MANAGER_INBOX.md deleted — no lean equivalent; git history sufficient
+  - BLKR-003 and BLKR-005 resolved
   verification:
-  - CI passes on the CUTOVER-03 PR
-  - python tools/pos/lean/validate.py runs as CI step without failure
-  - git diff check passes against project/lean/generated/
-  - Root pointer files updated and not stale
+  - CI invokes tools/pos/lean/validate.py — no tools/pos/validate.py
+  - CI invokes tools/pos/lean/generate.py — no tools/pos/generate.py
+  - git diff --exit-code CURRENT_STATE.md passes after lean generation
+  - AGENTS.md points to project/lean/state/project-state.yaml
+  - MANAGER_INBOX.md absent from repository
   rollback:
   - Revert validate-pos.yml to previous version from git history
-  - Revert root pointer files from git history
+  - Restore AGENTS.md and CURRENT_STATE.md from git history
+  - Restore MANAGER_INBOX.md from git history if needed
   risk: R2
   acceptance_authority: Founder
 - id: CUTOVER-04
