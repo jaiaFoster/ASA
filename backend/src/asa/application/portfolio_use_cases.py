@@ -69,17 +69,25 @@ class RunPortfolioIntelligence:
             requested_at.astimezone(UTC), release_sha, effective_config_hash
         )
         current_step = RunStepName.ACQUIRE_PORTFOLIO
+        provider_name = self._provider.name
         self._repository.start_run(run.id, self._clock())
         try:
             accounts, positions = self._acquire(run.id)
+            provider_name = accounts.provider
             current_step = RunStepName.NORMALIZE_PORTFOLIO
             snapshot = self._run_step(
                 run.id,
                 current_step,
+                provider_name,
                 lambda: self._normalize(accounts, positions),
             )
             current_step = RunStepName.VALIDATE_PUBLICATION
-            self._run_step(run.id, current_step, lambda: validate_snapshot(snapshot))
+            self._run_step(
+                run.id,
+                current_step,
+                provider_name,
+                lambda: validate_snapshot(snapshot),
+            )
             current_step = RunStepName.PUBLISH
             publication = self._repository.publish_portfolio(run.id, snapshot, self._clock())
             self._log_step(run.id, current_step, snapshot.provider, None)
@@ -93,7 +101,7 @@ class RunPortfolioIntelligence:
                 "portfolio_run_failed",
                 detail,
             )
-            self._log_step(run.id, current_step, "deterministic_fake_broker", None)
+            self._log_step(run.id, current_step, provider_name, None)
             return RunPortfolioResult(run.id, RunStatus.FAILED, None)
 
     def _acquire(self, run_id: UUID) -> tuple[BrokerAccountsResult, BrokerPositionsResult]:
@@ -108,11 +116,17 @@ class RunPortfolioIntelligence:
         self._log_step(run_id, step, accounts.provider, account_id)
         return accounts, positions
 
-    def _run_step(self, run_id: UUID, step: RunStepName, operation: Callable[[], T]) -> T:
+    def _run_step(
+        self,
+        run_id: UUID,
+        step: RunStepName,
+        provider: str,
+        operation: Callable[[], T],
+    ) -> T:
         self._repository.start_step(run_id, step, self._clock())
         result = operation()
         self._repository.complete_step(run_id, step, self._clock())
-        self._log_step(run_id, step, "deterministic_fake_broker", None)
+        self._log_step(run_id, step, provider, None)
         return result
 
     @staticmethod
@@ -161,7 +175,10 @@ class RunPortfolioIntelligence:
             )
             for item in positions_result.option_legs
         )
-        observed_at = min(account.observed_at for account in accounts)
+        evidence_observed_at = [account.observed_at for account in accounts]
+        evidence_observed_at.extend(position.observed_at for position in equities)
+        evidence_observed_at.extend(leg.observed_at for leg in option_legs)
+        observed_at = min(evidence_observed_at)
         return PortfolioSnapshot(
             observed_at=observed_at,
             provider=accounts_result.provider,

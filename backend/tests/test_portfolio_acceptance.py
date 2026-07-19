@@ -114,3 +114,24 @@ def test_failed_run_preserves_publication_and_discloses_last_success(
     assert failed["publication_id"] is None
     assert portfolio["run"]["id"] == successful["id"]
     assert portfolio["freshness"]["serving_last_success"] is True
+
+
+def test_account_only_portfolio_can_be_published(portfolio_client: TestClient) -> None:
+    provider = portfolio_client.app.state.dependencies["broker_provider"]
+    positions = provider.fetch_positions()
+    provider.fetch_positions = lambda: replace(positions, equities=(), option_legs=())
+
+    run = portfolio_client.post(
+        "/api/v1/runs",
+        json={
+            "requested_at": datetime.now(UTC).isoformat(),
+            "release_sha": "release-account-only",
+            "effective_config_hash": "config-account-only",
+        },
+    ).json()
+    portfolio = portfolio_client.get("/api/v1/portfolio").json()
+
+    assert run["status"] == "succeeded"
+    assert portfolio["data"]["account_count"] == 1
+    assert portfolio["data"]["equity_position_count"] == 0
+    assert portfolio["data"]["option_leg_count"] == 0
