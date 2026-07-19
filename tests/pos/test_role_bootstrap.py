@@ -163,7 +163,8 @@ def test_risk_scaled_process_covers_r0_to_r5():
 
 
 def test_bootstrap_status_reflects_role_bootstrap():
-    status_path = REPO_ROOT / "project/BOOTSTRAP_STATUS.yaml"
+    # Archived in CUTOVER-04 (LEAN-POS-09)
+    status_path = REPO_ROOT / "project/lean/archive/legacy/BOOTSTRAP_STATUS.yaml"
     data = yaml.safe_load(status_path.read_text(encoding="utf-8"))
     assert data.get("phase") == "ROLE_BOOTSTRAP", (
         f"Phase should be ROLE_BOOTSTRAP, got {data.get('phase')!r}"

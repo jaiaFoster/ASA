@@ -1,7 +1,7 @@
 generated_at: '2026-07-18T00:00:00Z'
 summary:
-  total_capabilities: 19
-  replaced: 16
+  total_capabilities: 20
+  replaced: 17
   replaced_with_different_mechanism: 1
   partially_replaced: 3
   blocked: 0
@@ -124,9 +124,10 @@ capabilities:
   legacy_implementation: N/A — pre-migration
   status: partially_replaced
   lean_implementation: Cutover plan includes rollback steps for each phase; git history preserves all legacy artifacts; CUTOVER-01
-    and CUTOVER-02 complete; canonical lean state exists at project/lean/state/project-state.yaml
-  gap: Reversible cutover sequence (CUTOVER-03 through CUTOVER-06) not yet executed; ci_dependency (BLKR-003) and documentation_dependency
-    (BLKR-005) remain
+    through CUTOVER-04 complete; canonical lean state exists at project/lean/state/project-state.yaml; archived records recoverable
+    via git or archive path
+  gap: CUTOVER-05 (remove_legacy_runtime_and_generated_views) and CUTOVER-06 (verify_lean_only_repository) not yet complete;
+    legacy runtime still present
   blocker: null
 - id: offline_operation
   description: All validation operates without network access
@@ -143,6 +144,15 @@ capabilities:
   lean_implementation: 'CI runs: pytest tests/pos (includes all lean tests); tools/pos/lean/check_integrity.py; tools/pos/lean/validate.py
     (project_state schema); tools/pos/lean/generate.py (deterministic, fixed timestamp); git-diff check on CURRENT_STATE.md
     only. Legacy validator and generator removed from CI in LEAN-POS-08.'
+  gap: null
+  blocker: null
+- id: historical_record_preservation
+  description: Preserve access to pre-lean canonical work, assignment, and decision records
+  legacy_implementation: project/work/, project/assignments/, project/results/, project/decisions/, project/reviews/, project/evidence/,
+    project/risks/, project/BOOTSTRAP_STATUS.yaml
+  status: replaced
+  lean_implementation: project/lean/archive/legacy/ — byte-preserved historical records; git history preserves original paths
+    and content. Archived in LEAN-POS-09 (CUTOVER-04).
   gap: null
   blocker: null
 - id: frozen_governance_integrity

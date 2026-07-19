@@ -580,7 +580,7 @@ class TestDeterminismAndSafety:
     def test_no_legacy_file_modified(self, tmp_path):
         """Running the assessor must not change any legacy file's mtime."""
         legacy_dirs = [
-            REPO_ROOT / "project" / "work",
+            REPO_ROOT / "project" / "lean" / "archive" / "legacy",
             REPO_ROOT / "project" / "schemas",
             REPO_ROOT / "tools" / "pos",
         ]

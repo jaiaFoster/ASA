@@ -1,10 +1,10 @@
 generated_at: '2026-07-18T00:00:00Z'
 preconditions:
 - All BLKR-001–BLKR-006 resolved
-- CUTOVER-01, CUTOVER-02, CUTOVER-03 complete
+- CUTOVER-01, CUTOVER-02, CUTOVER-03, CUTOVER-04 complete
 - Founder has approved FD-001 through FD-004
 cutover_ready: true
-cutover_ready_reason: All blockers resolved; CUTOVER-03 complete; next phase is CUTOVER-04 (archive_historical_legacy_records)
+cutover_ready_reason: All blockers resolved; CUTOVER-04 complete; next phase is CUTOVER-05 (remove_legacy_runtime_and_generated_views)
 phases:
 - id: CUTOVER-01
   name: resolve_governance_and_integrity_blockers
@@ -91,7 +91,8 @@ phases:
   acceptance_authority: Founder
 - id: CUTOVER-04
   name: archive_historical_legacy_records
-  status: pending
+  status: complete
+  completed_in: LEAN-POS-09
   goal: Move legacy canonical records to an archive location. Git history is preserved. Records are not rewritten or deleted.
   scope:
   - project/work/ → project/lean/archive/legacy/work/
@@ -102,18 +103,14 @@ phases:
   - project/evidence/ → project/lean/archive/legacy/evidence/
   - project/risks/ → project/lean/archive/legacy/risks/
   - project/BOOTSTRAP_STATUS.yaml → project/lean/archive/legacy/BOOTSTRAP_STATUS.yaml
-  prerequisites:
-  - CUTOVER-03 complete and CI passing with lean tools
-  - All active legacy records confirmed accepted or cancelled (BLKR-004 resolved)
-  - No active CI step reads from project/work/ or project/assignments/
-  actions:
-  - 1. Confirm CI no longer reads project/work/, project/assignments/, etc.
-  - 2. git mv project/work/ project/lean/archive/legacy/work/
-  - 3. git mv project/assignments/ project/lean/archive/legacy/assignments/
-  - 4. Repeat for results/, decisions/, reviews/, evidence/, risks/
-  - 5. git mv project/BOOTSTRAP_STATUS.yaml project/lean/archive/legacy/
-  - 6. Add project/lean/archive/README.md explaining archive purpose
-  - 7. Confirm python -m pytest tests/pos/lean -v still passes
+  resolution_summary:
+  - git mv for all 7 record directories and BOOTSTRAP_STATUS.yaml to archive path
+  - project/lean/archive/legacy/README.md created (noncanonical marker)
+  - project/lean/state/project-state.yaml notes updated to CUTOVER-04 active, CUTOVER-05 next
+  - CURRENT_STATE.md regenerated from lean generator (offline, deterministic)
+  - 'migration.py updated: historical_record_preservation → replaced; archive paths in inventory'
+  - No active CI, lean tool, or entrypoint depends on archived paths
+  - All archived file bytes preserved exactly (git mv, not copy+rewrite)
   verification:
   - python -m pytest tests/pos/lean -v — passes
   - python tools/pos/lean/validate.py exits 0
@@ -204,7 +201,8 @@ verification:
   - python tools/pos/lean/validate.py exits 0
   - python tools/pos/lean/generate.py current-state exits 0
   - CI passes on a clean PR
-  - 'No dual canonical system: project/work/ does not exist; project/lean/ is the canonical lean record location'
+  - 'No dual canonical system: project/work/ does not exist at active path; project/lean/archive/legacy/ holds historical
+    records; project/lean/ is the canonical lean record location'
 deletion_manifest:
 - path: project/generated/AGENTS.md
   reason: Replaced by project/lean/generated/WORKER_CONTEXT.yaml

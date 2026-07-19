@@ -174,6 +174,11 @@ def make_repo_copy(tmp_path: Path) -> Path:
     """Copy repo to tmp_path for mutation tests."""
     dest = tmp_path / "ASA"
     shutil.copytree(REPO_ROOT, dest, ignore=shutil.ignore_patterns(".git"))
+    # BOOTSTRAP_STATUS.yaml was archived in CUTOVER-04; restore it for legacy validator tests
+    archive_bs = dest / "project" / "lean" / "archive" / "legacy" / "BOOTSTRAP_STATUS.yaml"
+    target_bs = dest / "project" / "BOOTSTRAP_STATUS.yaml"
+    if archive_bs.exists() and not target_bs.exists():
+        shutil.copy2(archive_bs, target_bs)
     return dest
 
 
@@ -206,8 +211,20 @@ def run_generator(repo: Path) -> subprocess.CompletedProcess:
 # Group 1: Required directories
 # ===========================================================================
 
+_ARCHIVED_DIRS = {
+    "project/work", "project/assignments", "project/results",
+    "project/decisions", "project/reviews", "project/evidence", "project/risks",
+}
+_ARCHIVE_ROOT = REPO_ROOT / "project" / "lean" / "archive" / "legacy"
+
+
 @pytest.mark.parametrize("directory", REQUIRED_DIRECTORIES)
 def test_required_directory_exists(directory):
+    if directory in _ARCHIVED_DIRS:
+        # Archived in CUTOVER-04 (LEAN-POS-09); check archive path instead
+        archive_path = _ARCHIVE_ROOT / directory.split("/", 1)[1]
+        assert archive_path.is_dir(), f"Archive directory missing: {archive_path}"
+        return
     assert (REPO_ROOT / directory).is_dir(), f"Required directory missing: {directory}"
 
 
@@ -263,8 +280,10 @@ def test_no_audit_placeholders_in_manifest():
 # ===========================================================================
 
 def test_bootstrap_status_parses():
-    assert BOOTSTRAP_STATUS_PATH.exists()
-    data = load_yaml(BOOTSTRAP_STATUS_PATH)
+    # Archived in CUTOVER-04 (LEAN-POS-09); check archive path
+    archive_path = _ARCHIVE_ROOT / "BOOTSTRAP_STATUS.yaml"
+    assert archive_path.exists(), f"BOOTSTRAP_STATUS not found in archive: {archive_path}"
+    data = load_yaml(archive_path)
     assert data is not None
     assert "project" in data
     assert "phase" in data
@@ -300,6 +319,7 @@ def test_risk_record_schema_exists():
 # ===========================================================================
 
 def test_canonical_lifecycle_records_exist():
+    # Records archived in CUTOVER-04 (LEAN-POS-09); check archive paths
     expected = {
         "work": ["ASA2-WORK-001.yaml"],
         "risks": ["ASA2-RISK-001.yaml"],
@@ -311,8 +331,8 @@ def test_canonical_lifecycle_records_exist():
     }
     for dir_name, files in expected.items():
         for f in files:
-            path = REPO_ROOT / "project" / dir_name / f
-            assert path.exists(), f"Expected lifecycle record missing: project/{dir_name}/{f}"
+            path = _ARCHIVE_ROOT / dir_name / f
+            assert path.exists(), f"Expected lifecycle record missing in archive: {path}"
 
 
 def test_canonical_records_parse():
@@ -326,6 +346,11 @@ def test_canonical_records_parse():
 # Group 6: Validator passes on committed state
 # ===========================================================================
 
+@pytest.mark.xfail(
+    reason="Legacy validator checks project/work/ etc. which are archived in CUTOVER-04. "
+           "Validator is retired in CUTOVER-05; record dirs are at project/lean/archive/legacy/.",
+    strict=True,
+)
 def test_validator_passes():
     result = run_validator(REPO_ROOT)
     assert result.returncode == 0, (
@@ -347,6 +372,11 @@ def test_generated_files_contain_warning(filename):
     assert "DO NOT EDIT MANUALLY" in content
 
 
+@pytest.mark.xfail(
+    reason="Decision records archived in CUTOVER-04; legacy generator scans empty dirs. "
+           "Legacy generator retired in CUTOVER-05.",
+    strict=True,
+)
 def test_manager_inbox_contains_pending_decision():
     path = REPO_ROOT / "project" / "generated" / "MANAGER_INBOX.md"
     content = path.read_text(encoding="utf-8")
@@ -726,7 +756,9 @@ def test_missing_required_directory_fails(tmp_path):
 
 def test_invalid_yaml_fails(tmp_path):
     repo = make_repo_copy(tmp_path)
-    bad_file = repo / "project" / "work" / "bad.yaml"
+    work_dir = repo / "project" / "work"
+    work_dir.mkdir(parents=True, exist_ok=True)
+    bad_file = work_dir / "bad.yaml"
     bad_file.write_text(": : invalid: yaml: [\n", encoding="utf-8")
     r = run_validator(repo)
     assert r.returncode != 0
@@ -734,8 +766,10 @@ def test_invalid_yaml_fails(tmp_path):
 
 def test_record_fails_schema_validation(tmp_path):
     repo = make_repo_copy(tmp_path)
+    work_dir = repo / "project" / "work"
+    work_dir.mkdir(parents=True, exist_ok=True)
     wi = {"id": "ASA2-WORK-999", "title": "Missing required fields"}  # incomplete
-    f = repo / "project" / "work" / "ASA2-WORK-999.yaml"
+    f = work_dir / "ASA2-WORK-999.yaml"
     with open(f, "w", encoding="utf-8") as fh:
         yaml.dump(wi, fh)
     r = run_validator(repo)
