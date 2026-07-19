@@ -10,8 +10,7 @@ summary:
   - ci_dependency
   - documentation_dependency
   cutover_ready: false
-  cutover_ready_reason: Two medium-severity blockers remain (BLKR-003, BLKR-005); CUTOVER-01
-    complete; next phase is CUTOVER-02
+  cutover_ready_reason: Two medium-severity blockers remain (BLKR-003, BLKR-005); CUTOVER-02 complete; next phase is CUTOVER-03
 blockers:
 - id: BLKR-003
   type: ci_dependency

@@ -115,9 +115,9 @@ capabilities:
   status: partially_replaced
   lean_implementation: GitHub PR reviews + CI check runs serve as audit trail; derived.py surfaces review/check facts (F006–F009);
     no lean equivalent of explicit evidence/ or review/ records
-  gap: Lean relies on GitHub PR audit trail; no offline audit record equivalent. Gap accepted — Founder approved github_satisfies_pos_record_requirement
+  gap: 'Lean relies on GitHub PR audit trail; no offline audit record equivalent. Gap accepted — Founder approved github_satisfies_pos_record_requirement
     (BLKR-001 resolved). Confirmed in LEAN-POS-06: project state plus GitHub and git history preserve required traceability
-    without legacy lifecycle duplication.
+    without legacy lifecycle duplication.'
   blocker: null
 - id: migration_reversibility
   description: Ability to return to dual-POS or legacy-only operation
@@ -141,8 +141,7 @@ capabilities:
     git-diff check'
   status: partially_replaced
   lean_implementation: CI triggers on tools/pos/** (includes lean) and tests/pos** and runs pytest tests/pos (includes lean
-    tests) and tools/pos/lean/check_integrity.py; BUT lean validator and generate.py are NOT explicit CI steps; git-diff check
-    targets project/generated/ not project/lean/generated/
+    tests); BUT lean validator and generate.py are NOT explicit CI steps; git-diff check targets project/generated/ not project/lean/generated/
   gap: CI does not explicitly invoke tools/pos/lean/validate.py or tools/pos/lean/generate.py; diff check targets legacy generated
     dir
   blocker: BLKR-003
