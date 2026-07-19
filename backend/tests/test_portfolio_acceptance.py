@@ -135,3 +135,35 @@ def test_account_only_portfolio_can_be_published(portfolio_client: TestClient) -
     assert portfolio["data"]["account_count"] == 1
     assert portfolio["data"]["equity_position_count"] == 0
     assert portfolio["data"]["option_leg_count"] == 0
+
+
+def test_failed_broker_acquisition_preserves_last_success(
+    portfolio_client: TestClient,
+) -> None:
+    successful = portfolio_client.post(
+        "/api/v1/runs",
+        json={
+            "requested_at": datetime.now(UTC).isoformat(),
+            "release_sha": "release-before-provider-failure",
+            "effective_config_hash": "config-before-provider-failure",
+        },
+    ).json()
+    provider = portfolio_client.app.state.dependencies["broker_provider"]
+    provider.fetch_accounts = lambda: (_ for _ in ()).throw(
+        RuntimeError("sanitized broker acquisition failure")
+    )
+
+    failed = portfolio_client.post(
+        "/api/v1/runs",
+        json={
+            "requested_at": datetime.now(UTC).isoformat(),
+            "release_sha": "release-provider-failure",
+            "effective_config_hash": "config-provider-failure",
+        },
+    ).json()
+    portfolio = portfolio_client.get("/api/v1/portfolio").json()
+
+    assert failed["status"] == "failed"
+    assert failed["steps"][0]["status"] == "failed"
+    assert portfolio["run"]["id"] == successful["id"]
+    assert portfolio["freshness"]["serving_last_success"] is True

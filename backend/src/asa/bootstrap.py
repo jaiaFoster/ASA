@@ -24,6 +24,7 @@ from asa.integrations.providers.deterministic_fake import DeterministicFakeQuote
 from asa.integrations.providers.deterministic_fake_broker import (
     DeterministicFakeBrokerPortfolioProvider,
 )
+from asa.integrations.providers.robinhood import RobinhoodPortfolioProvider
 from asa.integrations.runs_postgres import PostgresRunPublicationRepository
 from asa.logging import configure_logging, request_id_context
 
@@ -116,8 +117,19 @@ def _build_provider(settings: Settings) -> QuoteProvider:
 
 
 def _build_broker_provider(settings: Settings) -> BrokerPortfolioProvider:
-    if settings.broker_portfolio_provider != "deterministic_fake_broker":
-        raise ValueError(
-            f"unsupported broker portfolio provider: {settings.broker_portfolio_provider}"
+    if settings.broker_portfolio_provider == "deterministic_fake_broker":
+        return DeterministicFakeBrokerPortfolioProvider()
+    if settings.broker_portfolio_provider == "robinhood":
+        if settings.robinhood_username is None or settings.robinhood_password is None:
+            raise ValueError("Robinhood provider credentials are unavailable")
+        return RobinhoodPortfolioProvider(
+            username=settings.robinhood_username.get_secret_value(),
+            password=settings.robinhood_password.get_secret_value(),
+            totp_secret=(
+                None
+                if settings.robinhood_totp_secret is None
+                else settings.robinhood_totp_secret.get_secret_value()
+            ),
+            account_numbers=settings.selected_robinhood_accounts,
         )
-    return DeterministicFakeBrokerPortfolioProvider()
+    raise ValueError(f"unsupported broker portfolio provider: {settings.broker_portfolio_provider}")

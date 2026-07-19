@@ -24,7 +24,7 @@ def test_provider_sdk_imports_are_confined_to_integrations() -> None:
 def test_forbidden_legacy_technologies_are_absent() -> None:
     root = Path(__file__).parents[2]
     inspected = [root / "backend" / "src", root / "frontend" / "src"]
-    forbidden = ("flask", "sqlite", "threading", "robinhood", "strategy")
+    forbidden = ("flask", "sqlite", "threading", "strategy")
     matches = []
     for directory in inspected:
         if not directory.exists():
@@ -59,3 +59,25 @@ def test_broker_provider_contract_is_read_only() -> None:
         if callable(value) and not name.startswith("_")
     }
     assert operations == {"fetch_accounts", "fetch_positions"}
+
+
+def test_robinhood_adapter_calls_only_approved_read_sdk_operations() -> None:
+    adapter = (
+        Path(__file__).parents[1] / "src" / "asa" / "integrations" / "providers" / "robinhood.py"
+    )
+    tree = ast.parse(adapter.read_text())
+    references = {
+        node.attr
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Attribute)
+        and isinstance(node.value, ast.Name)
+        and node.value.id == "robinhood"
+    }
+    assert references == {
+        "login",
+        "load_account_profile",
+        "get_open_stock_positions",
+        "get_open_option_positions",
+        "get_instrument_by_url",
+        "get_option_instrument_data_by_id",
+    }
