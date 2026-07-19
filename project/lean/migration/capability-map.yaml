@@ -1,8 +1,8 @@
 generated_at: '2026-07-18T00:00:00Z'
 summary:
-  total_capabilities: 20
-  replaced: 17
-  replaced_with_different_mechanism: 1
+  total_capabilities: 22
+  replaced: 19
+  replaced_with_different_mechanism: 2
   partially_replaced: 3
   blocked: 0
   gaps_requiring_blockers: 0
@@ -124,10 +124,9 @@ capabilities:
   legacy_implementation: N/A — pre-migration
   status: partially_replaced
   lean_implementation: Cutover plan includes rollback steps for each phase; git history preserves all legacy artifacts; CUTOVER-01
-    through CUTOVER-04 complete; canonical lean state exists at project/lean/state/project-state.yaml; archived records recoverable
-    via git or archive path
-  gap: CUTOVER-05 (remove_legacy_runtime_and_generated_views) and CUTOVER-06 (verify_lean_only_repository) not yet complete;
-    legacy runtime still present
+    through CUTOVER-05 complete; canonical lean state exists at project/lean/state/project-state.yaml; archived records recoverable
+    via git or archive path; legacy runtime deleted in LEAN-POS-10 (CUTOVER-05)
+  gap: CUTOVER-06 (verify_lean_only_repository) not yet complete
   blocker: null
 - id: offline_operation
   description: All validation operates without network access
@@ -162,4 +161,20 @@ capabilities:
   lean_implementation: tools/pos/lean/check_integrity.py (I001-I005 error codes, stdlib only); CI step 'Check frozen governance
     integrity' added; 19 tests in tests/pos/lean/test_integrity.py. Added in LEAN-POS-05.
   gap: null
+  blocker: null
+- id: entrypoint_integrity
+  description: Guarantee root AGENTS.md and CURRENT_STATE.md stay Lean-only after every push
+  legacy_implementation: N/A — regression first observed in LEAN-POS-09
+  status: replaced
+  lean_implementation: tools/pos/lean/check_entrypoints.py (E001-E010 error codes, stdlib only); CI step 'Check entrypoint
+    invariants' added; tests/pos/lean/test_entrypoint_invariants.py. Added in LEAN-POS-10.
+  gap: null
+  blocker: null
+- id: branch_freshness_and_conflict_preflight
+  description: Detect stale branches and merge conflicts before push without modifying worktree
+  legacy_implementation: N/A — gap first identified in LEAN-POS-10 root cause analysis
+  status: replaced_with_different_mechanism
+  lean_implementation: tools/pos/lean/pre_push_check.py (checks freshness, conflict probe, entrypoints, integrity, validator);
+    .githooks/pre-push (optional local hook); CI duplicates critical invariants. Added in LEAN-POS-10.
+  gap: Local git hooks cannot be enforced by GitHub. CI duplicates critical invariants as the authoritative barrier.
   blocker: null

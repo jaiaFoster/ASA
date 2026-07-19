@@ -18,6 +18,6 @@ refs:
   - project/lean/migration/cutover-plan.yaml
 notes: >
   project=ASA-II repository=jaiaFoster/ASA
-  active_phase=CUTOVER-04 (archive_historical_legacy_records)
-  next_phase=CUTOVER-05 (remove_legacy_runtime_and_generated_views)
-updated_at: "2026-07-18T00:00:00Z"
+  active_phase=CUTOVER-05 (remove_legacy_runtime_and_generated_views)
+  next_phase=CUTOVER-06 (verify_lean_only_repository)
+updated_at: "2026-07-19T00:00:00Z"

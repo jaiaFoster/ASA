@@ -1,10 +1,10 @@
 generated_at: '2026-07-18T00:00:00Z'
 preconditions:
 - All BLKR-001–BLKR-006 resolved
-- CUTOVER-01, CUTOVER-02, CUTOVER-03, CUTOVER-04 complete
+- CUTOVER-01, CUTOVER-02, CUTOVER-03, CUTOVER-04, CUTOVER-05 complete
 - Founder has approved FD-001 through FD-004
 cutover_ready: true
-cutover_ready_reason: All blockers resolved; CUTOVER-04 complete; next phase is CUTOVER-05 (remove_legacy_runtime_and_generated_views)
+cutover_ready_reason: All blockers resolved; CUTOVER-05 complete; next phase is CUTOVER-06 (verify_lean_only_repository)
 phases:
 - id: CUTOVER-01
   name: resolve_governance_and_integrity_blockers
@@ -123,40 +123,24 @@ phases:
   acceptance_authority: Founder
 - id: CUTOVER-05
   name: remove_legacy_runtime_and_generated_views
-  status: pending
+  status: complete
+  completed_in: LEAN-POS-10
   goal: Delete legacy tool files, schemas, generated views, and root pointers that have been replaced by lean equivalents.
     CI must be lean-only before this phase.
-  scope:
-  - tools/pos/validate.py
-  - tools/pos/generate.py
-  - tools/pos/schemas.py
-  - tools/pos/transitions.py
-  - project/schemas/work-item.schema.yaml
-  - project/schemas/assignment.schema.yaml
-  - project/schemas/worker-result.schema.yaml
-  - project/schemas/decision.schema.yaml
-  - project/schemas/review.schema.yaml
-  - project/schemas/evidence.schema.yaml
-  - project/schemas/risk-record.schema.yaml
-  - project/generated/AGENTS.md
-  - project/generated/CURRENT_STATE.md
-  - project/generated/MANAGER_INBOX.md
-  prerequisites:
-  - CUTOVER-04 complete
-  - CI passing with lean tools only (no legacy steps)
-  - All consumers of deleted files identified and switched (BLKR-003 resolved)
-  - BLKR-005 resolved (git-diff check updated in CUTOVER-03)
-  actions:
-  - 1. git rm tools/pos/validate.py tools/pos/generate.py tools/pos/schemas.py tools/pos/transitions.py
-  - 2. git rm project/schemas/work-item.schema.yaml [and remaining 6 schemas]
-  - 3. git rm project/generated/AGENTS.md project/generated/CURRENT_STATE.md project/generated/MANAGER_INBOX.md
-  - 4. Confirm CI passes (no reference to deleted files)
-  - 5. Confirm python -m pytest tests/pos/lean -v still passes
+  resolution_summary:
+  - git rm tools/pos/validate.py tools/pos/generate.py tools/pos/schemas.py tools/pos/transitions.py
+  - git rm project/schemas/*.schema.yaml (7 files)
+  - git rm project/generated/AGENTS.md project/generated/CURRENT_STATE.md project/generated/MANAGER_INBOX.md
+  - git rm tests/pos/test_repository_bootstrap.py tests/pos/test_role_bootstrap.py (legacy-only tests)
+  - AGENTS.md and CURRENT_STATE.md restored to Lean entrypoint content
+  - Added tools/pos/lean/check_entrypoints.py and pre_push_check.py safeguards
+  - Added CI step for entrypoint invariants and AGENTS.md drift check
+  - project-state notes updated to CUTOVER-05 active / CUTOVER-06 next
   verification:
   - CI passes after deletions
   - python -m pytest tests/pos/lean -v passes
-  - No remaining file references deleted paths
-  - project/generated/ directory may be removed if empty
+  - python tools/pos/lean/check_entrypoints.py exits 0
+  - No active references to deleted files
   rollback:
   - git revert CUTOVER-05 commit
   - All deleted files are in git history and recoverable

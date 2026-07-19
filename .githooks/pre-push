@@ -1,0 +1,5 @@
+#!/bin/sh
+# Lean POS pre-push check.
+# Install: git config core.hooksPath .githooks
+set -e
+python tools/pos/lean/pre_push_check.py

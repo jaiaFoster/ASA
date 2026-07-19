@@ -309,8 +309,11 @@ class TestReadOnlySafety:
         assert before == after, "Reconciler modified canonical lean records"
 
     def test_no_generated_file_modified(self):
-        """Reconciler must not touch project/generated/."""
+        """Reconciler must not touch project/generated/ (deleted in CUTOVER-05)."""
         gen_dir = REPO_ROOT / "project" / "generated"
+        if not gen_dir.exists():
+            # CUTOVER-05 deleted project/generated/ — nothing to check
+            return
         before = {str(f): f.stat().st_mtime for f in gen_dir.iterdir() if f.is_file()}
         run_fixture("merged-authorized.yaml")
         after = {str(f): f.stat().st_mtime for f in gen_dir.iterdir() if f.is_file()}

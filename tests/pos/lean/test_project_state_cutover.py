@@ -193,27 +193,27 @@ class TestRefs:
 class TestPhaseAlignment:
     def test_active_phase_in_notes(self, state):
         notes = state.get("notes", "")
-        assert "CUTOVER-04" in notes
+        assert "CUTOVER-05" in notes
 
     def test_next_phase_in_notes(self, state):
         notes = state.get("notes", "")
-        assert "CUTOVER-05" in notes
+        assert "CUTOVER-06" in notes
 
     def test_active_phase_matches_cutover_plan(self, state, cutover_plan):
         notes = state.get("notes", "")
-        assert "CUTOVER-04" in notes
+        assert "CUTOVER-05" in notes
         phases = cutover_plan.get("phases", [])
         completed = [p for p in phases if p.get("status") == "complete"]
         completed_ids = [p["id"] for p in completed]
-        assert "CUTOVER-04" in completed_ids, f"CUTOVER-04 should be complete; got: {completed_ids}"
+        assert "CUTOVER-05" in completed_ids, f"CUTOVER-05 should be complete; got: {completed_ids}"
 
     def test_next_phase_matches_cutover_plan(self, state, cutover_plan):
         notes = state.get("notes", "")
-        assert "CUTOVER-05" in notes
+        assert "CUTOVER-06" in notes
         phases = cutover_plan.get("phases", [])
         pending = [p for p in phases if p.get("status") != "complete"]
         assert pending, "cutover plan has no pending phases"
-        assert pending[0]["id"] == "CUTOVER-05", f"expected CUTOVER-05 as next pending; got: {pending[0]['id']}"
+        assert pending[0]["id"] == "CUTOVER-06", f"expected CUTOVER-06 as next pending; got: {pending[0]['id']}"
 
     def test_project_id_in_notes(self, state):
         notes = state.get("notes", "")
