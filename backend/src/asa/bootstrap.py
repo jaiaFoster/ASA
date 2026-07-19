@@ -8,12 +8,23 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import Engine
 
 from asa.api.routes import build_router
+from asa.application.portfolio_use_cases import (
+    PublishedPortfolioQuery,
+    RunPortfolioIntelligence,
+    RunQueryService,
+)
+from asa.application.ports.brokers import BrokerPortfolioProvider
 from asa.application.ports.quotes import QuoteProvider
 from asa.application.ports.repositories import MarketObservationRepository
+from asa.application.ports.runs import RunPublicationRepository
 from asa.application.use_cases import MarketQuoteService
 from asa.config import Settings
 from asa.integrations.postgres import PostgresMarketObservationRepository, create_postgres_engine
 from asa.integrations.providers.deterministic_fake import DeterministicFakeQuoteProvider
+from asa.integrations.providers.deterministic_fake_broker import (
+    DeterministicFakeBrokerPortfolioProvider,
+)
+from asa.integrations.runs_postgres import PostgresRunPublicationRepository
 from asa.logging import configure_logging, request_id_context
 
 
@@ -21,6 +32,8 @@ from asa.logging import configure_logging, request_id_context
 class DependencyOverrides:
     quote_provider: QuoteProvider | None = None
     repository: MarketObservationRepository | None = None
+    run_repository: RunPublicationRepository | None = None
+    broker_provider: BrokerPortfolioProvider | None = None
     engine_factory: Callable[[str], Engine] | None = None
 
 
@@ -36,11 +49,21 @@ def build_application(
         engine_factory(settings.database_url)
     )
     provider = selected.quote_provider or _build_provider(settings)
+    run_repository = selected.run_repository or PostgresRunPublicationRepository(
+        engine_factory(settings.database_url)
+    )
+    broker_provider = selected.broker_provider or _build_broker_provider(settings)
     quote_service = MarketQuoteService(
         provider=provider,
         repository=repository,
         fresh_for=timedelta(seconds=settings.fresh_for_seconds),
     )
+    portfolio_runner = RunPortfolioIntelligence(broker_provider, run_repository)
+    portfolio_query = PublishedPortfolioQuery(
+        run_repository,
+        timedelta(seconds=settings.portfolio_fresh_for_seconds),
+    )
+    run_query = RunQueryService(run_repository)
 
     app = FastAPI(title="ASA Market Quote API", version="1.0.0")
     app.add_middleware(
@@ -54,6 +77,9 @@ def build_application(
             quote_service=quote_service,
             repository=repository,
             development_ingest_enabled=settings.environment == "development",
+            portfolio_runner=portfolio_runner,
+            portfolio_query=portfolio_query,
+            run_query=run_query,
         )
     )
 
@@ -75,6 +101,10 @@ def build_application(
         "quote_provider": provider,
         "repository": repository,
         "quote_service": quote_service,
+        "run_repository": run_repository,
+        "broker_provider": broker_provider,
+        "portfolio_runner": portfolio_runner,
+        "portfolio_query": portfolio_query,
     }
     return app
 
@@ -83,3 +113,11 @@ def _build_provider(settings: Settings) -> QuoteProvider:
     if settings.quote_provider != "deterministic_fake":
         raise ValueError(f"unsupported quote provider: {settings.quote_provider}")
     return DeterministicFakeQuoteProvider()
+
+
+def _build_broker_provider(settings: Settings) -> BrokerPortfolioProvider:
+    if settings.broker_portfolio_provider != "deterministic_fake_broker":
+        raise ValueError(
+            f"unsupported broker portfolio provider: {settings.broker_portfolio_provider}"
+        )
+    return DeterministicFakeBrokerPortfolioProvider()

@@ -1,43 +1,944 @@
 {
   "openapi": "3.1.0",
-  "info": { "title": "ASA Market Quote API", "version": "1.0.0" },
+  "info": {
+    "title": "ASA Market Quote API",
+    "version": "1.0.0"
+  },
   "paths": {
+    "/api/v1/health": {
+      "get": {
+        "summary": "Health",
+        "operationId": "health_api_v1_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/readiness": {
+      "get": {
+        "summary": "Readiness",
+        "operationId": "readiness_api_v1_readiness_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/market/quotes/ingest": {
+      "post": {
+        "summary": "Ingest Quotes",
+        "operationId": "ingest_quotes_api_v1_market_quotes_ingest_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IngestQuotesRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngestQuotesResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/market/quotes/{symbol}": {
       "get": {
+        "summary": "Latest Quote",
         "operationId": "getLatestQuote",
-        "parameters": [{ "name": "symbol", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "parameters": [
+          {
+            "name": "symbol",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Symbol"
+            }
+          }
+        ],
         "responses": {
-          "200": { "description": "Latest canonical observation", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/QuoteResponse" } } } },
-          "404": { "description": "Unavailable" }
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuoteResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/runs": {
+      "post": {
+        "summary": "Start Run",
+        "operationId": "start_run_api_v1_runs_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartRunRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/runs/current": {
+      "get": {
+        "summary": "Current Run",
+        "operationId": "current_run_api_v1_runs_current_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/runs/{run_id}": {
+      "get": {
+        "summary": "Get Run",
+        "operationId": "get_run_api_v1_runs__run_id__get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/portfolio": {
+      "get": {
+        "summary": "Get Portfolio",
+        "operationId": "getPortfolio",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PortfolioEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/positions": {
+      "get": {
+        "summary": "Get Positions",
+        "operationId": "getPositions",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PositionsEnvelope"
+                }
+              }
+            }
+          }
         }
       }
     }
   },
   "components": {
     "schemas": {
-      "ProvenanceResponse": {
-        "type": "object",
-        "required": ["selected_provider", "original_provider", "cache_status", "freshness_status", "fallback_reason", "provider_request_id"],
+      "AccountResponse": {
         "properties": {
-          "selected_provider": { "type": "string" },
-          "original_provider": { "type": "string" },
-          "cache_status": { "type": "string" },
-          "freshness_status": { "type": "string" },
-          "fallback_reason": { "type": ["string", "null"] },
-          "provider_request_id": { "type": "string" }
-        }
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "external_account_id": {
+            "type": "string",
+            "title": "External Account Id"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "account_type": {
+            "type": "string",
+            "title": "Account Type"
+          },
+          "display_name": {
+            "type": "string",
+            "title": "Display Name"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency"
+          },
+          "observed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Observed At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "external_account_id",
+          "provider",
+          "account_type",
+          "display_name",
+          "currency",
+          "observed_at"
+        ],
+        "title": "AccountResponse"
+      },
+      "EquityPositionResponse": {
+        "properties": {
+          "account_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Account Id"
+          },
+          "symbol": {
+            "type": "string",
+            "title": "Symbol"
+          },
+          "quantity": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Quantity"
+          },
+          "average_cost": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Average Cost"
+          },
+          "observed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Observed At"
+          },
+          "original_provider": {
+            "type": "string",
+            "title": "Original Provider"
+          }
+        },
+        "type": "object",
+        "required": [
+          "account_id",
+          "symbol",
+          "quantity",
+          "average_cost",
+          "observed_at",
+          "original_provider"
+        ],
+        "title": "EquityPositionResponse"
+      },
+      "FreshnessResponse": {
+        "properties": {
+          "as_of": {
+            "type": "string",
+            "format": "date-time",
+            "title": "As Of"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "serving_last_success": {
+            "type": "boolean",
+            "title": "Serving Last Success"
+          }
+        },
+        "type": "object",
+        "required": [
+          "as_of",
+          "status",
+          "serving_last_success"
+        ],
+        "title": "FreshnessResponse"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "HealthResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "HealthResponse"
+      },
+      "IngestQuotesRequest": {
+        "properties": {
+          "symbols": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "title": "Symbols"
+          }
+        },
+        "type": "object",
+        "required": [
+          "symbols"
+        ],
+        "title": "IngestQuotesRequest"
+      },
+      "IngestQuotesResponse": {
+        "properties": {
+          "observations": {
+            "items": {
+              "$ref": "#/components/schemas/QuoteResponse"
+            },
+            "type": "array",
+            "title": "Observations"
+          }
+        },
+        "type": "object",
+        "required": [
+          "observations"
+        ],
+        "title": "IngestQuotesResponse"
+      },
+      "OptionLegResponse": {
+        "properties": {
+          "account_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Account Id"
+          },
+          "underlying_symbol": {
+            "type": "string",
+            "title": "Underlying Symbol"
+          },
+          "option_symbol": {
+            "type": "string",
+            "title": "Option Symbol"
+          },
+          "option_type": {
+            "type": "string",
+            "title": "Option Type"
+          },
+          "strike": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Strike"
+          },
+          "expiration": {
+            "type": "string",
+            "format": "date",
+            "title": "Expiration"
+          },
+          "quantity": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Quantity"
+          },
+          "side": {
+            "type": "string",
+            "title": "Side"
+          },
+          "average_price": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Average Price"
+          },
+          "observed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Observed At"
+          },
+          "original_provider": {
+            "type": "string",
+            "title": "Original Provider"
+          }
+        },
+        "type": "object",
+        "required": [
+          "account_id",
+          "underlying_symbol",
+          "option_symbol",
+          "option_type",
+          "strike",
+          "expiration",
+          "quantity",
+          "side",
+          "average_price",
+          "observed_at",
+          "original_provider"
+        ],
+        "title": "OptionLegResponse"
+      },
+      "PortfolioDataResponse": {
+        "properties": {
+          "publication_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Publication Id"
+          },
+          "snapshot_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Snapshot Id"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "account_count": {
+            "type": "integer",
+            "title": "Account Count"
+          },
+          "equity_position_count": {
+            "type": "integer",
+            "title": "Equity Position Count"
+          },
+          "option_leg_count": {
+            "type": "integer",
+            "title": "Option Leg Count"
+          },
+          "accounts": {
+            "items": {
+              "$ref": "#/components/schemas/AccountResponse"
+            },
+            "type": "array",
+            "title": "Accounts"
+          }
+        },
+        "type": "object",
+        "required": [
+          "publication_id",
+          "snapshot_id",
+          "provider",
+          "account_count",
+          "equity_position_count",
+          "option_leg_count",
+          "accounts"
+        ],
+        "title": "PortfolioDataResponse"
+      },
+      "PortfolioEnvelope": {
+        "properties": {
+          "run": {
+            "$ref": "#/components/schemas/RunResponse"
+          },
+          "freshness": {
+            "$ref": "#/components/schemas/FreshnessResponse"
+          },
+          "data": {
+            "$ref": "#/components/schemas/PortfolioDataResponse"
+          }
+        },
+        "type": "object",
+        "required": [
+          "run",
+          "freshness",
+          "data"
+        ],
+        "title": "PortfolioEnvelope"
+      },
+      "PositionsDataResponse": {
+        "properties": {
+          "publication_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Publication Id"
+          },
+          "snapshot_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Snapshot Id"
+          },
+          "equity_positions": {
+            "items": {
+              "$ref": "#/components/schemas/EquityPositionResponse"
+            },
+            "type": "array",
+            "title": "Equity Positions"
+          },
+          "option_legs": {
+            "items": {
+              "$ref": "#/components/schemas/OptionLegResponse"
+            },
+            "type": "array",
+            "title": "Option Legs"
+          }
+        },
+        "type": "object",
+        "required": [
+          "publication_id",
+          "snapshot_id",
+          "equity_positions",
+          "option_legs"
+        ],
+        "title": "PositionsDataResponse"
+      },
+      "PositionsEnvelope": {
+        "properties": {
+          "run": {
+            "$ref": "#/components/schemas/RunResponse"
+          },
+          "freshness": {
+            "$ref": "#/components/schemas/FreshnessResponse"
+          },
+          "data": {
+            "$ref": "#/components/schemas/PositionsDataResponse"
+          }
+        },
+        "type": "object",
+        "required": [
+          "run",
+          "freshness",
+          "data"
+        ],
+        "title": "PositionsEnvelope"
+      },
+      "ProvenanceResponse": {
+        "properties": {
+          "selected_provider": {
+            "type": "string",
+            "title": "Selected Provider"
+          },
+          "original_provider": {
+            "type": "string",
+            "title": "Original Provider"
+          },
+          "cache_status": {
+            "type": "string",
+            "title": "Cache Status"
+          },
+          "freshness_status": {
+            "type": "string",
+            "title": "Freshness Status"
+          },
+          "fallback_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fallback Reason"
+          },
+          "provider_request_id": {
+            "type": "string",
+            "title": "Provider Request Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "selected_provider",
+          "original_provider",
+          "cache_status",
+          "freshness_status",
+          "fallback_reason",
+          "provider_request_id"
+        ],
+        "title": "ProvenanceResponse"
       },
       "QuoteResponse": {
-        "type": "object",
-        "required": ["symbol", "price", "currency", "observed_at", "received_at", "provenance"],
         "properties": {
-          "symbol": { "type": "string" },
-          "price": { "type": ["number", "string"] },
-          "currency": { "type": "string" },
-          "observed_at": { "type": "string", "format": "date-time" },
-          "received_at": { "type": "string", "format": "date-time" },
-          "provenance": { "$ref": "#/components/schemas/ProvenanceResponse" }
-        }
+          "symbol": {
+            "type": "string",
+            "title": "Symbol"
+          },
+          "price": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Price"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency"
+          },
+          "observed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Observed At"
+          },
+          "received_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Received At"
+          },
+          "provenance": {
+            "$ref": "#/components/schemas/ProvenanceResponse"
+          }
+        },
+        "type": "object",
+        "required": [
+          "symbol",
+          "price",
+          "currency",
+          "observed_at",
+          "received_at",
+          "provenance"
+        ],
+        "title": "QuoteResponse"
+      },
+      "RunResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "release_sha": {
+            "type": "string",
+            "title": "Release Sha"
+          },
+          "effective_config_hash": {
+            "type": "string",
+            "title": "Effective Config Hash"
+          },
+          "failure_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Code"
+          },
+          "failure_detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Detail"
+          },
+          "publication_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Publication Id"
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/RunStepResponse"
+            },
+            "type": "array",
+            "title": "Steps"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "started_at",
+          "completed_at",
+          "release_sha",
+          "effective_config_hash",
+          "failure_code",
+          "failure_detail",
+          "publication_id",
+          "steps"
+        ],
+        "title": "RunResponse"
+      },
+      "RunStepResponse": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "failure_detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Detail"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "status",
+          "started_at",
+          "completed_at",
+          "failure_detail"
+        ],
+        "title": "RunStepResponse"
+      },
+      "StartRunRequest": {
+        "properties": {
+          "requested_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Requested At"
+          },
+          "release_sha": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Release Sha"
+          },
+          "effective_config_hash": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Effective Config Hash"
+          }
+        },
+        "type": "object",
+        "required": [
+          "requested_at",
+          "release_sha",
+          "effective_config_hash"
+        ],
+        "title": "StartRunRequest"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
       }
     }
   }

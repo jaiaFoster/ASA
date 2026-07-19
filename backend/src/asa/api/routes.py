@@ -1,6 +1,22 @@
+from uuid import UUID
+
 from fastapi import APIRouter, HTTPException, Request, status
 
-from asa.api.models import HealthResponse, IngestQuotesRequest, IngestQuotesResponse, QuoteResponse
+from asa.api.models import (
+    HealthResponse,
+    IngestQuotesRequest,
+    IngestQuotesResponse,
+    PortfolioEnvelope,
+    PositionsEnvelope,
+    QuoteResponse,
+    RunResponse,
+    StartRunRequest,
+)
+from asa.application.portfolio_use_cases import (
+    PublishedPortfolioQuery,
+    RunPortfolioIntelligence,
+    RunQueryService,
+)
 from asa.application.ports.repositories import MarketObservationRepository
 from asa.application.use_cases import MarketQuoteService
 
@@ -9,6 +25,9 @@ def build_router(
     quote_service: MarketQuoteService,
     repository: MarketObservationRepository,
     development_ingest_enabled: bool,
+    portfolio_runner: RunPortfolioIntelligence,
+    portfolio_query: PublishedPortfolioQuery,
+    run_query: RunQueryService,
 ) -> APIRouter:
     router = APIRouter(prefix="/api/v1")
 
@@ -50,5 +69,45 @@ def build_router(
         if observation is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="quote unavailable")
         return QuoteResponse.from_domain(observation)
+
+    @router.post("/runs", response_model=RunResponse)
+    def start_run(payload: StartRunRequest) -> RunResponse:
+        result = portfolio_runner.execute(
+            payload.requested_at,
+            payload.release_sha,
+            payload.effective_config_hash,
+        )
+        run = run_query.get(result.run_id)
+        if run is None:
+            raise HTTPException(status_code=500, detail="persisted run unavailable")
+        return RunResponse.from_domain(run, run_query.publication_for(run.id))
+
+    @router.get("/runs/current", response_model=RunResponse)
+    def current_run() -> RunResponse:
+        run = run_query.latest()
+        if run is None:
+            raise HTTPException(status_code=404, detail="run unavailable")
+        return RunResponse.from_domain(run, run_query.publication_for(run.id))
+
+    @router.get("/runs/{run_id}", response_model=RunResponse)
+    def get_run(run_id: UUID) -> RunResponse:
+        run = run_query.get(run_id)
+        if run is None:
+            raise HTTPException(status_code=404, detail="run unavailable")
+        return RunResponse.from_domain(run, run_query.publication_for(run.id))
+
+    @router.get("/portfolio", response_model=PortfolioEnvelope, operation_id="getPortfolio")
+    def get_portfolio() -> PortfolioEnvelope:
+        view = portfolio_query.current()
+        if view is None:
+            raise HTTPException(status_code=404, detail="portfolio unavailable")
+        return PortfolioEnvelope.from_view(view)
+
+    @router.get("/positions", response_model=PositionsEnvelope, operation_id="getPositions")
+    def get_positions() -> PositionsEnvelope:
+        view = portfolio_query.current()
+        if view is None:
+            raise HTTPException(status_code=404, detail="positions unavailable")
+        return PositionsEnvelope.from_view(view)
 
     return router

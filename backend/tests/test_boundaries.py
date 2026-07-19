@@ -48,3 +48,14 @@ def test_exactly_one_build_application_composition_root_exists() -> None:
             and node.name == "build_application"
         )
     assert len(definitions) == 1, definitions
+
+
+def test_broker_provider_contract_is_read_only() -> None:
+    from asa.application.ports.brokers import BrokerPortfolioProvider
+
+    operations = {
+        name
+        for name, value in vars(BrokerPortfolioProvider).items()
+        if callable(value) and not name.startswith("_")
+    }
+    assert operations == {"fetch_accounts", "fetch_positions"}

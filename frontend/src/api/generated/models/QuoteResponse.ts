@@ -5,7 +5,7 @@
 import type { ProvenanceResponse } from './ProvenanceResponse';
 export type QuoteResponse = {
     symbol: string;
-    price: number | string;
+    price: string;
     currency: string;
     observed_at: string;
     received_at: string;
