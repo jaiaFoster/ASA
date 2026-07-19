@@ -4,7 +4,7 @@
     "builder": "RAILPACK"
   },
   "deploy": {
-    "preDeployCommand": "alembic upgrade head",
+    "preDeployCommand": "python -m alembic upgrade head",
     "startCommand": "python -m asa",
     "healthcheckPath": "/api/v1/health",
     "healthcheckTimeout": 300,
