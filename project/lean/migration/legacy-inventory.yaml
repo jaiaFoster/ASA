@@ -105,7 +105,7 @@ artifacts:
   proposed_disposition: archive
   removal_blockers:
   - BLKR-003
-- path: project/assignments/ASA2-ASG-001.yaml
+- path: project/lean/archive/legacy/assignments/ASA2-ASG-001.yaml
   category: assignment_record
   status: submitted
   record_id: ASA2-ASG-001
@@ -120,7 +120,7 @@ artifacts:
   lean_replacement: project/lean/handoffs/ (scope/lock/accept fields replace assignment); archive for historical items
   proposed_disposition: archive
   removal_blockers: []
-- path: project/decisions/ASA2-DECISION-001.yaml
+- path: project/lean/archive/legacy/decisions/ASA2-DECISION-001.yaml
   category: decision_record
   status: pending
   record_id: ASA2-DECISION-001
@@ -140,7 +140,7 @@ artifacts:
   proposed_disposition: archive
   removal_blockers:
   - BLKR-004
-- path: project/evidence/ASA2-EVIDENCE-001.yaml
+- path: project/lean/archive/legacy/evidence/ASA2-EVIDENCE-001.yaml
   category: evidence_record
   status: unknown
   record_id: ASA2-EVID-001
@@ -154,7 +154,7 @@ artifacts:
   lean_replacement: archive_in_place — content largely derivable from GitHub PR history
   proposed_disposition: archive
   removal_blockers: []
-- path: project/results/ASA2-RESULT-001.yaml
+- path: project/lean/archive/legacy/results/ASA2-RESULT-001.yaml
   category: result_record
   status: complete
   record_id: ASA2-RESULT-001
@@ -171,7 +171,7 @@ artifacts:
   lean_replacement: archive_in_place — content largely derivable from GitHub PR history
   proposed_disposition: archive
   removal_blockers: []
-- path: project/reviews/ASA2-REVIEW-001.yaml
+- path: project/lean/archive/legacy/reviews/ASA2-REVIEW-001.yaml
   category: review_record
   status: complete
   record_id: ASA2-REVIEW-001
@@ -186,7 +186,7 @@ artifacts:
   lean_replacement: archive_in_place — content largely derivable from GitHub PR history
   proposed_disposition: archive
   removal_blockers: []
-- path: project/risks/ASA2-RISK-001.yaml
+- path: project/lean/archive/legacy/risks/ASA2-RISK-001.yaml
   category: risk_record
   status: confirmed
   record_id: ASA2-RISK-001
@@ -201,7 +201,7 @@ artifacts:
   lean_replacement: project/lean/handoffs/ (risk field in worker-handoff)
   proposed_disposition: archive
   removal_blockers: []
-- path: project/work/ASA2-WORK-001.yaml
+- path: project/lean/archive/legacy/work/ASA2-WORK-001.yaml
   category: work_record
   status: review
   record_id: ASA2-WORK-001
@@ -319,7 +319,6 @@ artifacts:
   referenced_by:
   - AGENTS.md
   - CURRENT_STATE.md
-  - MANAGER_INBOX.md
   - .github/workflows/validate-pos.yml
   references:
   - project/BOOTSTRAP_STATUS.yaml
@@ -341,7 +340,6 @@ artifacts:
   referenced_by:
   - AGENTS.md
   - CURRENT_STATE.md
-  - MANAGER_INBOX.md
   - .github/workflows/validate-pos.yml
   references:
   - project/BOOTSTRAP_STATUS.yaml
@@ -363,7 +361,6 @@ artifacts:
   referenced_by:
   - AGENTS.md
   - CURRENT_STATE.md
-  - MANAGER_INBOX.md
   - .github/workflows/validate-pos.yml
   references:
   - project/BOOTSTRAP_STATUS.yaml
@@ -463,7 +460,7 @@ artifacts:
   proposed_disposition: replace_with_pointer
   removal_blockers:
   - BLKR-003
-- path: project/BOOTSTRAP_STATUS.yaml
+- path: project/lean/archive/legacy/BOOTSTRAP_STATUS.yaml
   category: root_config
   status: active
   referenced_by:
@@ -473,7 +470,7 @@ artifacts:
   references: []
   canonical_data: yes — project operational state and role registry
   github_derivable_data: partial — phase/status derivable from git; role definitions are unique
-  lean_replacement: project/lean/fixtures/valid/project-state.yaml (only current objective + constraints needed)
+  lean_replacement: project/lean/state/project-state.yaml (archived; lean state is canonical)
   proposed_disposition: retain
   removal_blockers: []
 - path: project/roles/registry.yaml
@@ -515,12 +512,12 @@ directories:
   consumer: tools/pos/validate.py
   lean_equivalent: project/schemas/lean/
   proposed_disposition: archive
-- path: project/work/
+- path: project/lean/archive/legacy/work/
   contents:
-  - project/work/ASA2-WORK-001.yaml
-  consumer: tools/pos/validate.py, tools/pos/generate.py
+  - project/lean/archive/legacy/work/ASA2-WORK-001.yaml
+  consumer: historical — no active consumers (CUTOVER-04 complete)
   lean_equivalent: project/lean/handoffs/ (worker-handoff records)
-  proposed_disposition: archive
+  proposed_disposition: archived
 - path: project/generated/
   contents:
   - project/generated/AGENTS.md

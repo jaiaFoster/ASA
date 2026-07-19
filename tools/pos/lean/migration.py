@@ -28,14 +28,15 @@ from tools.pos.lean.schemas import (
 
 LEGACY_SCHEMA_DIR = REPO_ROOT / "project" / "schemas"
 LEGACY_GENERATED_DIR = REPO_ROOT / "project" / "generated"
+LEGACY_ARCHIVE_ROOT = REPO_ROOT / "project" / "lean" / "archive" / "legacy"
 LEGACY_RECORD_DIRS = {
-    "work": REPO_ROOT / "project" / "work",
-    "assignments": REPO_ROOT / "project" / "assignments",
-    "results": REPO_ROOT / "project" / "results",
-    "decisions": REPO_ROOT / "project" / "decisions",
-    "reviews": REPO_ROOT / "project" / "reviews",
-    "evidence": REPO_ROOT / "project" / "evidence",
-    "risks": REPO_ROOT / "project" / "risks",
+    "work": LEGACY_ARCHIVE_ROOT / "work",
+    "assignments": LEGACY_ARCHIVE_ROOT / "assignments",
+    "results": LEGACY_ARCHIVE_ROOT / "results",
+    "decisions": LEGACY_ARCHIVE_ROOT / "decisions",
+    "reviews": LEGACY_ARCHIVE_ROOT / "reviews",
+    "evidence": LEGACY_ARCHIVE_ROOT / "evidence",
+    "risks": LEGACY_ARCHIVE_ROOT / "risks",
 }
 LEGACY_TOOL_FILES = [
     "tools/pos/validate.py",
@@ -50,7 +51,7 @@ LEGACY_GENERATED_FILES = [
     "project/generated/CURRENT_STATE.md",
     "project/generated/MANAGER_INBOX.md",
 ]
-ROOT_POINTER_FILES = ["AGENTS.md", "CURRENT_STATE.md", "MANAGER_INBOX.md"]
+ROOT_POINTER_FILES = ["AGENTS.md", "CURRENT_STATE.md"]
 LEGACY_TEST_FILES = [
     "tests/pos/test_repository_bootstrap.py",
     "tests/pos/test_role_bootstrap.py",
@@ -85,6 +86,7 @@ REQUIRED_CAPABILITIES = [
     "migration_reversibility",
     "offline_operation",
     "ci_validation",
+    "historical_record_preservation",
     "frozen_governance_integrity",
 ]
 
@@ -317,8 +319,8 @@ def build_legacy_inventory(repo_root: Path, generated_at: str) -> dict:
         artifacts.append(entry)
 
     # ---- Root config files ----
-    for rc_name in ["project/BOOTSTRAP_STATUS.yaml", "project/roles/registry.yaml",
-                    "project/README.md"]:
+    for rc_name in ["project/lean/archive/legacy/BOOTSTRAP_STATUS.yaml",
+                    "project/roles/registry.yaml", "project/README.md"]:
         rcp = repo_root / rc_name
         if not rcp.exists():
             continue
@@ -346,11 +348,11 @@ def build_legacy_inventory(repo_root: Path, generated_at: str) -> dict:
             "proposed_disposition": "archive",
         },
         {
-            "path": "project/work/",
+            "path": "project/lean/archive/legacy/work/",
             "contents": [a["path"] for a in artifacts if a.get("category") == "work_record"],
-            "consumer": "tools/pos/validate.py, tools/pos/generate.py",
+            "consumer": "historical — no active consumers (CUTOVER-04 complete)",
             "lean_equivalent": "project/lean/handoffs/ (worker-handoff records)",
-            "proposed_disposition": "archive",
+            "proposed_disposition": "archived",
         },
         {
             "path": "project/generated/",
@@ -496,8 +498,8 @@ def _lean_root_pointer_replacement(rp_name: str) -> str:
 
 def _lean_root_config_replacement(rc_name: str) -> str:
     return {
-        "project/BOOTSTRAP_STATUS.yaml": "project/lean/fixtures/valid/project-state.yaml "
-                                         "(only current objective + constraints needed)",
+        "project/lean/archive/legacy/BOOTSTRAP_STATUS.yaml":
+            "project/lean/state/project-state.yaml (archived; lean state is canonical)",
         "project/roles/registry.yaml": "retain (roles are independent of POS system)",
         "project/README.md": "retain (repository entry point)",
     }.get(rc_name, "retain")
@@ -719,10 +721,11 @@ def build_capability_map(generated_at: str) -> dict:
             "status": "partially_replaced",
             "lean_implementation": ("Cutover plan includes rollback steps for each phase; "
                                     "git history preserves all legacy artifacts; "
-                                    "CUTOVER-01 and CUTOVER-02 complete; "
-                                    "canonical lean state exists at project/lean/state/project-state.yaml"),
-            "gap": ("Reversible cutover sequence (CUTOVER-03 through CUTOVER-06) not yet executed; "
-                    "ci_dependency (BLKR-003) and documentation_dependency (BLKR-005) remain"),
+                                    "CUTOVER-01 through CUTOVER-04 complete; "
+                                    "canonical lean state exists at project/lean/state/project-state.yaml; "
+                                    "archived records recoverable via git or archive path"),
+            "gap": ("CUTOVER-05 (remove_legacy_runtime_and_generated_views) and CUTOVER-06 "
+                    "(verify_lean_only_repository) not yet complete; legacy runtime still present"),
             "blocker": None,
         },
         {
@@ -748,6 +751,19 @@ def build_capability_map(generated_at: str) -> dict:
                                     "tools/pos/lean/generate.py (deterministic, fixed timestamp); "
                                     "git-diff check on CURRENT_STATE.md only. "
                                     "Legacy validator and generator removed from CI in LEAN-POS-08."),
+            "gap": None,
+            "blocker": None,
+        },
+        {
+            "id": "historical_record_preservation",
+            "description": "Preserve access to pre-lean canonical work, assignment, and decision records",
+            "legacy_implementation": ("project/work/, project/assignments/, project/results/, "
+                                      "project/decisions/, project/reviews/, project/evidence/, "
+                                      "project/risks/, project/BOOTSTRAP_STATUS.yaml"),
+            "status": "replaced",
+            "lean_implementation": ("project/lean/archive/legacy/ — byte-preserved historical records; "
+                                    "git history preserves original paths and content. "
+                                    "Archived in LEAN-POS-09 (CUTOVER-04)."),
             "gap": None,
             "blocker": None,
         },
@@ -912,8 +928,8 @@ def build_blockers(generated_at: str) -> dict:
             "by_type": sorted(set(b["type"] for b in blockers)),
             "cutover_ready": True,
             "cutover_ready_reason": (
-                "All blockers resolved; CUTOVER-03 complete; next phase is CUTOVER-04 "
-                "(archive_historical_legacy_records)"
+                "All blockers resolved; CUTOVER-04 complete; next phase is CUTOVER-05 "
+                "(remove_legacy_runtime_and_generated_views)"
             ),
         },
         "blockers": blockers,
@@ -1061,7 +1077,8 @@ def build_cutover_plan(generated_at: str) -> dict:
         {
             "id": "CUTOVER-04",
             "name": "archive_historical_legacy_records",
-            "status": "pending",
+            "status": "complete",
+            "completed_in": "LEAN-POS-09",
             "goal": ("Move legacy canonical records to an archive location. "
                      "Git history is preserved. Records are not rewritten or deleted."),
             "scope": [
@@ -1074,19 +1091,14 @@ def build_cutover_plan(generated_at: str) -> dict:
                 "project/risks/ → project/lean/archive/legacy/risks/",
                 "project/BOOTSTRAP_STATUS.yaml → project/lean/archive/legacy/BOOTSTRAP_STATUS.yaml",
             ],
-            "prerequisites": [
-                "CUTOVER-03 complete and CI passing with lean tools",
-                "All active legacy records confirmed accepted or cancelled (BLKR-004 resolved)",
-                "No active CI step reads from project/work/ or project/assignments/",
-            ],
-            "actions": [
-                "1. Confirm CI no longer reads project/work/, project/assignments/, etc.",
-                "2. git mv project/work/ project/lean/archive/legacy/work/",
-                "3. git mv project/assignments/ project/lean/archive/legacy/assignments/",
-                "4. Repeat for results/, decisions/, reviews/, evidence/, risks/",
-                "5. git mv project/BOOTSTRAP_STATUS.yaml project/lean/archive/legacy/",
-                "6. Add project/lean/archive/README.md explaining archive purpose",
-                "7. Confirm python -m pytest tests/pos/lean -v still passes",
+            "resolution_summary": [
+                "git mv for all 7 record directories and BOOTSTRAP_STATUS.yaml to archive path",
+                "project/lean/archive/legacy/README.md created (noncanonical marker)",
+                "project/lean/state/project-state.yaml notes updated to CUTOVER-04 active, CUTOVER-05 next",
+                "CURRENT_STATE.md regenerated from lean generator (offline, deterministic)",
+                "migration.py updated: historical_record_preservation → replaced; archive paths in inventory",
+                "No active CI, lean tool, or entrypoint depends on archived paths",
+                "All archived file bytes preserved exactly (git mv, not copy+rewrite)",
             ],
             "verification": [
                 "python -m pytest tests/pos/lean -v — passes",
@@ -1211,13 +1223,13 @@ def build_cutover_plan(generated_at: str) -> dict:
         "generated_at": generated_at,
         "preconditions": [
             "All BLKR-001–BLKR-006 resolved",
-            "CUTOVER-01, CUTOVER-02, CUTOVER-03 complete",
+            "CUTOVER-01, CUTOVER-02, CUTOVER-03, CUTOVER-04 complete",
             "Founder has approved FD-001 through FD-004",
         ],
         "cutover_ready": True,
         "cutover_ready_reason": (
-            "All blockers resolved; CUTOVER-03 complete; "
-            "next phase is CUTOVER-04 (archive_historical_legacy_records)"
+            "All blockers resolved; CUTOVER-04 complete; "
+            "next phase is CUTOVER-05 (remove_legacy_runtime_and_generated_views)"
         ),
         "phases": phases,
         "rollback": {
@@ -1235,7 +1247,8 @@ def build_cutover_plan(generated_at: str) -> dict:
                 "python tools/pos/lean/validate.py exits 0",
                 "python tools/pos/lean/generate.py current-state exits 0",
                 "CI passes on a clean PR",
-                "No dual canonical system: project/work/ does not exist; "
+                "No dual canonical system: project/work/ does not exist at active path; "
+                "project/lean/archive/legacy/ holds historical records; "
                 "project/lean/ is the canonical lean record location",
             ]
         },

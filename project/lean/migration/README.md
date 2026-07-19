@@ -37,7 +37,7 @@ Assessment exits 0 (no open blockers). All 6 blockers resolved.
 
 ## Capability summary
 
-See `capability-map.yaml`. 16 capabilities replaced, 3 partially replaced,
+See `capability-map.yaml`. 17 capabilities replaced, 2 partially replaced,
 0 blocked, 1 replaced with different mechanism.
 
 ## Cutover phases
@@ -47,8 +47,8 @@ See `capability-map.yaml`. 16 capabilities replaced, 3 partially replaced,
 | CUTOVER-01 | resolve_governance_and_integrity_blockers | complete |
 | CUTOVER-02 | establish_canonical_lean_project_state | complete |
 | CUTOVER-03 | switch_ci_and_documentation_entrypoints | complete |
-| CUTOVER-04 | archive_historical_legacy_records | pending (next) |
-| CUTOVER-05 | remove_legacy_runtime_and_generated_views | pending |
+| CUTOVER-04 | archive_historical_legacy_records | complete |
+| CUTOVER-05 | remove_legacy_runtime_and_generated_views | pending (next) |
 | CUTOVER-06 | verify_lean_only_repository | pending |
 
 Each phase is independently reversible. Deletion is last (CUTOVER-05).
