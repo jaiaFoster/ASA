@@ -24,6 +24,7 @@ services:
       ASA_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-asa}:${POSTGRES_PASSWORD:-asa}@postgres:5432/${POSTGRES_DB:-asa}
       ASA_ENVIRONMENT: development
       ASA_QUOTE_PROVIDER: deterministic_fake
+      ASA_BROKER_PORTFOLIO_PROVIDER: deterministic_fake_broker
       ASA_CORS_ORIGINS: http://localhost:5173
     command: >-
       sh -c "pip install -e . && alembic upgrade head && python -m asa"

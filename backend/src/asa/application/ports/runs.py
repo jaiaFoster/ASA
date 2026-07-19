@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import Protocol
 from uuid import UUID
 
+from asa.domain.portfolio import PortfolioSnapshot, PublishedPortfolio
 from asa.domain.runs import PublicationRecord, RunRecord, RunStepName
 
 
@@ -42,3 +43,12 @@ class RunPublicationRepository(Protocol):
         provider_request_id: str,
         published_at: datetime,
     ) -> PublicationRecord: ...
+
+    def publish_portfolio(
+        self,
+        run_id: UUID,
+        snapshot: PortfolioSnapshot,
+        published_at: datetime,
+    ) -> PublicationRecord: ...
+
+    def current_portfolio(self) -> PublishedPortfolio | None: ...

@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "asa-backend"
 version = "0.1.0"
-requires-python = ">=3.11"
+requires-python = ">=3.12,<3.13"
 dependencies = [
   "alembic>=1.13,<2",
   "fastapi>=0.115,<1",
@@ -36,7 +36,7 @@ target-version = "py311"
 select = ["E", "F", "I", "UP", "B", "SIM"]
 
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.12"
 strict = true
 packages = ["asa"]
 mypy_path = "src"

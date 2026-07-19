@@ -7,6 +7,6 @@ export type ProvenanceResponse = {
     original_provider: string;
     cache_status: string;
     freshness_status: string;
-    fallback_reason: string | null;
+    fallback_reason: (string | null);
     provider_request_id: string;
 };

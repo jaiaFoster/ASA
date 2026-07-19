@@ -1,9 +1,20 @@
+from dataclasses import asdict
 from datetime import datetime
+from decimal import Decimal
 from uuid import UUID, uuid4
 
 from sqlalchemy import Engine, text
 from sqlalchemy.engine import Connection, RowMapping
 
+from asa.domain.portfolio import (
+    BrokerAccount,
+    EquityPosition,
+    OptionPositionLeg,
+    OptionType,
+    PortfolioSnapshot,
+    PositionSide,
+    PublishedPortfolio,
+)
 from asa.domain.runs import (
     PublicationRecord,
     RunRecord,
@@ -221,6 +232,121 @@ class PostgresRunPublicationRepository:
             published_at=published_at,
         )
 
+    def publish_portfolio(
+        self,
+        run_id: UUID,
+        snapshot: PortfolioSnapshot,
+        published_at: datetime,
+    ) -> PublicationRecord:
+        publication_id, snapshot_id = new_publication_ids()
+        with self._engine.begin() as connection:
+            self._begin_publish_step(connection, run_id, published_at)
+            connection.execute(
+                text("""
+                    INSERT INTO portfolio_snapshots (
+                        id, run_id, observed_at, provider, provider_request_id
+                    ) VALUES (
+                        :id, :run_id, :observed_at, :provider, :provider_request_id
+                    )
+                """),
+                {
+                    "id": snapshot_id,
+                    "run_id": run_id,
+                    "observed_at": snapshot.observed_at,
+                    "provider": snapshot.provider,
+                    "provider_request_id": snapshot.provider_request_id,
+                },
+            )
+            self._insert_portfolio_rows(connection, snapshot_id, snapshot)
+            run_result = connection.execute(
+                text("""
+                    UPDATE runs SET status = 'succeeded', completed_at = :published_at
+                    WHERE id = :run_id AND status = 'running'
+                """),
+                {"run_id": run_id, "published_at": published_at},
+            )
+            if run_result.rowcount != 1:
+                raise ValueError("only a running run can publish")
+            connection.execute(
+                text("""
+                    INSERT INTO publications (id, run_id, snapshot_id, published_at)
+                    VALUES (:id, :run_id, :snapshot_id, :published_at)
+                """),
+                {
+                    "id": publication_id,
+                    "run_id": run_id,
+                    "snapshot_id": snapshot_id,
+                    "published_at": published_at,
+                },
+            )
+            connection.execute(
+                text("""
+                    INSERT INTO publication_pointer (id, publication_id)
+                    VALUES (1, :publication_id)
+                    ON CONFLICT (id) DO UPDATE
+                    SET publication_id = EXCLUDED.publication_id
+                """),
+                {"publication_id": publication_id},
+            )
+            step_result = connection.execute(
+                text("""
+                    UPDATE run_steps SET status = 'succeeded', completed_at = :published_at
+                    WHERE run_id = :run_id AND step_name = 'publish' AND status = 'running'
+                """),
+                {"run_id": run_id, "published_at": published_at},
+            )
+            if step_result.rowcount != 1:
+                raise ValueError("publish step was not running")
+        return PublicationRecord(publication_id, run_id, snapshot_id, published_at)
+
+    def current_portfolio(self) -> PublishedPortfolio | None:
+        with self._engine.connect() as connection:
+            row = (
+                connection.execute(
+                    text("""
+                    SELECT p.id AS publication_id, p.run_id, p.snapshot_id,
+                           p.published_at, s.observed_at, s.provider,
+                           s.provider_request_id
+                    FROM publication_pointer pp
+                    JOIN publications p ON p.id = pp.publication_id
+                    JOIN portfolio_snapshots s ON s.id = p.snapshot_id
+                    WHERE pp.id = 1
+                """)
+                )
+                .mappings()
+                .first()
+            )
+            if row is None:
+                return None
+            account_rows = (
+                connection.execute(
+                    text(
+                        "SELECT * FROM broker_accounts WHERE snapshot_id = :snapshot_id ORDER BY id"
+                    ),
+                    {"snapshot_id": row["snapshot_id"]},
+                )
+                .mappings()
+                .all()
+            )
+            account_ids = [item["id"] for item in account_rows]
+            equity_rows = self._position_rows(connection, "equity_positions", account_ids)
+            option_rows = self._position_rows(connection, "option_legs", account_ids)
+        snapshot = PortfolioSnapshot(
+            observed_at=row["observed_at"],
+            provider=row["provider"],
+            provider_request_id=row["provider_request_id"],
+            accounts=tuple(self._to_account(item) for item in account_rows),
+            equity_positions=tuple(self._to_equity(item) for item in equity_rows),
+            option_legs=tuple(self._to_option_leg(item) for item in option_rows),
+        )
+        return PublishedPortfolio(
+            publication_id=row["publication_id"],
+            run_id=row["run_id"],
+            snapshot_id=row["snapshot_id"],
+            published_at=row["published_at"],
+            snapshot=snapshot,
+        )
+
     def _transition_run(
         self,
         run_id: UUID,
@@ -286,6 +412,110 @@ class PostgresRunPublicationRepository:
         )
         if result.rowcount != 1:
             raise ValueError("publish step cannot start")
+
+    @staticmethod
+    def _insert_portfolio_rows(
+        connection: Connection,
+        snapshot_id: UUID,
+        snapshot: PortfolioSnapshot,
+    ) -> None:
+        for account in snapshot.accounts:
+            connection.execute(
+                text("""
+                    INSERT INTO broker_accounts (
+                        id, snapshot_id, connection_id, external_account_id, provider,
+                        account_type, display_name, currency, observed_at
+                    ) VALUES (
+                        :id, :snapshot_id, :connection_id, :external_account_id, :provider,
+                        :account_type, :display_name, :currency, :observed_at
+                    )
+                """),
+                {**asdict(account), "snapshot_id": snapshot_id},
+            )
+        for position in snapshot.equity_positions:
+            connection.execute(
+                text("""
+                    INSERT INTO equity_positions (
+                        account_id, symbol, quantity, average_cost, observed_at, original_provider
+                    ) VALUES (
+                        :account_id, :symbol, :quantity, :average_cost,
+                        :observed_at, :original_provider
+                    )
+                """),
+                asdict(position),
+            )
+        for leg in snapshot.option_legs:
+            values = {**asdict(leg), "option_type": leg.option_type.value, "side": leg.side.value}
+            connection.execute(
+                text("""
+                    INSERT INTO option_legs (
+                        account_id, underlying_symbol, option_symbol, option_type, strike,
+                        expiration, quantity, side, average_price, observed_at, original_provider
+                    ) VALUES (
+                        :account_id, :underlying_symbol, :option_symbol, :option_type, :strike,
+                        :expiration, :quantity, :side, :average_price, :observed_at,
+                        :original_provider
+                    )
+                """),
+                values,
+            )
+
+    @staticmethod
+    def _position_rows(
+        connection: Connection,
+        table: str,
+        account_ids: list[UUID],
+    ) -> list[RowMapping]:
+        if not account_ids:
+            return []
+        return list(
+            connection.execute(
+                text(f"SELECT * FROM {table} WHERE account_id = ANY(:account_ids) ORDER BY id"),
+                {"account_ids": account_ids},
+            ).mappings()
+        )
+
+    @staticmethod
+    def _to_account(row: RowMapping) -> BrokerAccount:
+        return BrokerAccount(
+            id=row["id"],
+            connection_id=row["connection_id"],
+            external_account_id=row["external_account_id"],
+            provider=row["provider"],
+            account_type=row["account_type"],
+            display_name=row["display_name"],
+            currency=row["currency"],
+            observed_at=row["observed_at"],
+        )
+
+    @staticmethod
+    def _to_equity(row: RowMapping) -> EquityPosition:
+        return EquityPosition(
+            account_id=row["account_id"],
+            symbol=row["symbol"],
+            quantity=Decimal(str(row["quantity"])),
+            average_cost=None if row["average_cost"] is None else Decimal(str(row["average_cost"])),
+            observed_at=row["observed_at"],
+            original_provider=row["original_provider"],
+        )
+
+    @staticmethod
+    def _to_option_leg(row: RowMapping) -> OptionPositionLeg:
+        return OptionPositionLeg(
+            account_id=row["account_id"],
+            underlying_symbol=row["underlying_symbol"],
+            option_symbol=row["option_symbol"],
+            option_type=OptionType(row["option_type"]),
+            strike=Decimal(str(row["strike"])),
+            expiration=row["expiration"],
+            quantity=Decimal(str(row["quantity"])),
+            side=PositionSide(row["side"]),
+            average_price=(
+                None if row["average_price"] is None else Decimal(str(row["average_price"]))
+            ),
+            observed_at=row["observed_at"],
+            original_provider=row["original_provider"],
+        )
 
     @staticmethod
     def _to_run(connection: Connection, row: RowMapping) -> RunRecord:
