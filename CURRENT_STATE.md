@@ -15,12 +15,11 @@ Replace the dual legacy/Lean POS operation with Lean POS as the sole active proj
 - github_is_canonical_for_issues_prs_reviews_checks_and_merges
 - governance_conflicts_are_reported_not_silently_resolved
 - lean_pos_stores_only_non_derivable_governance_state
-- migration_must_remain_reversible_until_legacy_removal_is_verified
 - total_token_cost_is_an_architectural_constraint
 
 ## Next Action
 
-project=ASA-II repository=jaiaFoster/ASA active_phase=CUTOVER-05 (remove_legacy_runtime_and_generated_views) next_phase=CUTOVER-06 (verify_lean_only_repository)
+project=ASA-II repository=jaiaFoster/ASA migration_status=complete completed_phase=CUTOVER-06 active_operating_system=Lean_POS
 
 ## Sources
 

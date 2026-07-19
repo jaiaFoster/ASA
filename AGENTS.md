@@ -1,11 +1,11 @@
 # ASA Project — Agent Entry Point
 
-**Active operating system: Lean POS** (CUTOVER-05 complete)
+**Active operating system: Lean POS** (migration complete — all six cutover phases done)
 
 ## Canonical state
 
 - **Project state:** [`project/lean/state/project-state.yaml`](project/lean/state/project-state.yaml)
-- **Cutover plan:** [`project/lean/migration/cutover-plan.yaml`](project/lean/migration/cutover-plan.yaml)
+- **Migration final report:** [`project/lean/migration/FINAL_REPORT.md`](project/lean/migration/FINAL_REPORT.md)
 - **Current state view:** [`CURRENT_STATE.md`](CURRENT_STATE.md)
 
 ## Operational truth

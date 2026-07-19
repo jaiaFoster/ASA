@@ -18,6 +18,8 @@ Exit codes:
 
 from __future__ import annotations
 
+import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -44,9 +46,7 @@ def check_freshness() -> tuple[bool, str]:
 
     rc4, _, _ = _run(["git", "merge-base", "--is-ancestor", "origin/main", "HEAD"])
     if rc4 != 0:
-        rc5, behind, _ = _run(
-            ["git", "rev-list", "--count", f"HEAD..origin/main"]
-        )
+        rc5, behind, _ = _run(["git", "rev-list", "--count", "HEAD..origin/main"])
         behind_count = behind if rc5 == 0 else "?"
         return False, (
             f"Branch is behind origin/main by {behind_count} commit(s).\n"
@@ -58,34 +58,116 @@ def check_freshness() -> tuple[bool, str]:
     return True, f"origin/main ({om_sha[:8]}) is ancestor of HEAD ({head_sha[:8]})"
 
 
-def check_merge_conflicts() -> tuple[bool, str]:
-    """Detect conflicts with origin/main without modifying worktree.
+def _conflict_probe_merge_tree() -> tuple[str, bool, str]:
+    """Try git merge-tree --write-tree. Returns (status, ok, detail).
 
-    Uses `git merge-tree` (write-tree form, git ≥ 2.38) with fallback
-    to a temporary worktree.
+    status values: 'clean', 'conflict', 'unsupported', 'error'
     """
-    rc, out, _ = _run(["git", "merge-tree", "--write-tree", "HEAD", "origin/main"])
+    rc, out, err = _run(["git", "merge-tree", "--write-tree", "HEAD", "origin/main"])
+    combined = out + "\n" + err
+
     if rc == 0:
-        # git merge-tree exits 0 for clean merge
-        return True, "No merge conflicts detected (merge-tree)"
-    # rc == 1 means conflicts; rc may also be non-zero for older git
-    if "CONFLICT" in out or "conflict" in out.lower():
-        return False, f"Merge conflicts detected with origin/main:\n{out[:500]}"
+        return "clean", True, "No merge conflicts detected (merge-tree)"
 
-    # Fallback: try temporary worktree probe
-    rc2, tmpdir, _ = _run(["git", "worktree", "add", "--detach",
-                            tempfile.mkdtemp(prefix="ppcheck-"), "HEAD"])
-    if rc2 != 0:
-        # Can't create worktree; skip conflict probe conservatively
-        return True, "Conflict probe skipped (worktree unavailable); proceeding"
+    if rc == 1 and ("CONFLICT" in combined or "conflict" in combined.lower()):
+        paths = re.findall(r'CONFLICT[^:]*:\s*(\S+)', combined)
+        path_info = ", ".join(paths) if paths else "(see output)"
+        snippet = combined[:400]
+        return "conflict", False, f"Merge conflicts with origin/main: {path_info}\n{snippet}"
 
-    tmp_path = Path(tmpdir) if isinstance(tmpdir, str) and Path(tmpdir).exists() else None
-    # Actually parse worktree add output for path
-    import re
-    m = re.search(r"Preparing worktree.*\n?.*'(.+)'", out + tmpdir)
-    # Simple approach: just use merge-tree without worktree for old git
-    _run(["git", "worktree", "remove", "--force", str(tmp_path or "")])
-    return True, "No conflicts detected (fallback)"
+    # rc != 0 and no CONFLICT text: distinguish unsupported option from other errors
+    is_option_error = any(
+        tok in combined.lower()
+        for tok in ("unknown option", "unknown switch", "usage:", "unrecognized",
+                    "invalid option", "not a git command")
+    )
+    if rc not in (0, 1):
+        if is_option_error:
+            return "unsupported", False, combined[:200]
+        # Unexpected exit code with no option-error text — fail closed
+        return "error", False, f"merge-tree rc={rc}, unexpected:\n{combined[:200]}"
+
+    # rc==1 with no conflict markers — treat as unexpected error, fail closed
+    return "error", False, f"merge-tree rc=1 with no conflict markers:\n{combined[:200]}"
+
+
+def _conflict_probe_worktree() -> tuple[bool, str]:
+    """Fallback: detect conflicts via a temporary detached worktree.
+
+    Never modifies the primary worktree or index.
+    Always cleans up the temporary worktree, even on error.
+    Fails closed if the probe cannot be completed.
+    """
+    tmp_parent = Path(tempfile.mkdtemp(prefix="ppcheck-"))
+    wt_path = tmp_parent / "wt"   # must not exist before git worktree add
+
+    try:
+        rc_add, out_add, err_add = _run(
+            ["git", "worktree", "add", "--detach", str(wt_path), "HEAD"]
+        )
+        if rc_add != 0:
+            return False, (
+                "Conflict probe failed: cannot create temporary worktree:\n"
+                f"{(out_add + err_add)[:200]}"
+            )
+
+        try:
+            rc_merge, out_merge, err_merge = _run(
+                ["git", "merge", "--no-commit", "--no-ff", "origin/main"],
+                cwd=wt_path,
+            )
+
+            # Inspect unmerged paths
+            _, unmerged, _ = _run(
+                ["git", "diff", "--name-only", "--diff-filter=U"],
+                cwd=wt_path,
+            )
+            conflict_paths = [p for p in unmerged.splitlines() if p]
+
+            if conflict_paths:
+                _run(["git", "merge", "--abort"], cwd=wt_path)
+                path_info = ", ".join(conflict_paths)
+                return False, f"Merge conflicts with origin/main: {path_info}"
+
+            if rc_merge != 0:
+                # Merge failed but reported no unmerged files — unexpected error
+                _run(["git", "merge", "--abort"], cwd=wt_path)
+                return False, (
+                    f"Merge probe failed unexpectedly (rc={rc_merge}):\n"
+                    f"{(out_merge + err_merge)[:200]}"
+                )
+
+            # Clean merge — abort since we used --no-commit
+            _run(["git", "merge", "--abort"], cwd=wt_path)
+            return True, "No merge conflicts detected (worktree fallback)"
+
+        finally:
+            _run(["git", "worktree", "remove", "--force", str(wt_path)])
+
+    finally:
+        _run(["git", "worktree", "prune"])
+        shutil.rmtree(tmp_parent, ignore_errors=True)
+
+
+def check_merge_conflicts() -> tuple[bool, str]:
+    """Detect conflicts with origin/main without modifying worktree or index.
+
+    Primary: git merge-tree --write-tree (git >= 2.38, non-destructive).
+    Fallback: temporary detached worktree + git merge --no-commit.
+    Fails closed on any unverified or unexpected result.
+    """
+    status, ok, detail = _conflict_probe_merge_tree()
+
+    if status == "clean":
+        return True, detail
+    if status == "conflict":
+        return False, detail
+    if status == "error":
+        # Unexpected merge-tree error — fail closed without fallback
+        return False, f"Conflict probe failed (merge-tree): {detail}"
+
+    # status == "unsupported" — fall through to worktree probe
+    return _conflict_probe_worktree()
 
 
 def check_entrypoints() -> tuple[bool, str]:

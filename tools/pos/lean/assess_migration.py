@@ -106,9 +106,9 @@ See `capability-map.yaml`. 19 capabilities replaced, 2 partially replaced,
 | CUTOVER-03 | switch_ci_and_documentation_entrypoints | complete |
 | CUTOVER-04 | archive_historical_legacy_records | complete |
 | CUTOVER-05 | remove_legacy_runtime_and_generated_views | complete |
-| CUTOVER-06 | verify_lean_only_repository | pending (next) |
+| CUTOVER-06 | verify_lean_only_repository | complete |
 
-Each phase is independently reversible. Deletion is last (CUTOVER-05).
+All six phases complete. Migration sealed in LEAN-POS-11.
 """
 
 

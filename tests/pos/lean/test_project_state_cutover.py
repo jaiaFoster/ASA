@@ -148,8 +148,10 @@ class TestDurableConstraints:
         assert any("founder_merge" in c or "authority_merge" in c
                    for c in state["constraints"])
 
-    def test_migration_reversibility_constraint_present(self, state):
-        assert any("reversible" in c or "migration" in c
+    def test_migration_constraint_or_token_constraint_present(self, state):
+        # migration_reversibility constraint removed after migration complete;
+        # total_token_cost constraint is always present
+        assert any("reversible" in c or "migration" in c or "token" in c
                    for c in state["constraints"])
 
 
@@ -170,8 +172,10 @@ class TestRefs:
     def test_frozen_governance_ref_present(self, state):
         assert any("governance/frozen" in r for r in state["refs"])
 
-    def test_cutover_plan_ref_present(self, state):
-        assert any("cutover-plan" in r for r in state["refs"])
+    def test_migration_ref_present(self, state):
+        # After completion, cutover-plan ref replaced by FINAL_REPORT ref
+        assert any("cutover-plan" in r or "FINAL_REPORT" in r or "migration" in r
+                   for r in state["refs"])
 
     def test_refs_resolve_to_existing_paths(self, state):
         unresolvable = []
@@ -191,29 +195,21 @@ class TestRefs:
 # ---------------------------------------------------------------------------
 
 class TestPhaseAlignment:
-    def test_active_phase_in_notes(self, state):
+    def test_migration_complete_in_notes(self, state):
         notes = state.get("notes", "")
-        assert "CUTOVER-05" in notes
+        assert "migration_status=complete" in notes or "CUTOVER-06" in notes
 
-    def test_next_phase_in_notes(self, state):
-        notes = state.get("notes", "")
-        assert "CUTOVER-06" in notes
+    def test_all_cutover_phases_complete(self, cutover_plan):
+        pending = [p for p in cutover_plan.get("phases", []) if p.get("status") != "complete"]
+        assert pending == [], f"Pending phases remain: {[p['id'] for p in pending]}"
 
-    def test_active_phase_matches_cutover_plan(self, state, cutover_plan):
-        notes = state.get("notes", "")
-        assert "CUTOVER-05" in notes
-        phases = cutover_plan.get("phases", [])
-        completed = [p for p in phases if p.get("status") == "complete"]
-        completed_ids = [p["id"] for p in completed]
-        assert "CUTOVER-05" in completed_ids, f"CUTOVER-05 should be complete; got: {completed_ids}"
+    def test_cutover_06_complete_in_plan(self, cutover_plan):
+        phases = {p["id"]: p for p in cutover_plan.get("phases", [])}
+        assert phases["CUTOVER-06"]["status"] == "complete"
 
-    def test_next_phase_matches_cutover_plan(self, state, cutover_plan):
-        notes = state.get("notes", "")
-        assert "CUTOVER-06" in notes
-        phases = cutover_plan.get("phases", [])
-        pending = [p for p in phases if p.get("status") != "complete"]
-        assert pending, "cutover plan has no pending phases"
-        assert pending[0]["id"] == "CUTOVER-06", f"expected CUTOVER-06 as next pending; got: {pending[0]['id']}"
+    def test_cutover_05_complete_in_plan(self, cutover_plan):
+        phases = {p["id"]: p for p in cutover_plan.get("phases", [])}
+        assert phases["CUTOVER-05"]["status"] == "complete"
 
     def test_project_id_in_notes(self, state):
         notes = state.get("notes", "")
