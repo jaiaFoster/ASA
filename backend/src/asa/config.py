@@ -11,6 +11,7 @@ class Settings(BaseSettings):
         env_file=".env",
         extra="ignore",
         populate_by_name=True,
+        hide_input_in_errors=True,
     )
 
     database_url: str = Field(
@@ -37,6 +38,13 @@ class Settings(BaseSettings):
     @field_validator("database_url")
     @classmethod
     def normalize_database_url(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("Database URL cannot be empty")
+        if "${{" in value and "}}" in value:
+            raise ValueError("Database URL contains an unresolved variable reference")
+        if "://" not in value or not value.partition("://")[0]:
+            raise ValueError("Database URL must include a URL scheme")
         if value.startswith("postgres://"):
             return value.replace("postgres://", "postgresql+psycopg://", 1)
         if value.startswith("postgresql://"):
