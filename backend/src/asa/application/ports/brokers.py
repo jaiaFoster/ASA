@@ -56,6 +56,8 @@ class BrokerPositionsResult:
 
 
 class BrokerPortfolioProvider(Protocol):
+    name: str
+
     def fetch_accounts(self) -> BrokerAccountsResult: ...
 
     def fetch_positions(self) -> BrokerPositionsResult: ...

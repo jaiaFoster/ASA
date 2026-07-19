@@ -1,6 +1,17 @@
 import json
 import logging
+from pathlib import Path
+from unittest.mock import Mock
+from uuid import uuid4
 
+import pytest
+
+from asa.application.portfolio_use_cases import RunPortfolioIntelligence
+from asa.application.ports.runs import RunPublicationRepository
+from asa.domain.runs import RunStepName
+from asa.integrations.providers.deterministic_fake_broker import (
+    DeterministicFakeBrokerPortfolioProvider,
+)
 from asa.logging import JsonFormatter, request_id_context
 
 
@@ -33,3 +44,26 @@ def test_structured_market_log_contains_required_correlation_fields() -> None:
     assert payload["run_id"] == "run-123"
     assert payload["run_step"] == "acquire_portfolio"
     assert payload["account_id"] == "taxable-001"
+
+
+def test_run_step_log_uses_provider_supplied_by_port(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    provider = DeterministicFakeBrokerPortfolioProvider()
+    provider.name = "provider_selected_at_composition"
+    repository = Mock(spec=RunPublicationRepository)
+    runner = RunPortfolioIntelligence(provider, repository)
+
+    with caplog.at_level(logging.INFO, logger="asa.portfolio_run"):
+        runner._run_step(
+            uuid4(),
+            RunStepName.NORMALIZE_PORTFOLIO,
+            provider.name,
+            lambda: None,
+        )
+
+    assert caplog.records[-1].provider == "provider_selected_at_composition"
+    application_source = (
+        Path(__file__).parents[1] / "src" / "asa" / "application" / "portfolio_use_cases.py"
+    ).read_text()
+    assert "deterministic_fake_broker" not in application_source
