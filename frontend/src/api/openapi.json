@@ -1,0 +1,44 @@
+{
+  "openapi": "3.1.0",
+  "info": { "title": "ASA Market Quote API", "version": "1.0.0" },
+  "paths": {
+    "/api/v1/market/quotes/{symbol}": {
+      "get": {
+        "operationId": "getLatestQuote",
+        "parameters": [{ "name": "symbol", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": { "description": "Latest canonical observation", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/QuoteResponse" } } } },
+          "404": { "description": "Unavailable" }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ProvenanceResponse": {
+        "type": "object",
+        "required": ["selected_provider", "original_provider", "cache_status", "freshness_status", "fallback_reason", "provider_request_id"],
+        "properties": {
+          "selected_provider": { "type": "string" },
+          "original_provider": { "type": "string" },
+          "cache_status": { "type": "string" },
+          "freshness_status": { "type": "string" },
+          "fallback_reason": { "type": ["string", "null"] },
+          "provider_request_id": { "type": "string" }
+        }
+      },
+      "QuoteResponse": {
+        "type": "object",
+        "required": ["symbol", "price", "currency", "observed_at", "received_at", "provenance"],
+        "properties": {
+          "symbol": { "type": "string" },
+          "price": { "type": ["number", "string"] },
+          "currency": { "type": "string" },
+          "observed_at": { "type": "string", "format": "date-time" },
+          "received_at": { "type": "string", "format": "date-time" },
+          "provenance": { "$ref": "#/components/schemas/ProvenanceResponse" }
+        }
+      }
+    }
+  }
+}
