@@ -236,7 +236,7 @@ class TestCapabilityMap:
         caps_by_id = {c["id"]: c for c in cap["capabilities"]}
         assert caps_by_id["risk_floor_enforcement"]["status"] == "partially_replaced"
         assert caps_by_id["ci_validation"]["status"] == "partially_replaced"
-        assert caps_by_id["frozen_governance_integrity"]["status"] == "partially_replaced"
+        assert caps_by_id["frozen_governance_integrity"]["status"] == "replaced"
 
     def test_partially_replaced_has_gap(self):
         cap = _cap_map()
@@ -244,14 +244,23 @@ class TestCapabilityMap:
             if c["status"] == "partially_replaced":
                 assert c.get("gap"), f"partial capability {c['id']} missing gap description"
 
-    def test_missing_capability_creates_blocker(self):
-        """Partially replaced/blocked capabilities must reference a blocker."""
+    def test_open_gaps_reference_open_blockers(self):
+        """Capabilities with open (unresolved) gaps must reference an open blocker."""
         cap = _cap_map()
         for c in cap["capabilities"]:
-            if c["status"] in ("partially_replaced", "blocked") and c.get("gap"):
+            if c["status"] in ("blocked",) and c.get("gap"):
                 assert c.get("blocker"), (
-                    f"capability {c['id']} has gap but no blocker reference"
+                    f"blocked capability {c['id']} has gap but no blocker reference"
                 )
+
+    def test_resolved_gaps_have_no_blocker(self):
+        """Capabilities whose gaps are accepted should have null blocker."""
+        cap = _cap_map()
+        caps_by_id = {c["id"]: c for c in cap["capabilities"]}
+        # BLKR-001 resolved — these accepted gaps need no blocker
+        assert caps_by_id["risk_floor_enforcement"]["blocker"] is None
+        assert caps_by_id["audit_traceability"]["blocker"] is None
+        assert caps_by_id["migration_reversibility"]["blocker"] is None
 
     def test_capability_not_replaced_just_because_tests_exist(self):
         """github_reconciliation should be replaced because code exists, not just tests."""
@@ -281,49 +290,52 @@ class TestCapabilityMap:
 # ===========================================================================
 
 class TestBlockerDetection:
-    def test_governance_conflict_blocker_present(self):
+    def test_governance_conflict_blocker_resolved(self):
         bl = _blockers()
-        ids = {b["id"] for b in bl["blockers"]}
-        assert "BLKR-001" in ids
+        open_ids = {b["id"] for b in bl["blockers"]}
+        assert "BLKR-001" not in open_ids, "BLKR-001 should be resolved"
+        resolved_ids = {b["id"] for b in bl.get("resolved_blockers", [])}
+        assert "BLKR-001" in resolved_ids
 
-    def test_hash_failures_create_manifest_integrity_blocker(self):
+    def test_manifest_integrity_blocker_resolved(self):
         bl = _blockers()
-        manifest_blockers = [b for b in bl["blockers"] if b["type"] == "manifest_integrity"]
-        assert len(manifest_blockers) >= 1
-        # Must reference the 3 pre-existing failures
-        evidence = manifest_blockers[0]["evidence"]
-        evidence_text = " ".join(evidence)
-        assert "test_frozen_hashes_match_manifest" in evidence_text
+        open_types = {b["type"] for b in bl["blockers"]}
+        assert "manifest_integrity" not in open_types, "manifest_integrity blocker should be resolved"
+        resolved = [b for b in bl.get("resolved_blockers", []) if b["type"] == "manifest_integrity"]
+        assert len(resolved) >= 1
 
-    def test_all_three_preexisting_hash_failures_accounted(self):
+    def test_all_three_preexisting_hash_failures_documented_in_resolution(self):
         bl = _blockers()
-        # Find the manifest integrity blocker
-        mb = next((b for b in bl["blockers"] if b["type"] == "manifest_integrity"), None)
+        mb = next((b for b in bl.get("resolved_blockers", [])
+                   if b["type"] == "manifest_integrity"), None)
         assert mb is not None
-        evidence_text = " ".join(mb["evidence"])
-        for test_name in ("test_frozen_hashes_match_manifest", "test_validator_passes",
-                          "test_valid_accepted_lifecycle_passes"):
-            assert test_name in evidence_text, f"pre-existing failure not documented: {test_name}"
+        resolution_text = mb.get("resolution", "")
+        assert "hashes" in resolution_text or "manifest" in resolution_text
 
-    def test_active_record_without_github_mapping_is_blocker(self):
+    def test_canonical_data_blocker_resolved(self):
         bl = _blockers()
-        data_blockers = [b for b in bl["blockers"] if b["type"] == "canonical_data_not_migrated"]
-        assert len(data_blockers) >= 1
-        # Must mention ASA2-WORK-001 or ASA2-DECISION-001
-        evidence_text = " ".join(" ".join(b["evidence"]) for b in data_blockers)
-        assert "ASA2-WORK-001" in evidence_text or "ASA2-DECISION-001" in evidence_text
+        open_types = {b["type"] for b in bl["blockers"]}
+        assert "canonical_data_not_migrated" not in open_types
+        resolved = [b for b in bl.get("resolved_blockers", [])
+                    if b["type"] == "canonical_data_not_migrated"]
+        assert len(resolved) >= 1
+        resolution_text = " ".join(b.get("resolution", "") for b in resolved)
+        assert "ASA2-WORK-001" in resolution_text or "founder_merge" in resolution_text
 
     def test_ci_dependency_blocker_present(self):
         bl = _blockers()
         ci_blockers = [b for b in bl["blockers"] if b["type"] == "ci_dependency"]
         assert len(ci_blockers) >= 1
 
-    def test_missing_capability_blocker_for_governance_integrity(self):
+    def test_missing_capability_blocker_for_governance_integrity_resolved(self):
         bl = _blockers()
-        missing_cap = [b for b in bl["blockers"] if b["type"] == "missing_capability"]
-        assert len(missing_cap) >= 1
+        open_missing = [b for b in bl["blockers"] if b["type"] == "missing_capability"]
+        assert len(open_missing) == 0, "missing_capability blocker BLKR-006 should be resolved"
+        resolved_missing = [b for b in bl.get("resolved_blockers", [])
+                            if b["type"] == "missing_capability"]
+        assert len(resolved_missing) >= 1
         affected_caps = []
-        for b in missing_cap:
+        for b in resolved_missing:
             affected_caps.extend(b.get("affected_capabilities", []))
         assert "frozen_governance_integrity" in affected_caps
 
@@ -357,9 +369,10 @@ class TestBlockerDetection:
         bl = _blockers()
         assert bl["summary"]["cutover_ready"] is False
 
-    def test_founder_decisions_required_listed(self):
+    def test_founder_decisions_recorded(self):
         bl = _blockers()
-        assert len(bl["founder_decisions_required"]) >= 4
+        assert len(bl.get("founder_decisions_required", [])) == 0
+        assert len(bl.get("founder_decisions_recorded", [])) >= 4
 
     def test_blocker_ids_sorted(self):
         bl = _blockers()

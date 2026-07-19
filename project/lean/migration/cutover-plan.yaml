@@ -58,8 +58,8 @@ phases:
   risk: R2
   acceptance_authority: Founder
 - id: CUTOVER-03
-  name: switch_ci_and_documentation_entrypoints
   status: pending
+  name: switch_ci_and_documentation_entrypoints
   goal: Update CI to run lean tools and tests. Update root pointer files to point to lean generated outputs.
   scope:
   - .github/workflows/validate-pos.yml
@@ -68,8 +68,8 @@ phases:
   - MANAGER_INBOX.md
   prerequisites:
   - CUTOVER-02 complete
-  - FD-004 decided (lean manifest integrity check) ✓ — implemented in LEAN-POS-05
-  - BLKR-006 implementation complete ✓ — check_integrity.py added
+  - FD-004 decided (manifest integrity check approved for lean tooling or dedicated test)
+  - BLKR-006 implementation complete (lean manifest integrity check)
   actions:
   - '1. Update validate-pos.yml: replace ''Run validator'' step with lean validate.py'
   - '2. Update validate-pos.yml: replace ''Run generator'' step with lean generate.py'
@@ -103,7 +103,7 @@ phases:
   - project/BOOTSTRAP_STATUS.yaml → project/lean/archive/legacy/BOOTSTRAP_STATUS.yaml
   prerequisites:
   - CUTOVER-03 complete and CI passing with lean tools
-  - All active legacy records confirmed accepted or cancelled (BLKR-004 resolved ✓)
+  - All active legacy records confirmed accepted or cancelled (BLKR-004 resolved)
   - No active CI step reads from project/work/ or project/assignments/
   actions:
   - 1. Confirm CI no longer reads project/work/, project/assignments/, etc.
@@ -237,31 +237,31 @@ deletion_manifest:
   required_prior_phase: CUTOVER-05
   rollback_method: git revert CUTOVER-05 commit
 - path: project/schemas/decision.schema.yaml
-  reason: GitHub Issues/PRs replace explicit decision records (FD-001 approved)
+  reason: GitHub Issues/PRs replace explicit decision records
   replacement: github_issue (canonical per lean model)
   dependencies_checked:
-  - BLKR-001 resolved ✓ — FD-001 approved in LEAN-POS-05
+  - BLKR-001 must be resolved — requires Founder FD-001
   required_prior_phase: CUTOVER-05
   rollback_method: git revert CUTOVER-05 commit
 - path: project/schemas/evidence.schema.yaml
-  reason: GitHub CI check runs replace explicit evidence records (FD-001 approved)
+  reason: GitHub CI check runs replace explicit evidence records
   replacement: github_pr_checks (canonical per lean model)
   dependencies_checked:
-  - BLKR-001 resolved ✓ — FD-001 approved in LEAN-POS-05
+  - BLKR-001 must be resolved — requires Founder FD-001
   required_prior_phase: CUTOVER-05
   rollback_method: git revert CUTOVER-05 commit
 - path: project/schemas/review.schema.yaml
-  reason: GitHub PR reviews replace explicit review records (FD-001 approved)
+  reason: GitHub PR reviews replace explicit review records
   replacement: github_pr_review (canonical per lean model)
   dependencies_checked:
-  - BLKR-001 resolved ✓ — FD-001 approved in LEAN-POS-05
+  - BLKR-001 must be resolved — requires Founder FD-001
   required_prior_phase: CUTOVER-05
   rollback_method: git revert CUTOVER-05 commit
 - path: project/schemas/risk-record.schema.yaml
-  reason: Replaced by worker-handoff risk field; risk_floor_enforcement gap accepted (FD-001)
+  reason: Replaced by worker-handoff risk field
   replacement: project/schemas/lean/worker-handoff.schema.yaml (risk field)
   dependencies_checked:
-  - BLKR-001 resolved ✓ — risk_floor_enforcement gap documented and accepted
+  - BLKR-001 — risk_floor_enforcement gap must be documented
   required_prior_phase: CUTOVER-05
   rollback_method: git revert CUTOVER-05 commit
 - path: project/schemas/work-item.schema.yaml
@@ -300,8 +300,8 @@ deletion_manifest:
   required_prior_phase: CUTOVER-05
   rollback_method: git revert CUTOVER-05 commit
 - path: tools/pos/validate.py
-  reason: Replaced by tools/pos/lean/validate.py and tools/pos/lean/check_integrity.py
-  replacement: tools/pos/lean/validate.py + tools/pos/lean/check_integrity.py
+  reason: Replaced by tools/pos/lean/validate.py
+  replacement: tools/pos/lean/validate.py
   dependencies_checked:
   - .github/workflows/validate-pos.yml — must be updated in CUTOVER-03
   required_prior_phase: CUTOVER-03
@@ -320,9 +320,9 @@ retained_artifacts:
 - path: project/lean/
   reason: lean records, generated views, archive, and migration
 - path: tools/pos/lean/
-  reason: lean toolchain (including check_integrity.py)
+  reason: lean toolchain
 - path: tests/pos/lean/
-  reason: lean test suite (including test_integrity.py)
+  reason: lean test suite
 - path: tools/pos/requirements.txt
   reason: shared dependency file for lean and legacy tests
 - path: project/roles/registry.yaml
@@ -331,20 +331,16 @@ retained_artifacts:
   reason: repository documentation
 - path: .github/workflows/validate-pos.yml
   reason: retained with lean steps (CUTOVER-03)
-founder_decisions_recorded:
+founder_decisions:
 - id: FD-001
-  summary: github_satisfies_pos_record_requirement — approved
-  blocker_closed: BLKR-001
-  decided_in: LEAN-POS-05
+  summary: 'Governance compatibility: GitHub as canonical POS record for lean work'
+  required_before: CUTOVER-01
 - id: FD-002
-  summary: manifest_resolution=update_hashes — approved
-  blocker_closed: BLKR-002
-  decided_in: LEAN-POS-05
+  summary: Manifest hash correction (three pre-existing test failures)
+  required_before: CUTOVER-01
 - id: FD-003
-  summary: founder_merge_implies_acceptance — approved
-  blocker_closed: BLKR-004
-  decided_in: LEAN-POS-05
+  summary: Accept ASA2-WORK-001 and close ASA2-DECISION-001 as decided
+  required_before: CUTOVER-01
 - id: FD-004
-  summary: lean_integrity_checker=approved_minimal — approved
-  blocker_closed: BLKR-006
-  decided_in: LEAN-POS-05
+  summary: Approve lean manifest integrity check (prerequisite for CUTOVER-05)
+  required_before: CUTOVER-03

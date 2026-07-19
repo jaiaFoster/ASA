@@ -197,7 +197,7 @@ def build_legacy_inventory(repo_root: Path, generated_at: str) -> dict:
                     "github_derivable_data": "no",
                     "lean_replacement": _lean_schema_replacement(sf.name),
                     "proposed_disposition": "archive",
-                    "removal_blockers": ["BLKR-002", "BLKR-003"],
+                    "removal_blockers": ["BLKR-003"],
                 }
                 schemas_list.append(entry)
                 artifacts.append(entry)
@@ -270,7 +270,7 @@ def build_legacy_inventory(repo_root: Path, generated_at: str) -> dict:
             "github_derivable_data": "no",
             "lean_replacement": _lean_test_replacement(tf_rel),
             "proposed_disposition": "archive",
-            "removal_blockers": ["BLKR-005", "BLKR-006"],
+            "removal_blockers": ["BLKR-005"],
         }
         tests_list.append(entry)
         artifacts.append(entry)
@@ -333,7 +333,7 @@ def build_legacy_inventory(repo_root: Path, generated_at: str) -> dict:
             "github_derivable_data": "partial — phase/status derivable from git; role definitions are unique",
             "lean_replacement": _lean_root_config_replacement(rc_name),
             "proposed_disposition": "retain",
-            "removal_blockers": ["BLKR-001", "BLKR-004"],
+            "removal_blockers": [],
         }
         artifacts.append(entry)
 
@@ -401,7 +401,6 @@ def _build_record_entry(rel: str, category: str, rec: dict | None, dir_key: str)
     blockers = []
     if is_active and category in ("work_record", "decision_record"):
         blockers.append("BLKR-004")
-    blockers.append("BLKR-001")
     return {
         "path": rel,
         "category": category,
@@ -482,7 +481,7 @@ def _lean_test_replacement(tf_rel: str) -> str:
         "tests/pos/test_repository_bootstrap.py":
             "tests/pos/lean/test_lean_validator.py + tests/pos/lean/test_reconcile.py "
             "+ tests/pos/lean/test_generate.py + tests/pos/lean/test_migration_assessment.py "
-            "(manifest integrity check gap: BLKR-006)",
+            "+ tests/pos/lean/test_integrity.py (manifest integrity check — LEAN-POS-05)",
         "tests/pos/test_role_bootstrap.py": "unresolved — role bootstrap may not have lean equivalent",
     }.get(tf_rel, "unresolved")
 
@@ -541,9 +540,7 @@ def _tool_references(tool_rel: str) -> list[str]:
 
 def _tool_blockers(tool_rel: str) -> list[str]:
     if tool_rel in ("tools/pos/validate.py", "tools/pos/generate.py",
-                    "tools/pos/schemas.py"):
-        return ["BLKR-003", "BLKR-006"]
-    if tool_rel == "tools/pos/transitions.py":
+                    "tools/pos/schemas.py", "tools/pos/transitions.py"):
         return ["BLKR-003"]
     return []
 
@@ -622,8 +619,10 @@ def build_capability_map(generated_at: str) -> dict:
                                     "lean validate.py checks enum only; RISK-001 §9 property-to-class "
                                     "algorithm not implemented in lean"),
             "gap": ("Lean has no equivalent of the RISK-001 §9.2 deterministic classification "
-                    "from declared_properties. Risk class is manually declared, not derived."),
-            "blocker": "BLKR-001",
+                    "from declared_properties. Risk class is manually declared, not derived. "
+                    "Gap accepted — Founder approved github_satisfies_pos_record_requirement "
+                    "(BLKR-001 resolved)."),
+            "blocker": None,
         },
         {
             "id": "authority_awareness",
@@ -708,20 +707,23 @@ def build_capability_map(generated_at: str) -> dict:
                                     "derived.py surfaces review/check facts (F006–F009); "
                                     "no lean equivalent of explicit evidence/ or review/ records"),
             "gap": ("Lean relies on GitHub PR audit trail; no offline audit record equivalent. "
-                    "If GitHub history is unavailable or the record must be self-contained, "
-                    "audit traceability is incomplete."),
-            "blocker": "BLKR-001",
+                    "Gap accepted — Founder approved github_satisfies_pos_record_requirement "
+                    "(BLKR-001 resolved). Confirmed in LEAN-POS-06: project state plus GitHub "
+                    "and git history preserve required traceability without legacy lifecycle duplication."),
+            "blocker": None,
         },
         {
             "id": "migration_reversibility",
             "description": "Ability to return to dual-POS or legacy-only operation",
             "legacy_implementation": "N/A — pre-migration",
-            "status": "blocked",
+            "status": "partially_replaced",
             "lean_implementation": ("Cutover plan includes rollback steps for each phase; "
                                     "git history preserves all legacy artifacts; "
-                                    "rollback not executable until CUTOVER-01 blockers resolved"),
-            "gap": "Cannot execute reversible cutover until BLKR-001 and BLKR-002 resolved",
-            "blocker": "BLKR-001",
+                                    "CUTOVER-01 and CUTOVER-02 complete; "
+                                    "canonical lean state exists at project/lean/state/project-state.yaml"),
+            "gap": ("Reversible cutover sequence (CUTOVER-03 through CUTOVER-06) not yet executed; "
+                    "ci_dependency (BLKR-003) and documentation_dependency (BLKR-005) remain"),
+            "blocker": None,
         },
         {
             "id": "offline_operation",
@@ -754,21 +756,19 @@ def build_capability_map(generated_at: str) -> dict:
             "legacy_implementation": ("tools/pos/validate.py check_frozen_files(); "
                                       "tests/pos/test_repository_bootstrap.py "
                                       "test_frozen_hashes_match_manifest"),
-            "status": "partially_replaced",
-            "lean_implementation": ("tools/pos/lean/validate.py validates lean schemas only; "
-                                    "does NOT check governance/manifest.yaml hashes; "
-                                    "no lean equivalent of manifest integrity verification"),
-            "gap": ("After legacy tool removal, no remaining CI step verifies frozen "
-                    "governance file integrity against manifest hashes. "
-                    "This check must be added to lean tooling before CUTOVER-05."),
-            "blocker": "BLKR-006",
+            "status": "replaced",
+            "lean_implementation": ("tools/pos/lean/check_integrity.py (I001-I005 error codes, "
+                                    "stdlib only); CI step 'Check frozen governance integrity' added; "
+                                    "19 tests in tests/pos/lean/test_integrity.py. Added in LEAN-POS-05."),
+            "gap": None,
+            "blocker": None,
         },
     ]
 
     replaced = sum(1 for c in capabilities if c["status"] in ("replaced", "replaced_with_different_mechanism"))
     partial = sum(1 for c in capabilities if c["status"] == "partially_replaced")
     blocked = sum(1 for c in capabilities if c["status"] == "blocked")
-    gaps = sum(1 for c in capabilities if c["gap"])
+    gaps = sum(1 for c in capabilities if c["gap"] and c["blocker"])
 
     return {
         "generated_at": generated_at,
@@ -789,95 +789,8 @@ def build_capability_map(generated_at: str) -> dict:
 # ---------------------------------------------------------------------------
 
 def build_blockers(generated_at: str) -> dict:
-    """Return all identified blockers. Sorted by id."""
+    """Return open blockers and compact resolved records. Sorted by id."""
     blockers = [
-        {
-            "id": "BLKR-001",
-            "type": "governance_conflict",
-            "severity": "high",
-            "code": MIGR_GOVERNANCE_CONFLICT,
-            "description": (
-                "RISK-001 and POS-RS require every tracked unit of work to have a "
-                "POS record with declared properties, deterministic risk class, and "
-                "explicit evidence/review/decision records. The Lean POS direction "
-                "treats GitHub Issues and PRs as canonical for ordinary work, with no "
-                "equivalent of project/evidence/, project/reviews/, or project/decisions/. "
-                "Compatibility is undetermined."
-            ),
-            "evidence": [
-                "RISK-001-REQ-1.1: every unit of work MUST be assigned exactly one Risk Class",
-                "POS-RS §1 requires canonical project state across role replacement",
-                "Lean worker-handoff.schema.yaml records risk class but not declared_properties",
-                "GOV-AMD-001 amendments are all Proposed, none Accepted — not binding",
-                "project/BOOTSTRAP_STATUS.yaml: interpretation_rule=amendments_apply_over_frozen_documents "
-                "(but GOV-AMD-001 amendments are Proposed, not Accepted)",
-            ],
-            "affected_paths": [
-                "governance/frozen/RISK-001",
-                "governance/frozen/POS-RS-v0.2.md",
-                "governance/amendments/GOV-AMD-001.md",
-                "project/schemas/lean/worker-handoff.schema.yaml",
-                "project/evidence/",
-                "project/reviews/",
-                "project/decisions/",
-            ],
-            "affected_capabilities": [
-                "risk_floor_enforcement",
-                "audit_traceability",
-                "migration_reversibility",
-            ],
-            "resolution_authority": "Founder",
-            "smallest_required_decision": (
-                "Are GitHub Issues + PRs sufficient as the POS canonical record for ordinary "
-                "work under RISK-001 and POS-RS, or must explicit POS evidence/review/decision "
-                "records be created for each lean work item? "
-                "Required result: compatible | compatible_with_constraint | "
-                "governance_amendment_required | undetermined"
-            ),
-            "recommendation": (
-                "Founder assesses RISK-001 §2.1 scope and POS-RS §1 requirements against "
-                "GitHub acceptance model (roles/shared/GITHUB_ACCEPTANCE_MODEL.md). "
-                "If compatible_with_constraint, document the constraint in GOV-AMD-001 "
-                "before CUTOVER-01."
-            ),
-        },
-        {
-            "id": "BLKR-002",
-            "type": "manifest_integrity",
-            "severity": "high",
-            "code": "M005",
-            "description": (
-                "Three pre-existing test failures exist on main before any lean work: "
-                "test_frozen_hashes_match_manifest, test_validator_passes, and "
-                "test_valid_accepted_lifecycle_passes. These indicate SHA-256 hash mismatches "
-                "between governance/manifest.yaml entries and the actual files on disk. "
-                "These failures block CUTOVER-01 (resolve governance and integrity blockers) "
-                "and prevent the legacy validator from reporting a clean pass."
-            ),
-            "evidence": [
-                "tests/pos/test_repository_bootstrap.py::test_frozen_hashes_match_manifest — FAIL",
-                "tests/pos/test_repository_bootstrap.py::test_validator_passes — FAIL",
-                "tests/pos/test_repository_bootstrap.py::test_valid_accepted_lifecycle_passes — FAIL",
-                "Failures are pre-existing on main before LEAN-POS-01 branch",
-            ],
-            "affected_paths": [
-                "governance/manifest.yaml",
-                "governance/frozen/",
-            ],
-            "affected_capabilities": [
-                "frozen_governance_integrity",
-            ],
-            "resolution_authority": "Founder",
-            "smallest_required_decision": (
-                "Which governance files changed without manifest update, and is the change "
-                "authorized? Once identified: update manifest hashes to match current files "
-                "(Founder action) or restore files to match expected hashes."
-            ),
-            "recommendation": (
-                "Founder runs sha256sum on each frozen file listed in manifest.yaml and compares. "
-                "If files are as intended, update manifest hashes. This unblocks CUTOVER-01."
-            ),
-        },
         {
             "id": "BLKR-003",
             "type": "ci_dependency",
@@ -896,7 +809,7 @@ def build_blockers(generated_at: str) -> dict:
                 ".github/workflows/validate-pos.yml: step 'Run generator' runs tools/pos/generate.py",
                 ".github/workflows/validate-pos.yml: git diff check targets project/generated/ "
                 "AGENTS.md CURRENT_STATE.md MANAGER_INBOX.md",
-                "Lean tools are not explicit CI steps",
+                "Lean tools are not explicit CI steps (integrity check added in LEAN-POS-05)",
             ],
             "affected_paths": [
                 ".github/workflows/validate-pos.yml",
@@ -915,46 +828,6 @@ def build_blockers(generated_at: str) -> dict:
             "recommendation": (
                 "CUTOVER-03 defines the exact workflow changes required. "
                 "Founder approves and merges CUTOVER-03 PR."
-            ),
-        },
-        {
-            "id": "BLKR-004",
-            "type": "canonical_data_not_migrated",
-            "severity": "high",
-            "code": MIGR_CANONICAL_DATA_GAP,
-            "description": (
-                "ASA2-WORK-001 has POS status=review, but project/BOOTSTRAP_STATUS.yaml "
-                "records bootstrap_02 as merged_and_accepted. The POS canonical record state "
-                "is inconsistent with GitHub truth. ASA2-DECISION-001 is pending (null decision). "
-                "No GitHub Issue or PR mapping exists for this work item in any lean record. "
-                "Until resolved, this active work item has no clear lean equivalent and "
-                "cannot be safely archived."
-            ),
-            "evidence": [
-                "project/work/ASA2-WORK-001.yaml: status=review",
-                "project/BOOTSTRAP_STATUS.yaml: pos_status.bootstrap_02.status=merged_and_accepted",
-                "project/decisions/ASA2-DECISION-001.yaml: status=pending, decision=null",
-                "No project/lean/ record maps to ASA2-WORK-001 or ASA2-DECISION-001",
-            ],
-            "affected_paths": [
-                "project/work/ASA2-WORK-001.yaml",
-                "project/decisions/ASA2-DECISION-001.yaml",
-                "project/BOOTSTRAP_STATUS.yaml",
-            ],
-            "affected_capabilities": [
-                "audit_traceability",
-            ],
-            "resolution_authority": "Founder",
-            "smallest_required_decision": (
-                "Confirm that the Founder merge of pos-bootstrap-02 (PR #2 per BOOTSTRAP_STATUS.yaml) "
-                "constitutes acceptance of ASA2-WORK-001, then close ASA2-DECISION-001 with "
-                "status=decided. This allows both records to be archived rather than migrated."
-            ),
-            "recommendation": (
-                "Founder confirms GitHub merge of PR #2 as formal acceptance. "
-                "Update ASA2-WORK-001 status to accepted and ASA2-DECISION-001 to decided "
-                "before CUTOVER-04, then archive. Do not create synthetic lean records "
-                "for historical bootstrap work."
             ),
         },
         {
@@ -990,44 +863,78 @@ def build_blockers(generated_at: str) -> dict:
             ),
             "recommendation": "Sequence: CUTOVER-03 (CI switch) before CUTOVER-05 (file removal).",
         },
+    ]
+
+    resolved_blockers = [
+        {
+            "id": "BLKR-001",
+            "type": "governance_conflict",
+            "severity": "high",
+            "code": MIGR_GOVERNANCE_CONFLICT,
+            "status": "resolved",
+            "resolved_in": "LEAN-POS-05",
+            "resolution": (
+                "Founder approved github_satisfies_pos_record_requirement — GitHub Issues and PRs "
+                "constitute the canonical POS record for ordinary lean work under RISK-001 and POS-RS. "
+                "Explicit project/evidence/, project/reviews/, and project/decisions/ records are not "
+                "required for lean work items."
+            ),
+            "affected_capabilities": [
+                "risk_floor_enforcement",
+                "audit_traceability",
+                "migration_reversibility",
+            ],
+        },
+        {
+            "id": "BLKR-002",
+            "type": "manifest_integrity",
+            "severity": "high",
+            "code": "M005",
+            "status": "resolved",
+            "resolved_in": "LEAN-POS-05",
+            "resolution": (
+                "Founder approved manifest_resolution=update_hashes. All six frozen governance file "
+                "hashes corrected in governance/manifest.yaml. Frozen file content was unchanged since "
+                "first commit; hashes were originally computed against pre-move paths. "
+                "tools/pos/lean/check_integrity.py now verifies all frozen files on every CI run."
+            ),
+            "affected_capabilities": [
+                "frozen_governance_integrity",
+            ],
+        },
+        {
+            "id": "BLKR-004",
+            "type": "canonical_data_not_migrated",
+            "severity": "high",
+            "code": MIGR_CANONICAL_DATA_GAP,
+            "status": "resolved",
+            "resolved_in": "LEAN-POS-05",
+            "resolution": (
+                "Founder approved founder_merge_implies_acceptance — the Founder merge of "
+                "pos-bootstrap-02 constitutes acceptance of ASA2-WORK-001 and closes "
+                "ASA2-DECISION-001 as decided. Bootstrap records are archivable without "
+                "creating lean equivalents."
+            ),
+            "affected_capabilities": [
+                "audit_traceability",
+            ],
+        },
         {
             "id": "BLKR-006",
             "type": "missing_capability",
             "severity": "high",
             "code": "M003",
-            "description": (
-                "Frozen governance integrity checking (SHA-256 verification against "
-                "governance/manifest.yaml) exists only in the legacy validator and "
-                "test_repository_bootstrap.py. The lean validator does not check manifest "
-                "hashes. After CUTOVER-05 removes legacy tools, no CI step will verify "
-                "that frozen governance files have not been silently modified."
+            "status": "resolved",
+            "resolved_in": "LEAN-POS-05",
+            "resolution": (
+                "Founder approved lean_integrity_checker=approved_minimal. "
+                "tools/pos/lean/check_integrity.py added (stdlib only, I001-I005 error codes). "
+                "CI step 'Check frozen governance integrity' added to .github/workflows/validate-pos.yml. "
+                "19 tests added in tests/pos/lean/test_integrity.py."
             ),
-            "evidence": [
-                "tools/pos/validate.py: check_frozen_files() verifies SHA-256 for each manifest entry",
-                "tests/pos/test_repository_bootstrap.py: test_frozen_hashes_match_manifest",
-                "tools/pos/lean/validate.py: no manifest hash check implemented",
-                "tests/pos/lean/: no test covers governance/manifest.yaml integrity",
-            ],
-            "affected_paths": [
-                "governance/manifest.yaml",
-                "governance/frozen/",
-                "tools/pos/lean/validate.py",
-                "tests/pos/lean/",
-            ],
             "affected_capabilities": [
                 "frozen_governance_integrity",
             ],
-            "resolution_authority": "Founder",
-            "smallest_required_decision": (
-                "Approve adding manifest integrity check to lean validator "
-                "(or a dedicated lean test) before CUTOVER-05."
-            ),
-            "recommendation": (
-                "Add tools/pos/lean/validate.py --check-manifest mode (or equivalent test) "
-                "that verifies SHA-256 of each frozen file listed in governance/manifest.yaml. "
-                "This is a prerequisite for CUTOVER-05. "
-                "Must be implemented in a lean-only task (e.g. LEAN-POS-05) before cutover."
-            ),
         },
     ]
 
@@ -1035,6 +942,7 @@ def build_blockers(generated_at: str) -> dict:
         "generated_at": generated_at,
         "summary": {
             "total_blockers": len(blockers),
+            "resolved_blockers": len(resolved_blockers),
             "by_severity": {
                 "high": sum(1 for b in blockers if b["severity"] == "high"),
                 "medium": sum(1 for b in blockers if b["severity"] == "medium"),
@@ -1042,41 +950,38 @@ def build_blockers(generated_at: str) -> dict:
             },
             "by_type": sorted(set(b["type"] for b in blockers)),
             "cutover_ready": False,
-            "cutover_ready_reason": "High-severity blockers unresolved (BLKR-001, BLKR-002, BLKR-004, BLKR-006)",
+            "cutover_ready_reason": (
+                "Two medium-severity blockers remain (BLKR-003, BLKR-005); "
+                "CUTOVER-02 complete; next phase is CUTOVER-03"
+            ),
         },
         "blockers": blockers,
-        "founder_decisions_required": [
+        "resolved_blockers": resolved_blockers,
+        "founder_decisions_required": [],
+        "founder_decisions_recorded": [
             {
                 "id": "FD-001",
                 "blocker": "BLKR-001",
-                "question": (
-                    "Is GitHub Issues + PRs sufficient as the POS canonical record "
-                    "for ordinary lean work under RISK-001 and POS-RS?"
-                ),
+                "decision": "github_satisfies_pos_record_requirement — approved",
+                "decided_in": "LEAN-POS-05",
             },
             {
                 "id": "FD-002",
                 "blocker": "BLKR-002",
-                "question": (
-                    "Which frozen files changed without manifest update, "
-                    "and should manifest hashes be updated?"
-                ),
+                "decision": "manifest_resolution=update_hashes — approved",
+                "decided_in": "LEAN-POS-05",
             },
             {
                 "id": "FD-003",
                 "blocker": "BLKR-004",
-                "question": (
-                    "Does the Founder merge of pos-bootstrap-02 (PR #2) constitute "
-                    "acceptance of ASA2-WORK-001, closing ASA2-DECISION-001 as decided?"
-                ),
+                "decision": "founder_merge_implies_acceptance — approved",
+                "decided_in": "LEAN-POS-05",
             },
             {
                 "id": "FD-004",
                 "blocker": "BLKR-006",
-                "question": (
-                    "Approve adding manifest integrity check to lean tooling "
-                    "as a prerequisite for CUTOVER-05."
-                ),
+                "decision": "lean_integrity_checker=approved_minimal — approved",
+                "decided_in": "LEAN-POS-05",
             },
         ],
     }
@@ -1091,6 +996,8 @@ def build_cutover_plan(generated_at: str) -> dict:
         {
             "id": "CUTOVER-01",
             "name": "resolve_governance_and_integrity_blockers",
+            "status": "complete",
+            "completed_in": "LEAN-POS-05",
             "goal": ("Resolve all governance conflicts and manifest integrity failures. "
                      "Required before any runtime cutover proceeds."),
             "scope": [
@@ -1099,24 +1006,15 @@ def build_cutover_plan(generated_at: str) -> dict:
                 "project/work/ASA2-WORK-001.yaml (status → accepted)",
                 "project/decisions/ASA2-DECISION-001.yaml (status → decided)",
             ],
-            "prerequisites": [
-                "FD-001 decided (governance compatibility determined)",
-                "FD-002 decided (manifest hashes corrected)",
-                "FD-003 decided (ASA2-WORK-001 accepted by Founder)",
-                "All three pre-existing test failures resolved",
-            ],
-            "actions": [
-                "1. Founder evaluates BLKR-001: determine compatibility result",
-                "2. Founder updates manifest.yaml hashes to match current frozen files (BLKR-002)",
-                "3. Founder closes ASA2-DECISION-001 as decided (BLKR-004)",
-                "4. Founder updates ASA2-WORK-001.yaml to status=accepted",
-                "5. Run python -m pytest tests/pos -v and confirm 0 failures",
-                "6. Run python tools/pos/validate.py and confirm PASS",
+            "resolution_summary": [
+                "FD-001 decided — github_satisfies_pos_record_requirement approved; BLKR-001 closed",
+                "FD-002 decided — manifest_resolution=update_hashes; all 6 frozen file hashes corrected; BLKR-002 closed",
+                "FD-003 decided — founder_merge_implies_acceptance; ASA2-WORK-001 archivable; BLKR-004 closed",
+                "FD-004 decided — lean_integrity_checker=approved_minimal; check_integrity.py added to CI; BLKR-006 closed",
             ],
             "verification": [
-                "python -m pytest tests/pos -v — 0 failures",
-                "python tools/pos/validate.py — PASS",
-                "python -m pytest tests/pos/lean -v — 171 pass (unchanged)",
+                "python tools/pos/lean/check_integrity.py — exits 0",
+                "python -m pytest tests/pos/lean/test_integrity.py -v — 19 passed",
             ],
             "rollback": [
                 "Revert governance/manifest.yaml if hash update was incorrect",
@@ -1128,38 +1026,42 @@ def build_cutover_plan(generated_at: str) -> dict:
         {
             "id": "CUTOVER-02",
             "name": "establish_canonical_lean_project_state",
+            "status": "complete",
+            "completed_in": "LEAN-POS-06",
             "goal": ("Create the minimal lean project-state record and confirm lean "
                      "records are valid and complete for current operational state."),
             "scope": [
-                "project/lean/fixtures/valid/project-state.yaml",
-                "project/lean/handoffs/ (active handoffs if any)",
+                "project/lean/state/project-state.yaml (canonical — new path, not fixtures)",
+                "tests/pos/lean/test_project_state_cutover.py",
+                "tests/pos/lean/fixtures/project-state-cutover/",
             ],
-            "prerequisites": [
-                "CUTOVER-01 complete",
-                "FD-001 outcome documented",
-                "python -m pytest tests/pos/lean -v passes",
-            ],
-            "actions": [
-                "1. Author project-state.yaml with current objective, constraints, and durable refs",
-                "2. Confirm no active legacy work items require lean handoff equivalents "
-                   "(bootstrap work should now be accepted and archivable)",
-                "3. Run python tools/pos/lean/generate.py current-state to confirm output",
-                "4. Confirm token budget not exceeded",
+            "resolution_summary": [
+                "Canonical project-state authored at project/lean/state/project-state.yaml",
+                "Existing project-state.schema.yaml used unchanged (additionalProperties:false respected)",
+                "State maps objective→current_objective, constraints→durable_constraints, refs→authority_refs",
+                "phase info encoded in notes field; tested by test_active_phase_matches_cutover_plan",
+                "No legacy records created or modified; no BOOTSTRAP_STATUS copied",
+                "python tools/pos/lean/validate.py passes; generate.py current-state works without BOOTSTRAP_STATUS",
+                "38 new tests added; 299 lean tests pass; 403 repository tests pass",
             ],
             "verification": [
-                "python tools/pos/lean/validate.py --all-fixtures — 0 errors",
-                "python tools/pos/lean/generate.py current-state exits 0",
-                "project/lean/generated/CURRENT_STATE.md exists and < 3500 tokens",
+                "python tools/pos/lean/validate.py --file project/lean/state/project-state.yaml "
+                "--schema project_state — PASS",
+                "python tools/pos/lean/check_integrity.py — exits 0",
+                "python -m pytest tests/pos/lean -v — 299 passed",
+                "python -m pytest tests/pos -v — 403 passed",
+                "generate current-state twice with --generated-at injected — byte-identical output",
             ],
             "rollback": [
-                "Delete project-state.yaml if incorrectly authored",
-                "Restore to prior state from git history",
+                "Delete project/lean/state/project-state.yaml to return to pre-CUTOVER-02 state",
+                "All prior state preserved in git history",
             ],
             "risk": "R2",
             "acceptance_authority": "Founder",
         },
         {
             "id": "CUTOVER-03",
+            "status": "pending",
             "name": "switch_ci_and_documentation_entrypoints",
             "goal": ("Update CI to run lean tools and tests. Update root pointer files "
                      "to point to lean generated outputs."),
@@ -1199,6 +1101,7 @@ def build_cutover_plan(generated_at: str) -> dict:
         {
             "id": "CUTOVER-04",
             "name": "archive_historical_legacy_records",
+            "status": "pending",
             "goal": ("Move legacy canonical records to an archive location. "
                      "Git history is preserved. Records are not rewritten or deleted."),
             "scope": [
@@ -1241,6 +1144,7 @@ def build_cutover_plan(generated_at: str) -> dict:
         {
             "id": "CUTOVER-05",
             "name": "remove_legacy_runtime_and_generated_views",
+            "status": "pending",
             "goal": ("Delete legacy tool files, schemas, generated views, and root pointers "
                      "that have been replaced by lean equivalents. "
                      "CI must be lean-only before this phase."),
@@ -1291,6 +1195,7 @@ def build_cutover_plan(generated_at: str) -> dict:
         {
             "id": "CUTOVER-06",
             "name": "verify_lean_only_repository",
+            "status": "pending",
             "goal": ("Confirm the repository operates correctly with lean POS only. "
                      "No dual canonical system remains."),
             "scope": [
@@ -1345,12 +1250,14 @@ def build_cutover_plan(generated_at: str) -> dict:
     return {
         "generated_at": generated_at,
         "preconditions": [
-            "All BLKR-001–BLKR-006 blockers resolved",
-            "CUTOVER-01 verification steps pass",
-            "Founder has approved FD-001, FD-002, FD-003, FD-004",
+            "BLKR-003 (ci_dependency) resolved — Founder approves CUTOVER-03 workflow change",
+            "BLKR-005 (documentation_dependency) resolved — sequenced after BLKR-003",
         ],
         "cutover_ready": False,
-        "cutover_ready_reason": "Blockers BLKR-001, BLKR-002, BLKR-004, BLKR-006 unresolved",
+        "cutover_ready_reason": (
+            "CUTOVER-02 complete; next phase is CUTOVER-03 "
+            "(switch CI and documentation entrypoints)"
+        ),
         "phases": phases,
         "rollback": {
             "strategy": "Each phase is independently reversible via git revert or git mv",

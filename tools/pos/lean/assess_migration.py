@@ -84,27 +84,31 @@ Outputs are byte-identical for identical repository state and `--generated-at`.
 
 Assessment exits 1 (blockers present). See `blockers.yaml` for details.
 
-**Founder decisions required before cutover:**
-- FD-001: Governance compatibility (RISK-001 / POS-RS vs GitHub canonical model)
-- FD-002: Manifest hash correction (3 pre-existing test failures)
-- FD-003: Accept ASA2-WORK-001 / close ASA2-DECISION-001
-- FD-004: Approve lean manifest integrity check (prerequisite for CUTOVER-05)
+**Resolved decisions (LEAN-POS-05):**
+- FD-001: github_satisfies_pos_record_requirement — approved (BLKR-001 closed)
+- FD-002: manifest_resolution=update_hashes — approved (BLKR-002 closed)
+- FD-003: founder_merge_implies_acceptance — approved (BLKR-004 closed)
+- FD-004: lean_integrity_checker=approved_minimal — approved (BLKR-006 closed)
+
+**Remaining open blockers:**
+- BLKR-003: CI dependency (medium) — workflow update requires Founder approval
+- BLKR-005: Documentation dependency (medium) — sequenced after BLKR-003
 
 ## Capability summary
 
-See `capability-map.yaml`. 14 capabilities replaced, 3 partially replaced,
-1 blocked, 1 replaced with different mechanism.
+See `capability-map.yaml`. 15 capabilities replaced, 4 partially replaced,
+0 blocked, 1 replaced with different mechanism.
 
 ## Cutover phases
 
-| Phase | Name |
-|---|---|
-| CUTOVER-01 | resolve_governance_and_integrity_blockers |
-| CUTOVER-02 | establish_canonical_lean_project_state |
-| CUTOVER-03 | switch_ci_and_documentation_entrypoints |
-| CUTOVER-04 | archive_historical_legacy_records |
-| CUTOVER-05 | remove_legacy_runtime_and_generated_views |
-| CUTOVER-06 | verify_lean_only_repository |
+| Phase | Name | Status |
+|---|---|---|
+| CUTOVER-01 | resolve_governance_and_integrity_blockers | complete |
+| CUTOVER-02 | establish_canonical_lean_project_state | complete |
+| CUTOVER-03 | switch_ci_and_documentation_entrypoints | pending |
+| CUTOVER-04 | archive_historical_legacy_records | pending |
+| CUTOVER-05 | remove_legacy_runtime_and_generated_views | pending |
+| CUTOVER-06 | verify_lean_only_repository | pending |
 
 Each phase is independently reversible. Deletion is last (CUTOVER-05).
 """

@@ -1,4 +1,4 @@
-generated_at: '2026-07-18T22:00:00Z'
+generated_at: '2026-07-18T00:00:00Z'
 artifacts:
 - &id001
   path: project/schemas/assignment.schema.yaml
@@ -14,7 +14,6 @@ artifacts:
   lean_replacement: project/schemas/lean/worker-handoff.schema.yaml
   proposed_disposition: archive
   removal_blockers:
-  - BLKR-002
   - BLKR-003
 - &id002
   path: project/schemas/decision.schema.yaml
@@ -30,7 +29,6 @@ artifacts:
   lean_replacement: github_issue_or_pr (GitHub is canonical for decisions)
   proposed_disposition: archive
   removal_blockers:
-  - BLKR-002
   - BLKR-003
 - &id003
   path: project/schemas/evidence.schema.yaml
@@ -46,7 +44,6 @@ artifacts:
   lean_replacement: github_pr_checks (GitHub is canonical for CI evidence)
   proposed_disposition: archive
   removal_blockers:
-  - BLKR-002
   - BLKR-003
 - &id004
   path: project/schemas/review.schema.yaml
@@ -62,7 +59,6 @@ artifacts:
   lean_replacement: github_pr_review (GitHub is canonical for reviews)
   proposed_disposition: archive
   removal_blockers:
-  - BLKR-002
   - BLKR-003
 - &id005
   path: project/schemas/risk-record.schema.yaml
@@ -78,7 +74,6 @@ artifacts:
   lean_replacement: project/schemas/lean/worker-handoff.schema.yaml (risk field)
   proposed_disposition: archive
   removal_blockers:
-  - BLKR-002
   - BLKR-003
 - &id006
   path: project/schemas/work-item.schema.yaml
@@ -94,7 +89,6 @@ artifacts:
   lean_replacement: project/schemas/lean/worker-handoff.schema.yaml
   proposed_disposition: archive
   removal_blockers:
-  - BLKR-002
   - BLKR-003
 - &id007
   path: project/schemas/worker-result.schema.yaml
@@ -110,7 +104,6 @@ artifacts:
   lean_replacement: project/schemas/lean/worker-handoff.schema.yaml (deliver field)
   proposed_disposition: archive
   removal_blockers:
-  - BLKR-002
   - BLKR-003
 - path: project/assignments/ASA2-ASG-001.yaml
   category: assignment_record
@@ -126,8 +119,7 @@ artifacts:
   github_derivable_data: 'no'
   lean_replacement: project/lean/handoffs/ (scope/lock/accept fields replace assignment); archive for historical items
   proposed_disposition: archive
-  removal_blockers:
-  - BLKR-001
+  removal_blockers: []
 - path: project/decisions/ASA2-DECISION-001.yaml
   category: decision_record
   status: pending
@@ -148,7 +140,6 @@ artifacts:
   proposed_disposition: archive
   removal_blockers:
   - BLKR-004
-  - BLKR-001
 - path: project/evidence/ASA2-EVIDENCE-001.yaml
   category: evidence_record
   status: unknown
@@ -162,8 +153,7 @@ artifacts:
   github_derivable_data: partial — test output reproducible from git; manual observations are unique
   lean_replacement: archive_in_place — content largely derivable from GitHub PR history
   proposed_disposition: archive
-  removal_blockers:
-  - BLKR-001
+  removal_blockers: []
 - path: project/results/ASA2-RESULT-001.yaml
   category: result_record
   status: complete
@@ -180,8 +170,7 @@ artifacts:
   github_derivable_data: partial — test counts and file lists are GitHub-visible; free-text summaries are not
   lean_replacement: archive_in_place — content largely derivable from GitHub PR history
   proposed_disposition: archive
-  removal_blockers:
-  - BLKR-001
+  removal_blockers: []
 - path: project/reviews/ASA2-REVIEW-001.yaml
   category: review_record
   status: complete
@@ -196,8 +185,7 @@ artifacts:
   github_derivable_data: partial — findings may duplicate PR review comments
   lean_replacement: archive_in_place — content largely derivable from GitHub PR history
   proposed_disposition: archive
-  removal_blockers:
-  - BLKR-001
+  removal_blockers: []
 - path: project/risks/ASA2-RISK-001.yaml
   category: risk_record
   status: confirmed
@@ -212,8 +200,7 @@ artifacts:
   github_derivable_data: 'no'
   lean_replacement: project/lean/handoffs/ (risk field in worker-handoff)
   proposed_disposition: archive
-  removal_blockers:
-  - BLKR-001
+  removal_blockers: []
 - path: project/work/ASA2-WORK-001.yaml
   category: work_record
   status: review
@@ -234,7 +221,6 @@ artifacts:
   proposed_disposition: archive
   removal_blockers:
   - BLKR-004
-  - BLKR-001
 - &id008
   path: tools/pos/validate.py
   category: tool
@@ -252,7 +238,6 @@ artifacts:
   proposed_disposition: delete_after_cutover
   removal_blockers:
   - BLKR-003
-  - BLKR-006
 - &id009
   path: tools/pos/generate.py
   category: tool
@@ -272,7 +257,6 @@ artifacts:
   proposed_disposition: delete_after_cutover
   removal_blockers:
   - BLKR-003
-  - BLKR-006
 - &id010
   path: tools/pos/schemas.py
   category: tool
@@ -288,7 +272,6 @@ artifacts:
   proposed_disposition: delete_after_cutover
   removal_blockers:
   - BLKR-003
-  - BLKR-006
 - &id011
   path: tools/pos/transitions.py
   category: tool
@@ -408,12 +391,11 @@ artifacts:
   - governance/manifest.yaml
   canonical_data: yes — test logic encoding governance requirements
   github_derivable_data: 'no'
-  lean_replacement: 'tests/pos/lean/test_lean_validator.py + tests/pos/lean/test_reconcile.py + tests/pos/lean/test_generate.py
-    + tests/pos/lean/test_migration_assessment.py (manifest integrity check gap: BLKR-006)'
+  lean_replacement: tests/pos/lean/test_lean_validator.py + tests/pos/lean/test_reconcile.py + tests/pos/lean/test_generate.py
+    + tests/pos/lean/test_migration_assessment.py + tests/pos/lean/test_integrity.py (manifest integrity check — LEAN-POS-05)
   proposed_disposition: archive
   removal_blockers:
   - BLKR-005
-  - BLKR-006
 - &id018
   path: tests/pos/test_role_bootstrap.py
   category: test
@@ -431,7 +413,6 @@ artifacts:
   proposed_disposition: archive
   removal_blockers:
   - BLKR-005
-  - BLKR-006
 - &id019
   path: .github/workflows/validate-pos.yml
   category: workflow
@@ -509,9 +490,7 @@ artifacts:
   github_derivable_data: partial — phase/status derivable from git; role definitions are unique
   lean_replacement: project/lean/fixtures/valid/project-state.yaml (only current objective + constraints needed)
   proposed_disposition: retain
-  removal_blockers:
-  - BLKR-001
-  - BLKR-004
+  removal_blockers: []
 - path: project/roles/registry.yaml
   category: root_config
   status: active
@@ -524,9 +503,7 @@ artifacts:
   github_derivable_data: partial — phase/status derivable from git; role definitions are unique
   lean_replacement: retain (roles are independent of POS system)
   proposed_disposition: retain
-  removal_blockers:
-  - BLKR-001
-  - BLKR-004
+  removal_blockers: []
 - path: project/README.md
   category: root_config
   status: active
@@ -539,9 +516,7 @@ artifacts:
   github_derivable_data: partial — phase/status derivable from git; role definitions are unique
   lean_replacement: retain (repository entry point)
   proposed_disposition: retain
-  removal_blockers:
-  - BLKR-001
-  - BLKR-004
+  removal_blockers: []
 directories:
 - path: project/schemas/
   contents:
