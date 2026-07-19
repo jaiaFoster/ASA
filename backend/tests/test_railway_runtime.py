@@ -24,9 +24,16 @@ def test_railway_backend_runtime_contract() -> None:
     backend_root = Path(__file__).parents[1]
     config = json.loads((backend_root / "railway.json").read_text())
 
-    assert config["deploy"]["preDeployCommand"] == "alembic upgrade head"
+    assert config["deploy"]["preDeployCommand"] == "python -m alembic upgrade head"
     assert config["deploy"]["startCommand"] == "python -m asa"
     assert config["deploy"]["healthcheckPath"] == "/api/v1/health"
+
+
+def test_railpack_python_installation_markers() -> None:
+    backend_root = Path(__file__).parents[1]
+
+    assert (backend_root / ".python-version").read_text() == "3.12.13\n"
+    assert (backend_root / "requirements.txt").read_text() == ".\n"
 
 
 def test_backend_entrypoint_uses_configured_port() -> None:
