@@ -189,10 +189,12 @@ class TestLegacyInventory:
         for rec in result_recs:
             assert rec["proposed_disposition"] == "archive"
 
-    def test_generated_view_disposition_delete_after_cutover(self):
+    def test_generated_view_disposition(self):
         inv = _inventory()
         for gv in inv["generated_views"]:
-            assert gv["proposed_disposition"] == "delete_after_cutover"
+            assert gv["proposed_disposition"] in ("delete_after_cutover", "deleted"), (
+                f"unexpected disposition for {gv['path']}: {gv['proposed_disposition']}"
+            )
 
 
 # ===========================================================================

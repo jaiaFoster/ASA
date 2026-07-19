@@ -52,6 +52,9 @@ jobs:
           git diff --exit-code CURRENT_STATE.md || \
           (echo "ERROR: CURRENT_STATE.md is out of date. Regenerate with the Lean generator." && exit 1)
 
+      - name: Check entrypoint invariants
+        run: python tools/pos/lean/check_entrypoints.py
+
 # This workflow performs mechanical checks only.
 # A passing workflow does NOT constitute approval, merge authorization,
 # or deployment authorization. All such decisions require Founder action.

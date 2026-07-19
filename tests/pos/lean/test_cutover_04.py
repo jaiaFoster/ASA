@@ -190,15 +190,17 @@ class TestDependencySafety:
 # ---------------------------------------------------------------------------
 
 class TestCanonicalState:
-    def test_project_state_marks_cutover_04_active(self):
-        data = yaml.safe_load(PROJECT_STATE_PATH.read_text())
-        notes = data.get("notes", "")
-        assert "CUTOVER-04" in notes
+    def test_project_state_marks_cutover_04_complete(self):
+        """CUTOVER-04 is complete; project-state notes reference a later phase."""
+        from tools.pos.lean.migration import build_cutover_plan
+        co = build_cutover_plan("2026-07-19T00:00:00Z")
+        phases = {p["id"]: p for p in co["phases"]}
+        assert phases["CUTOVER-04"]["status"] == "complete"
 
-    def test_project_state_marks_cutover_05_next(self):
+    def test_project_state_marks_cutover_05_or_later(self):
         data = yaml.safe_load(PROJECT_STATE_PATH.read_text())
         notes = data.get("notes", "")
-        assert "CUTOVER-05" in notes
+        assert "CUTOVER-05" in notes or "CUTOVER-06" in notes
 
     def test_current_state_matches_fresh_generation(self):
         with tempfile.NamedTemporaryFile(suffix=".md", delete=False) as f:
@@ -212,13 +214,9 @@ class TestCanonicalState:
             "CURRENT_STATE.md does not match lean generator output. Regenerate."
         )
 
-    def test_current_state_reports_cutover_04(self):
+    def test_current_state_reports_recent_cutover(self):
         content = CURRENT_STATE_PATH.read_text()
-        assert "CUTOVER-04" in content
-
-    def test_current_state_reports_cutover_05_next(self):
-        content = CURRENT_STATE_PATH.read_text()
-        assert "CUTOVER-05" in content
+        assert "CUTOVER-05" in content or "CUTOVER-06" in content
 
 
 # ---------------------------------------------------------------------------
@@ -238,13 +236,11 @@ class TestMigrationState:
         assert phases["CUTOVER-04"]["status"] == "complete"
         assert phases["CUTOVER-04"].get("completed_in") == "LEAN-POS-09"
 
-    def test_cutover_05_is_first_pending_phase(self):
+    def test_cutover_05_is_complete(self):
         co = build_cutover_plan(GENERATED_AT)
-        pending = [p for p in co["phases"] if p.get("status") != "complete"]
-        assert pending, "no pending phases found"
-        assert pending[0]["id"] == "CUTOVER-05", (
-            f"expected CUTOVER-05 as first pending; got {pending[0]['id']}"
-        )
+        phases = {p["id"]: p for p in co["phases"]}
+        assert phases["CUTOVER-05"]["status"] == "complete"
+        assert phases["CUTOVER-05"].get("completed_in") == "LEAN-POS-10"
 
     def test_historical_record_preservation_replaced(self):
         from tools.pos.lean.migration import build_capability_map
@@ -286,13 +282,12 @@ class TestMigrationState:
                     f"{name} does not match committed file — regenerate migration outputs"
                 )
 
-    def test_legacy_runtime_still_present(self):
-        """Legacy tools must NOT be deleted in this phase."""
-        assert (REPO_ROOT / "tools" / "pos" / "validate.py").is_file()
-        assert (REPO_ROOT / "tools" / "pos" / "generate.py").is_file()
+    def test_lean_runtime_present(self):
+        """Lean tools must always be present."""
+        assert (REPO_ROOT / "tools" / "pos" / "lean" / "validate.py").is_file()
+        assert (REPO_ROOT / "tools" / "pos" / "lean" / "generate.py").is_file()
 
-    def test_legacy_schemas_still_present(self):
-        """Legacy schemas must NOT be deleted in this phase."""
-        assert (REPO_ROOT / "project" / "schemas").is_dir()
-        schema_files = list((REPO_ROOT / "project" / "schemas").glob("*.yaml"))
-        assert schema_files, "legacy schemas are missing"
+    def test_lean_schemas_present(self):
+        """Lean schemas must always be present."""
+        assert (REPO_ROOT / "project" / "schemas" / "lean").is_dir()
+        assert any((REPO_ROOT / "project" / "schemas" / "lean").glob("*.yaml"))

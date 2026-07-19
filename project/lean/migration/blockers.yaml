@@ -8,7 +8,7 @@ summary:
     low: 0
   by_type: []
   cutover_ready: true
-  cutover_ready_reason: All blockers resolved; CUTOVER-04 complete; next phase is CUTOVER-05 (remove_legacy_runtime_and_generated_views)
+  cutover_ready_reason: All blockers resolved; CUTOVER-05 complete; next phase is CUTOVER-06 (verify_lean_only_repository)
 blockers: []
 resolved_blockers:
 - id: BLKR-001

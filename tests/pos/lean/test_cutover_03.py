@@ -229,14 +229,11 @@ class TestMigrationState:
         assert phases["CUTOVER-03"]["status"] == "complete"
         assert phases["CUTOVER-03"].get("completed_in") == "LEAN-POS-08"
 
-    @pytest.mark.xfail(strict=True, reason="CUTOVER-04 is now complete (LEAN-POS-09); CUTOVER-05 is next pending.")
-    def test_cutover_04_is_first_pending_phase(self):
+    def test_cutover_04_is_complete(self):
         co = build_cutover_plan(self.GENERATED_AT)
-        pending = [p for p in co["phases"] if p.get("status") != "complete"]
-        assert pending, "no pending phases found"
-        assert pending[0]["id"] == "CUTOVER-04", (
-            f"expected CUTOVER-04 as first pending; got {pending[0]['id']}"
-        )
+        phases = {p["id"]: p for p in co["phases"]}
+        assert phases["CUTOVER-04"]["status"] == "complete"
+        assert phases["CUTOVER-04"].get("completed_in") == "LEAN-POS-09"
 
     def test_migration_outputs_match_source_generation(self):
         """Regenerated migration outputs must be byte-identical to committed files."""

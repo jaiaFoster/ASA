@@ -88,6 +88,8 @@ REQUIRED_CAPABILITIES = [
     "ci_validation",
     "historical_record_preservation",
     "frozen_governance_integrity",
+    "entrypoint_integrity",
+    "branch_freshness_and_conflict_preflight",
 ]
 
 
@@ -183,26 +185,30 @@ def build_legacy_inventory(repo_root: Path, generated_at: str) -> dict:
     root_pointers: list[dict] = []
 
     # ---- Schemas (legacy only) ----
-    schema_dir = repo_root / "project" / "schemas"
-    if schema_dir.is_dir():
-        for sf in sorted(schema_dir.iterdir()):
-            if sf.is_file() and sf.suffix in (".yaml", ".yml") and sf.name != ".gitkeep":
-                rel = _rel(sf)
-                entry = {
-                    "path": rel,
-                    "category": "schema",
-                    "status": "active",
-                    "referenced_by": ["tools/pos/validate.py", "tools/pos/schemas.py",
-                                      "tests/pos/test_repository_bootstrap.py"],
-                    "references": [],
-                    "canonical_data": "yes — schema definitions are not in GitHub",
-                    "github_derivable_data": "no",
-                    "lean_replacement": _lean_schema_replacement(sf.name),
-                    "proposed_disposition": "archive",
-                    "removal_blockers": ["BLKR-003"],
-                }
-                schemas_list.append(entry)
-                artifacts.append(entry)
+    _legacy_schema_names = [
+        "assignment.schema.yaml", "decision.schema.yaml", "evidence.schema.yaml",
+        "review.schema.yaml", "risk-record.schema.yaml", "work-item.schema.yaml",
+        "worker-result.schema.yaml",
+    ]
+    for sname in _legacy_schema_names:
+        sf = repo_root / "project" / "schemas" / sname
+        rel = f"project/schemas/{sname}"
+        status = "active" if sf.exists() else "deleted"
+        entry = {
+            "path": rel,
+            "category": "schema",
+            "status": status,
+            "referenced_by": ["tools/pos/validate.py", "tools/pos/schemas.py",
+                              "tests/pos/test_repository_bootstrap.py"],
+            "references": [],
+            "canonical_data": "yes — schema definitions are not in GitHub",
+            "github_derivable_data": "no",
+            "lean_replacement": _lean_schema_replacement(sname),
+            "proposed_disposition": "deleted" if status == "deleted" else "archive",
+            "removal_blockers": [] if status == "deleted" else ["BLKR-003"],
+        }
+        schemas_list.append(entry)
+        artifacts.append(entry)
 
     # ---- Canonical record directories ----
     for dir_key, dir_path in sorted(LEGACY_RECORD_DIRS.items()):
@@ -217,20 +223,19 @@ def build_legacy_inventory(repo_root: Path, generated_at: str) -> dict:
     # ---- Tools ----
     for tool_rel in LEGACY_TOOL_FILES:
         tp = repo_root / tool_rel
-        if not tp.exists():
-            continue
+        status = "active" if tp.exists() else "deleted"
         entry = {
             "path": tool_rel,
             "category": "tool",
-            "status": "active",
+            "status": status,
             "referenced_by": [".github/workflows/validate-pos.yml",
                               "tests/pos/test_repository_bootstrap.py"],
             "references": _tool_references(tool_rel),
             "canonical_data": "yes — tool logic not stored in GitHub",
             "github_derivable_data": "no",
             "lean_replacement": _lean_tool_replacement(tool_rel),
-            "proposed_disposition": "delete_after_cutover",
-            "removal_blockers": _tool_blockers(tool_rel),
+            "proposed_disposition": "deleted" if status == "deleted" else "delete_after_cutover",
+            "removal_blockers": [] if status == "deleted" else _tool_blockers(tool_rel),
         }
         tools_list.append(entry)
         artifacts.append(entry)
@@ -238,20 +243,19 @@ def build_legacy_inventory(repo_root: Path, generated_at: str) -> dict:
     # ---- Generated views ----
     for gf_rel in LEGACY_GENERATED_FILES:
         gp = repo_root / gf_rel
-        if not gp.exists():
-            continue
+        status = "stale_or_current" if gp.exists() else "deleted"
         entry = {
             "path": gf_rel,
             "category": "generated_view",
-            "status": "stale_or_current",
+            "status": status,
             "referenced_by": ROOT_POINTER_FILES + [".github/workflows/validate-pos.yml"],
             "references": ["project/BOOTSTRAP_STATUS.yaml", "project/work/",
                            "project/assignments/", "project/results/", "project/decisions/"],
             "canonical_data": "no — generated from canonical records",
             "github_derivable_data": "yes — content derived from POS records and GitHub state",
             "lean_replacement": _lean_generated_replacement(gf_rel),
-            "proposed_disposition": "delete_after_cutover",
-            "removal_blockers": ["BLKR-003", "BLKR-005"],
+            "proposed_disposition": "deleted" if status == "deleted" else "delete_after_cutover",
+            "removal_blockers": [] if status == "deleted" else ["BLKR-003", "BLKR-005"],
         }
         generated_views.append(entry)
         artifacts.append(entry)
@@ -259,20 +263,19 @@ def build_legacy_inventory(repo_root: Path, generated_at: str) -> dict:
     # ---- Tests ----
     for tf_rel in LEGACY_TEST_FILES:
         tp = repo_root / tf_rel
-        if not tp.exists():
-            continue
+        status = "active" if tp.exists() else "deleted"
         entry = {
             "path": tf_rel,
             "category": "test",
-            "status": "active",
+            "status": status,
             "referenced_by": [".github/workflows/validate-pos.yml"],
             "references": ["tools/pos/validate.py", "tools/pos/generate.py",
                           "tools/pos/schemas.py", "governance/manifest.yaml"],
             "canonical_data": "yes — test logic encoding governance requirements",
             "github_derivable_data": "no",
             "lean_replacement": _lean_test_replacement(tf_rel),
-            "proposed_disposition": "archive",
-            "removal_blockers": ["BLKR-005"],
+            "proposed_disposition": "deleted" if status == "deleted" else "archive",
+            "removal_blockers": [] if status == "deleted" else ["BLKR-005"],
         }
         tests_list.append(entry)
         artifacts.append(entry)
@@ -721,11 +724,11 @@ def build_capability_map(generated_at: str) -> dict:
             "status": "partially_replaced",
             "lean_implementation": ("Cutover plan includes rollback steps for each phase; "
                                     "git history preserves all legacy artifacts; "
-                                    "CUTOVER-01 through CUTOVER-04 complete; "
+                                    "CUTOVER-01 through CUTOVER-05 complete; "
                                     "canonical lean state exists at project/lean/state/project-state.yaml; "
-                                    "archived records recoverable via git or archive path"),
-            "gap": ("CUTOVER-05 (remove_legacy_runtime_and_generated_views) and CUTOVER-06 "
-                    "(verify_lean_only_repository) not yet complete; legacy runtime still present"),
+                                    "archived records recoverable via git or archive path; "
+                                    "legacy runtime deleted in LEAN-POS-10 (CUTOVER-05)"),
+            "gap": ("CUTOVER-06 (verify_lean_only_repository) not yet complete"),
             "blocker": None,
         },
         {
@@ -778,6 +781,29 @@ def build_capability_map(generated_at: str) -> dict:
                                     "stdlib only); CI step 'Check frozen governance integrity' added; "
                                     "19 tests in tests/pos/lean/test_integrity.py. Added in LEAN-POS-05."),
             "gap": None,
+            "blocker": None,
+        },
+        {
+            "id": "entrypoint_integrity",
+            "description": "Guarantee root AGENTS.md and CURRENT_STATE.md stay Lean-only after every push",
+            "legacy_implementation": "N/A — regression first observed in LEAN-POS-09",
+            "status": "replaced",
+            "lean_implementation": ("tools/pos/lean/check_entrypoints.py (E001-E010 error codes, "
+                                    "stdlib only); CI step 'Check entrypoint invariants' added; "
+                                    "tests/pos/lean/test_entrypoint_invariants.py. Added in LEAN-POS-10."),
+            "gap": None,
+            "blocker": None,
+        },
+        {
+            "id": "branch_freshness_and_conflict_preflight",
+            "description": "Detect stale branches and merge conflicts before push without modifying worktree",
+            "legacy_implementation": "N/A — gap first identified in LEAN-POS-10 root cause analysis",
+            "status": "replaced_with_different_mechanism",
+            "lean_implementation": ("tools/pos/lean/pre_push_check.py (checks freshness, conflict probe, "
+                                    "entrypoints, integrity, validator); .githooks/pre-push (optional local hook); "
+                                    "CI duplicates critical invariants. Added in LEAN-POS-10."),
+            "gap": ("Local git hooks cannot be enforced by GitHub. "
+                    "CI duplicates critical invariants as the authoritative barrier."),
             "blocker": None,
         },
     ]
@@ -928,8 +954,8 @@ def build_blockers(generated_at: str) -> dict:
             "by_type": sorted(set(b["type"] for b in blockers)),
             "cutover_ready": True,
             "cutover_ready_reason": (
-                "All blockers resolved; CUTOVER-04 complete; next phase is CUTOVER-05 "
-                "(remove_legacy_runtime_and_generated_views)"
+                "All blockers resolved; CUTOVER-05 complete; next phase is CUTOVER-06 "
+                "(verify_lean_only_repository)"
             ),
         },
         "blockers": blockers,
@@ -1116,46 +1142,26 @@ def build_cutover_plan(generated_at: str) -> dict:
         {
             "id": "CUTOVER-05",
             "name": "remove_legacy_runtime_and_generated_views",
-            "status": "pending",
+            "status": "complete",
+            "completed_in": "LEAN-POS-10",
             "goal": ("Delete legacy tool files, schemas, generated views, and root pointers "
                      "that have been replaced by lean equivalents. "
                      "CI must be lean-only before this phase."),
-            "scope": [
-                "tools/pos/validate.py",
-                "tools/pos/generate.py",
-                "tools/pos/schemas.py",
-                "tools/pos/transitions.py",
-                "project/schemas/work-item.schema.yaml",
-                "project/schemas/assignment.schema.yaml",
-                "project/schemas/worker-result.schema.yaml",
-                "project/schemas/decision.schema.yaml",
-                "project/schemas/review.schema.yaml",
-                "project/schemas/evidence.schema.yaml",
-                "project/schemas/risk-record.schema.yaml",
-                "project/generated/AGENTS.md",
-                "project/generated/CURRENT_STATE.md",
-                "project/generated/MANAGER_INBOX.md",
-            ],
-            "prerequisites": [
-                "CUTOVER-04 complete",
-                "CI passing with lean tools only (no legacy steps)",
-                "All consumers of deleted files identified and switched (BLKR-003 resolved)",
-                "BLKR-005 resolved (git-diff check updated in CUTOVER-03)",
-            ],
-            "actions": [
-                "1. git rm tools/pos/validate.py tools/pos/generate.py tools/pos/schemas.py "
-                   "tools/pos/transitions.py",
-                "2. git rm project/schemas/work-item.schema.yaml [and remaining 6 schemas]",
-                "3. git rm project/generated/AGENTS.md project/generated/CURRENT_STATE.md "
-                   "project/generated/MANAGER_INBOX.md",
-                "4. Confirm CI passes (no reference to deleted files)",
-                "5. Confirm python -m pytest tests/pos/lean -v still passes",
+            "resolution_summary": [
+                "git rm tools/pos/validate.py tools/pos/generate.py tools/pos/schemas.py tools/pos/transitions.py",
+                "git rm project/schemas/*.schema.yaml (7 files)",
+                "git rm project/generated/AGENTS.md project/generated/CURRENT_STATE.md project/generated/MANAGER_INBOX.md",
+                "git rm tests/pos/test_repository_bootstrap.py tests/pos/test_role_bootstrap.py (legacy-only tests)",
+                "AGENTS.md and CURRENT_STATE.md restored to Lean entrypoint content",
+                "Added tools/pos/lean/check_entrypoints.py and pre_push_check.py safeguards",
+                "Added CI step for entrypoint invariants and AGENTS.md drift check",
+                "project-state notes updated to CUTOVER-05 active / CUTOVER-06 next",
             ],
             "verification": [
                 "CI passes after deletions",
                 "python -m pytest tests/pos/lean -v passes",
-                "No remaining file references deleted paths",
-                "project/generated/ directory may be removed if empty",
+                "python tools/pos/lean/check_entrypoints.py exits 0",
+                "No active references to deleted files",
             ],
             "rollback": [
                 "git revert CUTOVER-05 commit",
@@ -1223,13 +1229,13 @@ def build_cutover_plan(generated_at: str) -> dict:
         "generated_at": generated_at,
         "preconditions": [
             "All BLKR-001–BLKR-006 resolved",
-            "CUTOVER-01, CUTOVER-02, CUTOVER-03, CUTOVER-04 complete",
+            "CUTOVER-01, CUTOVER-02, CUTOVER-03, CUTOVER-04, CUTOVER-05 complete",
             "Founder has approved FD-001 through FD-004",
         ],
         "cutover_ready": True,
         "cutover_ready_reason": (
-            "All blockers resolved; CUTOVER-04 complete; "
-            "next phase is CUTOVER-05 (remove_legacy_runtime_and_generated_views)"
+            "All blockers resolved; CUTOVER-05 complete; "
+            "next phase is CUTOVER-06 (verify_lean_only_repository)"
         ),
         "phases": phases,
         "rollback": {

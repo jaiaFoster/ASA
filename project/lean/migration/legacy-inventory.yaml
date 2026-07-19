@@ -3,7 +3,7 @@ artifacts:
 - &id001
   path: project/schemas/assignment.schema.yaml
   category: schema
-  status: active
+  status: deleted
   referenced_by:
   - tools/pos/validate.py
   - tools/pos/schemas.py
@@ -12,13 +12,12 @@ artifacts:
   canonical_data: yes — schema definitions are not in GitHub
   github_derivable_data: 'no'
   lean_replacement: project/schemas/lean/worker-handoff.schema.yaml
-  proposed_disposition: archive
-  removal_blockers:
-  - BLKR-003
+  proposed_disposition: deleted
+  removal_blockers: []
 - &id002
   path: project/schemas/decision.schema.yaml
   category: schema
-  status: active
+  status: deleted
   referenced_by:
   - tools/pos/validate.py
   - tools/pos/schemas.py
@@ -27,13 +26,12 @@ artifacts:
   canonical_data: yes — schema definitions are not in GitHub
   github_derivable_data: 'no'
   lean_replacement: github_issue_or_pr (GitHub is canonical for decisions)
-  proposed_disposition: archive
-  removal_blockers:
-  - BLKR-003
+  proposed_disposition: deleted
+  removal_blockers: []
 - &id003
   path: project/schemas/evidence.schema.yaml
   category: schema
-  status: active
+  status: deleted
   referenced_by:
   - tools/pos/validate.py
   - tools/pos/schemas.py
@@ -42,13 +40,12 @@ artifacts:
   canonical_data: yes — schema definitions are not in GitHub
   github_derivable_data: 'no'
   lean_replacement: github_pr_checks (GitHub is canonical for CI evidence)
-  proposed_disposition: archive
-  removal_blockers:
-  - BLKR-003
+  proposed_disposition: deleted
+  removal_blockers: []
 - &id004
   path: project/schemas/review.schema.yaml
   category: schema
-  status: active
+  status: deleted
   referenced_by:
   - tools/pos/validate.py
   - tools/pos/schemas.py
@@ -57,13 +54,12 @@ artifacts:
   canonical_data: yes — schema definitions are not in GitHub
   github_derivable_data: 'no'
   lean_replacement: github_pr_review (GitHub is canonical for reviews)
-  proposed_disposition: archive
-  removal_blockers:
-  - BLKR-003
+  proposed_disposition: deleted
+  removal_blockers: []
 - &id005
   path: project/schemas/risk-record.schema.yaml
   category: schema
-  status: active
+  status: deleted
   referenced_by:
   - tools/pos/validate.py
   - tools/pos/schemas.py
@@ -72,13 +68,12 @@ artifacts:
   canonical_data: yes — schema definitions are not in GitHub
   github_derivable_data: 'no'
   lean_replacement: project/schemas/lean/worker-handoff.schema.yaml (risk field)
-  proposed_disposition: archive
-  removal_blockers:
-  - BLKR-003
+  proposed_disposition: deleted
+  removal_blockers: []
 - &id006
   path: project/schemas/work-item.schema.yaml
   category: schema
-  status: active
+  status: deleted
   referenced_by:
   - tools/pos/validate.py
   - tools/pos/schemas.py
@@ -87,13 +82,12 @@ artifacts:
   canonical_data: yes — schema definitions are not in GitHub
   github_derivable_data: 'no'
   lean_replacement: project/schemas/lean/worker-handoff.schema.yaml
-  proposed_disposition: archive
-  removal_blockers:
-  - BLKR-003
+  proposed_disposition: deleted
+  removal_blockers: []
 - &id007
   path: project/schemas/worker-result.schema.yaml
   category: schema
-  status: active
+  status: deleted
   referenced_by:
   - tools/pos/validate.py
   - tools/pos/schemas.py
@@ -102,9 +96,8 @@ artifacts:
   canonical_data: yes — schema definitions are not in GitHub
   github_derivable_data: 'no'
   lean_replacement: project/schemas/lean/worker-handoff.schema.yaml (deliver field)
-  proposed_disposition: archive
-  removal_blockers:
-  - BLKR-003
+  proposed_disposition: deleted
+  removal_blockers: []
 - path: project/lean/archive/legacy/assignments/ASA2-ASG-001.yaml
   category: assignment_record
   status: submitted
@@ -224,7 +217,7 @@ artifacts:
 - &id008
   path: tools/pos/validate.py
   category: tool
-  status: active
+  status: deleted
   referenced_by:
   - .github/workflows/validate-pos.yml
   - tests/pos/test_repository_bootstrap.py
@@ -235,13 +228,12 @@ artifacts:
   canonical_data: yes — tool logic not stored in GitHub
   github_derivable_data: 'no'
   lean_replacement: tools/pos/lean/validate.py
-  proposed_disposition: delete_after_cutover
-  removal_blockers:
-  - BLKR-003
+  proposed_disposition: deleted
+  removal_blockers: []
 - &id009
   path: tools/pos/generate.py
   category: tool
-  status: active
+  status: deleted
   referenced_by:
   - .github/workflows/validate-pos.yml
   - tests/pos/test_repository_bootstrap.py
@@ -254,13 +246,12 @@ artifacts:
   canonical_data: yes — tool logic not stored in GitHub
   github_derivable_data: 'no'
   lean_replacement: tools/pos/lean/generate.py
-  proposed_disposition: delete_after_cutover
-  removal_blockers:
-  - BLKR-003
+  proposed_disposition: deleted
+  removal_blockers: []
 - &id010
   path: tools/pos/schemas.py
   category: tool
-  status: active
+  status: deleted
   referenced_by:
   - .github/workflows/validate-pos.yml
   - tests/pos/test_repository_bootstrap.py
@@ -269,13 +260,12 @@ artifacts:
   canonical_data: yes — tool logic not stored in GitHub
   github_derivable_data: 'no'
   lean_replacement: tools/pos/lean/schemas.py
-  proposed_disposition: delete_after_cutover
-  removal_blockers:
-  - BLKR-003
+  proposed_disposition: deleted
+  removal_blockers: []
 - &id011
   path: tools/pos/transitions.py
   category: tool
-  status: active
+  status: deleted
   referenced_by:
   - .github/workflows/validate-pos.yml
   - tests/pos/test_repository_bootstrap.py
@@ -283,9 +273,8 @@ artifacts:
   canonical_data: yes — tool logic not stored in GitHub
   github_derivable_data: 'no'
   lean_replacement: none (lean uses GitHub state transitions via derived.py)
-  proposed_disposition: delete_after_cutover
-  removal_blockers:
-  - BLKR-003
+  proposed_disposition: deleted
+  removal_blockers: []
 - &id012
   path: tools/pos/requirements.txt
   category: tool
@@ -315,7 +304,7 @@ artifacts:
 - &id014
   path: project/generated/AGENTS.md
   category: generated_view
-  status: stale_or_current
+  status: deleted
   referenced_by:
   - AGENTS.md
   - CURRENT_STATE.md
@@ -329,14 +318,12 @@ artifacts:
   canonical_data: no — generated from canonical records
   github_derivable_data: yes — content derived from POS records and GitHub state
   lean_replacement: project/lean/generated/WORKER_CONTEXT.yaml
-  proposed_disposition: delete_after_cutover
-  removal_blockers:
-  - BLKR-003
-  - BLKR-005
+  proposed_disposition: deleted
+  removal_blockers: []
 - &id015
   path: project/generated/CURRENT_STATE.md
   category: generated_view
-  status: stale_or_current
+  status: deleted
   referenced_by:
   - AGENTS.md
   - CURRENT_STATE.md
@@ -350,14 +337,12 @@ artifacts:
   canonical_data: no — generated from canonical records
   github_derivable_data: yes — content derived from POS records and GitHub state
   lean_replacement: project/lean/generated/CURRENT_STATE.md
-  proposed_disposition: delete_after_cutover
-  removal_blockers:
-  - BLKR-003
-  - BLKR-005
+  proposed_disposition: deleted
+  removal_blockers: []
 - &id016
   path: project/generated/MANAGER_INBOX.md
   category: generated_view
-  status: stale_or_current
+  status: deleted
   referenced_by:
   - AGENTS.md
   - CURRENT_STATE.md
@@ -371,14 +356,12 @@ artifacts:
   canonical_data: no — generated from canonical records
   github_derivable_data: yes — content derived from POS records and GitHub state
   lean_replacement: project/lean/generated/CURRENT_STATE.md (blockers section)
-  proposed_disposition: delete_after_cutover
-  removal_blockers:
-  - BLKR-003
-  - BLKR-005
+  proposed_disposition: deleted
+  removal_blockers: []
 - &id017
   path: tests/pos/test_repository_bootstrap.py
   category: test
-  status: active
+  status: deleted
   referenced_by:
   - .github/workflows/validate-pos.yml
   references:
@@ -390,13 +373,12 @@ artifacts:
   github_derivable_data: 'no'
   lean_replacement: tests/pos/lean/test_lean_validator.py + tests/pos/lean/test_reconcile.py + tests/pos/lean/test_generate.py
     + tests/pos/lean/test_migration_assessment.py + tests/pos/lean/test_integrity.py (manifest integrity check — LEAN-POS-05)
-  proposed_disposition: archive
-  removal_blockers:
-  - BLKR-005
+  proposed_disposition: deleted
+  removal_blockers: []
 - &id018
   path: tests/pos/test_role_bootstrap.py
   category: test
-  status: active
+  status: deleted
   referenced_by:
   - .github/workflows/validate-pos.yml
   references:
@@ -407,9 +389,8 @@ artifacts:
   canonical_data: yes — test logic encoding governance requirements
   github_derivable_data: 'no'
   lean_replacement: unresolved — role bootstrap may not have lean equivalent
-  proposed_disposition: archive
-  removal_blockers:
-  - BLKR-005
+  proposed_disposition: deleted
+  removal_blockers: []
 - &id019
   path: .github/workflows/validate-pos.yml
   category: workflow
