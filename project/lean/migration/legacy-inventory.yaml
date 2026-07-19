@@ -463,21 +463,6 @@ artifacts:
   proposed_disposition: replace_with_pointer
   removal_blockers:
   - BLKR-003
-- &id022
-  path: MANAGER_INBOX.md
-  category: root_pointer
-  status: active
-  referenced_by:
-  - GitHub UI
-  - AI worker initial context
-  references:
-  - project/generated/MANAGER_INBOX.md
-  canonical_data: no — pointer only
-  github_derivable_data: yes — pointer content derivable from generated view path
-  lean_replacement: pointer to project/lean/generated/CURRENT_STATE.md (blockers section)
-  proposed_disposition: replace_with_pointer
-  removal_blockers:
-  - BLKR-003
 - path: project/BOOTSTRAP_STATUS.yaml
   category: root_config
   status: active
@@ -571,4 +556,3 @@ workflows:
 root_pointers:
 - *id020
 - *id021
-- *id022

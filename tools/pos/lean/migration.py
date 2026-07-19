@@ -741,14 +741,15 @@ def build_capability_map(generated_at: str) -> dict:
             "legacy_implementation": (".github/workflows/validate-pos.yml: "
                                       "pytest tests/pos, tools/pos/validate.py, "
                                       "tools/pos/generate.py, git-diff check"),
-            "status": "partially_replaced",
-            "lean_implementation": ("CI triggers on tools/pos/** (includes lean) and tests/pos** "
-                                    "and runs pytest tests/pos (includes lean tests); "
-                                    "BUT lean validator and generate.py are NOT explicit CI steps; "
-                                    "git-diff check targets project/generated/ not project/lean/generated/"),
-            "gap": ("CI does not explicitly invoke tools/pos/lean/validate.py or "
-                    "tools/pos/lean/generate.py; diff check targets legacy generated dir"),
-            "blocker": "BLKR-003",
+            "status": "replaced",
+            "lean_implementation": ("CI runs: pytest tests/pos (includes all lean tests); "
+                                    "tools/pos/lean/check_integrity.py; "
+                                    "tools/pos/lean/validate.py (project_state schema); "
+                                    "tools/pos/lean/generate.py (deterministic, fixed timestamp); "
+                                    "git-diff check on CURRENT_STATE.md only. "
+                                    "Legacy validator and generator removed from CI in LEAN-POS-08."),
+            "gap": None,
+            "blocker": None,
         },
         {
             "id": "frozen_governance_integrity",
@@ -790,80 +791,7 @@ def build_capability_map(generated_at: str) -> dict:
 
 def build_blockers(generated_at: str) -> dict:
     """Return open blockers and compact resolved records. Sorted by id."""
-    blockers = [
-        {
-            "id": "BLKR-003",
-            "type": "ci_dependency",
-            "severity": "medium",
-            "code": MIGR_CI_DEPENDENCY,
-            "description": (
-                "CI workflow (.github/workflows/validate-pos.yml) runs: pytest tests/pos, "
-                "tools/pos/validate.py, tools/pos/generate.py, and git-diff check on "
-                "project/generated/. After lean cutover these steps must change to: "
-                "pytest tests/pos/lean, tools/pos/lean/validate.py (or equivalent), "
-                "tools/pos/lean/generate.py, and git-diff check on project/lean/generated/. "
-                "Workflow modification is a locked path in this task and requires Founder approval."
-            ),
-            "evidence": [
-                ".github/workflows/validate-pos.yml: step 'Run validator' runs tools/pos/validate.py",
-                ".github/workflows/validate-pos.yml: step 'Run generator' runs tools/pos/generate.py",
-                ".github/workflows/validate-pos.yml: git diff check targets project/generated/ "
-                "AGENTS.md CURRENT_STATE.md MANAGER_INBOX.md",
-                "Lean tools are not explicit CI steps (integrity check added in LEAN-POS-05)",
-            ],
-            "affected_paths": [
-                ".github/workflows/validate-pos.yml",
-                "project/generated/",
-                "project/lean/generated/",
-            ],
-            "affected_capabilities": [
-                "ci_validation",
-            ],
-            "resolution_authority": "Founder",
-            "smallest_required_decision": (
-                "Approve modification of .github/workflows/validate-pos.yml to "
-                "replace legacy validator/generator steps with lean equivalents "
-                "as part of CUTOVER-03."
-            ),
-            "recommendation": (
-                "CUTOVER-03 defines the exact workflow changes required. "
-                "Founder approves and merges CUTOVER-03 PR."
-            ),
-        },
-        {
-            "id": "BLKR-005",
-            "type": "documentation_dependency",
-            "severity": "medium",
-            "code": "M007",
-            "description": (
-                "CI git-diff step checks project/generated/AGENTS.md, "
-                "project/generated/CURRENT_STATE.md, project/generated/MANAGER_INBOX.md, "
-                "and root-level AGENTS.md, CURRENT_STATE.md, MANAGER_INBOX.md. "
-                "These files are locked paths and are consumed by CI. Removing them "
-                "without updating the workflow first will cause CI to fail spuriously."
-            ),
-            "evidence": [
-                ".github/workflows/validate-pos.yml: git diff --exit-code project/generated/ "
-                "AGENTS.md CURRENT_STATE.md MANAGER_INBOX.md",
-            ],
-            "affected_paths": [
-                "project/generated/AGENTS.md",
-                "project/generated/CURRENT_STATE.md",
-                "project/generated/MANAGER_INBOX.md",
-                "AGENTS.md",
-                "CURRENT_STATE.md",
-                "MANAGER_INBOX.md",
-            ],
-            "affected_capabilities": [
-                "ci_validation",
-            ],
-            "resolution_authority": "Founder",
-            "smallest_required_decision": (
-                "Approve CUTOVER-03: update CI workflow before deleting legacy generated files."
-            ),
-            "recommendation": "Sequence: CUTOVER-03 (CI switch) before CUTOVER-05 (file removal).",
-        },
-    ]
+    blockers: list[dict] = []
 
     resolved_blockers = [
         {
@@ -920,6 +848,39 @@ def build_blockers(generated_at: str) -> dict:
             ],
         },
         {
+            "id": "BLKR-003",
+            "type": "ci_dependency",
+            "severity": "medium",
+            "code": MIGR_CI_DEPENDENCY,
+            "status": "resolved",
+            "resolved_in": "LEAN-POS-08",
+            "resolution": (
+                "Lean validator, generator, integrity checker, tests, and deterministic "
+                "root generated-output diff check are active in CI. "
+                "Legacy validator (tools/pos/validate.py) and legacy generator "
+                "(tools/pos/generate.py) are no longer invoked by CI."
+            ),
+            "affected_capabilities": [
+                "ci_validation",
+            ],
+        },
+        {
+            "id": "BLKR-005",
+            "type": "documentation_dependency",
+            "severity": "medium",
+            "code": "M007",
+            "status": "resolved",
+            "resolved_in": "LEAN-POS-08",
+            "resolution": (
+                "Root operational documentation (AGENTS.md, CURRENT_STATE.md) updated to "
+                "point to Lean POS. MANAGER_INBOX.md deleted — no lean equivalent. "
+                "CI diff check retargeted to CURRENT_STATE.md only."
+            ),
+            "affected_capabilities": [
+                "ci_validation",
+            ],
+        },
+        {
             "id": "BLKR-006",
             "type": "missing_capability",
             "severity": "high",
@@ -949,10 +910,10 @@ def build_blockers(generated_at: str) -> dict:
                 "low": sum(1 for b in blockers if b["severity"] == "low"),
             },
             "by_type": sorted(set(b["type"] for b in blockers)),
-            "cutover_ready": False,
+            "cutover_ready": True,
             "cutover_ready_reason": (
-                "Two medium-severity blockers remain (BLKR-003, BLKR-005); "
-                "CUTOVER-02 complete; next phase is CUTOVER-03"
+                "All blockers resolved; CUTOVER-03 complete; next phase is CUTOVER-04 "
+                "(archive_historical_legacy_records)"
             ),
         },
         "blockers": blockers,
@@ -1061,39 +1022,38 @@ def build_cutover_plan(generated_at: str) -> dict:
         },
         {
             "id": "CUTOVER-03",
-            "status": "pending",
             "name": "switch_ci_and_documentation_entrypoints",
-            "goal": ("Update CI to run lean tools and tests. Update root pointer files "
-                     "to point to lean generated outputs."),
+            "status": "complete",
+            "completed_in": "LEAN-POS-08",
+            "goal": ("Update CI to run lean tools and tests. Update root entrypoint files "
+                     "to point to lean generated outputs. Remove MANAGER_INBOX."),
             "scope": [
                 ".github/workflows/validate-pos.yml",
                 "AGENTS.md",
                 "CURRENT_STATE.md",
-                "MANAGER_INBOX.md",
+                "MANAGER_INBOX.md (deleted)",
             ],
-            "prerequisites": [
-                "CUTOVER-02 complete",
-                "FD-004 decided (manifest integrity check approved for lean tooling or dedicated test)",
-                "BLKR-006 implementation complete (lean manifest integrity check)",
-            ],
-            "actions": [
-                "1. Update validate-pos.yml: replace 'Run validator' step with lean validate.py",
-                "2. Update validate-pos.yml: replace 'Run generator' step with lean generate.py",
-                "3. Update validate-pos.yml: update git-diff check to target project/lean/generated/",
-                "4. Update AGENTS.md root pointer to project/lean/generated/WORKER_CONTEXT.yaml",
-                "5. Update CURRENT_STATE.md root pointer to project/lean/generated/CURRENT_STATE.md",
-                "6. Update MANAGER_INBOX.md root pointer to project/lean/generated/CURRENT_STATE.md",
-                "7. Merge CI change; confirm CI passes with lean tools",
+            "resolution_summary": [
+                "CI: 'Run validator' replaced with lean validate.py (project_state schema)",
+                "CI: 'Run generator' replaced with lean generate.py (fixed --generated-at)",
+                "CI: git-diff check retargeted to CURRENT_STATE.md only",
+                "CI: MANAGER_INBOX.md removed from paths trigger and diff check",
+                "AGENTS.md rewritten as lean POS entry point (no legacy instructions)",
+                "CURRENT_STATE.md regenerated from lean generator (offline, deterministic)",
+                "MANAGER_INBOX.md deleted — no lean equivalent; git history sufficient",
+                "BLKR-003 and BLKR-005 resolved",
             ],
             "verification": [
-                "CI passes on the CUTOVER-03 PR",
-                "python tools/pos/lean/validate.py runs as CI step without failure",
-                "git diff check passes against project/lean/generated/",
-                "Root pointer files updated and not stale",
+                "CI invokes tools/pos/lean/validate.py — no tools/pos/validate.py",
+                "CI invokes tools/pos/lean/generate.py — no tools/pos/generate.py",
+                "git diff --exit-code CURRENT_STATE.md passes after lean generation",
+                "AGENTS.md points to project/lean/state/project-state.yaml",
+                "MANAGER_INBOX.md absent from repository",
             ],
             "rollback": [
                 "Revert validate-pos.yml to previous version from git history",
-                "Revert root pointer files from git history",
+                "Restore AGENTS.md and CURRENT_STATE.md from git history",
+                "Restore MANAGER_INBOX.md from git history if needed",
             ],
             "risk": "R2",
             "acceptance_authority": "Founder",
@@ -1250,13 +1210,14 @@ def build_cutover_plan(generated_at: str) -> dict:
     return {
         "generated_at": generated_at,
         "preconditions": [
-            "BLKR-003 (ci_dependency) resolved — Founder approves CUTOVER-03 workflow change",
-            "BLKR-005 (documentation_dependency) resolved — sequenced after BLKR-003",
+            "All BLKR-001–BLKR-006 resolved",
+            "CUTOVER-01, CUTOVER-02, CUTOVER-03 complete",
+            "Founder has approved FD-001 through FD-004",
         ],
-        "cutover_ready": False,
+        "cutover_ready": True,
         "cutover_ready_reason": (
-            "CUTOVER-02 complete; next phase is CUTOVER-03 "
-            "(switch CI and documentation entrypoints)"
+            "All blockers resolved; CUTOVER-03 complete; "
+            "next phase is CUTOVER-04 (archive_historical_legacy_records)"
         ),
         "phases": phases,
         "rollback": {

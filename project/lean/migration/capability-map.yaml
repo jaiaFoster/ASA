@@ -1,11 +1,11 @@
 generated_at: '2026-07-18T00:00:00Z'
 summary:
   total_capabilities: 19
-  replaced: 15
+  replaced: 16
   replaced_with_different_mechanism: 1
-  partially_replaced: 4
+  partially_replaced: 3
   blocked: 0
-  gaps_requiring_blockers: 1
+  gaps_requiring_blockers: 0
 capabilities:
 - id: structural_validation
   description: Validate canonical records against JSON Schema
@@ -139,12 +139,12 @@ capabilities:
   description: CI checks are run on every PR touching POS paths
   legacy_implementation: '.github/workflows/validate-pos.yml: pytest tests/pos, tools/pos/validate.py, tools/pos/generate.py,
     git-diff check'
-  status: partially_replaced
-  lean_implementation: CI triggers on tools/pos/** (includes lean) and tests/pos** and runs pytest tests/pos (includes lean
-    tests); BUT lean validator and generate.py are NOT explicit CI steps; git-diff check targets project/generated/ not project/lean/generated/
-  gap: CI does not explicitly invoke tools/pos/lean/validate.py or tools/pos/lean/generate.py; diff check targets legacy generated
-    dir
-  blocker: BLKR-003
+  status: replaced
+  lean_implementation: 'CI runs: pytest tests/pos (includes all lean tests); tools/pos/lean/check_integrity.py; tools/pos/lean/validate.py
+    (project_state schema); tools/pos/lean/generate.py (deterministic, fixed timestamp); git-diff check on CURRENT_STATE.md
+    only. Legacy validator and generator removed from CI in LEAN-POS-08.'
+  gap: null
+  blocker: null
 - id: frozen_governance_integrity
   description: Verify frozen governance files match manifest SHA-256 hashes
   legacy_implementation: tools/pos/validate.py check_frozen_files(); tests/pos/test_repository_bootstrap.py test_frozen_hashes_match_manifest

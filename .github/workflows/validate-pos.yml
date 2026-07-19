@@ -9,7 +9,6 @@ on:
       - 'tests/pos/**'
       - 'AGENTS.md'
       - 'CURRENT_STATE.md'
-      - 'MANAGER_INBOX.md'
   workflow_dispatch:
 
 jobs:
@@ -35,16 +34,23 @@ jobs:
       - name: Check frozen governance integrity
         run: python tools/pos/lean/check_integrity.py
 
-      - name: Run validator
-        run: python tools/pos/validate.py
+      - name: Run Lean validator
+        run: >
+          python tools/pos/lean/validate.py
+          --file project/lean/state/project-state.yaml
+          --schema project_state
 
-      - name: Run generator
-        run: python tools/pos/generate.py
+      - name: Run Lean generator
+        run: >
+          python tools/pos/lean/generate.py current-state
+          --project-state project/lean/state/project-state.yaml
+          --generated-at 2000-01-01T00:00:00Z
+          --output CURRENT_STATE.md
 
       - name: Check for uncommitted generation changes
         run: |
-          git diff --exit-code project/generated/ AGENTS.md CURRENT_STATE.md MANAGER_INBOX.md || \
-          (echo "ERROR: Generated files are out of date. Regenerate with: python tools/pos/generate.py" && exit 1)
+          git diff --exit-code CURRENT_STATE.md || \
+          (echo "ERROR: CURRENT_STATE.md is out of date. Regenerate with the Lean generator." && exit 1)
 
 # This workflow performs mechanical checks only.
 # A passing workflow does NOT constitute approval, merge authorization,
