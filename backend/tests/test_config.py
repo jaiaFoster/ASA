@@ -48,11 +48,59 @@ def test_robinhood_secrets_are_redacted_and_excluded_from_config_hash() -> None:
     [
         ("postgres://host/db", "postgresql+psycopg://host/db"),
         ("postgresql://host/db", "postgresql+psycopg://host/db"),
+        (
+            "postgresql://railway_user:railway_password@railway_host:5432/railway",
+            "postgresql+psycopg://railway_user:railway_password@railway_host:5432/railway",
+        ),
         ("postgresql+psycopg://host/db", "postgresql+psycopg://host/db"),
     ],
 )
 def test_railway_database_url_is_psycopg_compatible(provided: str, expected: str) -> None:
     assert Settings(_env_file=None, database_url=provided).database_url == expected
+
+
+def test_database_url_strips_surrounding_whitespace() -> None:
+    settings = Settings(_env_file=None, database_url="  postgresql://host/db  ")
+
+    assert settings.database_url == "postgresql+psycopg://host/db"
+
+
+@pytest.mark.parametrize(
+    ("provided", "expected_error"),
+    [
+        ("  ", "Database URL cannot be empty"),
+        ("${{Postgres.DATABASE_URL}}", "unresolved variable reference"),
+        ("database.internal/asa", "must include a URL scheme"),
+    ],
+)
+def test_invalid_database_url_fails_with_safe_actionable_error(
+    provided: str,
+    expected_error: str,
+) -> None:
+    with pytest.raises(ValidationError) as captured:
+        Settings(_env_file=None, database_url=provided)
+
+    message = str(captured.value)
+    assert expected_error in message
+    if provided.strip():
+        assert provided.strip() not in message
+
+
+def test_database_url_validation_never_discloses_url_components() -> None:
+    sensitive_url = "private-user:private-password@private-host/private-database"
+
+    with pytest.raises(ValidationError) as captured:
+        Settings(_env_file=None, database_url=sensitive_url)
+
+    message = str(captured.value)
+    for sensitive_value in (
+        sensitive_url,
+        "private-user",
+        "private-password",
+        "private-host",
+        "private-database",
+    ):
+        assert sensitive_value not in message
 
 
 def test_railway_port_is_loaded(monkeypatch: pytest.MonkeyPatch) -> None:
