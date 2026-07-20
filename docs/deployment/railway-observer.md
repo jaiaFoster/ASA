@@ -1,9 +1,12 @@
 # Railway deployment observer
 
 The Railway Deployment Observer copies a bounded, redacted diagnostic snapshot into a
-14-day GitHub Actions artifact. Railway remains authoritative for deployment state and
-complete logs. The observer is read-only: it lists deployments and reads build/runtime logs;
-it cannot deploy, restart, roll back, change variables, or alter Railway resources.
+14-day GitHub Actions artifact and publishes a concise report to the pull request associated
+with the deployed commit. The artifact remains the immutable diagnostic archive; the marked
+pull request comment is the review surface and is updated on reruns. Railway remains
+authoritative for deployment state and complete logs. The observer is read-only: it lists
+deployments and reads build/runtime logs; it cannot deploy, restart, roll back, change
+variables, or alter Railway resources.
 
 ## Founder setup
 
@@ -21,14 +24,35 @@ it cannot deploy, restart, roll back, change variables, or alter Railway resourc
    confirm the artifact contains `[REDACTED]` rather than the seeded value. Never seed a real
    credential for this check.
 
-Automatic runs accept only GitHub `deployment_status` events whose deployment environment is
-exactly `production`. Manual runs also remain fixed to the production Railway environment and
-cannot override it. If a GitHub deployment payload contains a Railway deployment ID under
+Every `deployment_status` event starts the observer, including events with differently cased or
+missing GitHub environment metadata. Manual runs also remain fixed to the production Railway
+environment and cannot override it. If a GitHub deployment payload contains a Railway
+deployment ID under
 `payload.railway_deployment_id`, `payload.railwayDeploymentId`, `payload.deployment_id`, or a
 nested `payload.railway` deployment ID, that ID is used. A Railway deployment ID in the `id`
 query parameter of the deployment status target URL is next. Only when none of those sources
 provides an ID does the observer list deployments and select the latest ASA production deployment.
-Resolved IDs fetch build and runtime logs directly without an unnecessary deployment-list call.
+Resolved IDs are polled using the explicit production service and environment until Railway
+reaches a terminal state or the bounded deadline, then build and runtime logs are collected.
+
+## Pull request reports
+
+After collection, the observer resolves pull requests associated with the deployed commit SHA
+using GitHub commit metadata. It prefers an exact merge-commit match merged into the default
+branch and never guesses from a source branch name. One unambiguous association receives a
+`Railway Deployment Report` comment containing component statuses, the decisive root-cause
+excerpt, bounded collapsible logs, and links to the workflow run and its artifact area.
+
+The comment begins with `<!-- ASA_RAILWAY_DEPLOYMENT_OBSERVER -->`. Reruns search all issue
+comments for that marker and update the existing report instead of adding another. If GitHub
+reports no pull request or multiple ambiguous candidates, publication is skipped without
+failing artifact collection. Resolution and comment outcomes are stored in `manifest.json`.
+
+Comment text receives the same redaction as artifacts and tighter limits: 20 root-cause lines,
+100 build lines, 150 runtime lines, 100 health-check lines, and fewer than 50,000 total
+characters. Raw environment variables and complete GitHub event payloads are never included.
+Comment and artifact publication are independent `always()` steps; the final workflow step
+reports partial completion if collection, comment publication, or artifact upload fails.
 
 ## Reading an artifact
 
