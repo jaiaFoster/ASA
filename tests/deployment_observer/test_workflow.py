@@ -23,8 +23,8 @@ def workflow() -> dict[str, Any]:
     return cast(dict[str, Any], parsed)
 
 
-def test_workflow_has_contents_read_only() -> None:
-    assert workflow()["permissions"] == {"contents": "read"}
+def test_workflow_has_minimum_comment_permissions() -> None:
+    assert workflow()["permissions"] == {"contents": "read", "pull-requests": "write"}
 
 
 def test_workflow_never_uses_pull_request_target() -> None:
@@ -50,6 +50,19 @@ def test_workflow_uploads_only_observer_artifact_directory() -> None:
     assert len(uploads) == 1
     assert uploads[0]["if"] == "always()"
     assert uploads[0]["with"]["path"] == ".artifacts/railway-deployment"
+
+
+def test_comment_publication_and_artifact_are_independent_channels() -> None:
+    steps = workflow()["jobs"]["observe"]["steps"]
+    publish = next(step for step in steps if step.get("id") == "publish")
+    artifact = next(step for step in steps if step.get("id") == "artifact")
+    outcome = next(step for step in steps if step.get("name") == "Report observer channel outcomes")
+    assert publish["if"] == "always()"
+    assert artifact["if"] == "always()"
+    assert steps.index(publish) < steps.index(artifact)
+    assert outcome["if"] == "always()"
+    assert "steps.publish.outcome" in outcome["env"]["COMMENT_OUTCOME"]
+    assert "steps.artifact.outcome" in outcome["env"]["ARTIFACT_OUTCOME"]
 
 
 def test_workflow_cli_context_is_explicit_and_pinned() -> None:

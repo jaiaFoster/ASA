@@ -22,6 +22,8 @@ MAX_FAILURE_BYTES = 16 * 1024
 POLL_INTERVAL_SECONDS = 10.0
 MAX_POLL_SECONDS = 600.0
 TERMINAL_DEPLOYMENT_STATES = frozenset({"SUCCESS", "FAILED", "CRASHED", "REMOVED", "CANCELLED"})
+PULL_REQUEST_RESOLUTION_STATUSES = frozenset({"resolved", "not_found", "ambiguous", "error"})
+PULL_REQUEST_COMMENT_STATUSES = frozenset({"created", "updated", "skipped", "failed"})
 PROHIBITED_MANIFEST_FIELDS = {
     "railway_token",
     "environment_variables",
@@ -305,11 +307,30 @@ def validate_manifest(manifest: Mapping[str, Any]) -> None:
         "build_log_line_count",
         "runtime_log_line_count",
         "redaction_count",
+        "pull_request_resolution_status",
+        "pull_request_number",
+        "pull_request_url",
+        "pull_request_comment_status",
+        "pull_request_comment_url",
     }
     if manifest.get("version") != 1 or not required.issubset(manifest):
         raise ValueError("Manifest does not satisfy schema version 1")
     if PROHIBITED_MANIFEST_FIELDS.intersection(key.lower() for key in manifest):
         raise ValueError("Manifest contains a prohibited field")
+    if manifest["pull_request_resolution_status"] not in PULL_REQUEST_RESOLUTION_STATUSES:
+        raise ValueError("Manifest has an invalid pull request resolution status")
+    if manifest["pull_request_comment_status"] not in PULL_REQUEST_COMMENT_STATUSES:
+        raise ValueError("Manifest has an invalid pull request comment status")
+
+
+def _pull_request_manifest_defaults() -> dict[str, Any]:
+    return {
+        "pull_request_resolution_status": "not_found",
+        "pull_request_number": None,
+        "pull_request_url": None,
+        "pull_request_comment_status": "skipped",
+        "pull_request_comment_url": None,
+    }
 
 
 def _redact_failure_text(value: str) -> str:
@@ -434,6 +455,7 @@ def _write_timeout_artifacts(
         "build_log_line_count": 0,
         "runtime_log_line_count": 0,
         "redaction_count": 0,
+        **_pull_request_manifest_defaults(),
     }
     validate_manifest(manifest)
     failure = {
@@ -555,6 +577,9 @@ def collect(
         "build_log_line_count": len(build_logs),
         "runtime_log_line_count": len(runtime_logs),
         "redaction_count": redacted_build.count + redacted_runtime.count,
+        "classification": classification,
+        "phase": phase,
+        **_pull_request_manifest_defaults(),
     }
     validate_manifest(manifest)
     quoted = "\n".join(f"    {line}" for line in cluster) or "    No error cluster found."

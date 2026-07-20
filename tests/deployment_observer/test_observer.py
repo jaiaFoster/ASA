@@ -502,6 +502,11 @@ def test_manifest_never_contains_prohibited_fields() -> None:
         "build_log_line_count": 0,
         "runtime_log_line_count": 0,
         "redaction_count": 0,
+        "pull_request_resolution_status": "not_found",
+        "pull_request_number": None,
+        "pull_request_url": None,
+        "pull_request_comment_status": "skipped",
+        "pull_request_comment_url": None,
     }
     validate_manifest(valid)
     for field in ("railway_token", "environment_variables", "database_url", "credentials"):
