@@ -182,8 +182,30 @@ def test_uses_only_required_read_only_railway_commands(tmp_path: Path) -> None:
     )
     assert calls == [
         ["deployment", "list", "--service", "ASA", "--environment", "production", "--json"],
-        ["logs", "dep-latest", "--build", "--lines", "5000", "--json"],
-        ["logs", "dep-latest", "--deployment", "--lines", "5000", "--json"],
+        [
+            "logs",
+            "dep-latest",
+            "--service",
+            "ASA",
+            "--environment",
+            "production",
+            "--build",
+            "--lines",
+            "5000",
+            "--json",
+        ],
+        [
+            "logs",
+            "dep-latest",
+            "--service",
+            "ASA",
+            "--environment",
+            "production",
+            "--deployment",
+            "--lines",
+            "5000",
+            "--json",
+        ],
     ]
 
 
@@ -207,6 +229,10 @@ def test_explicit_id_performs_no_deployment_list_call(tmp_path: Path) -> None:
         [
             "logs",
             "e9030deb-31ac-4f13-83e3-a236989afb65",
+            "--service",
+            "ASA",
+            "--environment",
+            "production",
             "--build",
             "--lines",
             "5000",
@@ -215,6 +241,10 @@ def test_explicit_id_performs_no_deployment_list_call(tmp_path: Path) -> None:
         [
             "logs",
             "e9030deb-31ac-4f13-83e3-a236989afb65",
+            "--service",
+            "ASA",
+            "--environment",
+            "production",
             "--deployment",
             "--lines",
             "5000",
@@ -252,6 +282,32 @@ def test_deployment_list_is_used_only_as_fallback(tmp_path: Path) -> None:
         runner=runner,
     )
     assert all(call[:2] != ["deployment", "list"] for call in calls)
+
+
+def test_log_commands_use_explicit_noninteractive_read_only_context(tmp_path: Path) -> None:
+    calls: list[list[str]] = []
+
+    def runner(args: list[str]) -> str:
+        calls.append(args)
+        return ""
+
+    collect(
+        output_dir=tmp_path / "artifacts",
+        service="ASA",
+        environment="production",
+        explicit_id="deployment-id",
+        event={},
+        include_runtime_logs=True,
+        runner=runner,
+    )
+    assert len(calls) == 2
+    for command in calls:
+        assert command[0] == "logs"
+        assert command[command.index("--service") + 1] == "ASA"
+        assert command[command.index("--environment") + 1] == "production"
+        assert not {"link", "service", "environment", "up", "redeploy", "restart", "rollback"}.intersection(
+            command
+        )
 
 
 def test_collection_writes_only_redacted_logs_and_schema(tmp_path: Path) -> None:
@@ -409,6 +465,10 @@ def test_called_process_error_produces_failure_json_and_nonzero_exit(
             "railway",
             "logs",
             "e9030deb-31ac-4f13-83e3-a236989afb65",
+            "--service",
+            "ASA",
+            "--environment",
+            "production",
             "--build",
             "--lines",
             "5000",
