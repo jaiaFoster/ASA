@@ -51,28 +51,25 @@ def main() -> int:
         output_dir.mkdir(parents=True, exist_ok=True)
         if isinstance(error, CommandFailure):
             failure = {
-                "version": 1,
-                "collection_status": "failed",
-                "command_category": error.category,
+                "command": error.command,
                 "exit_code": error.exit_code,
-                "stderr": error.stderr,
                 "stdout": error.stdout,
+                "stderr": error.stderr,
             }
         else:
             failure = {
-                "version": 1,
-                "collection_status": "failed",
-                "command_category": "observer",
+                "command": [],
                 "exit_code": None,
-                "stderr": "",
                 "stdout": "",
+                "stderr": "",
             }
         (output_dir / "failure.json").write_text(json.dumps(failure, indent=2) + "\n")
         safe_summary = (
             "## Railway deployment observer\n\n"
-            "Collection failed safely. No deployment logs were uploaded. "
-            f"Command category: `{failure['command_category']}`. "
-            f"Exit code: `{failure['exit_code']}`.\n"
+            "Collection failed safely. No deployment logs were uploaded.\n\n"
+            f"- Failed command: `{json.dumps(failure['command'])}`\n"
+            f"- Exit code: `{failure['exit_code']}`\n"
+            "- Sanitized diagnostics: `failure.json`\n"
         )
         (output_dir / "summary.md").write_text(safe_summary)
         if summary_path := os.environ.get("GITHUB_STEP_SUMMARY"):
