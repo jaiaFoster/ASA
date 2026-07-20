@@ -25,8 +25,10 @@ Automatic runs accept only GitHub `deployment_status` events whose deployment en
 exactly `production`. Manual runs also remain fixed to the production Railway environment and
 cannot override it. If a GitHub deployment payload contains a Railway deployment ID under
 `payload.railway_deployment_id`, `payload.railwayDeploymentId`, `payload.deployment_id`, or a
-nested `payload.railway` deployment ID, that ID is used. Otherwise the observer selects the
-latest ASA production deployment.
+nested `payload.railway` deployment ID, that ID is used. A Railway deployment ID in the `id`
+query parameter of the deployment status target URL is next. Only when none of those sources
+provides an ID does the observer list deployments and select the latest ASA production deployment.
+Resolved IDs fetch build and runtime logs directly without an unnecessary deployment-list call.
 
 ## Reading an artifact
 
@@ -36,8 +38,10 @@ bounded error cluster and likely build, pre-deploy, startup, healthcheck, or run
 quotes at most 80 redacted log lines. No external AI service is called.
 
 An empty log stream produces an empty JSONL file. If collection, parsing, or redaction fails,
-the collector deletes partial output, writes only a safe failure `summary.md`, and exits with a
-failure. Raw logs are never uploaded or committed.
+the collector deletes partial output and writes only `failure.json` and a safe `summary.md`.
+Railway command failures record only the command category, exit code, and redacted stdout/stderr,
+bounded together to 100 lines or 16 KiB. The token and process environment are never serialized.
+Raw logs are never uploaded or committed.
 
 ## Rollback
 
