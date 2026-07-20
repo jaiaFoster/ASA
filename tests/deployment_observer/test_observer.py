@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -9,13 +10,16 @@ import pytest
 
 from tools.deployment_observer import collect as collect_entrypoint
 from tools.deployment_observer.observer import (
+    CommandFailure,
     MAX_SUMMARY_LINES,
     collect,
     first_error_cluster,
     parse_json_records,
     redact,
     redact_text,
+    railway_command,
     resolve_deployment,
+    resolve_known_deployment_id,
     validate_manifest,
 )
 
@@ -42,6 +46,28 @@ def test_resolves_payload_id_before_latest() -> None:
     event = {"deployment": {"payload": {"railway_deployment_id": "payload-id"}}}
     result = resolve_deployment(None, event, [deployment("latest")], "ASA", "production")
     assert result.deployment_id == "payload-id"
+
+
+def test_target_url_extracts_railway_deployment_id() -> None:
+    event = {
+        "deployment_status": {
+            "target_url": (
+                "https://railway.app/project/example/service/example?"
+                "id=e9030deb-31ac-4f13-83e3-a236989afb65"
+            )
+        }
+    }
+    assert resolve_known_deployment_id(None, event) == "e9030deb-31ac-4f13-83e3-a236989afb65"
+
+
+def test_payload_id_takes_precedence_over_target_url() -> None:
+    event = {
+        "deployment": {"payload": {"railway_deployment_id": "payload-id"}},
+        "deployment_status": {
+            "target_url": "https://railway.app/?id=e9030deb-31ac-4f13-83e3-a236989afb65"
+        },
+    }
+    assert resolve_known_deployment_id(None, event) == "payload-id"
 
 
 @pytest.mark.parametrize(
@@ -161,6 +187,73 @@ def test_uses_only_required_read_only_railway_commands(tmp_path: Path) -> None:
     ]
 
 
+def test_explicit_id_performs_no_deployment_list_call(tmp_path: Path) -> None:
+    calls: list[list[str]] = []
+
+    def runner(args: list[str]) -> str:
+        calls.append(args)
+        return ""
+
+    collect(
+        output_dir=tmp_path / "artifacts",
+        service="ASA",
+        environment="production",
+        explicit_id="e9030deb-31ac-4f13-83e3-a236989afb65",
+        event={},
+        include_runtime_logs=True,
+        runner=runner,
+    )
+    assert calls == [
+        [
+            "logs",
+            "e9030deb-31ac-4f13-83e3-a236989afb65",
+            "--build",
+            "--lines",
+            "5000",
+            "--json",
+        ],
+        [
+            "logs",
+            "e9030deb-31ac-4f13-83e3-a236989afb65",
+            "--deployment",
+            "--lines",
+            "5000",
+            "--json",
+        ],
+    ]
+
+
+def test_deployment_list_is_used_only_as_fallback(tmp_path: Path) -> None:
+    calls: list[list[str]] = []
+
+    def runner(args: list[str]) -> str:
+        calls.append(args)
+        return json.dumps([deployment()]) if args[:2] == ["deployment", "list"] else ""
+
+    collect(
+        output_dir=tmp_path / "fallback",
+        service="ASA",
+        environment="production",
+        explicit_id=None,
+        event={},
+        include_runtime_logs=False,
+        runner=runner,
+    )
+    assert calls[0][:2] == ["deployment", "list"]
+
+    calls.clear()
+    collect(
+        output_dir=tmp_path / "known",
+        service="ASA",
+        environment="production",
+        explicit_id="known-id",
+        event={},
+        include_runtime_logs=False,
+        runner=runner,
+    )
+    assert all(call[:2] != ["deployment", "list"] for call in calls)
+
+
 def test_collection_writes_only_redacted_logs_and_schema(tmp_path: Path) -> None:
     output = tmp_path / "artifacts"
     _, manifest, summary = collect(
@@ -195,8 +288,58 @@ def test_redaction_failure_prevents_raw_artifact_output(
     monkeypatch.setenv("GITHUB_EVENT_PATH", str(event_path))
     monkeypatch.setattr(collect_entrypoint, "collect", lambda **_: (_ for _ in ()).throw(ValueError()))
     assert collect_entrypoint.main() == 1
-    assert [path.name for path in output.iterdir()] == ["summary.md"]
+    assert {path.name for path in output.iterdir()} == {"failure.json", "summary.md"}
     assert "logs were uploaded" in (output / "summary.md").read_text()
+
+
+def test_called_process_error_output_is_redacted_and_bounded(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    token = "seeded-railway-token-value"
+    monkeypatch.setenv("RAILWAY_TOKEN", token)
+    stdout = "\n".join([f"password=secret-{index} {token}" for index in range(200)])
+
+    def fail(*_: Any, **__: Any) -> None:
+        raise subprocess.CalledProcessError(
+            17,
+            ["railway", "logs"],
+            output=stdout,
+            stderr=f"Authorization: Bearer {token}",
+        )
+
+    monkeypatch.setattr(subprocess, "run", fail)
+    with pytest.raises(CommandFailure) as raised:
+        railway_command(["logs", "deployment-id", "--build", "--lines", "5000", "--json"])
+    failure = raised.value
+    assert failure.category == "build-logs"
+    assert failure.exit_code == 17
+    assert token not in failure.stdout + failure.stderr
+    assert "secret-" not in failure.stdout
+    assert len((failure.stderr + failure.stdout).encode()) <= 16 * 1024
+    assert len((failure.stderr + failure.stdout).splitlines()) <= 100
+
+
+def test_safe_failure_artifacts_include_category_and_exit_code_without_token(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    output = tmp_path / "artifacts"
+    event_path = tmp_path / "event.json"
+    event_path.write_text("{}")
+    token = "never-serialize-this-token"
+    monkeypatch.setenv("RAILWAY_TOKEN", token)
+    monkeypatch.setenv("OBSERVER_OUTPUT_DIR", str(output))
+    monkeypatch.setenv("GITHUB_EVENT_PATH", str(event_path))
+    failure = CommandFailure("runtime-logs", 23, "token=[REDACTED]", "password=[REDACTED]")
+    monkeypatch.setattr(
+        collect_entrypoint, "collect", lambda **_: (_ for _ in ()).throw(failure)
+    )
+    assert collect_entrypoint.main() == 1
+    assert {path.name for path in output.iterdir()} == {"failure.json", "summary.md"}
+    combined = "".join(path.read_text() for path in output.iterdir())
+    data = json.loads((output / "failure.json").read_text())
+    assert data["command_category"] == "runtime-logs"
+    assert data["exit_code"] == 23
+    assert token not in combined
 
 
 def test_manifest_never_contains_prohibited_fields() -> None:

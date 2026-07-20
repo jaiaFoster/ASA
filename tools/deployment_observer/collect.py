@@ -12,7 +12,7 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from tools.deployment_observer.observer import collect
+from tools.deployment_observer.observer import CommandFailure, collect
 
 
 def _event() -> dict[str, Any]:
@@ -49,10 +49,30 @@ def main() -> int:
         # Never retain partially written log artifacts after an unexpected failure.
         shutil.rmtree(output_dir, ignore_errors=True)
         output_dir.mkdir(parents=True, exist_ok=True)
+        if isinstance(error, CommandFailure):
+            failure = {
+                "version": 1,
+                "collection_status": "failed",
+                "command_category": error.category,
+                "exit_code": error.exit_code,
+                "stderr": error.stderr,
+                "stdout": error.stdout,
+            }
+        else:
+            failure = {
+                "version": 1,
+                "collection_status": "failed",
+                "command_category": "observer",
+                "exit_code": None,
+                "stderr": "",
+                "stdout": "",
+            }
+        (output_dir / "failure.json").write_text(json.dumps(failure, indent=2) + "\n")
         safe_summary = (
             "## Railway deployment observer\n\n"
             "Collection failed safely. No deployment logs were uploaded. "
-            f"Error type: `{type(error).__name__}`.\n"
+            f"Command category: `{failure['command_category']}`. "
+            f"Exit code: `{failure['exit_code']}`.\n"
         )
         (output_dir / "summary.md").write_text(safe_summary)
         if summary_path := os.environ.get("GITHUB_STEP_SUMMARY"):
