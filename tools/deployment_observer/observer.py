@@ -357,7 +357,20 @@ def collect(
         )
     deployment = resolve_deployment(known_id, event, deployments, service, environment)
     build_raw = parse_json_records(
-        runner(["logs", deployment.deployment_id, "--build", "--lines", "5000", "--json"])
+        runner(
+            [
+                "logs",
+                deployment.deployment_id,
+                "--service",
+                service,
+                "--environment",
+                environment,
+                "--build",
+                "--lines",
+                "5000",
+                "--json",
+            ]
+        )
     )[:MAX_LOG_LINES]
     runtime_raw = (
         parse_json_records(
@@ -365,6 +378,10 @@ def collect(
                 [
                     "logs",
                     deployment.deployment_id,
+                    "--service",
+                    service,
+                    "--environment",
+                    environment,
                     "--deployment",
                     "--lines",
                     "5000",
