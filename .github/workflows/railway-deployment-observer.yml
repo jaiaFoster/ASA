@@ -21,7 +21,6 @@ concurrency:
 
 jobs:
   observe:
-    if: github.event_name == 'workflow_dispatch' || github.event.deployment.environment == 'production'
     runs-on: ubuntu-latest
     env:
       RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
