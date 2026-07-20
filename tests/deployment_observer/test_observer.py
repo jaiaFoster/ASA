@@ -182,8 +182,30 @@ def test_uses_only_required_read_only_railway_commands(tmp_path: Path) -> None:
     )
     assert calls == [
         ["deployment", "list", "--service", "ASA", "--environment", "production", "--json"],
-        ["logs", "dep-latest", "--build", "--lines", "5000", "--json"],
-        ["logs", "dep-latest", "--deployment", "--lines", "5000", "--json"],
+        [
+            "logs",
+            "dep-latest",
+            "--service",
+            "ASA",
+            "--environment",
+            "production",
+            "--build",
+            "--lines",
+            "5000",
+            "--json",
+        ],
+        [
+            "logs",
+            "dep-latest",
+            "--service",
+            "ASA",
+            "--environment",
+            "production",
+            "--deployment",
+            "--lines",
+            "5000",
+            "--json",
+        ],
     ]
 
 
@@ -207,6 +229,10 @@ def test_explicit_id_performs_no_deployment_list_call(tmp_path: Path) -> None:
         [
             "logs",
             "e9030deb-31ac-4f13-83e3-a236989afb65",
+            "--service",
+            "ASA",
+            "--environment",
+            "production",
             "--build",
             "--lines",
             "5000",
@@ -215,6 +241,10 @@ def test_explicit_id_performs_no_deployment_list_call(tmp_path: Path) -> None:
         [
             "logs",
             "e9030deb-31ac-4f13-83e3-a236989afb65",
+            "--service",
+            "ASA",
+            "--environment",
+            "production",
             "--deployment",
             "--lines",
             "5000",
@@ -252,6 +282,32 @@ def test_deployment_list_is_used_only_as_fallback(tmp_path: Path) -> None:
         runner=runner,
     )
     assert all(call[:2] != ["deployment", "list"] for call in calls)
+
+
+def test_log_commands_use_explicit_noninteractive_read_only_context(tmp_path: Path) -> None:
+    calls: list[list[str]] = []
+
+    def runner(args: list[str]) -> str:
+        calls.append(args)
+        return ""
+
+    collect(
+        output_dir=tmp_path / "artifacts",
+        service="ASA",
+        environment="production",
+        explicit_id="deployment-id",
+        event={},
+        include_runtime_logs=True,
+        runner=runner,
+    )
+    assert len(calls) == 2
+    for command in calls:
+        assert command[0] == "logs"
+        assert command[command.index("--service") + 1] == "ASA"
+        assert command[command.index("--environment") + 1] == "production"
+        assert not {"link", "service", "environment", "up", "redeploy", "restart", "rollback"}.intersection(
+            command
+        )
 
 
 def test_collection_writes_only_redacted_logs_and_schema(tmp_path: Path) -> None:
@@ -297,26 +353,62 @@ def test_called_process_error_output_is_redacted_and_bounded(
 ) -> None:
     token = "seeded-railway-token-value"
     monkeypatch.setenv("RAILWAY_TOKEN", token)
-    stdout = "\n".join([f"password=secret-{index} {token}" for index in range(200)])
+    stdout = "\n".join(
+        [f"line-{index} {token} {'x' * 1_000}" for index in range(200)]
+    )
+    stderr = "Authorization: Bearer hidden\n" + "\n".join(
+        [f"stderr-{index} {'y' * 1_000}" for index in range(200)]
+    )
 
     def fail(*_: Any, **__: Any) -> None:
         raise subprocess.CalledProcessError(
             17,
             ["railway", "logs"],
             output=stdout,
-            stderr=f"Authorization: Bearer {token}",
+            stderr=stderr,
         )
 
     monkeypatch.setattr(subprocess, "run", fail)
     with pytest.raises(CommandFailure) as raised:
         railway_command(["logs", "deployment-id", "--build", "--lines", "5000", "--json"])
     failure = raised.value
-    assert failure.category == "build-logs"
+    assert failure.command == [
+        "railway",
+        "logs",
+        "deployment-id",
+        "--build",
+        "--lines",
+        "5000",
+        "--json",
+    ]
     assert failure.exit_code == 17
     assert token not in failure.stdout + failure.stderr
-    assert "secret-" not in failure.stdout
-    assert len((failure.stderr + failure.stdout).encode()) <= 16 * 1024
-    assert len((failure.stderr + failure.stdout).splitlines()) <= 100
+    assert "Authorization" not in failure.stderr
+    assert len(failure.stdout.encode()) <= 16 * 1024
+    assert len(failure.stderr.encode()) <= 16 * 1024
+    assert len(failure.stdout.splitlines()) <= 100
+    assert len(failure.stderr.splitlines()) <= 100
+
+
+def test_command_and_bearer_values_are_redacted(monkeypatch: pytest.MonkeyPatch) -> None:
+    token = "command-secret-token"
+    monkeypatch.setenv("RAILWAY_TOKEN", token)
+
+    def fail(*_: Any, **__: Any) -> None:
+        raise subprocess.CalledProcessError(
+            1,
+            ["railway", "logs"],
+            output="Bearer other-secret",
+            stderr="",
+        )
+
+    monkeypatch.setattr(subprocess, "run", fail)
+    with pytest.raises(CommandFailure) as raised:
+        railway_command(["logs", "deployment-id", "--filter", f"token={token}"])
+    serialized = json.dumps(raised.value.command) + raised.value.stdout
+    assert token not in serialized
+    assert "other-secret" not in serialized
+    assert "[REDACTED]" in serialized
 
 
 def test_safe_failure_artifacts_include_category_and_exit_code_without_token(
@@ -329,7 +421,8 @@ def test_safe_failure_artifacts_include_category_and_exit_code_without_token(
     monkeypatch.setenv("RAILWAY_TOKEN", token)
     monkeypatch.setenv("OBSERVER_OUTPUT_DIR", str(output))
     monkeypatch.setenv("GITHUB_EVENT_PATH", str(event_path))
-    failure = CommandFailure("runtime-logs", 23, "token=[REDACTED]", "password=[REDACTED]")
+    command = ["railway", "logs", "deployment-id", "--deployment", "--json"]
+    failure = CommandFailure(command, 23, "token=[REDACTED]", "password=[REDACTED]")
     monkeypatch.setattr(
         collect_entrypoint, "collect", lambda **_: (_ for _ in ()).throw(failure)
     )
@@ -337,9 +430,59 @@ def test_safe_failure_artifacts_include_category_and_exit_code_without_token(
     assert {path.name for path in output.iterdir()} == {"failure.json", "summary.md"}
     combined = "".join(path.read_text() for path in output.iterdir())
     data = json.loads((output / "failure.json").read_text())
-    assert data["command_category"] == "runtime-logs"
+    assert data["command"] == command
     assert data["exit_code"] == 23
+    assert data["stdout"] == "token=[REDACTED]"
+    assert data["stderr"] == "password=[REDACTED]"
     assert token not in combined
+    summary = (output / "summary.md").read_text()
+    assert "Failed command" in summary
+    assert "failure.json" in summary
+
+
+def test_called_process_error_produces_failure_json_and_nonzero_exit(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    output = tmp_path / "artifacts"
+    token = "integration-railway-token"
+    monkeypatch.setenv("RAILWAY_TOKEN", token)
+    monkeypatch.setenv("OBSERVER_OUTPUT_DIR", str(output))
+    monkeypatch.setenv("INPUT_DEPLOYMENT_ID", "e9030deb-31ac-4f13-83e3-a236989afb65")
+
+    def fail(*_: Any, **__: Any) -> None:
+        raise subprocess.CalledProcessError(
+            9,
+            ["railway", "logs"],
+            output=f"password=stdout-secret {token}",
+            stderr=f"Authorization: Bearer {token}",
+        )
+
+    monkeypatch.setattr(subprocess, "run", fail)
+    assert collect_entrypoint.main() == 1
+    data = json.loads((output / "failure.json").read_text())
+    assert data == {
+        "command": [
+            "railway",
+            "logs",
+            "e9030deb-31ac-4f13-83e3-a236989afb65",
+            "--service",
+            "ASA",
+            "--environment",
+            "production",
+            "--build",
+            "--lines",
+            "5000",
+            "--json",
+        ],
+        "exit_code": 9,
+        "stdout": "password=[REDACTED] [REDACTED]",
+        "stderr": "[REDACTED]",
+    }
+    combined = (output / "failure.json").read_text() + (output / "summary.md").read_text()
+    assert token not in combined
+    assert "Authorization" not in combined
+    assert not (output / "build-log.jsonl").exists()
+    assert not (output / "runtime-log.jsonl").exists()
 
 
 def test_manifest_never_contains_prohibited_fields() -> None:

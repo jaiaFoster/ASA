@@ -58,7 +58,7 @@ class Deployment:
 class CommandFailure(Exception):
     """A bounded, already-redacted Railway CLI failure."""
 
-    category: str
+    command: list[str]
     exit_code: int
     stdout: str
     stderr: str
@@ -290,40 +290,26 @@ def validate_manifest(manifest: Mapping[str, Any]) -> None:
         raise ValueError("Manifest contains a prohibited field")
 
 
-def _command_category(args: list[str]) -> str:
-    if args[:2] == ["deployment", "list"]:
-        return "deployment-list"
-    if "--build" in args:
-        return "build-logs"
-    if "--deployment" in args:
-        return "runtime-logs"
-    return "railway-read"
-
-
-def _redact_secret(value: str) -> str:
+def _redact_failure_text(value: str) -> str:
+    """Remove authorization headers and redact known secret forms and the Railway token."""
     token = os.environ.get("RAILWAY_TOKEN", "")
     without_token = value.replace(token, REDACTED) if token else value
-    return redact_text(without_token)[0]
+    without_authorization = re.sub(
+        r"(?i)\bAuthorization\s*[:=]\s*(?:Bearer\s+)?[^\r\n]*",
+        REDACTED,
+        without_token,
+    )
+    without_bearer_token = re.sub(
+        r"(?i)(\bBearer\s+)[^\s,;]+", r"\1[REDACTED]", without_authorization
+    )
+    return redact_text(without_bearer_token)[0]
 
 
-def _bounded_outputs(stderr: str, stdout: str) -> tuple[str, str]:
-    """Bound combined captured output to 100 lines and 16 KiB, prioritizing stderr."""
-    remaining_lines = MAX_FAILURE_LINES
-    remaining_bytes = MAX_FAILURE_BYTES
-
-    def take(value: str) -> str:
-        nonlocal remaining_lines, remaining_bytes
-        lines = value.splitlines()[:remaining_lines]
-        candidate = "\n".join(lines)
-        encoded = candidate.encode()[:remaining_bytes]
-        bounded = encoded.decode(errors="ignore")
-        remaining_lines -= len(bounded.splitlines())
-        remaining_bytes -= len(bounded.encode())
-        return bounded
-
-    safe_stderr = take(_redact_secret(stderr))
-    safe_stdout = take(_redact_secret(stdout))
-    return safe_stderr, safe_stdout
+def _bounded_output(value: str) -> str:
+    """Redact output, then retain its first 100 lines and at most 16 KiB."""
+    lines = _redact_failure_text(value).splitlines()[:MAX_FAILURE_LINES]
+    encoded = "\n".join(lines).encode()[:MAX_FAILURE_BYTES]
+    return encoded.decode(errors="ignore")
 
 
 def railway_command(args: list[str]) -> str:
@@ -332,12 +318,11 @@ def railway_command(args: list[str]) -> str:
             ["railway", *args], check=True, capture_output=True, text=True, timeout=120
         )
     except subprocess.CalledProcessError as error:
-        stderr, stdout = _bounded_outputs(error.stderr or "", error.stdout or "")
         raise CommandFailure(
-            category=_command_category(args),
+            command=[_redact_failure_text(part) for part in ["railway", *args]],
             exit_code=error.returncode,
-            stdout=stdout,
-            stderr=stderr,
+            stdout=_bounded_output(error.stdout or ""),
+            stderr=_bounded_output(error.stderr or ""),
         ) from None
     return completed.stdout
 
@@ -372,7 +357,20 @@ def collect(
         )
     deployment = resolve_deployment(known_id, event, deployments, service, environment)
     build_raw = parse_json_records(
-        runner(["logs", deployment.deployment_id, "--build", "--lines", "5000", "--json"])
+        runner(
+            [
+                "logs",
+                deployment.deployment_id,
+                "--service",
+                service,
+                "--environment",
+                environment,
+                "--build",
+                "--lines",
+                "5000",
+                "--json",
+            ]
+        )
     )[:MAX_LOG_LINES]
     runtime_raw = (
         parse_json_records(
@@ -380,6 +378,10 @@ def collect(
                 [
                     "logs",
                     deployment.deployment_id,
+                    "--service",
+                    service,
+                    "--environment",
+                    environment,
                     "--deployment",
                     "--lines",
                     "5000",
