@@ -8,12 +8,15 @@ Do not add substantive reasoning to this file. If an entry needs more than two s
 
 | Date | Summary | ADR |
 |---|---|---|
-| _pending_ | Providers are not assumed to agree; Canonical Facts are reconciled from potentially conflicting Observations using provider priority, confidence, and provenance. | ADR pending |
-| _pending_ | Guardrails are platform-owned and shared across all Strategies; Strategies do not implement independent risk logic. | ADR pending |
-| _pending_ | Strategy evaluation, and everything feeding it, is deterministic; language models are confined to the Presentation Layer. | ADR pending |
-| _pending_ | Observation and Canonical Fact are established as distinct, non-interchangeable architectural concepts. | ADR pending |
+| 2026-07-20 | Indicator values are versioned and immutable, mirroring the Canonical Fact model, closing a reproducibility gap between Facts and Strategies. | ADR-006 |
+| 2026-07-20 | Guardrails are defined as deterministic, versioned, single-Opportunity eligibility rules with no independent Confidence; cross-Opportunity guardrails are explicitly out of scope pending a future ADR. | ADR-005 |
+| 2026-07-20 | `presentation/`'s allowed dependencies are narrowed to `ranking/` and `domain/` only, correcting a contradiction with the Presentation Layer's evidence-only constraint. | ADR-004 (revised) |
+| _pending_ | Providers are not assumed to agree; Canonical Facts are reconciled from potentially conflicting Observations using provider priority, confidence, and provenance. | ADR-001 |
+| _pending_ | Guardrails are platform-owned and shared across all Strategies; Strategies do not implement independent risk logic. | ADR-005 |
+| _pending_ | Strategy evaluation, and everything feeding it, is deterministic; language models are confined to the Presentation Layer. | ADR-004 |
+| _pending_ | Observation and Canonical Fact are established as distinct, non-interchangeable architectural concepts. | ADR-001 |
 
 ## Open Questions / Requires ADR
 
-- The entries above summarize architectural decisions already reflected in `ARCHITECTURE_VISION.md` and `CONSTITUTION.md`, but none currently has a corresponding formal ADR on record. Each should be backed by an ADR documenting context and alternatives before this log is treated as complete; until then, the "ADR pending" entries are placeholders, not finished index entries.
+- ADR-001, ADR-002, ADR-003, ADR-004, ADR-005, and ADR-006 now cover the Observation/Canonical Fact model, Provider contract, Opportunity model, repository organization, Guardrail model, and Indicator versioning respectively. The Ranking Layer and the cross-Opportunity (portfolio-level) Guardrail question remain without a corresponding ADR — see ADR-004's and ADR-005's own Open Questions sections.
 - No ADR numbering or storage convention has been formally adopted (see `README.md`'s Open Questions). This log assumes ADRs will be referenced by filename or number once that convention exists.
