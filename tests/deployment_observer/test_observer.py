@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -209,12 +210,12 @@ def test_uses_only_required_read_only_railway_commands(tmp_path: Path) -> None:
     ]
 
 
-def test_explicit_id_performs_no_deployment_list_call(tmp_path: Path) -> None:
+def test_explicit_id_is_refreshed_before_log_collection(tmp_path: Path) -> None:
     calls: list[list[str]] = []
 
     def runner(args: list[str]) -> str:
         calls.append(args)
-        return ""
+        return json.dumps([deployment("e9030deb-31ac-4f13-83e3-a236989afb65")]) if args[:2] == ["deployment", "list"] else ""
 
     collect(
         output_dir=tmp_path / "artifacts",
@@ -226,6 +227,7 @@ def test_explicit_id_performs_no_deployment_list_call(tmp_path: Path) -> None:
         runner=runner,
     )
     assert calls == [
+        ["deployment", "list", "--service", "ASA", "--environment", "production", "--json"],
         [
             "logs",
             "e9030deb-31ac-4f13-83e3-a236989afb65",
@@ -253,12 +255,16 @@ def test_explicit_id_performs_no_deployment_list_call(tmp_path: Path) -> None:
     ]
 
 
-def test_deployment_list_is_used_only_as_fallback(tmp_path: Path) -> None:
+def test_deployment_list_resolves_fallback_and_refreshes_known_status(tmp_path: Path) -> None:
     calls: list[list[str]] = []
 
     def runner(args: list[str]) -> str:
         calls.append(args)
-        return json.dumps([deployment()]) if args[:2] == ["deployment", "list"] else ""
+        return (
+            json.dumps([deployment(), deployment("known-id")])
+            if args[:2] == ["deployment", "list"]
+            else ""
+        )
 
     collect(
         output_dir=tmp_path / "fallback",
@@ -281,7 +287,7 @@ def test_deployment_list_is_used_only_as_fallback(tmp_path: Path) -> None:
         include_runtime_logs=False,
         runner=runner,
     )
-    assert all(call[:2] != ["deployment", "list"] for call in calls)
+    assert calls[0][:2] == ["deployment", "list"]
 
 
 def test_log_commands_use_explicit_noninteractive_read_only_context(tmp_path: Path) -> None:
@@ -289,7 +295,7 @@ def test_log_commands_use_explicit_noninteractive_read_only_context(tmp_path: Pa
 
     def runner(args: list[str]) -> str:
         calls.append(args)
-        return ""
+        return json.dumps([deployment("deployment-id")]) if args[:2] == ["deployment", "list"] else ""
 
     collect(
         output_dir=tmp_path / "artifacts",
@@ -300,8 +306,9 @@ def test_log_commands_use_explicit_noninteractive_read_only_context(tmp_path: Pa
         include_runtime_logs=True,
         runner=runner,
     )
-    assert len(calls) == 2
-    for command in calls:
+    log_calls = [command for command in calls if command[0] == "logs"]
+    assert len(log_calls) == 2
+    for command in log_calls:
         assert command[0] == "logs"
         assert command[command.index("--service") + 1] == "ASA"
         assert command[command.index("--environment") + 1] == "production"
@@ -463,15 +470,12 @@ def test_called_process_error_produces_failure_json_and_nonzero_exit(
     assert data == {
         "command": [
             "railway",
-            "logs",
-            "e9030deb-31ac-4f13-83e3-a236989afb65",
+            "deployment",
+            "list",
             "--service",
             "ASA",
             "--environment",
             "production",
-            "--build",
-            "--lines",
-            "5000",
             "--json",
         ],
         "exit_code": 9,
@@ -509,6 +513,138 @@ def test_summary_remains_bounded() -> None:
     logs = [{"message": f"error {index}"} for index in range(200)]
     cluster, _, _ = first_error_cluster(logs, [])
     assert len(cluster) == MAX_SUMMARY_LINES
+
+
+class FakeClock:
+    def __init__(self) -> None:
+        self.value = 0.0
+
+    def monotonic(self) -> float:
+        return self.value
+
+    def sleep(self, seconds: float) -> None:
+        self.value += seconds
+
+
+def status_runner(
+    statuses: list[str], calls: list[list[str]]
+) -> Callable[[list[str]], str]:
+    remaining = iter(statuses)
+
+    def run(args: list[str]) -> str:
+        calls.append(args)
+        if args[:2] == ["deployment", "list"]:
+            item = deployment("polled-id")
+            item["status"] = next(remaining)
+            return json.dumps([item])
+        if "--build" in args:
+            return '{"level":"info","message":"build complete"}\n'
+        return '{"level":"info","message":"server healthy"}\n'
+
+    return run
+
+
+@pytest.mark.parametrize("terminal_status", ["SUCCESS", "FAILED"])
+def test_non_terminal_deployment_is_polled_before_final_collection(
+    tmp_path: Path,
+    terminal_status: str,
+) -> None:
+    calls: list[list[str]] = []
+    clock = FakeClock()
+
+    _, manifest, _ = collect(
+        output_dir=tmp_path / terminal_status.lower(),
+        service="ASA",
+        environment="production",
+        explicit_id="polled-id",
+        event={},
+        include_runtime_logs=True,
+        runner=status_runner(["BUILDING", terminal_status], calls),
+        monotonic=clock.monotonic,
+        sleeper=clock.sleep,
+    )
+
+    assert manifest["deployment_status"] == terminal_status
+    assert manifest["collection_status"] == "complete"
+    assert [call[0] for call in calls] == ["deployment", "deployment", "logs", "logs"]
+
+
+@pytest.mark.parametrize("observed_status", ["BUILDING", "UNRECOGNIZED"])
+def test_non_terminal_or_unknown_status_times_out_with_bounded_artifacts(
+    tmp_path: Path,
+    observed_status: str,
+) -> None:
+    output = tmp_path / observed_status.lower()
+    calls: list[list[str]] = []
+    clock = FakeClock()
+
+    _, manifest, summary = collect(
+        output_dir=output,
+        service="ASA",
+        environment="production",
+        explicit_id="polled-id",
+        event={},
+        include_runtime_logs=True,
+        runner=status_runner([observed_status] * 3, calls),
+        monotonic=clock.monotonic,
+        sleeper=clock.sleep,
+        poll_interval_seconds=10,
+        maximum_wait_seconds=20,
+    )
+
+    assert manifest["collection_status"] == "incomplete"
+    assert manifest["deployment_status"] == observed_status
+    assert manifest["classification"] == "observer-timeout"
+    assert {path.name for path in output.iterdir()} == {"manifest.json", "summary.md", "failure.json"}
+    failure = json.loads((output / "failure.json").read_text())
+    assert failure == {
+        "deployment_id": "polled-id",
+        "last_observed_status": observed_status,
+        "elapsed_seconds": 20.0,
+        "polling_attempt_count": 2,
+    }
+    assert "observer-timeout" in summary
+    assert all(call[:2] == ["deployment", "list"] for call in calls)
+
+
+def test_alembic_info_on_error_stream_is_not_a_migration_failure() -> None:
+    logs = [
+        {
+            "level": "error",
+            "message": "INFO [alembic.runtime.migration] Context impl PostgresqlImpl.",
+        },
+        {
+            "level": "error",
+            "message": "INFO [alembic.runtime.migration] Will assume transactional DDL.",
+        },
+    ]
+
+    assert first_error_cluster([], logs) == ([], "unknown", "unknown")
+
+
+def test_alembic_info_before_healthcheck_failure_does_not_mask_classification() -> None:
+    logs = [
+        {
+            "level": "error",
+            "message": "INFO [alembic.runtime.migration] Context impl PostgresqlImpl.",
+        },
+        {"level": "error", "message": "Healthcheck failed"},
+    ]
+
+    _, classification, phase = first_error_cluster([], logs)
+    assert (classification, phase) == ("healthcheck", "healthcheck")
+
+
+def test_real_alembic_exception_is_classified_as_migration_failure() -> None:
+    logs = [
+        {
+            "level": "error",
+            "message": "Traceback: Alembic upgrade failed with RuntimeError",
+        }
+    ]
+
+    _, classification, phase = first_error_cluster([], logs)
+    assert (classification, phase) == ("migration", "pre-deploy")
 
 
 @pytest.mark.parametrize(

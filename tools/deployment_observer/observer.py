@@ -6,6 +6,7 @@ import json
 import os
 import re
 import subprocess
+import time
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -18,6 +19,9 @@ MAX_LOG_LINES = 5_000
 MAX_SUMMARY_LINES = 80
 MAX_FAILURE_LINES = 100
 MAX_FAILURE_BYTES = 16 * 1024
+POLL_INTERVAL_SECONDS = 10.0
+MAX_POLL_SECONDS = 600.0
+TERMINAL_DEPLOYMENT_STATES = frozenset({"SUCCESS", "FAILED", "CRASHED", "REMOVED", "CANCELLED"})
 PROHIBITED_MANIFEST_FIELDS = {
     "railway_token",
     "environment_variables",
@@ -62,6 +66,14 @@ class CommandFailure(Exception):
     exit_code: int
     stdout: str
     stderr: str
+
+
+@dataclass(frozen=True)
+class PollingResult:
+    deployment: Deployment
+    terminal: bool
+    elapsed_seconds: float
+    attempt_count: int
 
 
 def redact_text(value: str) -> tuple[str, int]:
@@ -238,13 +250,19 @@ CLASSIFICATION_RULES = (
     ("validationerror", "configuration", "pre-deploy"),
     ("could not parse sqlalchemy url", "configuration", "pre-deploy"),
     ("connection refused", "database_connectivity", "startup"),
-    ("alembic", "migration", "pre-deploy"),
     ("healthcheck", "healthcheck", "healthcheck"),
+)
+
+AFFIRMATIVE_FAILURE = re.compile(
+    r"(?i)traceback|exception|fatal|failed|failure|error|non[- ]?zero|exit(?:ed)?\s+(?:code|status)\s*[1-9]"
 )
 
 
 def classify(lines: Iterable[dict[str, Any]], source: str) -> tuple[str, str]:
-    text = "\n".join(json.dumps(line, sort_keys=True).lower() for line in lines)
+    messages = [str(line.get("message", "")).lower() for line in lines]
+    text = "\n".join(messages)
+    if any("alembic" in message and AFFIRMATIVE_FAILURE.search(message) for message in messages):
+        return "migration", "pre-deploy"
     for needle, classification, phase in CLASSIFICATION_RULES:
         if needle in text:
             return classification, phase
@@ -260,7 +278,11 @@ def first_error_cluster(
     for source, records in (("build", build_logs), ("runtime", runtime_logs)):
         rendered = [json.dumps(record, sort_keys=True, ensure_ascii=False) for record in records]
         marker = next(
-            (i for i, line in enumerate(rendered) if re.search(r"(?i)error|fatal|failed|exception", line)),
+            (
+                index
+                for index, record in enumerate(records)
+                if AFFIRMATIVE_FAILURE.search(str(record.get("message", "")))
+            ),
             None,
         )
         if marker is not None:
@@ -324,7 +346,117 @@ def railway_command(args: list[str]) -> str:
             stdout=_bounded_output(error.stdout or ""),
             stderr=_bounded_output(error.stderr or ""),
         ) from None
+    except subprocess.TimeoutExpired as error:
+        stdout = error.stdout.decode(errors="ignore") if isinstance(error.stdout, bytes) else error.stdout
+        stderr = error.stderr.decode(errors="ignore") if isinstance(error.stderr, bytes) else error.stderr
+        raise CommandFailure(
+            command=[_redact_failure_text(part) for part in ["railway", *args]],
+            exit_code=124,
+            stdout=_bounded_output(stdout or ""),
+            stderr=_bounded_output(stderr or ""),
+        ) from None
     return completed.stdout
+
+
+def _deployment_list_command(service: str, environment: str) -> list[str]:
+    return [
+        "deployment",
+        "list",
+        "--service",
+        service,
+        "--environment",
+        environment,
+        "--json",
+    ]
+
+
+def wait_for_terminal_deployment(
+    deployment: Deployment,
+    *,
+    service: str,
+    environment: str,
+    runner: Callable[[list[str]], str],
+    initial_status_was_queried: bool,
+    monotonic: Callable[[], float] = time.monotonic,
+    sleeper: Callable[[float], None] = time.sleep,
+    interval_seconds: float = POLL_INTERVAL_SECONDS,
+    maximum_wait_seconds: float = MAX_POLL_SECONDS,
+) -> PollingResult:
+    """Poll read-only deployment state until terminal or the monotonic deadline."""
+    started_at = monotonic()
+    current = deployment
+    attempt_count = 0
+    needs_query = not initial_status_was_queried or current.status.upper() not in TERMINAL_DEPLOYMENT_STATES
+    while needs_query:
+        elapsed = max(0.0, monotonic() - started_at)
+        if attempt_count and elapsed >= maximum_wait_seconds:
+            return PollingResult(current, False, elapsed, attempt_count)
+        records = parse_json_records(runner(_deployment_list_command(service, environment)))
+        observed = resolve_deployment(current.deployment_id, {}, records, service, environment)
+        current = Deployment(
+            deployment_id=current.deployment_id,
+            status=observed.status,
+            created_at=observed.created_at or current.created_at,
+            service=observed.service or current.service,
+            environment=observed.environment or current.environment,
+            source_commit_sha=observed.source_commit_sha or current.source_commit_sha,
+        )
+        attempt_count += 1
+        elapsed = max(0.0, monotonic() - started_at)
+        if current.status.upper() in TERMINAL_DEPLOYMENT_STATES:
+            return PollingResult(current, True, elapsed, attempt_count)
+        if elapsed >= maximum_wait_seconds:
+            return PollingResult(current, False, elapsed, attempt_count)
+        sleeper(min(interval_seconds, maximum_wait_seconds - elapsed))
+        needs_query = True
+    return PollingResult(current, True, max(0.0, monotonic() - started_at), attempt_count)
+
+
+def _write_timeout_artifacts(
+    output_dir: Path,
+    deployment: Deployment,
+    *,
+    elapsed_seconds: float,
+    attempt_count: int,
+    now: Callable[[], datetime],
+) -> tuple[dict[str, Any], str]:
+    elapsed = round(elapsed_seconds, 3)
+    manifest: dict[str, Any] = {
+        "version": 1,
+        "collected_at": now().isoformat(),
+        "deployment_id": deployment.deployment_id,
+        "service": deployment.service,
+        "environment": deployment.environment,
+        "deployment_status": deployment.status,
+        "collection_status": "incomplete",
+        "classification": "observer-timeout",
+        "source_commit_sha": deployment.source_commit_sha,
+        "build_log_line_count": 0,
+        "runtime_log_line_count": 0,
+        "redaction_count": 0,
+    }
+    validate_manifest(manifest)
+    failure = {
+        "deployment_id": deployment.deployment_id,
+        "last_observed_status": deployment.status,
+        "elapsed_seconds": elapsed,
+        "polling_attempt_count": attempt_count,
+    }
+    summary = (
+        "## Railway deployment observer\n\n"
+        "Collection stopped at the bounded polling deadline.\n\n"
+        f"- Deployment ID: `{deployment.deployment_id}`\n"
+        f"- Last observed status: `{deployment.status}`\n"
+        "- Classification: `observer-timeout`\n"
+        f"- Elapsed seconds: `{elapsed}`\n"
+        f"- Polling attempts: `{attempt_count}`\n"
+        "- Sanitized diagnostics: `failure.json`\n"
+    )
+    output_dir.mkdir(parents=True, exist_ok=True)
+    (output_dir / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
+    (output_dir / "summary.md").write_text(summary)
+    (output_dir / "failure.json").write_text(json.dumps(failure, indent=2) + "\n")
+    return manifest, summary
 
 
 def collect(
@@ -337,25 +469,38 @@ def collect(
     include_runtime_logs: bool,
     runner: Callable[[list[str]], str] = railway_command,
     now: Callable[[], datetime] = lambda: datetime.now(UTC),
+    monotonic: Callable[[], float] = time.monotonic,
+    sleeper: Callable[[float], None] = time.sleep,
+    poll_interval_seconds: float = POLL_INTERVAL_SECONDS,
+    maximum_wait_seconds: float = MAX_POLL_SECONDS,
 ) -> tuple[Deployment, dict[str, Any], str]:
     """Collect all content in memory, redact it, then atomically expose safe files."""
     known_id = resolve_known_deployment_id(explicit_id, event)
     deployments: list[dict[str, Any]] = []
     if known_id is None:
-        deployments = parse_json_records(
-            runner(
-                [
-                    "deployment",
-                    "list",
-                    "--service",
-                    service,
-                    "--environment",
-                    environment,
-                    "--json",
-                ]
-            )
-        )
+        deployments = parse_json_records(runner(_deployment_list_command(service, environment)))
     deployment = resolve_deployment(known_id, event, deployments, service, environment)
+    polling = wait_for_terminal_deployment(
+        deployment,
+        service=service,
+        environment=environment,
+        runner=runner,
+        initial_status_was_queried=known_id is None,
+        monotonic=monotonic,
+        sleeper=sleeper,
+        interval_seconds=poll_interval_seconds,
+        maximum_wait_seconds=maximum_wait_seconds,
+    )
+    deployment = polling.deployment
+    if not polling.terminal:
+        timeout_manifest, summary = _write_timeout_artifacts(
+            output_dir,
+            deployment,
+            elapsed_seconds=polling.elapsed_seconds,
+            attempt_count=polling.attempt_count,
+            now=now,
+        )
+        return deployment, timeout_manifest, summary
     build_raw = parse_json_records(
         runner(
             [
