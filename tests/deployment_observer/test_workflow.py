@@ -1,6 +1,8 @@
 from pathlib import Path
+from typing import Any, cast
 
-import yaml
+import pytest
+import yaml  # type: ignore[import-untyped]
 
 WORKFLOW_PATH = Path(".github/workflows/railway-deployment-observer.yml")
 FORBIDDEN_MUTATIONS = (
@@ -15,8 +17,10 @@ FORBIDDEN_MUTATIONS = (
 )
 
 
-def workflow() -> dict[object, object]:
-    return yaml.safe_load(WORKFLOW_PATH.read_text())
+def workflow() -> dict[str, Any]:
+    parsed: object = yaml.safe_load(WORKFLOW_PATH.read_text())
+    assert isinstance(parsed, dict)
+    return cast(dict[str, Any], parsed)
 
 
 def test_workflow_has_contents_read_only() -> None:
@@ -44,14 +48,32 @@ def test_workflow_uploads_only_observer_artifact_directory() -> None:
     steps = workflow()["jobs"]["observe"]["steps"]
     uploads = [step for step in steps if step.get("uses", "").startswith("actions/upload-artifact@")]
     assert len(uploads) == 1
+    assert uploads[0]["if"] == "always()"
     assert uploads[0]["with"]["path"] == ".artifacts/railway-deployment"
 
 
-def test_workflow_is_production_only_and_cli_is_pinned() -> None:
+def test_workflow_cli_context_is_explicit_and_pinned() -> None:
     text = WORKFLOW_PATH.read_text()
-    assert "github.event.deployment.environment == 'production'" in text
     assert "@railway/cli@5.27.0" in text
     assert "RAILWAY_ENVIRONMENT: production" in text
+
+
+@pytest.mark.parametrize(
+    ("event_name", "deployment_environment"),
+    [
+        ("workflow_dispatch", None),
+        ("deployment_status", "production"),
+        ("deployment_status", "Production"),
+        ("deployment_status", None),
+    ],
+)
+def test_observe_job_has_no_external_metadata_gate(
+    event_name: str,
+    deployment_environment: str | None,
+) -> None:
+    assert event_name in {"workflow_dispatch", "deployment_status"}
+    assert deployment_environment in {None, "production", "Production"}
+    assert "if" not in workflow()["jobs"]["observe"]
 
 
 def test_workflow_has_required_triggers_and_manual_inputs() -> None:
@@ -61,3 +83,9 @@ def test_workflow_has_required_triggers_and_manual_inputs() -> None:
     assert "      deployment_id:" in text
     assert "      include_runtime_logs:" in text
     assert "        default: true" in text
+
+
+def test_workflow_does_not_serialize_complete_event_payload() -> None:
+    text = WORKFLOW_PATH.read_text().lower()
+    assert "tojson(github.event)" not in text
+    assert "tojson(github)" not in text
