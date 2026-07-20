@@ -1,0 +1,55 @@
+name: Railway Deployment Observer
+
+on:
+  deployment_status:
+  workflow_dispatch:
+    inputs:
+      deployment_id:
+        required: false
+        type: string
+      include_runtime_logs:
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: railway-observer-${{ github.event.deployment.id || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  observe:
+    if: github.event_name == 'workflow_dispatch' || github.event.deployment.environment == 'production'
+    runs-on: ubuntu-latest
+    env:
+      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+      RAILWAY_SERVICE: ASA
+      RAILWAY_ENVIRONMENT: production
+      INPUT_DEPLOYMENT_ID: ${{ inputs.deployment_id }}
+      INPUT_INCLUDE_RUNTIME_LOGS: ${{ inputs.include_runtime_logs }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Railway CLI 5.27.0
+        run: npm install --global @railway/cli@5.27.0
+
+      - name: Collect redacted deployment snapshot
+        id: collect
+        run: python tools/deployment_observer/collect.py
+
+      - name: Upload bounded diagnostic snapshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: railway-deployment-${{ steps.collect.outputs.deployment_id || github.run_id }}
+          path: .artifacts/railway-deployment
+          retention-days: 14
+          if-no-files-found: error
