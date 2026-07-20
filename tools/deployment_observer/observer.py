@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import subprocess
 from collections.abc import Callable, Iterable, Mapping
@@ -10,10 +11,13 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+from urllib.parse import parse_qs, urlparse
 
 REDACTED = "[REDACTED]"
 MAX_LOG_LINES = 5_000
 MAX_SUMMARY_LINES = 80
+MAX_FAILURE_LINES = 100
+MAX_FAILURE_BYTES = 16 * 1024
 PROHIBITED_MANIFEST_FIELDS = {
     "railway_token",
     "environment_variables",
@@ -27,7 +31,7 @@ _PATTERNS = (
     re.compile(r"(?i)(\bAuthorization\s*[:=]\s*Bearer\s+)([^\s,;]+)"),
     re.compile(
         r"(?i)(\b(?:access[_-]?token|refresh[_-]?token|session(?:[_-]?(?:cookie|token))?|"
-        r"password|pgpassword|database_url|robinhood[_-]?(?:username|password|totp|cookie|"
+        r"password|pgpassword|database_url|railway_token|robinhood[_-]?(?:username|password|totp|cookie|"
         r"cookies|token|access_token|refresh_token))\b\s*[:=]\s*)([^\s,;]+|\"[^\"]*\"|'[^']*')"
     ),
     re.compile(r"(?i)(\b(?:Cookie|Set-Cookie)\s*:\s*)([^\r\n]+)"),
@@ -48,6 +52,16 @@ class Deployment:
     service: str
     environment: str
     source_commit_sha: str
+
+
+@dataclass(frozen=True)
+class CommandFailure(Exception):
+    """A bounded, already-redacted Railway CLI failure."""
+
+    category: str
+    exit_code: int
+    stdout: str
+    stderr: str
 
 
 def redact_text(value: str) -> tuple[str, int]:
@@ -146,6 +160,34 @@ def _payload_deployment_id(event: Mapping[str, Any]) -> str | None:
     return None
 
 
+def _target_url_deployment_id(event: Mapping[str, Any]) -> str | None:
+    status = event.get("deployment_status")
+    if not isinstance(status, Mapping):
+        return None
+    target_url = status.get("target_url")
+    if not isinstance(target_url, str):
+        return None
+    parsed = urlparse(target_url)
+    hostname = (parsed.hostname or "").lower()
+    if hostname not in {"railway.app", "railway.com"} and not hostname.endswith(
+        (".railway.app", ".railway.com")
+    ):
+        return None
+    candidate = parse_qs(parsed.query).get("id", [""])[0]
+    if re.fullmatch(r"[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}", candidate):
+        return candidate
+    return None
+
+
+def resolve_known_deployment_id(
+    explicit_id: str | None, event: Mapping[str, Any]
+) -> str | None:
+    """Resolve an ID without contacting Railway."""
+    return (explicit_id or "").strip() or _payload_deployment_id(event) or _target_url_deployment_id(
+        event
+    )
+
+
 def resolve_deployment(
     explicit_id: str | None,
     event: Mapping[str, Any],
@@ -153,14 +195,23 @@ def resolve_deployment(
     service: str,
     environment: str,
 ) -> Deployment:
-    """Resolve explicit, payload-derived, then latest Railway deployment."""
-    wanted = (explicit_id or "").strip() or _payload_deployment_id(event)
+    """Resolve explicit, payload-derived, target-URL, then latest deployment."""
+    wanted = resolve_known_deployment_id(explicit_id, event)
     record: dict[str, Any] | None = None
     if wanted:
         record = next(
             (item for item in deployments if _first(item, "id", "deploymentId") == wanted), None
         )
-        record = record or {"id": wanted}
+        status = event.get("deployment_status")
+        status_record = status if isinstance(status, Mapping) else {}
+        github_deployment = event.get("deployment")
+        github_record = github_deployment if isinstance(github_deployment, Mapping) else {}
+        record = record or {
+            "id": wanted,
+            "status": status_record.get("state", "unknown"),
+            "createdAt": status_record.get("created_at", ""),
+            "commitHash": github_record.get("sha", ""),
+        }
     elif deployments:
         record = max(
             deployments,
@@ -239,10 +290,55 @@ def validate_manifest(manifest: Mapping[str, Any]) -> None:
         raise ValueError("Manifest contains a prohibited field")
 
 
+def _command_category(args: list[str]) -> str:
+    if args[:2] == ["deployment", "list"]:
+        return "deployment-list"
+    if "--build" in args:
+        return "build-logs"
+    if "--deployment" in args:
+        return "runtime-logs"
+    return "railway-read"
+
+
+def _redact_secret(value: str) -> str:
+    token = os.environ.get("RAILWAY_TOKEN", "")
+    without_token = value.replace(token, REDACTED) if token else value
+    return redact_text(without_token)[0]
+
+
+def _bounded_outputs(stderr: str, stdout: str) -> tuple[str, str]:
+    """Bound combined captured output to 100 lines and 16 KiB, prioritizing stderr."""
+    remaining_lines = MAX_FAILURE_LINES
+    remaining_bytes = MAX_FAILURE_BYTES
+
+    def take(value: str) -> str:
+        nonlocal remaining_lines, remaining_bytes
+        lines = value.splitlines()[:remaining_lines]
+        candidate = "\n".join(lines)
+        encoded = candidate.encode()[:remaining_bytes]
+        bounded = encoded.decode(errors="ignore")
+        remaining_lines -= len(bounded.splitlines())
+        remaining_bytes -= len(bounded.encode())
+        return bounded
+
+    safe_stderr = take(_redact_secret(stderr))
+    safe_stdout = take(_redact_secret(stdout))
+    return safe_stderr, safe_stdout
+
+
 def railway_command(args: list[str]) -> str:
-    completed = subprocess.run(
-        ["railway", *args], check=True, capture_output=True, text=True, timeout=120
-    )
+    try:
+        completed = subprocess.run(
+            ["railway", *args], check=True, capture_output=True, text=True, timeout=120
+        )
+    except subprocess.CalledProcessError as error:
+        stderr, stdout = _bounded_outputs(error.stderr or "", error.stdout or "")
+        raise CommandFailure(
+            category=_command_category(args),
+            exit_code=error.returncode,
+            stdout=stdout,
+            stderr=stderr,
+        ) from None
     return completed.stdout
 
 
@@ -258,10 +354,23 @@ def collect(
     now: Callable[[], datetime] = lambda: datetime.now(UTC),
 ) -> tuple[Deployment, dict[str, Any], str]:
     """Collect all content in memory, redact it, then atomically expose safe files."""
-    deployments = parse_json_records(
-        runner(["deployment", "list", "--service", service, "--environment", environment, "--json"])
-    )
-    deployment = resolve_deployment(explicit_id, event, deployments, service, environment)
+    known_id = resolve_known_deployment_id(explicit_id, event)
+    deployments: list[dict[str, Any]] = []
+    if known_id is None:
+        deployments = parse_json_records(
+            runner(
+                [
+                    "deployment",
+                    "list",
+                    "--service",
+                    service,
+                    "--environment",
+                    environment,
+                    "--json",
+                ]
+            )
+        )
+    deployment = resolve_deployment(known_id, event, deployments, service, environment)
     build_raw = parse_json_records(
         runner(["logs", deployment.deployment_id, "--build", "--lines", "5000", "--json"])
     )[:MAX_LOG_LINES]
