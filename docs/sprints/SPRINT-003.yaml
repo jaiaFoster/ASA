@@ -1,0 +1,227 @@
+---
+id: SPRINT-003
+name: Strategy Library Extraction
+codename: Legacy Stonk Migration
+version: 1.0
+status: PENDING_FOUNDER_MERGE
+type: IMPLEMENTATION_SPRINT
+
+activation:
+  id: AMD-013-SPRINT-003
+  governance_amendment: GOV-AMD-001-013
+  founder_authorized: true
+  founder_direction: SPRINT-003 Strategy Library Extraction directive
+  effective_when: this sprint definition is Founder-merged to the default branch
+  delegate:
+    role: ROLE-WORKER
+    instance: /root
+  limited_to_sprint: SPRINT-003
+  approved_tickets:
+    - STONK-001
+    - STONK-002
+    - STONK-003
+    - STONK-004
+    - STONK-005
+    - STONK-006
+    - STONK-007
+  excludes:
+    - architecture_changes
+    - governance_changes
+    - constitutional_changes
+    - domain_contract_redefinition
+    - deployment
+    - live_trading
+    - broker_or_provider_integration
+    - persistence
+    - breaking_public_contracts
+    - scope_expansion
+  expires:
+    - sprint_complete
+    - sprint_stopped
+    - Founder_revokes_delegation
+
+objective: >
+  Extract legacy Stonk strategy intelligence into reusable ASA Components,
+  static Plugins, and canonical Strategy Manifests. Do not reproduce the
+  legacy application topology. Preserve only explicitly identified
+  compatibility interfaces after behavioral equivalence is proven.
+
+prerequisites:
+  architecture:
+    - architecture/ASA-ARCH-003-Strategy-Composition.md
+    - architecture/ASA-ARCH-004-Expression-Language.md
+  completed_sprint:
+    - SPRINT-002
+  legacy_source:
+    repository: jaiaFoster/Stonk
+    default_branch: main
+    acquisition: read_only_pinned_revision_for_inventory_and_equivalence
+
+architecture_invariants:
+  - manifest_is_the_canonical_strategy_definition
+  - graph_is_the_only_strategy_execution_source
+  - Core_owns_orchestration_validation_identity_trace_and_replay
+  - Components_own_bounded_financial_logic
+  - Plugins_extend_vocabulary_not_runtime_behavior
+  - no_strategy_specific_behavior_in_Core
+  - no_runtime_special_cases
+  - no_provider_broker_observation_persistence_or_infrastructure_leakage
+  - no_dynamic_plugin_loading
+  - deterministic_execution_and_replay_are_preserved
+  - legacy_behavior_is_evidence_not_architectural_authority
+
+execution:
+  mode: founder_authorized_autonomous_sprint
+  branch_strategy: feature_per_ticket
+  ticket_order:
+    - STONK-001
+    - STONK-002
+    - STONK-003
+    - STONK-004
+    - STONK-005
+    - STONK-006
+    - STONK-007
+  workflow:
+    - implement_one_approved_ticket
+    - run_all_required_validation
+    - perform_and_record_self_review
+    - open_pull_request
+    - verify_pull_request_contains_only_approved_ticket_scope
+    - verify_every_required_gate_is_present_and_green
+    - merge_under_GOV_AMD_001_013
+    - verify_default_branch_contains_merge_commit
+    - run_post_merge_validation
+    - begin_next_ticket
+
+authority:
+  ultimate: Founder
+  delegate:
+    role: ROLE-WORKER
+    instance: /root
+    may:
+      - inspect_the_pinned_public_legacy_repository_read_only
+      - implement_enumerated_sprint_tickets
+      - create_components_plugins_manifests_tests_and_documentation
+      - perform_bounded_contract_preserving_refactors
+      - create_and_update_pull_requests
+      - execute_validation_and_self_review
+      - create_non_blocking_GitHub_issues
+      - merge_enumerated_implementation_pull_requests_after_all_gates_pass
+      - verify_default_branch_and_continue_sequentially
+    may_not:
+      - self_merge_this_activation_record
+      - change_frozen_architecture_or_governance
+      - introduce_new_domain_contracts_or_pipeline_stages
+      - import_legacy_topology_into_ASA
+      - add_provider_broker_persistence_network_or_deployment_behavior
+      - bypass_branch_protection_or_required_checks
+      - merge_with_a_missing_skipped_or_failing_gate
+      - deploy
+
+tickets:
+  - id: STONK-001
+    title: Strategy Inventory
+    deliverables:
+      - complete_strategy_catalog
+      - feature_matrix
+      - duplicate_and_shared_component_analysis
+      - revision_pinned_migration_plan
+  - id: STONK-002
+    title: Shared Component Extraction
+    deliverables:
+      - reusable_component_implementations
+      - static_registration
+      - unit_and_architecture_tests
+  - id: STONK-003
+    title: Strategy Manifest Migration
+    deliverables:
+      - one_valid_canonical_manifest_per_inventoried_strategy
+      - no_handwritten_strategy_execution
+  - id: STONK-004
+    title: Behavioral Equivalence
+    deliverables:
+      - pinned_legacy_fixture_vectors
+      - candidate_ranking_and_portfolio_equivalence_evidence
+      - documented_intentional_differences
+  - id: STONK-005
+    title: Legacy Decommissioning
+    deliverables:
+      - removal_of_superseded_logic_within_authorized_repository_scope
+      - explicit_compatibility_interface_inventory
+      - no_dual_execution_path
+  - id: STONK-006
+    title: Strategy Library
+    deliverables:
+      - official_static_strategy_library
+      - strategy_catalog
+      - component_dependency_map
+      - manifest_examples
+  - id: STONK-007
+    title: Production Validation
+    deliverables:
+      - replay_determinism_explainability_isolation_and_performance_evidence
+      - complete_sprint_report_and_project_status_update
+
+validation:
+  required_before_every_delegated_merge:
+    - all_required_CI_checks_pass
+    - pytest_passes_with_no_sprint_test_skips
+    - mypy_passes
+    - ruff_passes
+    - architecture_and_dependency_validation_pass
+    - forbidden_import_and_circular_dependency_validation_pass
+    - deterministic_replay_and_identity_validation_pass
+    - immutable_contract_validation_pass
+    - legacy_equivalence_evidence_passes_when_applicable
+    - integrity_validation_passes
+    - git_diff_check_passes
+    - self_review_passes
+    - no_governance_violation
+    - no_unresolved_blocking_issue
+    - pull_request_contains_only_approved_ticket_scope
+  post_merge:
+    - verify_default_branch_contains_merge_commit
+    - rerun_ticket_validation_from_default_branch
+    - verify_worktree_clean
+
+stop_conditions:
+  - frozen_governance_change_required
+  - frozen_architecture_change_required
+  - missing_or_ambiguous_upstream_contract
+  - new_domain_contract_or_pipeline_stage_required
+  - breaking_public_contract_required
+  - sprint_scope_change_required
+  - deterministic_execution_or_replay_cannot_be_preserved
+  - behavioral_equivalence_cannot_be_defined_from_available_legacy_evidence
+  - multiple_materially_different_architectural_solutions
+  - validation_failure_cannot_be_resolved_within_ticket_scope
+  - Founder_revokes_delegation
+
+on_stop:
+  - do_not_merge
+  - open_GitHub_issue_with_evidence
+  - report_blocker
+  - return_merge_authority_to_Founder
+  - terminate_remaining_sprint
+
+completion:
+  report: project/reports/SPRINT-003.md
+  automatically:
+    - merge_remaining_eligible_implementation_pull_requests
+    - execute_full_validation
+    - update_sprint_and_project_status
+    - regenerate_CURRENT_STATE
+    - generate_sprint_report
+  founder_review_deliverables:
+    - strategy_inventory
+    - migration_summary
+    - component_growth_report
+    - strategy_library_catalog
+
+definition_of_done: >
+  SPRINT-003 is complete when every inventoried legacy strategy is represented
+  by a validated canonical ASA manifest, shared logic resides in registered
+  reusable Components, equivalence and deterministic replay evidence pass,
+  superseded execution logic has no active duplicate path within authorized
+  scope, all enumerated tickets are merged, and the final report requests
+  Founder verification.
