@@ -23,7 +23,7 @@ import hashlib
 from datetime import datetime
 
 from domain.values import DomainInvariantError, require_tz_aware
-from observation.canonicalization import _serialize, serialize_canonical
+from domain.canonicalization import _serialize, serialize_canonical
 
 IDENTITY_NAMESPACE = "asa.observation"
 IDENTITY_VERSION = "v1"

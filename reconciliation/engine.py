@@ -16,7 +16,7 @@ from domain.canonical_fact import CanonicalFact
 from domain.provenance import Provenance
 from domain.references import Confidence
 from domain.values import require_tz_aware
-from observation.canonicalization import canonicalize_value
+from domain.canonicalization import canonicalize_value
 from reconciliation.errors import InconsistentGroupError
 from reconciliation.rules import (
     require_single_group,
