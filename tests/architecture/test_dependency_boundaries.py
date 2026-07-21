@@ -57,6 +57,18 @@ def _allowed_imports(layer: str) -> set[str]:
         # Narrowed rule (ADR-004, ASA-CORE-006): strategies, indicators,
         # facts, reconciliation, domain only — not observation or providers.
         return {"guardrails", "strategies", "indicators", "facts", "reconciliation", "domain"}
+    if layer == "ranking":
+        # Narrowed rule (ADR-004, ASA-CORE-007): consume the Guardrail
+        # envelope, never raw Observations or Providers.
+        return {
+            "ranking",
+            "guardrails",
+            "strategies",
+            "indicators",
+            "facts",
+            "reconciliation",
+            "domain",
+        }
     idx = PIPELINE_ORDER.index(layer)
     return set(PIPELINE_ORDER[: idx + 1]) | {"domain"}
 

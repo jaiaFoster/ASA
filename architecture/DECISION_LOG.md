@@ -8,6 +8,7 @@ Do not add substantive reasoning to this file. If an entry needs more than two s
 
 | Date | Summary | ADR |
 |---|---|---|
+| 2026-07-21 | Ranking v1 deterministically orders eligible Opportunities using six versioned, provenance-preserving component scorers, explicit parameters, and stable tie-breakers; missing liquidity uses an explicit neutral placeholder rather than an invented proxy. | ADR-007 (ASA-CORE-007) |
 | 2026-07-21 | Guardrail evaluation is the pipeline envelope containing the immutable Opportunity, ordered Guardrail outcomes, and aggregate decision; Ranking never reconstructs Opportunity data from outcomes or persistence. | ADR-005 (amended, ASA-CORE-007) |
 | 2026-07-21 | `guardrails/`'s allowed dependencies narrowed to `strategies/`, `indicators/`, `facts/`, `reconciliation/`, `domain/` — not `observation/` or `providers/` — making ADR-005's existing "no raw Observation access" prose structurally enforceable. | ADR-004 (amended, ASA-CORE-006) |
 | 2026-07-21 | `strategies/`'s allowed dependencies narrowed to `indicators/`, `facts/`, `reconciliation/`, `domain/` — not `observation/` or `providers/` — making Constitution Law 4 ("consume knowledge, don't gather it") structurally enforceable for the Strategy Layer. | ADR-004 (amended, ASA-CORE-005) |
@@ -23,5 +24,7 @@ Do not add substantive reasoning to this file. If an entry needs more than two s
 
 ## Open Questions / Requires ADR
 
-- ADR-001, ADR-002, ADR-003, ADR-004, ADR-005, and ADR-006 now cover the Observation/Canonical Fact model, Provider contract, Opportunity model, repository organization, Guardrail model, and Indicator versioning respectively. The Ranking Layer and the cross-Opportunity (portfolio-level) Guardrail question remain without a corresponding ADR — see ADR-004's and ADR-005's own Open Questions sections.
+- ADR-001 through ADR-007 cover the Observation/Canonical Fact model, Provider contract,
+  Opportunity model, repository organization, Guardrail model, Indicator versioning, and
+  Ranking model. Cross-Opportunity (portfolio-level) Guardrails remain open; see ADR-005.
 - No ADR numbering or storage convention has been formally adopted (see `README.md`'s Open Questions). This log assumes ADRs will be referenced by filename or number once that convention exists.

@@ -42,6 +42,12 @@ Each module may depend on itself, on `domain/`, and on any module strictly below
 
 **`guardrails/` is narrowed identically, for the identical reason (ASA-CORE-006):** `guardrails/` may depend only on `guardrails/`, `strategies/`, `indicators/`, `facts/`, `reconciliation/`, and `domain/` — not `observation/` or `providers/`. ADR-005 already establishes this principle in prose ("A Guardrail may not read raw Observations directly, for the same reason a Strategy may not"); this narrowing is what makes it structurally enforceable rather than aspirational, exactly as the `indicators/` and `strategies/` narrowings did for their own layers. Any import-boundary tooling built against this ADR must enforce `guardrails/`'s narrower allowed-dependency set specifically, not the general rule.
 
+**`ranking/` is narrowed for the same knowledge-boundary reason (ASA-CORE-007):** `ranking/`
+may depend only on `ranking/`, `guardrails/`, `strategies/`, `indicators/`, `facts/`,
+`reconciliation/`, and `domain/` — not `observation/` or `providers/`. Ranking consumes the
+complete Guardrail evaluation envelope and never gathers or reconstructs inputs from lower raw
+data layers. Any import-boundary tooling must enforce this narrower set specifically.
+
 **Ownership:** each module's architectural boundary — what it is responsible for and what it may depend on — is treated here as an Architect-level engineering decision (see the assumption noted in Context above). Implementation within an already-defined module boundary is a routine engineering task and does not itself require a new ADR.
 
 ## Alternatives Considered
@@ -64,7 +70,8 @@ Each module may depend on itself, on `domain/`, and on any module strictly below
 - No convention is fixed here for what may or may not be added to `domain/` beyond the general principle above; if it grows large or unfocused, a follow-up decision may be needed to split it.
 - This ADR's Context notes that "repository organization is an Architect-level decision" as an unconfirmed assumption, not an established rule. No document reviewed so far defines who holds decision rights over architecture versus product versus process, or what triggers escalation from one to the other. This should be resolved by a proper governance document, not re-asserted piecemeal in future ADRs.
 - `guardrails/` and `indicators/` are given module boundaries here but no structural contract of their own — that is, this ADR says where Guardrail and Indicator code lives, not what a Guardrail or an Indicator structurally is, how either is versioned, or (for Guardrails) whether evaluation is strictly per-Opportunity or can consider a candidate set jointly (e.g., portfolio-level exposure limits comparing multiple Opportunities against each other). The strict one-way pipeline assumed here (`strategies → guardrails → ranking`) implicitly assumes per-Opportunity Guardrail evaluation only; cross-Opportunity Guardrails, if needed, would require a structural change to this pipeline and are not designed here. See ADR-005 and ADR-006, which address the Guardrail and Indicator contracts respectively; ADR-005 additionally flags the cross-Opportunity question explicitly rather than leaving it an unstated assumption.
-- `ranking/` similarly has a module boundary here but no contract defining how Opportunities produced by structurally different Strategies are placed on a single common order. That gap is not resolved by this ADR and has no corresponding ADR yet.
+- The Ranking contract originally left open here is resolved by ADR-007, which defines the
+  deterministic comparison model, provenance, identity, and stable ordering rules.
 
 ## Documentation Impact
 
