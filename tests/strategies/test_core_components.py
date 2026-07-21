@@ -18,6 +18,7 @@ from strategies.core_components import (
     Clamp,
     Compare,
     Constant,
+    ExpressionPredicate,
     Filter,
     Normalize,
     PortfolioConstraint,
@@ -26,7 +27,7 @@ from strategies.core_components import (
     WeightedScore,
 )
 from strategies.manifest import ComponentReference
-from strategies.type_system import ComponentValues, TypedValue
+from strategies.type_system import ComponentValues, StrategyTypeReference, TypedValue
 
 
 def cv(**items: tuple[object, object]) -> ComponentValues:
@@ -50,6 +51,7 @@ def test_every_required_component_is_registered_and_explainable():
         "rank",
         "portfolio_constraint",
         "position_proposal",
+        "expression_predicate",
     }
     assert {item.definition.name for item in CORE_COMPONENTS} == expected
     for name in expected:
@@ -120,6 +122,11 @@ def test_logical_filter_rank_and_portfolio_components():
     assert PositionProposal().evaluate(
         cv(target_allocation=(D, Decimal("0.1"))), ComponentValues(())
     ).get("target_allocation").value == Decimal("0.1")
+    result = ExpressionPredicate().evaluate(
+        cv(left=(D, Decimal("11")), right=(D, Decimal("10"))),
+        cv(expression=(StrategyTypeReference("Text", "1.0.0"), "left >= right")),
+    )
+    assert result.get("result").value is True
 
 
 @pytest.mark.parametrize("component", CORE_COMPONENTS)
