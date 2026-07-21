@@ -523,6 +523,29 @@ The review classified the amendment as R4 and approved its independent and struc
 
 ---
 
+# Amendment 014
+
+## Analytical Execution Boundary
+
+| Field | Value |
+|---|---|
+| `amendment_id` | 014 |
+| `status` | Accepted *(effective only when the canonical amendment and review record reach the default branch through Founder merge)* |
+| `proposer` | Founder |
+| `date` | 2026-07-21 |
+| `risk_class` | R5 — Constitutional |
+| `applies_to` | ASA Constitution, Law 5 |
+| `binding_scope` | Model A — accepted-on-entry (§0.1); complete text and review record in `GOV-AMD-014.md` |
+
+The canonical amendment replaces the absolute read-only wording with an analytical execution
+boundary. ASA Core may generate immutable Execution Plans and run deterministic simulation, but
+it cannot authenticate with, submit to, modify, cancel at, or otherwise mutate a live broker.
+Any future operational subsystem requires another constitutional amendment and explicit Founder
+authorization. See `governance/amendments/GOV-AMD-014.md` for the normative text, consequences,
+separate Independent/Structural/Constitutional Review records, acceptance criteria, and reversion.
+
+---
+
 ## 12. Open Questions
 
 - **OQ-12.1:** §0.5.1's numeric promotion threshold ("every ten `Accepted` amendments, or annually") is a placeholder pending Founder decision; no evidence in the reviewed corpus fixes this number, and it should be set deliberately rather than defaulted.

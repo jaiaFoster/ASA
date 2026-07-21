@@ -8,6 +8,7 @@ Do not add substantive reasoning to this file. If an entry needs more than two s
 
 | Date | Summary | ADR |
 |---|---|---|
+| 2026-07-21 | ASA Core may generate immutable analytical Execution Plans and simulate their lifecycle, but it cannot submit, modify, cancel, authenticate with, or otherwise mutate a live broker; any operational subsystem requires a future constitutional amendment and explicit Founder authorization. | GOV-AMD-014 / Constitution Law 5 |
 | 2026-07-21 | Opportunity owns canonical Instrument identity and Ranking preserves it unchanged; ProposedPosition is narrowed to desired allocation and contains no account, portfolio, quantity, price, provider, broker, or order fields. | ADR-003/ADR-009 amendments (Issue #63) |
 | 2026-07-21 | The analytical execution pipeline is RankingResult → ProposedPosition → PortfolioDecision → ExecutionPlan → BrokerRequest; external broker communication alone crosses Constitution Law 5, and no adapter is authorized. | ADR-009 (ASA-ARCH-002) |
 | 2026-07-21 | ExecutionContext explicitly supplies canonical account, current-position, unit-exposure, quantity-increment, and valuation evidence to the Execution Planner; PortfolioDecision remains analytical and account-neutral. | ADR-008/ADR-009 amendment (Issue #70) |
