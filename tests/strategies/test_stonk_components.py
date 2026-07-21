@@ -41,6 +41,7 @@ from strategies import (
     ExpirationPairProjection,
     ExpirationPairSelector,
     ForwardFactor,
+    ImpliedForwardVolatility,
     NearestCommonStrikeCalendar,
     OptionLegLiquidity,
     OptionStructureDebit,
@@ -163,7 +164,7 @@ def test_plugins_register_all_components_statically_and_deterministically() -> N
         for plugin in STONK_STRATEGY_PLUGINS
         for component in plugin.components
     }
-    assert len(expected) == 17
+    assert len(expected) == 18
     for namespace, name in expected:
         assert registry.resolve(ComponentReference(namespace, name, "1.0.0"))
     assert (
@@ -173,9 +174,9 @@ def test_plugins_register_all_components_statically_and_deterministically() -> N
     assert STONK_STRATEGY_PLUGINS[0].plugin_id == (
         "263fa946cd81ec3ed561a3a64ea80353730f831063466c6b4363ea510bc1fd17"
     )
-    assert STONK_STRATEGY_PLUGINS[1].metadata.version == "1.1.0"
+    assert STONK_STRATEGY_PLUGINS[1].metadata.version == "1.2.0"
     assert STONK_STRATEGY_PLUGINS[1].plugin_id == (
-        "759e74ebcaf66ad7909980b51c3b38cf1e29534c5b1dbe28fd6ff777e0f33acd"
+        "b0e9154404d087fa078327309ab81071028ee852ad9308be4d85a208f4a5860b"
     )
 
 
@@ -381,19 +382,32 @@ def test_dte_pair_projection_and_forward_factor_are_deterministic() -> None:
     assert projected.get("front_expiration").value == FRONT
     assert projected.get("back_expiration").value == BACK
 
+    implied = (
+        ImpliedForwardVolatility()
+        .evaluate(
+            values(
+                front_iv=(D, Decimal("0.48")),
+                back_iv=(D, Decimal("0.4548992562461861547567860943472296")),
+                front_dte=(INTEGER, 60),
+                back_dte=(INTEGER, 90),
+            ),
+            ComponentValues(()),
+        )
+        .get("implied_forward_iv")
+    )
     factor = (
         ForwardFactor()
         .evaluate(
             values(
-                front_ex_earnings_iv=(D, Decimal("0.30")),
-                implied_forward_iv=(D, Decimal("0.25")),
+                front_ex_earnings_iv=(D, Decimal("0.48")),
+                implied_forward_iv=(D, implied.value),
             ),
             ComponentValues(()),
         )
         .get("factor")
         .value
     )
-    assert factor == Decimal("0.2")
+    assert factor.quantize(Decimal("0.00000001")) == Decimal("0.20000000")
 
 
 def test_calendar_vertical_double_calendar_and_debit_are_replay_stable() -> None:

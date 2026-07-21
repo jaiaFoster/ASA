@@ -8,7 +8,7 @@ The source behaviors are pinned to Stonk revision
 |---|---:|---|
 | `asa.stonk.earnings_calendar` | `1.0.0` | confirmed event window, expiration pair, nearest common strike calendar, debit, bounded score and verdict |
 | `asa.stonk.skew_momentum_vertical` | `1.0.0` | delta-selected vertical, observed leg liquidity, debit, bounded score and verdict |
-| `asa.stonk.forward_factor_calendar` | `1.0.0` | DTE pair, source-qualified forward factor, put/call double calendar and verdict |
+| `asa.stonk.forward_factor_calendar` | `1.1.0` | DTE pair, implied forward volatility, source-qualified forward factor, put/call double calendar and verdict |
 | `asa.stonk.stock_momentum` | `1.0.0` | deterministic candidate cap, bounded momentum score and verdict |
 
 Every graph uses exact Component versions from `asa.stonk.shared`,
