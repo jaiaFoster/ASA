@@ -21,7 +21,7 @@ from guardrails.evaluations import (
     placeholder_metrics_rejection,
 )
 
-GuardrailCheckFn = Callable[[Opportunity, dict], "tuple[bool, str]"]
+GuardrailCheckFn = Callable[[Opportunity, dict[str, object]], "tuple[bool, str]"]
 
 
 @dataclass(frozen=True)
@@ -34,6 +34,7 @@ class GuardrailDefinition:
 
     guardrail_id: str
     guardrail_version: str
+    parameter_names: tuple[str, ...]
     check: GuardrailCheckFn
 
 
@@ -43,12 +44,20 @@ class GuardrailRegistry:
     def __init__(self) -> None:
         self._definitions: dict[str, GuardrailDefinition] = {}
 
-    def register(self, guardrail_id: str, guardrail_version: str,
-                 check: GuardrailCheckFn) -> None:
+    def register(
+        self,
+        guardrail_id: str,
+        guardrail_version: str,
+        check: GuardrailCheckFn,
+        parameter_names: tuple[str, ...] = (),
+    ) -> None:
         if guardrail_id in self._definitions:
             raise DuplicateGuardrailRegistrationError(guardrail_id)
         self._definitions[guardrail_id] = GuardrailDefinition(
-            guardrail_id=guardrail_id, guardrail_version=guardrail_version, check=check,
+            guardrail_id=guardrail_id,
+            guardrail_version=guardrail_version,
+            parameter_names=tuple(sorted(parameter_names)),
+            check=check,
         )
 
     def get(self, guardrail_id: str) -> GuardrailDefinition:
@@ -67,10 +76,22 @@ class GuardrailRegistry:
 def build_default_registry() -> GuardrailRegistry:
     """Registry pre-loaded with the five required guardrails (ASA-CORE-006)."""
     registry = GuardrailRegistry()
-    registry.register("minimum_evidence_confidence", "v1", minimum_evidence_confidence)
-    registry.register("maximum_capital_required", "v1", maximum_capital_required)
-    registry.register("maximum_loss", "v1", maximum_loss)
-    registry.register("allowed_time_horizon", "v1", allowed_time_horizon)
+    registry.register(
+        "minimum_evidence_confidence",
+        "v1",
+        minimum_evidence_confidence,
+        ("threshold",),
+    )
+    registry.register(
+        "maximum_capital_required", "v1", maximum_capital_required, ("threshold",)
+    )
+    registry.register("maximum_loss", "v1", maximum_loss, ("threshold",))
+    registry.register(
+        "allowed_time_horizon",
+        "v1",
+        allowed_time_horizon,
+        ("minimum_days", "maximum_days"),
+    )
     registry.register("placeholder_metrics_rejection", "v1", placeholder_metrics_rejection)
     return registry
 
