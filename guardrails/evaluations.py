@@ -17,6 +17,7 @@ import hashlib
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
+from enum import Enum
 
 from domain.canonicalization import serialize_canonical
 from domain.guardrail import GuardrailOutcome
@@ -30,23 +31,30 @@ GUARDRAIL_EVALUATION_IDENTITY_VERSION = "v2"
 EffectivePolicyParameters = tuple[tuple[str, tuple[tuple[str, str], ...]], ...]
 
 
-@dataclass(frozen=True)
+class GuardrailDecision(str, Enum):
+    """The aggregate eligibility decision for one immutable Opportunity."""
+
+    PASS = "pass"
+    FAIL = "fail"
+
+
+@dataclass(frozen=True, slots=True)
 class OpportunityGuardrailEvaluation:
     """The complete, ordered result of running every registered guardrail
     against one Opportunity — this ticket's "GuardrailEvaluation" output.
 
-    ``passed`` is ``True`` only if every individual outcome passed
-    (unanimous — a single failing guardrail blocks the Opportunity, per
-    ADR-005's "eligibility rule" framing). ``outcomes`` is ordered
-    deterministically by ``guardrail_id`` — never insertion or evaluation
-    order. ``effective_parameters`` preserves the canonical policy inputs
-    included in the v2 deterministic identity.
+    The envelope retains the exact immutable ``opportunity`` that was
+    evaluated; it never copies Opportunity fields into a parallel model.
+    ``overall_decision`` is ``PASS`` only if every individual outcome passed.
+    ``ordered_guardrail_outcomes`` is ordered by ``guardrail_id``, never
+    insertion or execution order. ``effective_parameters`` preserves the
+    canonical policy inputs included in the v2 deterministic identity.
     """
 
     evaluation_id: str
-    opportunity_id: str
-    outcomes: tuple[GuardrailOutcome, ...]
-    passed: bool
+    opportunity: Opportunity
+    ordered_guardrail_outcomes: tuple[GuardrailOutcome, ...]
+    overall_decision: GuardrailDecision
     evaluated_at: datetime
     effective_parameters: EffectivePolicyParameters
 

@@ -8,7 +8,7 @@ from domain.opportunity import Opportunity, RecommendationState
 from domain.outcome_metrics import ExpectedOutcomeMetrics
 from domain.references import Confidence, EvidenceKind, EvidenceReference
 from guardrails.engine import evaluate_guardrail, evaluate_opportunity
-from guardrails.evaluations import GUARDRAIL_EVALUATION_IDENTITY_VERSION
+from guardrails.evaluations import GUARDRAIL_EVALUATION_IDENTITY_VERSION, GuardrailDecision
 from guardrails.registry import DEFAULT_REGISTRY
 
 T0 = datetime(2026, 7, 21, 14, 0, tzinfo=timezone.utc)
@@ -56,9 +56,10 @@ def test_effective_policy_change_changes_identity_even_when_outcomes_match() -> 
     conservative = evaluate_opportunity(opportunity, _parameters("20"))
     permissive = evaluate_opportunity(opportunity, _parameters("50"))
 
-    assert conservative.passed and permissive.passed
-    assert tuple(outcome.passed for outcome in conservative.outcomes) == tuple(
-        outcome.passed for outcome in permissive.outcomes
+    assert conservative.overall_decision is GuardrailDecision.PASS
+    assert permissive.overall_decision is GuardrailDecision.PASS
+    assert tuple(outcome.passed for outcome in conservative.ordered_guardrail_outcomes) == tuple(
+        outcome.passed for outcome in permissive.ordered_guardrail_outcomes
     )
     assert conservative.evaluation_id != permissive.evaluation_id
     assert conservative.effective_parameters != permissive.effective_parameters

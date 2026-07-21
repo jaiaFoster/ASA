@@ -11,7 +11,7 @@ from domain.outcome_metrics import ExpectedOutcomeMetrics
 from domain.references import Confidence, EvidenceKind, EvidenceReference
 from guardrails.engine import evaluate_guardrail, evaluate_opportunity
 from guardrails.errors import UnknownGuardrailIdError
-from guardrails.evaluations import guardrail_evaluation_identity
+from guardrails.evaluations import GuardrailDecision, guardrail_evaluation_identity
 
 T0 = datetime(2026, 7, 21, 14, 0, tzinfo=timezone.utc)
 
@@ -73,27 +73,45 @@ class TestEvaluateGuardrailBasics:
 
 
 class TestEvaluateOpportunity:
+    def test_evaluation_is_complete_pipeline_envelope(self):
+        opp = _opp()
+        evaluation = evaluate_opportunity(opp, PARAMS)
+        assert evaluation.opportunity is opp
+        assert evaluation.overall_decision is GuardrailDecision.PASS
+        assert len(evaluation.ordered_guardrail_outcomes) == 5
+
+    def test_envelope_has_no_parallel_opportunity_fields_or_legacy_aliases(self):
+        evaluation = evaluate_opportunity(_opp(), PARAMS)
+        assert not hasattr(evaluation, "opportunity_id")
+        assert not hasattr(evaluation, "outcomes")
+        assert not hasattr(evaluation, "passed")
+
+    def test_evaluation_envelope_is_immutable(self):
+        evaluation = evaluate_opportunity(_opp(), PARAMS)
+        with pytest.raises(Exception):
+            evaluation.overall_decision = GuardrailDecision.FAIL
+
     def test_all_five_guardrails_run(self):
         opp = _opp()
         evaluation = evaluate_opportunity(opp, PARAMS)
-        assert len(evaluation.outcomes) == 5
+        assert len(evaluation.ordered_guardrail_outcomes) == 5
 
     def test_overall_passed_requires_unanimous(self):
         opp = _opp()  # non-placeholder assumptions, passes all thresholds
         evaluation = evaluate_opportunity(opp, PARAMS)
-        assert evaluation.passed
+        assert evaluation.overall_decision is GuardrailDecision.PASS
 
     def test_single_failure_blocks_overall(self):
         opp = _opp(assumptions=("uses a fixed placeholder value",))
         evaluation = evaluate_opportunity(opp, PARAMS)
-        assert not evaluation.passed
-        failing = [o for o in evaluation.outcomes if not o.passed]
+        assert evaluation.overall_decision is GuardrailDecision.FAIL
+        failing = [o for o in evaluation.ordered_guardrail_outcomes if not o.passed]
         assert any(o.guardrail_id == "placeholder_metrics_rejection" for o in failing)
 
     def test_deterministic_ordering_by_guardrail_id(self):
         opp = _opp()
         evaluation = evaluate_opportunity(opp, PARAMS)
-        ids = [o.guardrail_id for o in evaluation.outcomes]
+        ids = [o.guardrail_id for o in evaluation.ordered_guardrail_outcomes]
         assert ids == sorted(ids)
 
 
@@ -109,7 +127,7 @@ class TestDeterminism:
         eval1 = evaluate_opportunity(opp, PARAMS)
         eval2 = evaluate_opportunity(opp, PARAMS)
         assert eval1.evaluation_id == eval2.evaluation_id
-        assert eval1.outcomes == eval2.outcomes
+        assert eval1.ordered_guardrail_outcomes == eval2.ordered_guardrail_outcomes
 
     def test_deterministic_identity(self):
         opp = _opp()
@@ -132,10 +150,14 @@ class TestGuardrailEvaluationIdentity:
         opp = _opp()
         eval1 = evaluate_opportunity(opp, PARAMS)
         a = guardrail_evaluation_identity(
-            opp.opportunity_id, eval1.outcomes, eval1.effective_parameters
+            opp.opportunity_id,
+            eval1.ordered_guardrail_outcomes,
+            eval1.effective_parameters,
         )
         b = guardrail_evaluation_identity(
-            opp.opportunity_id, eval1.outcomes, eval1.effective_parameters
+            opp.opportunity_id,
+            eval1.ordered_guardrail_outcomes,
+            eval1.effective_parameters,
         )
         assert a == b
 
@@ -143,11 +165,13 @@ class TestGuardrailEvaluationIdentity:
         opp = _opp()
         evaluation = evaluate_opportunity(opp, PARAMS)
         forward = guardrail_evaluation_identity(
-            opp.opportunity_id, evaluation.outcomes, evaluation.effective_parameters
+            opp.opportunity_id,
+            evaluation.ordered_guardrail_outcomes,
+            evaluation.effective_parameters,
         )
         backward = guardrail_evaluation_identity(
             opp.opportunity_id,
-            tuple(reversed(evaluation.outcomes)),
+            tuple(reversed(evaluation.ordered_guardrail_outcomes)),
             evaluation.effective_parameters,
         )
         assert forward == backward
@@ -156,9 +180,9 @@ class TestGuardrailEvaluationIdentity:
         opp = _opp()
         evaluation = evaluate_opportunity(opp, PARAMS)
         a = guardrail_evaluation_identity(
-            "opp-1", evaluation.outcomes, evaluation.effective_parameters
+            "opp-1", evaluation.ordered_guardrail_outcomes, evaluation.effective_parameters
         )
         b = guardrail_evaluation_identity(
-            "opp-2", evaluation.outcomes, evaluation.effective_parameters
+            "opp-2", evaluation.ordered_guardrail_outcomes, evaluation.effective_parameters
         )
         assert a != b
