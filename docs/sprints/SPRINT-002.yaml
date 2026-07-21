@@ -3,7 +3,7 @@ id: SPRINT-002
 name: Strategy Core
 codename: Composable Strategies
 version: 1.0
-status: APPROVED
+status: COMPLETE
 type: IMPLEMENTATION_SPRINT
 
 activation:
