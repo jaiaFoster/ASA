@@ -19,7 +19,7 @@ Replace the dual legacy/Lean POS operation with Lean POS as the sole active proj
 
 ## Next Action
 
-project=ASA-II repository=jaiaFoster/ASA migration_status=complete completed_phase=CUTOVER-06 active_operating_system=Lean_POS
+project=ASA-II repository=jaiaFoster/ASA migration_status=complete completed_phase=CUTOVER-06 active_operating_system=Lean_POS sprint=SPRINT-002 sprint_status=complete next_action=Founder_verification
 
 ## Sources
 
