@@ -21,12 +21,15 @@ import tempfile
 from pathlib import Path
 
 import pytest
-import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO_ROOT))
 
-from tools.pos.lean.migration import build_cutover_plan, build_blockers, build_capability_map
+from tools.pos.lean.migration import (  # noqa: E402
+    build_blockers,
+    build_capability_map,
+    build_cutover_plan,
+)
 
 GENERATED_AT = "2026-07-19T00:00:00Z"
 
@@ -121,7 +124,7 @@ class TestLegacyRuntimeDeleted:
 class TestNoActiveImports:
     def test_no_test_imports_legacy_schemas(self):
         result = subprocess.run(
-            ["python", "-c",
+            [sys.executable, "-c",
              "import sys; sys.path.insert(0, '.'); import tools.pos.lean.validate"],
             capture_output=True, text=True, cwd=REPO_ROOT,
         )
@@ -268,7 +271,7 @@ class TestMigrationState:
                 [
                     sys.executable, "tools/pos/lean/assess_migration.py",
                     "--repo-root", ".",
-                    "--generated-at", "2026-07-18T00:00:00Z",
+                    "--generated-at", "2026-07-19T00:00:00Z",
                     "--output-dir", tmp,
                 ],
                 capture_output=True, text=True, cwd=REPO_ROOT,
@@ -284,14 +287,11 @@ class TestMigrationState:
                     f"{fname} does not match source generation. Regenerate migration outputs."
                 )
 
-    def test_zero_xfails_in_lean_test_suite(self):
+    def test_zero_xfails_in_lean_test_suite(self, request):
         """No xfail markers should remain for completed cutover phase progression."""
-        result = subprocess.run(
-            [sys.executable, "-m", "pytest", "tests/pos/lean", "-v", "--tb=no", "-q"],
-            capture_output=True, text=True, cwd=REPO_ROOT,
-        )
-        # Count xfailed
-        xfailed = result.stdout.count(" xfailed")
-        assert xfailed == 0 or "0 xfailed" in result.stdout or xfailed == 0, (
-            f"Unexpected xfail count in lean test suite:\n{result.stdout}"
-        )
+        xfailed = [
+            item.nodeid
+            for item in request.session.items
+            if item.get_closest_marker("xfail") is not None
+        ]
+        assert xfailed == [], f"Lean suite contains xfailed tests: {xfailed}"
