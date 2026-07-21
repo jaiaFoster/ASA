@@ -1,4 +1,4 @@
-<!-- Repository path: docs/architecture/decisions/ADR-004-repository-organization.md -->
+<!-- Repository path: architecture/ADR-004-repository-organization.md -->
 
 # ADR-004: Repository Organization
 

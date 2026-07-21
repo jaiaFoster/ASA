@@ -7,6 +7,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 
+from domain.values import require_normalized, require_tz_aware
+
 
 @dataclass(frozen=True, slots=True)
 class Observation:
@@ -24,3 +26,8 @@ class Observation:
     value: object
     effective_time: datetime
     recorded_time: datetime
+
+    def __post_init__(self) -> None:
+        require_normalized(self.value, "Observation", "value")
+        require_tz_aware(self.effective_time, "Observation", "effective_time")
+        require_tz_aware(self.recorded_time, "Observation", "recorded_time")

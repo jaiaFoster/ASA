@@ -9,6 +9,7 @@ from datetime import datetime
 
 from domain.provenance import Provenance
 from domain.references import Confidence
+from domain.values import require_normalized, require_positive, require_tz_aware
 
 
 @dataclass(frozen=True, slots=True)
@@ -30,3 +31,9 @@ class CanonicalFact:
     provenance: Provenance
     effective_time: datetime
     created_time: datetime
+
+    def __post_init__(self) -> None:
+        require_positive(self.version, "CanonicalFact", "version")
+        require_normalized(self.value, "CanonicalFact", "value")
+        require_tz_aware(self.effective_time, "CanonicalFact", "effective_time")
+        require_tz_aware(self.created_time, "CanonicalFact", "created_time")

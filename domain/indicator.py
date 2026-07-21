@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from domain.references import EvidenceReference
+from domain.values import require_normalized, require_positive, require_tz_aware
 
 
 @dataclass(frozen=True, slots=True)
@@ -27,3 +28,9 @@ class Indicator:
     computed_from: tuple[EvidenceReference, ...]
     effective_time: datetime
     created_time: datetime
+
+    def __post_init__(self) -> None:
+        require_positive(self.version, "Indicator", "version")
+        require_normalized(self.value, "Indicator", "value")
+        require_tz_aware(self.effective_time, "Indicator", "effective_time")
+        require_tz_aware(self.created_time, "Indicator", "created_time")

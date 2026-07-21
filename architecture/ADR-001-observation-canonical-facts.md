@@ -1,4 +1,4 @@
-<!-- Repository path: docs/architecture/decisions/ADR-001-observation-canonical-facts.md -->
+<!-- Repository path: architecture/ADR-001-observation-canonical-facts.md -->
 
 # ADR-001: Observation & Canonical Fact Model
 

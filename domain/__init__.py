@@ -15,10 +15,13 @@ from domain.outcome_metrics import ExpectedOutcomeMetrics
 from domain.provenance import Provenance, ProviderDisagreement
 from domain.provider import Provider
 from domain.references import Confidence, EvidenceKind, EvidenceReference
+from domain.values import DomainInvariantError, is_normalized_value
 
 __all__ = [
     "CanonicalFact",
     "Confidence",
+    "DomainInvariantError",
+    "is_normalized_value",
     "EvidenceKind",
     "EvidenceReference",
     "ExpectedOutcomeMetrics",

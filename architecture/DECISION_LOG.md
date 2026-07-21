@@ -1,4 +1,4 @@
-<!-- Repository path: docs/architecture/DECISION_LOG.md -->
+<!-- Repository path: architecture/DECISION_LOG.md -->
 
 # ASA Architecture Decision Log
 
@@ -8,15 +8,13 @@ Do not add substantive reasoning to this file. If an entry needs more than two s
 
 | Date | Summary | ADR |
 |---|---|---|
+| 2026-07-21 | Expected Outcome Metrics units fixed at the domain level (decimal-fraction return, USD amounts, [0,1] probability); expected_return, maximum_loss, and capital_required are mandatory. Domain primitives enforce normalized immutable values, legal ranges, positive versions, and timezone-aware timestamps. | ADR-003 (domain level, ASA-CORE-001A) |
 | 2026-07-21 | "Strategy confidence" is removed and replaced by Expected Outcome Metrics — standardized, objective financial characteristics every Strategy must produce; Ranking compares Opportunities using these common metrics. | ADR-003 (amended) |
 | 2026-07-21 | Reconciliation confidence is clarified as an internal attribute; Provenance is elevated to a first-class externally visible concept with a binding drill-down requirement (contributing providers, selected provider, disagreements, timestamps, reconciliation metadata). | ADR-001 (amended) |
 | 2026-07-20 | Indicator values are versioned and immutable, mirroring the Canonical Fact model, closing a reproducibility gap between Facts and Strategies. | ADR-006 |
 | 2026-07-20 | Guardrails are defined as deterministic, versioned, single-Opportunity eligibility rules with no independent Confidence; cross-Opportunity guardrails are explicitly out of scope pending a future ADR. | ADR-005 |
 | 2026-07-20 | `presentation/`'s allowed dependencies are narrowed to `ranking/` and `domain/` only, correcting a contradiction with the Presentation Layer's evidence-only constraint. | ADR-004 (revised) |
-| _pending_ | Providers are not assumed to agree; Canonical Facts are reconciled from potentially conflicting Observations using provider priority, confidence, and provenance. | ADR-001 |
-| _pending_ | Guardrails are platform-owned and shared across all Strategies; Strategies do not implement independent risk logic. | ADR-005 |
-| _pending_ | Strategy evaluation, and everything feeding it, is deterministic; language models are confined to the Presentation Layer. | ADR-004 |
-| _pending_ | Observation and Canonical Fact are established as distinct, non-interchangeable architectural concepts. | ADR-001 |
+| 2026-07-20 | Providers are not assumed to agree; Canonical Facts are reconciled from potentially conflicting Observations using provider priority, confidence, and provenance. Observation and Canonical Fact are distinct, non-interchangeable concepts. | ADR-001 |
 
 ## Open Questions / Requires ADR
 

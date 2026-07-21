@@ -11,6 +11,7 @@ from enum import Enum
 from domain.guardrail import GuardrailOutcome
 from domain.outcome_metrics import ExpectedOutcomeMetrics
 from domain.references import Confidence, EvidenceReference
+from domain.values import require_positive, require_tz_aware
 
 
 class RecommendationState(str, Enum):
@@ -49,3 +50,8 @@ class Opportunity:
     effective_time: datetime
     created_time: datetime
     guardrail_outcomes: tuple[GuardrailOutcome, ...] = field(default=())
+
+    def __post_init__(self) -> None:
+        require_positive(self.version, "Opportunity", "version")
+        require_tz_aware(self.effective_time, "Opportunity", "effective_time")
+        require_tz_aware(self.created_time, "Opportunity", "created_time")

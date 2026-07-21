@@ -1,4 +1,4 @@
-<!-- Repository path: docs/architecture/decisions/ADR-006-indicator-versioning.md -->
+<!-- Repository path: architecture/ADR-006-indicator-versioning.md -->
 
 # ADR-006: Indicator Versioning and Immutability
 

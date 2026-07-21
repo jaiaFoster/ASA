@@ -1,4 +1,4 @@
-<!-- Repository path: docs/architecture/ARCHITECTURE_VISION.md -->
+<!-- Repository path: architecture/ARCHITECTURE_VISION.md -->
 
 # ASA Architecture Vision
 

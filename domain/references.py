@@ -7,6 +7,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 
+from domain.values import require_positive, require_unit_interval
+
 
 class EvidenceKind(str, Enum):
     """The kind of record an EvidenceReference points at."""
@@ -30,6 +32,10 @@ class EvidenceReference:
     referenced_id: str
     version: int | None = None
 
+    def __post_init__(self) -> None:
+        if self.version is not None:
+            require_positive(self.version, "EvidenceReference", "version")
+
 
 @dataclass(frozen=True, slots=True)
 class Confidence:
@@ -41,3 +47,6 @@ class Confidence:
     """
 
     score: float
+
+    def __post_init__(self) -> None:
+        require_unit_interval(self.score, "Confidence", "score")

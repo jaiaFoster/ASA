@@ -1,4 +1,4 @@
-<!-- Repository path: docs/architecture/decisions/ADR-002-provider-interface.md -->
+<!-- Repository path: architecture/ADR-002-provider-interface.md -->
 
 # ADR-002: Provider Interface Contract
 

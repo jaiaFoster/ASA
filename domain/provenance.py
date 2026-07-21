@@ -7,6 +7,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime
 
+from domain.values import require_normalized, require_tz_aware
+
 
 @dataclass(frozen=True, slots=True)
 class ProviderDisagreement:
@@ -15,6 +17,9 @@ class ProviderDisagreement:
     provider_id: str
     observation_id: str
     reported_value: object
+
+    def __post_init__(self) -> None:
+        require_normalized(self.reported_value, "ProviderDisagreement", "reported_value")
 
 
 @dataclass(frozen=True, slots=True)
@@ -33,3 +38,6 @@ class Provenance:
     disagreements: tuple[ProviderDisagreement, ...]
     reconciled_at: datetime
     reconciliation_metadata: tuple[tuple[str, str], ...] = field(default=())
+
+    def __post_init__(self) -> None:
+        require_tz_aware(self.reconciled_at, "Provenance", "reconciled_at")
