@@ -19,7 +19,9 @@ from guardrails.errors import (
 from guardrails.evaluations import (
     GUARDRAIL_EVALUATION_IDENTITY_NAMESPACE,
     GUARDRAIL_EVALUATION_IDENTITY_VERSION,
+    EffectivePolicyParameters,
     OpportunityGuardrailEvaluation,
+    guardrail_cited_evidence,
     guardrail_evaluation_identity,
 )
 from guardrails.registry import DEFAULT_REGISTRY, GuardrailRegistry
@@ -28,6 +30,7 @@ __all__ = [
     "DEFAULT_REGISTRY",
     "DuplicateGuardrailRegistrationError",
     "EmptyOpportunityEvidenceError",
+    "EffectivePolicyParameters",
     "GUARDRAIL_EVALUATION_IDENTITY_NAMESPACE",
     "GUARDRAIL_EVALUATION_IDENTITY_VERSION",
     "GuardrailError",
@@ -37,5 +40,6 @@ __all__ = [
     "UnknownGuardrailIdError",
     "evaluate_guardrail",
     "evaluate_opportunity",
+    "guardrail_cited_evidence",
     "guardrail_evaluation_identity",
 ]

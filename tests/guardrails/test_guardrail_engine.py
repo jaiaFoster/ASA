@@ -1,7 +1,7 @@
 """ASA-CORE-006: guardrail engine tests — determinism, replay, identity, ordering."""
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from decimal import Decimal
 
 import pytest
@@ -131,21 +131,34 @@ class TestGuardrailEvaluationIdentity:
     def test_same_input_same_id(self):
         opp = _opp()
         eval1 = evaluate_opportunity(opp, PARAMS)
-        a = guardrail_evaluation_identity(opp.opportunity_id, eval1.outcomes, T0)
-        b = guardrail_evaluation_identity(opp.opportunity_id, eval1.outcomes, T0)
+        a = guardrail_evaluation_identity(
+            opp.opportunity_id, eval1.outcomes, eval1.effective_parameters
+        )
+        b = guardrail_evaluation_identity(
+            opp.opportunity_id, eval1.outcomes, eval1.effective_parameters
+        )
         assert a == b
 
     def test_outcome_order_does_not_change_identity(self):
         opp = _opp()
         evaluation = evaluate_opportunity(opp, PARAMS)
-        forward = guardrail_evaluation_identity(opp.opportunity_id, evaluation.outcomes, T0)
+        forward = guardrail_evaluation_identity(
+            opp.opportunity_id, evaluation.outcomes, evaluation.effective_parameters
+        )
         backward = guardrail_evaluation_identity(
-            opp.opportunity_id, tuple(reversed(evaluation.outcomes)), T0)
+            opp.opportunity_id,
+            tuple(reversed(evaluation.outcomes)),
+            evaluation.effective_parameters,
+        )
         assert forward == backward
 
     def test_different_opportunity_different_id(self):
         opp = _opp()
         evaluation = evaluate_opportunity(opp, PARAMS)
-        a = guardrail_evaluation_identity("opp-1", evaluation.outcomes, T0)
-        b = guardrail_evaluation_identity("opp-2", evaluation.outcomes, T0)
+        a = guardrail_evaluation_identity(
+            "opp-1", evaluation.outcomes, evaluation.effective_parameters
+        )
+        b = guardrail_evaluation_identity(
+            "opp-2", evaluation.outcomes, evaluation.effective_parameters
+        )
         assert a != b

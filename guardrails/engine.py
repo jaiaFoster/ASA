@@ -13,13 +13,15 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from domain.canonicalization import serialize_canonical
 from domain.guardrail import GuardrailOutcome
 from domain.opportunity import Opportunity
 from domain.values import require_tz_aware
 from guardrails.evaluations import (
+    EffectivePolicyParameters,
     OpportunityGuardrailEvaluation,
+    guardrail_cited_evidence,
     guardrail_evaluation_identity,
-    opportunity_cited_evidence,
 )
 from guardrails.registry import DEFAULT_REGISTRY, GuardrailRegistry
 
@@ -27,7 +29,7 @@ from guardrails.registry import DEFAULT_REGISTRY, GuardrailRegistry
 def evaluate_guardrail(
     guardrail_id: str,
     opportunity: Opportunity,
-    params: dict | None = None,
+    params: dict[str, object] | None = None,
     evaluated_at: datetime | None = None,
     registry: GuardrailRegistry = DEFAULT_REGISTRY,
 ) -> GuardrailOutcome:
@@ -45,7 +47,7 @@ def evaluate_guardrail(
 
     definition = registry.get(guardrail_id)
     passed, reason = definition.check(opportunity, params)
-    evidence = opportunity_cited_evidence(opportunity)
+    evidence = guardrail_cited_evidence(guardrail_id, opportunity)
 
     return GuardrailOutcome(
         guardrail_id=guardrail_id,
@@ -59,7 +61,7 @@ def evaluate_guardrail(
 
 def evaluate_opportunity(
     opportunity: Opportunity,
-    params_by_guardrail: dict[str, dict] | None = None,
+    params_by_guardrail: dict[str, dict[str, object]] | None = None,
     evaluated_at: datetime | None = None,
     registry: GuardrailRegistry = DEFAULT_REGISTRY,
 ) -> OpportunityGuardrailEvaluation:
@@ -86,13 +88,24 @@ def evaluate_opportunity(
         for guardrail_id in registry.registered_ids()
     )
     overall_passed = all(outcome.passed for outcome in outcomes)
+    effective_parameters: EffectivePolicyParameters = tuple(
+        (
+            guardrail_id,
+            tuple(
+                (name, serialize_canonical(params_by_guardrail.get(guardrail_id, {})[name]))
+                for name in registry.get(guardrail_id).parameter_names
+            ),
+        )
+        for guardrail_id in registry.registered_ids()
+    )
 
     return OpportunityGuardrailEvaluation(
         evaluation_id=guardrail_evaluation_identity(
-            opportunity.opportunity_id, outcomes, evaluated_at
+            opportunity.opportunity_id, outcomes, effective_parameters
         ),
         opportunity_id=opportunity.opportunity_id,
         outcomes=outcomes,
         passed=overall_passed,
         evaluated_at=evaluated_at,
+        effective_parameters=effective_parameters,
     )

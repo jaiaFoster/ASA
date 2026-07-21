@@ -26,7 +26,8 @@ from domain.values import require_tz_aware
 from guardrails.errors import EmptyOpportunityEvidenceError, InvalidGuardrailParameterError
 
 GUARDRAIL_EVALUATION_IDENTITY_NAMESPACE = "asa.guardrail_evaluation"
-GUARDRAIL_EVALUATION_IDENTITY_VERSION = "v1"
+GUARDRAIL_EVALUATION_IDENTITY_VERSION = "v2"
+EffectivePolicyParameters = tuple[tuple[str, tuple[tuple[str, str], ...]], ...]
 
 
 @dataclass(frozen=True)
@@ -38,7 +39,8 @@ class OpportunityGuardrailEvaluation:
     (unanimous — a single failing guardrail blocks the Opportunity, per
     ADR-005's "eligibility rule" framing). ``outcomes`` is ordered
     deterministically by ``guardrail_id`` — never insertion or evaluation
-    order.
+    order. ``effective_parameters`` preserves the canonical policy inputs
+    included in the v2 deterministic identity.
     """
 
     evaluation_id: str
@@ -46,6 +48,7 @@ class OpportunityGuardrailEvaluation:
     outcomes: tuple[GuardrailOutcome, ...]
     passed: bool
     evaluated_at: datetime
+    effective_parameters: EffectivePolicyParameters
 
     def __post_init__(self) -> None:
         require_tz_aware(self.evaluated_at, "OpportunityGuardrailEvaluation", "evaluated_at")
@@ -54,17 +57,15 @@ class OpportunityGuardrailEvaluation:
 def guardrail_evaluation_identity(
     opportunity_id: str,
     outcomes: tuple[GuardrailOutcome, ...],
-    evaluated_at: datetime,
+    effective_parameters: EffectivePolicyParameters,
 ) -> str:
-    """Deterministic, versioned GuardrailEvaluation identity (algorithm v1).
+    """Deterministic, versioned GuardrailEvaluation identity (algorithm v2).
 
     Inputs: opportunity_id, sorted (guardrail_id, guardrail_version, passed)
-    triples, evaluated_at — mirroring the established identity style
-    (``asa.canonical_fact``, ``asa.indicator``, ``asa.opportunity``) under
-    a distinct namespace. No UUIDs, no sequence numbers, no insertion
-    time, no randomness.
+    triples, and effective policy parameters. ``evaluated_at`` is excluded:
+    it records execution time, not a semantic policy input. No UUIDs,
+    sequence numbers, insertion time, or randomness.
     """
-    require_tz_aware(evaluated_at, "guardrail_evaluation_identity", "evaluated_at")
     outcome_triples = tuple(sorted(
         (outcome.guardrail_id, outcome.guardrail_version, outcome.passed)
         for outcome in outcomes
@@ -75,7 +76,7 @@ def guardrail_evaluation_identity(
             GUARDRAIL_EVALUATION_IDENTITY_VERSION,
             serialize_canonical(opportunity_id),
             serialize_canonical(outcome_triples),
-            serialize_canonical(evaluated_at),
+            serialize_canonical(effective_parameters),
         )
     )
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
@@ -99,7 +100,22 @@ def opportunity_cited_evidence(opportunity: Opportunity) -> tuple[EvidenceRefere
     return tuple(sorted(combined, key=lambda ref: (ref.kind.value, ref.referenced_id)))
 
 
-def _require_decimal_param(guardrail_id: str, params: dict, key: str) -> Decimal:
+def guardrail_cited_evidence(
+    guardrail_id: str, opportunity: Opportunity
+) -> tuple[EvidenceReference, ...]:
+    """Return only evidence consumed by a guardrail where attribution is known.
+
+    Current financial-metric and confidence fields do not expose field-level
+    provenance, so those guardrails retain the complete Opportunity evidence
+    chain. ``placeholder_metrics_rejection`` reads assumptions only and cites
+    no unrelated Fact or Indicator evidence.
+    """
+    if guardrail_id == "placeholder_metrics_rejection":
+        return ()
+    return opportunity_cited_evidence(opportunity)
+
+
+def _require_decimal_param(guardrail_id: str, params: dict[str, object], key: str) -> Decimal:
     if key not in params:
         raise InvalidGuardrailParameterError(guardrail_id, f"missing required parameter {key!r}")
     value = params[key]
@@ -110,7 +126,7 @@ def _require_decimal_param(guardrail_id: str, params: dict, key: str) -> Decimal
     return value
 
 
-def _require_int_param(guardrail_id: str, params: dict, key: str) -> int:
+def _require_int_param(guardrail_id: str, params: dict[str, object], key: str) -> int:
     if key not in params:
         raise InvalidGuardrailParameterError(guardrail_id, f"missing required parameter {key!r}")
     value = params[key]
@@ -127,7 +143,9 @@ def _require_int_param(guardrail_id: str, params: dict, key: str) -> int:
 # Required guardrail checks
 # ---------------------------------------------------------------------------
 
-def minimum_evidence_confidence(opportunity: Opportunity, params: dict) -> tuple[bool, str]:
+def minimum_evidence_confidence(
+    opportunity: Opportunity, params: dict[str, object]
+) -> tuple[bool, str]:
     """Reject Opportunities whose evidence_confidence falls below a threshold."""
     threshold = _require_decimal_param("minimum_evidence_confidence", params, "threshold")
     score = Decimal(str(opportunity.evidence_confidence.score))
@@ -138,7 +156,9 @@ def minimum_evidence_confidence(opportunity: Opportunity, params: dict) -> tuple
     return passed, reason
 
 
-def maximum_capital_required(opportunity: Opportunity, params: dict) -> tuple[bool, str]:
+def maximum_capital_required(
+    opportunity: Opportunity, params: dict[str, object]
+) -> tuple[bool, str]:
     """Reject Opportunities whose capital_required exceeds a threshold."""
     threshold = _require_decimal_param("maximum_capital_required", params, "threshold")
     capital = opportunity.expected_outcome_metrics.capital_required
@@ -147,7 +167,7 @@ def maximum_capital_required(opportunity: Opportunity, params: dict) -> tuple[bo
     return passed, reason
 
 
-def maximum_loss(opportunity: Opportunity, params: dict) -> tuple[bool, str]:
+def maximum_loss(opportunity: Opportunity, params: dict[str, object]) -> tuple[bool, str]:
     """Reject Opportunities whose maximum_loss magnitude exceeds a threshold.
 
     ``expected_outcome_metrics.maximum_loss`` is stored as a non-positive
@@ -164,7 +184,9 @@ def maximum_loss(opportunity: Opportunity, params: dict) -> tuple[bool, str]:
     return passed, reason
 
 
-def allowed_time_horizon(opportunity: Opportunity, params: dict) -> tuple[bool, str]:
+def allowed_time_horizon(
+    opportunity: Opportunity, params: dict[str, object]
+) -> tuple[bool, str]:
     """Reject Opportunities whose time_horizon_days falls outside [min, max]."""
     minimum = _require_int_param("allowed_time_horizon", params, "minimum_days")
     maximum = _require_int_param("allowed_time_horizon", params, "maximum_days")
@@ -182,7 +204,9 @@ def allowed_time_horizon(opportunity: Opportunity, params: dict) -> tuple[bool, 
 PLACEHOLDER_MARKER = "placeholder"
 
 
-def placeholder_metrics_rejection(opportunity: Opportunity, params: dict) -> tuple[bool, str]:
+def placeholder_metrics_rejection(
+    opportunity: Opportunity, params: dict[str, object]
+) -> tuple[bool, str]:
     """Reject Opportunities whose Strategy admits (via ``assumptions``) to
     using uncalibrated placeholder Expected Outcome Metrics.
 
