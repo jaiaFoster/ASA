@@ -11,6 +11,18 @@ from domain.guardrail import GuardrailOutcome
 from domain.indicator import Indicator
 from domain.observation import Observation
 from domain.opportunity import Opportunity, RecommendationState
+from domain.operational import (
+    CanonicalInstrumentIdentity,
+    Holding,
+    Instrument,
+    InstrumentKind,
+    MonetaryAmount,
+    PortfolioDecisionRequest,
+    PortfolioSnapshot,
+    PositionDirection,
+    ProposedPosition,
+    SectorClassification,
+)
 from domain.outcome_metrics import ExpectedOutcomeMetrics
 from domain.provenance import Provenance, ProviderDisagreement
 from domain.provider import Provider
@@ -19,6 +31,7 @@ from domain.values import DomainInvariantError, is_normalized_value
 
 __all__ = [
     "CanonicalFact",
+    "CanonicalInstrumentIdentity",
     "Confidence",
     "DomainInvariantError",
     "is_normalized_value",
@@ -26,11 +39,20 @@ __all__ = [
     "EvidenceReference",
     "ExpectedOutcomeMetrics",
     "GuardrailOutcome",
+    "Holding",
     "Indicator",
+    "Instrument",
+    "InstrumentKind",
+    "MonetaryAmount",
     "Observation",
     "Opportunity",
+    "PortfolioDecisionRequest",
+    "PortfolioSnapshot",
+    "PositionDirection",
     "Provenance",
     "Provider",
     "ProviderDisagreement",
+    "ProposedPosition",
     "RecommendationState",
+    "SectorClassification",
 ]

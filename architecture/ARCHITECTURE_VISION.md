@@ -60,9 +60,13 @@ Guardrail Layer
         │
         ▼
 Ranking Layer
-        │
-        ▼
-Presentation Layer
+      ┌─┴──────────────┐
+      ▼                ▼
+Presentation       Proposed Position
+Layer                   │
+                        ▼
+              Operational Portfolio Policy
+                  (read-only decision)
 ```
 
 Each layer consumes only from the layer(s) below it and has a single, well-defined responsibility:
@@ -75,6 +79,7 @@ Each layer consumes only from the layer(s) below it and has a single, well-defin
 - **Guardrail Layer** applies platform-wide risk and eligibility rules to those candidates.
 - **Ranking Layer** orders surviving Opportunities for presentation.
 - **Presentation Layer** communicates the result to the user, including any natural-language summarization. This is the only layer where a language model may participate.
+- **Operational Portfolio Policy** compares evidence-backed Proposed Positions with one immutable, provider-neutral Portfolio Snapshot. It does not gather broker data, mutate Opportunities, or execute trades. ADR-008 defines this separate contract boundary without changing ASA's read-only constitutional limit.
 
 Provider independence follows from this structure: a provider can be added, removed, or reprioritized without altering any layer above the Observation Layer, because everything above it consumes Canonical Facts, not raw provider payloads.
 

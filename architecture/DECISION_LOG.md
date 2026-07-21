@@ -8,6 +8,7 @@ Do not add substantive reasoning to this file. If an entry needs more than two s
 
 | Date | Summary | ADR |
 |---|---|---|
+| 2026-07-21 | Provider-neutral immutable Instrument, Holding, PortfolioSnapshot, ProposedPosition, and PortfolioDecisionRequest contracts separate ranked intelligence from read-only operational portfolio policy without introducing broker models, persistence, or execution. | ADR-008 (ASA-ARCH-001) |
 | 2026-07-21 | Ranking v1 deterministically orders eligible Opportunities using six versioned, provenance-preserving component scorers, explicit parameters, and stable tie-breakers; missing liquidity uses an explicit neutral placeholder rather than an invented proxy. | ADR-007 (ASA-CORE-007) |
 | 2026-07-21 | Guardrail evaluation is the pipeline envelope containing the immutable Opportunity, ordered Guardrail outcomes, and aggregate decision; Ranking never reconstructs Opportunity data from outcomes or persistence. | ADR-005 (amended, ASA-CORE-007) |
 | 2026-07-21 | `guardrails/`'s allowed dependencies narrowed to `strategies/`, `indicators/`, `facts/`, `reconciliation/`, `domain/` — not `observation/` or `providers/` — making ADR-005's existing "no raw Observation access" prose structurally enforceable. | ADR-004 (amended, ASA-CORE-006) |
@@ -24,7 +25,8 @@ Do not add substantive reasoning to this file. If an entry needs more than two s
 
 ## Open Questions / Requires ADR
 
-- ADR-001 through ADR-007 cover the Observation/Canonical Fact model, Provider contract,
+- ADR-001 through ADR-008 cover the Observation/Canonical Fact model, Provider contract,
   Opportunity model, repository organization, Guardrail model, Indicator versioning, and
-  Ranking model. Cross-Opportunity (portfolio-level) Guardrails remain open; see ADR-005.
+  Ranking model, plus the Intelligence-to-Operational Portfolio contract. Cross-Opportunity
+  (portfolio-level) Guardrails remain open; see ADR-005.
 - No ADR numbering or storage convention has been formally adopted (see `README.md`'s Open Questions). This log assumes ADRs will be referenced by filename or number once that convention exists.
