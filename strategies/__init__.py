@@ -162,6 +162,12 @@ from strategies.stonk_manifests import (
     STOCK_MOMENTUM_MANIFEST,
     STONK_STRATEGY_MANIFESTS,
 )
+from strategies.library import (
+    STRATEGY_LIBRARY_IDENTITY_NAMESPACE,
+    STRATEGY_LIBRARY_VERSION,
+    STONK_STRATEGY_LIBRARY,
+    StrategyLibrary,
+)
 from strategies.type_system import (
     DEFAULT_TYPE_SYSTEM,
     TYPE_SYSTEM_VERSION,
@@ -262,6 +268,10 @@ __all__ = [
     "SKEW_MOMENTUM_VERTICAL_MANIFEST",
     "STOCK_MOMENTUM_MANIFEST",
     "STONK_STRATEGY_MANIFESTS",
+    "STONK_STRATEGY_LIBRARY",
+    "STRATEGY_LIBRARY_IDENTITY_NAMESPACE",
+    "STRATEGY_LIBRARY_VERSION",
+    "StrategyLibrary",
     "CalendarStructure",
     "DtePairSelector",
     "DeltaNearestLeg",
