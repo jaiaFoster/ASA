@@ -23,7 +23,7 @@ provider integration, persistence, broker write, order, or execution capability.
 
 ## Decision
 
-The shared `domain/` package owns five cross-boundary objects and their supporting value types:
+The shared `domain/` package owns six cross-boundary objects and their supporting value types:
 
 - `Instrument` describes a provider-neutral instrument using a
   `CanonicalInstrumentIdentity`, kind, display symbol, currency, optional pinned sector
@@ -40,6 +40,11 @@ The shared `domain/` package owns five cross-boundary objects and their supporti
   rationale, lineage, and Evidence.
 - `PortfolioDecisionRequest` pairs one snapshot with Proposed Positions in Ranking order. It is
   the input envelope for future deterministic portfolio policy; it contains no policy behavior.
+- `ExecutionContext` is the explicit, immutable side input required to turn one analytical
+  Portfolio Decision into a replayable execution plan. It pins the matching snapshot and
+  canonical instrument identities, canonical account identity, current position direction and
+  absolute quantity, monetary exposure per quantity unit, quantity increment, and valuation
+  Evidence. It contains no provider identifier, route, credential, payload, or executable client.
 
 All objects are frozen, slot-based dataclasses. Nested collections are tuples. IDs are opaque and
 must be supplied by the owning upstream component; downstream consumers never derive meaning by
@@ -94,6 +99,19 @@ code. `None` means no classification was supplied; it never means a default sect
 handle absence explicitly. Options do not infer sector by parsing their symbols; an upstream
 normalizer may supply the correct classification while retaining the explicit underlying identity.
 
+### Execution context
+
+Execution context is supplied explicitly to the Execution Planner; it is never recovered by
+parsing an ID or consulting a repository, provider, broker, or mutable registry. `account_id` is
+ASA's canonical provider-neutral account identity. `current_quantity` is absolute and uses the
+same explicit `PositionDirection` semantics as Holding; zero means flat and has no direction.
+
+`unit_exposure` is the base-currency monetary exposure represented by one quantity unit. Its
+upstream valuation owner must already incorporate instrument semantics such as option contract
+multipliers and cite the valuation Evidence. The planner divides approved monetary exposure by
+this supplied unit exposure and applies the supplied positive quantity increment. It never treats
+allocation as quantity, parses symbols, invents prices, or performs provider lookup.
+
 ## Boundaries
 
 The Intelligence pipeline continues through Ranking. It may produce a `ProposedPosition` from a
@@ -109,6 +127,11 @@ or place operational logic inside Ranking or Strategies.
 This boundary supplies the state needed by portfolio policy and read-only execution-plan
 presentation. It does not authorize order creation or broker writes; those remain prohibited by
 Constitution Law 5.
+
+PortfolioDecision remains analytical and account-neutral. Account selection, current position
+state, and execution valuation enter only through ExecutionContext. Adding this explicit side
+input does not add a pipeline stage; it makes the existing Execution Planner boundary complete
+and replayable.
 
 ## Alternatives Considered
 
@@ -126,7 +149,7 @@ Constitution Law 5.
 
 ## Consequences
 
-- ASA-CORE-008 can evaluate cash, buying power, duplicate identity, current value, gross
+- ASA-CORE-009 can evaluate cash, buying power, duplicate identity, current value, gross
   exposure, and sector without broker or repository access.
 - Read-only broker adapters have an explicit normalization target without leaking SDK models.
 - Proposed exposure is independently inspectable and traceable to Ranking and Evidence.
@@ -134,10 +157,13 @@ Constitution Law 5.
   absence is represented explicitly rather than hidden behind a fallback calculation.
 - Supporting more instrument kinds or a new canonical identity scheme is a deliberate contract
   change, not dynamic parsing.
+- Execution planning requires a matching canonical ExecutionContext; missing account or valuation
+  state is represented as a missing required input, never a hidden fallback.
 
 ## References
 
 - GitHub issue #57
+- GitHub issue #70
 - ADR-003: Explainable Opportunity Model
 - ADR-004: Repository Organization
 - ADR-007: Deterministic Ranking Model

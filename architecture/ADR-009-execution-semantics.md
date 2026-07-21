@@ -37,7 +37,7 @@ Portfolio Engine  ◄── PortfolioSnapshot
       │
       ▼
 PortfolioDecision
-      │
+      │  ◄── ExecutionContext
       ▼
 Execution Planner
       │
@@ -74,7 +74,7 @@ hidden configuration.
   approved allocation, reasons, and Evidence. Account selection and valuation are later-stage
   portfolio concerns; they are never fields on Proposed Position.
 - `ExecutionPlan` answers **how the approved decision would be decomposed and sequenced**. It
-  retains the complete Portfolio Decision and owns an ordered tuple of analytical
+  retains the complete Portfolio Decision and matching Execution Context and owns an ordered tuple of analytical
   `BrokerRequest` records. A rejected or held decision has an empty tuple.
 - `BrokerRequest` answers **what broker-neutral order template represents one step of the
   plan**. It contains instrument, account identity, side, quantity, order shape, lifetime,
@@ -85,10 +85,24 @@ hidden configuration.
 does not collapse or skip the BrokerRequest stage: each request is independently identified,
 ordered, and replayable within the plan. No separate Broker Request engine is implied.
 
+`ExecutionContext` is a required provider-neutral side input to the Execution Planner. It owns
+canonical account selection, current position state, monetary exposure per quantity unit,
+quantity increment, and valuation Evidence for exactly the Portfolio Snapshot and Instrument
+referenced by the decision. It contains no broker-specific identifier or behavior. A mismatch is
+invalid input, not an occasion for lookup or fallback.
+
+V1 Proposed Position allocation is long gross exposure. The Portfolio Engine may accept or reduce
+that exposure, or reject/hold it, but PortfolioDecision remains account-neutral. The Execution
+Planner derives target long quantity from approved allocation, the proposal's pinned reference
+capital, and ExecutionContext unit exposure. It compares that target with the explicitly supplied
+current direction and quantity to derive BUY, SELL, BUY_TO_COVER, or ordered cover-then-buy steps.
+It applies the supplied quantity increment deterministically and never invents an account, price,
+multiplier, direction, or current position.
+
 ## Law 5 Boundary
 
 For purposes of Constitution Law 5, `RankingResult`, `ProposedPosition`, `PortfolioDecision`,
-`ExecutionPlan`, and `BrokerRequest` are analytical values. Constructing, comparing, serializing
+`ExecutionContext`, `ExecutionPlan`, and `BrokerRequest` are analytical values. Constructing, comparing, serializing
 for deterministic identity, testing, or presenting these values does not communicate with or
 modify a broker.
 
@@ -105,18 +119,21 @@ adapter or cause a side effect.
 
 ## Contracts and Identity
 
-The shared `domain/` package adds only `PortfolioDecision`, `ExecutionPlan`, and `BrokerRequest`,
-plus closed enums needed to make their states explicit. All are frozen slot-based dataclasses;
+The shared `domain/` package adds only `PortfolioDecision`, `ExecutionContext`, `ExecutionPlan`,
+and `BrokerRequest`, plus closed enums needed to make their states explicit. All are frozen slot-based dataclasses;
 nested collections are tuples; numeric quantities and amounts are finite `Decimal` values.
 
-Identity namespaces are `asa.portfolio_decision`, `asa.execution_plan`, and
-`asa.broker_request`, each initially versioned `v1`. Their future engines must derive IDs from
+Identity namespaces are `asa.portfolio_decision`, `asa.execution_context`, `asa.execution_plan`,
+and `asa.broker_request`, each initially versioned `v1`. Their future engines must derive IDs from
 complete semantic inputs:
 
 - Portfolio Decision identity includes proposal identity, snapshot identity, decision algorithm
   version, state, approved exposure, policy versions, effective parameters, reasons, and Evidence.
-- Execution Plan identity includes decision identity, planning algorithm version, ordered Broker
-  Request identities, and reasoning Evidence.
+- Execution Context identity includes snapshot identity, canonical account and instrument
+  identities, current direction and quantity, unit exposure, quantity increment, and valuation
+  Evidence.
+- Execution Plan identity includes decision and context identities, planning algorithm version,
+  ordered Broker Request identities, and reasoning Evidence.
 - Broker Request identity includes decision identity, sequence, canonical instrument identity,
   account identity, side, quantity, order type, limit price when applicable, time in force,
   metadata, and reasoning Evidence.
@@ -146,14 +163,14 @@ These are structural coherence rules, not decision or planning algorithms.
 
 ASA-CORE-008 owns only `RankingResult -> ProposedPosition` and must not inspect portfolio state.
 ASA-CORE-009 owns only `(ProposedPosition, PortfolioSnapshot) -> PortfolioDecision` and must not
-plan execution. ASA-CORE-010 owns only `PortfolioDecision -> ExecutionPlan`, including its
+plan execution. ASA-CORE-010 owns only `(PortfolioDecision, ExecutionContext) -> ExecutionPlan`, including its
 ordered Broker Requests, and must not import providers, adapters, infrastructure, networking,
 authentication, or persistence.
 
-Workers may implement, test, refactor within ticket scope, file issues, and mark a PR ready for
-merge. They may not merge. Founder remains the sole merge authority, and every sprint PR requires
-Founder approval after tests, replay, dependency, forbidden-import, circularity, and quality gates
-pass.
+Workers may implement, test, refactor within ticket scope, and file issues. Founder remains the
+ultimate merge authority. A worker may merge only an enumerated implementation PR while Accepted
+GOV-AMD-001 Amendment 013 is active and every sprint gate passes; architecture contract changes
+remain Founder-merge-only.
 
 Opportunity is the canonical owner of Instrument identity before the operational boundary.
 Strategy evaluation receives an explicit canonical Instrument and includes its identity in
@@ -190,10 +207,17 @@ market price, broker, provider, and order fields belong to later stages. Opportu
 canonical Instrument and Ranking preserves it through its existing evaluation envelope, closing
 the last required source path without hidden mappings.
 
+## Revision note (Issue #70)
+
+ExecutionContext is the explicit canonical side input for account, current-position,
+unit-exposure, quantity-increment, and valuation Evidence. PortfolioDecision remains analytical
+and account-neutral. CORE-010 no longer needs hidden lookup or fabricated execution inputs.
+
 ## References
 
 - GitHub issue #59
 - GitHub issue #63
+- GitHub issue #70
 - ADR-007: Deterministic Ranking Model
 - ADR-008: Operational Trading Contracts
 - Architecture Constitution, Laws 5, 7, 9, and 10

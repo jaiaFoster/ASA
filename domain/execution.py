@@ -10,7 +10,13 @@ from dataclasses import dataclass
 from decimal import Decimal
 from enum import Enum
 
-from domain.operational import Instrument, MonetaryAmount, ProposedPosition
+from domain.operational import (
+    CanonicalInstrumentIdentity,
+    Instrument,
+    MonetaryAmount,
+    PositionDirection,
+    ProposedPosition,
+)
 from domain.references import EvidenceReference
 from domain.values import DomainInvariantError, require_finite_decimal, require_positive
 
@@ -131,6 +137,60 @@ class PortfolioDecision:
 
 
 @dataclass(frozen=True, slots=True)
+class ExecutionContext:
+    """Canonical provider-neutral state required to plan one decision.
+
+    ``unit_exposure`` is the portfolio-base-currency exposure represented by
+    one quantity unit. It already incorporates instrument-specific valuation
+    semantics such as contract multipliers; the planner never derives those
+    semantics from symbols or provider data.
+    """
+
+    execution_context_id: str
+    portfolio_snapshot_id: str
+    account_id: str
+    instrument_identity: CanonicalInstrumentIdentity
+    current_direction: PositionDirection | None
+    current_quantity: Decimal
+    unit_exposure: MonetaryAmount
+    quantity_increment: Decimal
+    valuation_evidence: tuple[EvidenceReference, ...]
+
+    def __post_init__(self) -> None:
+        for field_name in (
+            "execution_context_id",
+            "portfolio_snapshot_id",
+            "account_id",
+        ):
+            _require_text(getattr(self, field_name), "ExecutionContext", field_name)
+        _require_non_negative(self.current_quantity, "ExecutionContext", "current_quantity")
+        _require_non_negative(
+            self.unit_exposure.amount,
+            "ExecutionContext",
+            "unit_exposure.amount",
+        )
+        _require_non_negative(
+            self.quantity_increment,
+            "ExecutionContext",
+            "quantity_increment",
+        )
+        if self.unit_exposure.amount == 0:
+            raise DomainInvariantError("ExecutionContext.unit_exposure.amount must be positive")
+        if self.quantity_increment == 0:
+            raise DomainInvariantError("ExecutionContext.quantity_increment must be positive")
+        if self.current_quantity % self.quantity_increment != 0:
+            raise DomainInvariantError(
+                "ExecutionContext.current_quantity must use quantity_increment"
+            )
+        if self.current_quantity == 0 and self.current_direction is not None:
+            raise DomainInvariantError("flat ExecutionContext cannot have current_direction")
+        if self.current_quantity > 0 and self.current_direction is None:
+            raise DomainInvariantError("non-flat ExecutionContext requires current_direction")
+        if not self.valuation_evidence:
+            raise DomainInvariantError("ExecutionContext.valuation_evidence cannot be empty")
+
+
+@dataclass(frozen=True, slots=True)
 class BrokerRequest:
     """Last analytical domain object before the future adapter boundary.
 
@@ -186,6 +246,7 @@ class ExecutionPlan:
     execution_plan_id: str
     planning_algorithm_version: str
     portfolio_decision: PortfolioDecision
+    execution_context: ExecutionContext
     broker_requests: tuple[BrokerRequest, ...]
     reasoning: tuple[EvidenceReference, ...]
 
@@ -196,6 +257,27 @@ class ExecutionPlan:
             "ExecutionPlan",
             "planning_algorithm_version",
         )
+        if (
+            self.execution_context.portfolio_snapshot_id
+            != self.portfolio_decision.portfolio_snapshot_id
+        ):
+            raise DomainInvariantError(
+                "ExecutionPlan context must reference its PortfolioDecision snapshot"
+            )
+        if (
+            self.execution_context.instrument_identity
+            != self.portfolio_decision.proposed_position.instrument.identity
+        ):
+            raise DomainInvariantError(
+                "ExecutionPlan context instrument must match its PortfolioDecision"
+            )
+        if (
+            self.execution_context.unit_exposure.currency
+            != self.portfolio_decision.proposed_position.instrument.currency
+        ):
+            raise DomainInvariantError(
+                "ExecutionPlan context currency must match its PortfolioDecision instrument"
+            )
         request_ids = tuple(request.broker_request_id for request in self.broker_requests)
         if len(request_ids) != len(set(request_ids)):
             raise DomainInvariantError("ExecutionPlan contains duplicate broker_request_id values")
@@ -210,6 +292,23 @@ class ExecutionPlan:
         ):
             raise DomainInvariantError(
                 "ExecutionPlan requests must reference its PortfolioDecision"
+            )
+        if any(
+            request.account_id != self.execution_context.account_id
+            for request in self.broker_requests
+        ):
+            raise DomainInvariantError("ExecutionPlan requests must use its context account")
+        if any(
+            request.instrument.identity != self.execution_context.instrument_identity
+            for request in self.broker_requests
+        ):
+            raise DomainInvariantError("ExecutionPlan requests must use its context instrument")
+        if any(
+            request.quantity % self.execution_context.quantity_increment != 0
+            for request in self.broker_requests
+        ):
+            raise DomainInvariantError(
+                "ExecutionPlan request quantities must use the context quantity increment"
             )
         if self.portfolio_decision.state in {
             PortfolioDecisionState.REJECT,

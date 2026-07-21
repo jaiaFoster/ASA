@@ -137,6 +137,7 @@ tickets:
       execution plans.
     input:
       - PortfolioDecision
+      - ExecutionContext
     output:
       - ExecutionPlan
     responsibilities:

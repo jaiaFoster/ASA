@@ -6,7 +6,7 @@ import ast
 import dataclasses
 from pathlib import Path
 
-from domain.execution import BrokerRequest, ExecutionPlan, PortfolioDecision
+from domain.execution import BrokerRequest, ExecutionContext, ExecutionPlan, PortfolioDecision
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 EXECUTION_CONTRACT = REPO_ROOT / "domain" / "execution.py"
@@ -47,7 +47,7 @@ def test_no_operational_or_infrastructure_dependency_is_reachable() -> None:
 
 
 def test_execution_contracts_expose_no_callable_behavior() -> None:
-    for cls in (PortfolioDecision, ExecutionPlan, BrokerRequest):
+    for cls in (PortfolioDecision, ExecutionContext, ExecutionPlan, BrokerRequest):
         public = {
             name
             for name, value in vars(cls).items()
