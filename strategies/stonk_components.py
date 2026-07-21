@@ -387,6 +387,130 @@ class ExpirationPairSelector(BaseComponent):
         return ComponentValues((("selected", TypedValue(EXPIRATION_COLLECTION, result)),))
 
 
+class DtePairSelector(BaseComponent):
+    """Select one stable front/back pair from explicit DTE and gap policy."""
+
+    __slots__ = ()
+    definition = _definition(
+        "asa.stonk.options",
+        "dte_pair_selector",
+        ComponentCategory.TRANSFORM,
+        (PortDefinition("expirations", EXPIRATION_COLLECTION),),
+        (PortDefinition("selected", EXPIRATION_COLLECTION),),
+        (
+            ParameterDefinition("front_min_dte", INTEGER),
+            ParameterDefinition("front_max_dte", INTEGER),
+            ParameterDefinition("back_min_dte", INTEGER),
+            ParameterDefinition("back_max_dte", INTEGER),
+            ParameterDefinition("minimum_gap_days", INTEGER),
+            ParameterDefinition("maximum_gap_days", INTEGER),
+            ParameterDefinition("target_front_dte", INTEGER),
+            ParameterDefinition("target_gap_days", INTEGER),
+        ),
+    )
+
+    def evaluate(self, inputs: ComponentValues, parameters: ComponentValues) -> ComponentValues:
+        expirations = cast(
+            ExpirationCollection, _input(inputs, "expirations", ExpirationCollection)
+        )
+        policy = {
+            name: cast(int, _parameter(parameters, name, int))
+            for name in (
+                "front_min_dte",
+                "front_max_dte",
+                "back_min_dte",
+                "back_max_dte",
+                "minimum_gap_days",
+                "maximum_gap_days",
+                "target_front_dte",
+                "target_gap_days",
+            )
+        }
+        if (
+            min(policy.values()) < 0
+            or policy["front_min_dte"] > policy["front_max_dte"]
+            or policy["back_min_dte"] > policy["back_max_dte"]
+            or policy["minimum_gap_days"] > policy["maximum_gap_days"]
+        ):
+            raise ComponentContractError("DTE pair policy is invalid")
+        pairs = tuple(
+            (front, back)
+            for front in expirations.cycles
+            for back in expirations.cycles
+            if policy["front_min_dte"] <= front.days_to_expiration <= policy["front_max_dte"]
+            and policy["back_min_dte"] <= back.days_to_expiration <= policy["back_max_dte"]
+            and policy["minimum_gap_days"]
+            <= back.days_to_expiration - front.days_to_expiration
+            <= policy["maximum_gap_days"]
+        )
+        selected = min(
+            pairs,
+            key=lambda pair: (
+                abs(pair[0].days_to_expiration - policy["target_front_dte"])
+                + abs(
+                    pair[1].days_to_expiration
+                    - pair[0].days_to_expiration
+                    - policy["target_gap_days"]
+                ),
+                pair[0].expiration_date,
+                pair[1].expiration_date,
+            ),
+            default=None,
+        )
+        result = ExpirationCollection(expirations.as_of, selected or ())
+        return ComponentValues((("selected", TypedValue(EXPIRATION_COLLECTION, result)),))
+
+
+class ExpirationPairProjection(BaseComponent):
+    """Project an exact selected pair into typed front/back dates."""
+
+    __slots__ = ()
+    definition = _definition(
+        "asa.stonk.options",
+        "expiration_pair_projection",
+        ComponentCategory.TRANSFORM,
+        (PortDefinition("selected", EXPIRATION_COLLECTION),),
+        (PortDefinition("front_expiration", DATE), PortDefinition("back_expiration", DATE)),
+    )
+
+    def evaluate(self, inputs: ComponentValues, parameters: ComponentValues) -> ComponentValues:
+        selected = cast(ExpirationCollection, _input(inputs, "selected", ExpirationCollection))
+        if len(selected.cycles) != 2:
+            raise ComponentContractError("expiration pair projection requires exactly two cycles")
+        front, back = selected.cycles
+        return ComponentValues(
+            (
+                ("back_expiration", TypedValue(DATE, back.expiration_date)),
+                ("front_expiration", TypedValue(DATE, front.expiration_date)),
+            )
+        )
+
+
+class ForwardFactor(BaseComponent):
+    """Compute source-qualified front IV divided by forward IV minus one."""
+
+    __slots__ = ()
+    definition = _definition(
+        "asa.stonk.options",
+        "forward_factor",
+        ComponentCategory.SCORE,
+        (
+            PortDefinition("front_ex_earnings_iv", D),
+            PortDefinition("implied_forward_iv", D),
+        ),
+        (PortDefinition("factor", D),),
+    )
+
+    def evaluate(self, inputs: ComponentValues, parameters: ComponentValues) -> ComponentValues:
+        front = cast(Decimal, _input(inputs, "front_ex_earnings_iv", Decimal))
+        forward = cast(Decimal, _input(inputs, "implied_forward_iv", Decimal))
+        if front < 0 or forward <= 0:
+            raise ComponentContractError(
+                "forward factor requires non-negative front IV and positive forward IV"
+            )
+        return ComponentValues((("factor", TypedValue(D, front / forward - Decimal(1))),))
+
+
 class OptionLegLiquidity(BaseComponent):
     """Evaluate quote width, open interest, and volume without deriving a mark."""
 
@@ -544,6 +668,44 @@ class CalendarStructure(BaseComponent):
         return ComponentValues((("structure", TypedValue(OPTION_STRUCTURE, structure)),))
 
 
+class NearestCommonStrikeCalendar(BaseComponent):
+    """Choose the common strike nearest an explicit target and build a calendar."""
+
+    __slots__ = ()
+    definition = _definition(
+        "asa.stonk.options",
+        "nearest_common_strike_calendar",
+        ComponentCategory.TRANSFORM,
+        (
+            PortDefinition("chain", OPTION_CHAIN),
+            PortDefinition("front_expiration", DATE),
+            PortDefinition("back_expiration", DATE),
+            PortDefinition("target_strike", D),
+        ),
+        (PortDefinition("structure", OPTION_STRUCTURE),),
+        (ParameterDefinition("option_type", OPTION_TYPE),),
+    )
+
+    def evaluate(self, inputs: ComponentValues, parameters: ComponentValues) -> ComponentValues:
+        chain = cast(OptionChain, _input(inputs, "chain", OptionChain))
+        front = cast(date, _input(inputs, "front_expiration", date))
+        back = cast(date, _input(inputs, "back_expiration", date))
+        target = cast(Decimal, _input(inputs, "target_strike", Decimal))
+        option_type = OptionType(cast(str, _parameter(parameters, "option_type", str)))
+        front_strikes = {
+            item.strike for item in chain.find(expiration=front, option_type=option_type)
+        }
+        back_strikes = {
+            item.strike for item in chain.find(expiration=back, option_type=option_type)
+        }
+        common = front_strikes & back_strikes
+        if not common:
+            raise ComponentContractError("no common strike exists for calendar inputs")
+        strike = min(common, key=lambda value: (abs(value - target), value))
+        structure = _calendar(chain, front, back, option_type, strike)
+        return ComponentValues((("structure", TypedValue(OPTION_STRUCTURE, structure)),))
+
+
 class VerticalStructure(BaseComponent):
     __slots__ = ()
     definition = _definition(
@@ -688,9 +850,13 @@ SHARED_STONK_COMPONENTS: tuple[BaseComponent, ...] = (
 OPTIONS_STONK_COMPONENTS: tuple[BaseComponent, ...] = (
     EarningsEventWindow(),
     ExpirationPairSelector(),
+    DtePairSelector(),
+    ExpirationPairProjection(),
+    ForwardFactor(),
     OptionLegLiquidity(),
     DeltaNearestLeg(),
     CalendarStructure(),
+    NearestCommonStrikeCalendar(),
     VerticalStructure(),
     DoubleCalendarStructure(),
     OptionStructureDebit(),

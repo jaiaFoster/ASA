@@ -25,9 +25,13 @@ Plugin SDK.
 | `asa.stonk.shared` | `verdict_classifier` | Classify one score into configured PASS, WATCH, or FAIL tiers |
 | `asa.stonk.options` | `earnings_event_window` | Test the preferred front-before-event/back-after-event window and confirmation policy |
 | `asa.stonk.options` | `expiration_pair_selector` | Select one stable event-spanning pair within explicit DTE bounds |
+| `asa.stonk.options` | `dte_pair_selector` | Select one stable front/back pair from explicit DTE, gap, and target policy |
+| `asa.stonk.options` | `expiration_pair_projection` | Project one exact pair into typed front and back expiration dates |
+| `asa.stonk.options` | `forward_factor` | Calculate source-qualified front IV divided by implied forward IV minus one |
 | `asa.stonk.options` | `option_leg_liquidity` | Test observed quote width, open interest, and volume against explicit thresholds |
 | `asa.stonk.options` | `delta_nearest_leg` | Select the nearest absolute observed delta with a canonical contract tie-breaker |
 | `asa.stonk.options` | `calendar_structure` | Construct a same-strike, front-short/back-long canonical calendar |
+| `asa.stonk.options` | `nearest_common_strike_calendar` | Select the common strike nearest an explicit target and construct a calendar |
 | `asa.stonk.options` | `vertical_structure` | Construct a distinct-strike, same-expiry delta-selected debit vertical |
 | `asa.stonk.options` | `double_calendar_structure` | Compose canonical put and call calendars as a typed tuple |
 | `asa.stonk.options` | `option_structure_debit` | Compute mark debit and conservative long-ask/short-bid debit when evidence is complete |
