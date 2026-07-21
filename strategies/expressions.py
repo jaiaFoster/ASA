@@ -571,7 +571,7 @@ def _require(condition: bool, message: str) -> None:
 
 
 def _booleanish(value: StrategyTypeReference) -> bool:
-    return value.name == "Boolean" or value == UNKNOWN
+    return bool(value.name == "Boolean" or value == UNKNOWN)
 
 
 def _type_data(value: StrategyTypeReference) -> dict[str, object]:
