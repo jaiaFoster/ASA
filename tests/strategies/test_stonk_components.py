@@ -36,8 +36,12 @@ from strategies import (
     DeltaNearestLeg,
     DeterministicSecurityCap,
     DoubleCalendarStructure,
+    DtePairSelector,
     EarningsEventWindow,
+    ExpirationPairProjection,
     ExpirationPairSelector,
+    ForwardFactor,
+    NearestCommonStrikeCalendar,
     OptionLegLiquidity,
     OptionStructureDebit,
     RequiredEvidenceGate,
@@ -159,7 +163,7 @@ def test_plugins_register_all_components_statically_and_deterministically() -> N
         for plugin in STONK_STRATEGY_PLUGINS
         for component in plugin.components
     }
-    assert len(expected) == 13
+    assert len(expected) == 17
     for namespace, name in expected:
         assert registry.resolve(ComponentReference(namespace, name, "1.0.0"))
     assert (
@@ -169,10 +173,10 @@ def test_plugins_register_all_components_statically_and_deterministically() -> N
     assert STONK_STRATEGY_PLUGINS[0].plugin_id == (
         "263fa946cd81ec3ed561a3a64ea80353730f831063466c6b4363ea510bc1fd17"
     )
+    assert STONK_STRATEGY_PLUGINS[1].metadata.version == "1.1.0"
     assert STONK_STRATEGY_PLUGINS[1].plugin_id == (
-        "90fba3638e4742beacc3314125c6735232fc2bbb50987ab924bb5b9ab9bfd4cf"
+        "759e74ebcaf66ad7909980b51c3b38cf1e29534c5b1dbe28fd6ff777e0f33acd"
     )
-    assert registry.identity == ("e1601ce3268389fc2356d5fc2782ce86f2717cff4aa944f7065775de2f56cfc4")
 
 
 def test_evidence_universe_cap_score_and_verdict_primitives() -> None:
@@ -346,6 +350,52 @@ def test_liquidity_and_delta_selection_use_observed_contract_values() -> None:
     )
 
 
+def test_dte_pair_projection_and_forward_factor_are_deterministic() -> None:
+    front = ExpirationCycle(FRONT, 16, True, False, AS_OF, EVIDENCE)
+    back = ExpirationCycle(BACK, 51, True, False, AS_OF, EVIDENCE)
+    pair_selected = (
+        DtePairSelector()
+        .evaluate(
+            values(
+                expirations=(
+                    EXPIRATION_COLLECTION,
+                    ExpirationCollection(AS_OF, (back, front)),
+                )
+            ),
+            values(
+                front_min_dte=(INTEGER, 10),
+                front_max_dte=(INTEGER, 30),
+                back_min_dte=(INTEGER, 40),
+                back_max_dte=(INTEGER, 90),
+                minimum_gap_days=(INTEGER, 20),
+                maximum_gap_days=(INTEGER, 60),
+                target_front_dte=(INTEGER, 20),
+                target_gap_days=(INTEGER, 35),
+            ),
+        )
+        .get("selected")
+    )
+    projected = ExpirationPairProjection().evaluate(
+        ComponentValues((("selected", pair_selected),)), ComponentValues(())
+    )
+    assert projected.get("front_expiration").value == FRONT
+    assert projected.get("back_expiration").value == BACK
+
+    factor = (
+        ForwardFactor()
+        .evaluate(
+            values(
+                front_ex_earnings_iv=(D, Decimal("0.30")),
+                implied_forward_iv=(D, Decimal("0.25")),
+            ),
+            ComponentValues(()),
+        )
+        .get("factor")
+        .value
+    )
+    assert factor == Decimal("0.2")
+
+
 def test_calendar_vertical_double_calendar_and_debit_are_replay_stable() -> None:
     option_chain = chain()
     calendar_inputs = values(
@@ -375,6 +425,23 @@ def test_calendar_vertical_double_calendar_and_debit_are_replay_stable() -> None
     )
     assert debit.get("mid_debit").value == Decimal("1")
     assert debit.get("conservative_debit").value == Decimal("1.2")
+
+    nearest = (
+        NearestCommonStrikeCalendar()
+        .evaluate(
+            values(
+                chain=(OPTION_CHAIN, option_chain),
+                front_expiration=(DATE, FRONT),
+                back_expiration=(DATE, BACK),
+                target_strike=(D, Decimal("103")),
+            ),
+            values(option_type=(OPTION_TYPE, "call")),
+        )
+        .get("structure")
+        .value
+    )
+    assert isinstance(nearest, OptionStructure)
+    assert {leg.contract.strike for leg in nearest.legs} == {Decimal("105")}
 
     vertical = (
         VerticalStructure()
