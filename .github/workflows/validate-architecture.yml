@@ -15,6 +15,7 @@ on:
       - 'ranking/**'
       - 'position_proposals/**'
       - 'portfolio/**'
+      - 'execution_planning/**'
       - 'presentation/**'
       - 'domain/**'
       - 'architecture/**'
@@ -30,6 +31,7 @@ on:
       - 'tests/ranking/**'
       - 'tests/position_proposals/**'
       - 'tests/portfolio/**'
+      - 'tests/execution_planning/**'
   workflow_dispatch:
 
 jobs:
@@ -64,6 +66,7 @@ jobs:
           tests/ranking
           tests/position_proposals
           tests/portfolio
+          tests/execution_planning
           -v
 
 # Mechanical checks only. A passing workflow does NOT constitute approval,
