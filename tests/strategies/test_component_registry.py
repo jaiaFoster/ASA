@@ -75,7 +75,7 @@ class TestRegistry:
         assert REGISTRY_IDENTITY_NAMESPACE == "asa.strategy_component_registry"
         assert REGISTRY_IDENTITY_VERSION == "v1"
         assert registry.identity == (
-            "84e53fbedc86346a7ad76bcfb29095b0647467bcd645983776f6ff89e21050fc"
+            "3081a32b4a495a15a495c1642294e79502c984d537e4517024af11ebb7021fa1"
         )
 
     def test_duplicate_exact_registration_is_rejected(self):

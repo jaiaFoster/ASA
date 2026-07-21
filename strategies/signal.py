@@ -7,6 +7,7 @@ engine (``strategies/engine.py``) wraps a triggered signal into a full,
 immutable ``Opportunity`` — one calculation, one home: a strategy function
 never constructs an ``Opportunity`` or computes an identity itself.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass

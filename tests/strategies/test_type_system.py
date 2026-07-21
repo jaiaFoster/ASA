@@ -1,8 +1,9 @@
 """STRAT-006: closed deterministic Strategy Type System tests."""
+
 from __future__ import annotations
 
 from dataclasses import FrozenInstanceError
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 
 import pytest
@@ -38,12 +39,31 @@ def ref(
 
 class TestCatalog:
     def test_version_and_closed_v1_catalog_are_pinned(self):
-        assert TYPE_SYSTEM_VERSION == "1.0.0"
+        assert TYPE_SYSTEM_VERSION == "1.1.0"
         assert {item.name for item in DEFAULT_TYPE_SYSTEM.definitions} == {
-            "Boolean", "Integer", "Decimal", "Text", "Date", "Instant",
-            "Currency", "Money", "Ratio", "Probability", "Quantity",
-            "Instrument", "CanonicalFact", "IndicatorValue", "Evidence",
-            "ExpectedOutcomeMetrics", "Opportunity", "Enum", "Optional", "List", "Map",
+            "Boolean",
+            "Integer",
+            "Decimal",
+            "Text",
+            "Date",
+            "Instant",
+            "Duration",
+            "Unknown",
+            "Currency",
+            "Money",
+            "Ratio",
+            "Probability",
+            "Quantity",
+            "Instrument",
+            "CanonicalFact",
+            "IndicatorValue",
+            "Evidence",
+            "ExpectedOutcomeMetrics",
+            "Opportunity",
+            "Enum",
+            "Optional",
+            "List",
+            "Map",
         }
 
     def test_catalog_identity_is_deterministic_and_order_independent(self):
@@ -52,7 +72,7 @@ class TestCatalog:
         assert first.definitions == second.definitions
         assert first.identity == second.identity
         assert first.identity == (
-            "a495534099091cbee2d0a4293091f45312b16ab151344d86e6d0da29271aeb79"
+            "ccf778c9867812e0141d06837c2815a3082816def0248e086dd6ae9e15e9766e"
         )
 
     def test_duplicate_exact_definition_is_rejected(self):
@@ -120,6 +140,8 @@ class TestValueValidation:
             (ref("Text"), "value"),
             (ref("Date"), date(2026, 7, 21)),
             (ref("Instant"), datetime(2026, 7, 21, tzinfo=timezone.utc)),
+            (ref("Duration"), timedelta(days=2)),
+            (ref("Unknown"), None),
             (ref("Currency"), "USD"),
             (ref("Probability"), Decimal("0.5")),
             (ref("Instrument"), TEST_INSTRUMENT),

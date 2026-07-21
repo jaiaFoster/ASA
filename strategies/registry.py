@@ -6,6 +6,7 @@ embedding an ``if strategy_id == ...`` chain. Explicit registration,
 deterministic lookup, duplicate registration rejected. Mirrors
 ``indicators/registry.py``'s design exactly.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -41,12 +42,13 @@ class StrategyRegistry:
     def __init__(self) -> None:
         self._definitions: dict[str, StrategyDefinition] = {}
 
-    def register(self, strategy_id: str, strategy_version: str,
-                 compute: StrategyComputeFn) -> None:
+    def register(self, strategy_id: str, strategy_version: str, compute: StrategyComputeFn) -> None:
         if strategy_id in self._definitions:
             raise DuplicateStrategyRegistrationError(strategy_id)
         self._definitions[strategy_id] = StrategyDefinition(
-            strategy_id=strategy_id, strategy_version=strategy_version, compute=compute,
+            strategy_id=strategy_id,
+            strategy_version=strategy_version,
+            compute=compute,
         )
 
     def get(self, strategy_id: str) -> StrategyDefinition:

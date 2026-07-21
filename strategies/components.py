@@ -5,6 +5,7 @@ validation, lifecycle traces, and replay. A component has one stateless pure
 ``evaluate`` entrypoint; lifecycle callbacks and service dependencies are not
 part of this contract.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -81,9 +82,7 @@ class ParameterDefinition:
     def __post_init__(self) -> None:
         validate_strategy_identifier(self.name, "parameter.name")
         if not isinstance(self.type_ref, StrategyTypeReference):
-            raise ComponentContractError(
-                "parameter.type_ref must be a StrategyTypeReference"
-            )
+            raise ComponentContractError("parameter.type_ref must be a StrategyTypeReference")
         if not isinstance(self.required, bool) or not isinstance(self.has_default, bool):
             raise ComponentContractError("parameter required/default flags must be Boolean")
         if self.required and self.has_default:
@@ -109,9 +108,7 @@ class ComponentDefinition:
     parameters: tuple[ParameterDefinition, ...] = field(default_factory=tuple)
     capabilities: tuple[CapabilityRequirement, ...] = field(default_factory=tuple)
     algorithm_version: str = "1.0.0"
-    explanation_template: ManifestObject = field(
-        default_factory=lambda: ManifestObject(())
-    )
+    explanation_template: ManifestObject = field(default_factory=lambda: ManifestObject(()))
     resource_limits: ManifestObject = field(default_factory=lambda: ManifestObject(()))
 
     def __post_init__(self) -> None:
@@ -134,9 +131,7 @@ class ComponentDefinition:
         if not outputs:
             raise ComponentContractError("a component must declare at least one output port")
         if not isinstance(self.explanation_template, ManifestObject):
-            raise ComponentContractError(
-                "component.explanation_template must be a ManifestObject"
-            )
+            raise ComponentContractError("component.explanation_template must be a ManifestObject")
         if not isinstance(self.resource_limits, ManifestObject):
             raise ComponentContractError("component.resource_limits must be a ManifestObject")
 
@@ -194,8 +189,7 @@ def component_definition_data(definition: ComponentDefinition) -> dict[str, obje
         "output_ports": [_port_data(item) for item in definition.output_ports],
         "parameters": [_parameter_data(item) for item in definition.parameters],
         "capabilities": [
-            {"name": item.name, "version": item.version}
-            for item in definition.capabilities
+            {"name": item.name, "version": item.version} for item in definition.capabilities
         ],
         "algorithm_version": definition.algorithm_version,
         "explanation_template": manifest_value_to_data(definition.explanation_template),
@@ -225,8 +219,6 @@ class BaseComponent(ABC):
     definition: ComponentDefinition
 
     @abstractmethod
-    def evaluate(
-        self, inputs: ComponentValues, parameters: ComponentValues
-    ) -> ComponentValues:
+    def evaluate(self, inputs: ComponentValues, parameters: ComponentValues) -> ComponentValues:
         """Return complete immutable typed outputs or raise a deterministic error."""
         raise NotImplementedError

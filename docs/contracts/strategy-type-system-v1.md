@@ -1,6 +1,6 @@
 # Strategy Type System v1
 
-**Type-system version:** `1.0.0`
+**Type-system version:** `1.1.0`
 
 The Strategy Type System implements ASA-ARCH-003's closed, deterministic graph-connection
 vocabulary. It owns exact type resolution, parameterized type shape, value validation, and
@@ -11,7 +11,7 @@ or graph traversal.
 
 V1 defines:
 
-- primitives: Boolean, Integer, Decimal, Text, Date, Instant;
+- primitives: Boolean, Integer, Decimal, Text, Date, Instant, Duration;
 - financial values: Currency, Money, Ratio, Probability, Quantity;
 - domain values: Instrument, CanonicalFact, IndicatorValue, Evidence,
   ExpectedOutcomeMetrics, Opportunity;

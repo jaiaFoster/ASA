@@ -1,4 +1,5 @@
 """Immutable explicit Component Registry (STRAT-004, ASA-ARCH-003)."""
+
 from __future__ import annotations
 
 import hashlib
@@ -117,15 +118,11 @@ def _definition_key(definition: ComponentDefinition) -> tuple[str, str, str]:
     return definition.namespace, definition.name, definition.version
 
 
-def _validate_definition(
-    definition: ComponentDefinition, type_system: StrategyTypeSystem
-) -> None:
+def _validate_definition(definition: ComponentDefinition, type_system: StrategyTypeSystem) -> None:
     for port in (*definition.input_ports, *definition.output_ports):
         type_system.resolve(port.type_ref)
     for parameter in definition.parameters:
         type_system.resolve(parameter.type_ref)
     for capability in definition.capabilities:
         if capability.name not in SUPPORTED_COMPONENT_CAPABILITIES:
-            raise ComponentContractError(
-                f"unsupported Component capability: {capability.name}"
-            )
+            raise ComponentContractError(f"unsupported Component capability: {capability.name}")
