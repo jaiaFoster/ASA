@@ -24,6 +24,7 @@ on:
       - 'tests/facts/**'
       - 'tests/indicators/**'
       - 'tests/strategies/**'
+      - 'tests/guardrails/**'
   workflow_dispatch:
 
 jobs:
@@ -43,8 +44,8 @@ jobs:
       - name: Install test dependencies
         run: python -m pip install pytest
 
-      - name: Run architecture, domain, observation, provider, reconciliation, facts, indicator, and strategy tests
-        run: python -m pytest tests/architecture tests/domain tests/observation tests/providers tests/reconciliation tests/facts tests/indicators tests/strategies -v
+      - name: Run architecture, domain, observation, provider, reconciliation, facts, indicator, strategy, and guardrail tests
+        run: python -m pytest tests/architecture tests/domain tests/observation tests/providers tests/reconciliation tests/facts tests/indicators tests/strategies tests/guardrails -v
 
 # Mechanical checks only. A passing workflow does NOT constitute approval,
 # merge authorization, or deployment authorization.
