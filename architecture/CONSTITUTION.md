@@ -18,7 +18,13 @@ Amending this document should be rare and deliberate.
 
 4. **Strategies consume knowledge; they do not gather it.** A Strategy operates only on Facts and Indicators already established by lower layers. It does not reach past them to raw provider data.
 
-5. **ASA is a read-only platform.** ASA does not execute trades, place orders, or modify brokerage state, under any circumstance.
+5. **Analytical execution boundary.** ASA Core SHALL NOT submit, modify, cancel, or otherwise mutate brokerage state.
+
+   ASA Core SHALL produce immutable Execution Plans representing deterministic portfolio intent.
+
+   Execution Plans are analytical artifacts and SHALL NOT have operational side effects.
+
+   Any future operational execution capability SHALL exist as a separately governed subsystem requiring constitutional amendment and explicit Founder authorization.
 
 6. **Every recommendation must be explainable.** A recommendation that cannot be traced to specific, structured evidence is not made.
 
