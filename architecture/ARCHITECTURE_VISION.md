@@ -74,7 +74,7 @@ PortfolioSnapshot ─────►│
                         │
                         ▼
                 PortfolioDecision
-                        │
+                        │ ◄──── ExecutionContext
                         ▼
                 Execution Planner
                         │
@@ -99,7 +99,7 @@ Each layer consumes only from the layer(s) below it and has a single, well-defin
 - **Presentation Layer** communicates the result to the user, including any natural-language summarization. This is the only layer where a language model may participate.
 - **Position Proposal Engine** converts ranked Intelligence into desired exposure without reading portfolio state.
 - **Portfolio Engine** compares Proposed Positions with one immutable, provider-neutral Portfolio Snapshot.
-- **Execution Planner** decomposes accepted portfolio decisions into ordered, inert Broker Requests. It has no adapter, network, authentication, persistence, or broker access. ADR-009 defines these records as analysis and places any future external communication beyond a separately governed boundary.
+- **Execution Planner** combines accepted portfolio decisions with one explicit, immutable, provider-neutral Execution Context and decomposes them into ordered, inert Broker Requests. It has no adapter, network, authentication, persistence, or broker access. ADR-009 defines these records as analysis and places any future external communication beyond a separately governed boundary.
 
 Provider independence follows from this structure: a provider can be added, removed, or reprioritized without altering any layer above the Observation Layer, because everything above it consumes Canonical Facts, not raw provider payloads.
 

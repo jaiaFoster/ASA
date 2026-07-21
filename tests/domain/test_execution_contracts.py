@@ -16,6 +16,7 @@ from domain import (
     DomainInvariantError,
     EvidenceKind,
     EvidenceReference,
+    ExecutionContext,
     ExecutionPlan,
     Instrument,
     InstrumentKind,
@@ -23,6 +24,7 @@ from domain import (
     OrderType,
     PortfolioDecision,
     PortfolioDecisionState,
+    PositionDirection,
     ProposedPosition,
     TimeInForce,
 )
@@ -98,17 +100,36 @@ def _request(sequence: int = 1) -> BrokerRequest:
     )
 
 
+def _context(
+    *,
+    current_direction: PositionDirection | None = None,
+    current_quantity: Decimal = Decimal("0"),
+) -> ExecutionContext:
+    return ExecutionContext(
+        execution_context_id="execution-context-1",
+        portfolio_snapshot_id="snapshot-1",
+        account_id="account-1",
+        instrument_identity=_proposal().instrument.identity,
+        current_direction=current_direction,
+        current_quantity=current_quantity,
+        unit_exposure=MonetaryAmount(Decimal("200"), USD),
+        quantity_increment=Decimal("1"),
+        valuation_evidence=EVIDENCE,
+    )
+
+
 def _plan() -> ExecutionPlan:
     return ExecutionPlan(
         execution_plan_id="plan-1",
         planning_algorithm_version="v1",
         portfolio_decision=_decision(),
+        execution_context=_context(),
         broker_requests=(_request(),),
         reasoning=EVIDENCE,
     )
 
 
-@pytest.mark.parametrize("value", [_decision(), _request(), _plan()])
+@pytest.mark.parametrize("value", [_decision(), _context(), _request(), _plan()])
 def test_execution_contracts_are_deeply_immutable(value: object) -> None:
     assert dataclasses.is_dataclass(value)
     assert value.__dataclass_params__.frozen  # type: ignore[attr-defined]
@@ -128,7 +149,7 @@ def test_identical_semantic_inputs_replay_identically() -> None:
 
 
 def test_contract_identity_contains_no_timestamp_fields() -> None:
-    for cls in (PortfolioDecision, ExecutionPlan, BrokerRequest):
+    for cls in (PortfolioDecision, ExecutionContext, ExecutionPlan, BrokerRequest):
         names = {field.name for field in dataclasses.fields(cls)}
         assert not names & {"created_at", "evaluated_at", "planned_at", "submitted_at"}
 
@@ -148,7 +169,7 @@ def test_reject_and_hold_approve_no_new_exposure() -> None:
     for state in (PortfolioDecisionState.REJECT, PortfolioDecisionState.HOLD):
         decision = _decision(state)
         assert decision.approved_allocation == 0
-        plan = ExecutionPlan("plan-noop", "v1", decision, (), EVIDENCE)
+        plan = ExecutionPlan("plan-noop", "v1", decision, _context(), (), EVIDENCE)
         assert plan.broker_requests == ()
 
 
@@ -183,9 +204,81 @@ def test_order_shape_is_structurally_coherent() -> None:
 
 def test_execution_plan_requires_contiguous_ordering() -> None:
     with pytest.raises(DomainInvariantError, match="sequences must be contiguous"):
-        ExecutionPlan("plan-2", "v1", _decision(), (_request(sequence=2),), EVIDENCE)
+        ExecutionPlan(
+            "plan-2",
+            "v1",
+            _decision(),
+            _context(),
+            (_request(sequence=2),),
+            EVIDENCE,
+        )
 
 
 def test_approved_decision_requires_analytical_request() -> None:
     with pytest.raises(DomainInvariantError, match="require at least one BrokerRequest"):
-        ExecutionPlan("plan-empty", "v1", _decision(), (), EVIDENCE)
+        ExecutionPlan("plan-empty", "v1", _decision(), _context(), (), EVIDENCE)
+
+
+def test_execution_context_requires_coherent_current_position() -> None:
+    with pytest.raises(DomainInvariantError, match="flat ExecutionContext"):
+        _context(current_direction=PositionDirection.LONG)
+    with pytest.raises(DomainInvariantError, match="requires current_direction"):
+        _context(current_quantity=Decimal("1"))
+
+
+def test_execution_context_requires_positive_unit_exposure_and_increment() -> None:
+    with pytest.raises(DomainInvariantError, match="unit_exposure.amount"):
+        dataclasses.replace(
+            _context(),
+            unit_exposure=MonetaryAmount(Decimal("0"), USD),
+        )
+    with pytest.raises(DomainInvariantError, match="quantity_increment"):
+        dataclasses.replace(_context(), quantity_increment=Decimal("0"))
+    with pytest.raises(DomainInvariantError, match="current_quantity"):
+        _context(
+            current_direction=PositionDirection.LONG,
+            current_quantity=Decimal("1.5"),
+        )
+
+
+def test_execution_plan_requires_matching_context() -> None:
+    with pytest.raises(DomainInvariantError, match="snapshot"):
+        dataclasses.replace(
+            _plan(),
+            execution_context=dataclasses.replace(
+                _context(),
+                portfolio_snapshot_id="other-snapshot",
+            ),
+        )
+    with pytest.raises(DomainInvariantError, match="instrument"):
+        dataclasses.replace(
+            _plan(),
+            execution_context=dataclasses.replace(
+                _context(),
+                instrument_identity=CanonicalInstrumentIdentity("figi", "other"),
+            ),
+        )
+    with pytest.raises(DomainInvariantError, match="currency"):
+        dataclasses.replace(
+            _plan(),
+            execution_context=dataclasses.replace(
+                _context(),
+                unit_exposure=MonetaryAmount(Decimal("200"), "EUR"),
+            ),
+        )
+
+
+def test_execution_plan_requests_use_context_account_and_increment() -> None:
+    with pytest.raises(DomainInvariantError, match="context account"):
+        dataclasses.replace(
+            _plan(),
+            broker_requests=(dataclasses.replace(_request(), account_id="other-account"),),
+        )
+    with pytest.raises(DomainInvariantError, match="quantity increment"):
+        dataclasses.replace(
+            _plan(),
+            execution_context=dataclasses.replace(
+                _context(),
+                quantity_increment=Decimal("3"),
+            ),
+        )

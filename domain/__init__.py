@@ -10,6 +10,7 @@ from domain.canonical_fact import CanonicalFact
 from domain.execution import (
     BrokerRequest,
     BrokerRequestSide,
+    ExecutionContext,
     ExecutionPlan,
     OrderType,
     PortfolioDecision,
@@ -49,6 +50,7 @@ __all__ = [
     "EvidenceKind",
     "EvidenceReference",
     "ExpectedOutcomeMetrics",
+    "ExecutionContext",
     "ExecutionPlan",
     "GuardrailOutcome",
     "Holding",
