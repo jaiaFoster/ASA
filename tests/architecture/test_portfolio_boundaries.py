@@ -58,8 +58,6 @@ def test_required_modules_exist_and_no_repository_exists() -> None:
         "engine.py",
         "errors.py",
         "models.py",
-        "policies.py",
-        "registry.py",
     }
     assert not (REPO_ROOT / "portfolio" / "repository.py").exists()
     assert not (REPO_ROOT / "portfolio" / "persistence.py").exists()

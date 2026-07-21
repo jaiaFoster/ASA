@@ -19,7 +19,6 @@ class ProposalParameters:
 
     allocation_floor: Decimal = Decimal("0.01")
     allocation_ceiling: Decimal = Decimal("0.10")
-    reference_capital: Decimal = Decimal("100000")
 
     def __post_init__(self) -> None:
         for name in self.__dataclass_fields__:
@@ -36,8 +35,6 @@ class ProposalParameters:
             raise InvalidProposalParameterError(
                 "allocation_floor cannot exceed allocation_ceiling"
             )
-        if self.reference_capital <= 0:
-            raise InvalidProposalParameterError("reference_capital must be positive")
 
     def canonical_items(self) -> tuple[tuple[str, Decimal], ...]:
         return tuple(sorted((name, getattr(self, name)) for name in self.__dataclass_fields__))

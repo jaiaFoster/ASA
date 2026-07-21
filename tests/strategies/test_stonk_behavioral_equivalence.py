@@ -13,7 +13,7 @@ from pathlib import Path
 import pytest
 
 from domain import OptionChain, OptionStructure, OptionType
-from domain.execution import PortfolioDecisionState
+from domain.execution import PortfolioEvaluationDisposition
 from portfolio import evaluate_portfolio
 from ranking import rank_opportunities
 from strategies import (
@@ -167,7 +167,7 @@ def test_ranking_and_portfolio_construction_remain_owned_by_asa_engines() -> Non
     first = evaluate_portfolio(request(snapshot()))
     replay = evaluate_portfolio(request(snapshot()))
     assert first == replay
-    assert first[0].state is PortfolioDecisionState.ACCEPT
+    assert first[0].disposition is PortfolioEvaluationDisposition.DELTA_PRODUCED
 
 
 def test_equivalence_document_records_pinned_source_and_intentional_differences() -> None:

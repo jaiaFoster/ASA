@@ -1,183 +1,61 @@
-"""ASA-CORE-009 deterministic Portfolio Engine tests."""
-
-from __future__ import annotations
-
-import dataclasses
+from dataclasses import replace
 from decimal import Decimal
 
-import pytest
-
-from domain.execution import PortfolioDecisionState
-from domain.operational import PortfolioDecisionRequest
+from domain.execution import PortfolioEvaluationDisposition
+from domain.operational import MonetaryAmount, PortfolioSnapshot
 from portfolio.engine import evaluate_portfolio
-from portfolio.models import PORTFOLIO_ALGORITHM_VERSION, PortfolioParameters
-from tests.portfolio.helpers import holding, instrument, request, snapshot
+from tests.portfolio.helpers import EVIDENCE, request, snapshot
 
 
-def test_accepts_complete_proposal_when_every_policy_passes() -> None:
-    proposal = request().proposed_positions[0]
-    decision = evaluate_portfolio(request())[0]
-    assert decision.state is PortfolioDecisionState.ACCEPT
-    assert decision.approved_allocation == proposal.target_allocation
+def test_portfolio_engine_sizes_from_snapshot_not_proposal_reference_capital() -> None:
+    item = evaluate_portfolio(request())[0]
+    assert item.disposition is PortfolioEvaluationDisposition.DELTA_PRODUCED
+    assert item.proposed_delta is not None
+    assert item.proposed_delta.target_quantity > 0
+    assert "reference_capital" not in dict(request().proposed_positions[0].effective_parameters)
 
 
-def test_replay_and_identity_are_stable() -> None:
-    decision_request = request()
-    first = evaluate_portfolio(decision_request)
-    second = evaluate_portfolio(decision_request)
-    assert first == second
-    assert first[0].portfolio_decision_id == second[0].portfolio_decision_id
+def test_replay_is_stable() -> None:
+    assert evaluate_portfolio(request()) == evaluate_portfolio(request())
 
 
-def test_request_order_is_preserved() -> None:
-    original = request()
-    first = original.proposed_positions[0]
-    second = dataclasses.replace(
-        first,
-        proposed_position_id="proposal-second",
-        opportunity_id="opportunity-second",
+def test_stale_loss_sign_becomes_non_negative_projected_loss() -> None:
+    delta = evaluate_portfolio(request())[0].proposed_delta
+    assert delta is not None
+    assert delta.projected_maximum_loss.amount >= 0
+
+
+def test_same_target_is_represented_by_identified_no_change_result() -> None:
+    first = evaluate_portfolio(request())[0]
+    assert first.proposed_delta is not None
+    base = snapshot()
+    value = base.instrument_valuations[0]
+    quantity = first.proposed_delta.target_quantity
+    from domain.operational import Position, PositionDirection
+
+    position = Position(
+        "position-1", base.portfolio.account_id, value.instrument, PositionDirection.LONG,
+        quantity, value.quantity_increment, value.current_price, value.current_price,
+        value.price_multiplier, value.unit_exposure,
+        MonetaryAmount(quantity * value.unit_exposure.amount, "USD"),
+        MonetaryAmount(quantity * value.unit_exposure.amount, "USD"),
+        MonetaryAmount(Decimal("0"), "USD"), MonetaryAmount(Decimal("0"), "USD"),
+        value.valued_at, EVIDENCE,
     )
-    decision_request = PortfolioDecisionRequest(
-        "request-two",
-        original.ranking_result_id,
-        original.portfolio_snapshot,
-        (second, first),
+    exposure = quantity * value.unit_exposure.amount
+    changed_portfolio = replace(
+        base.portfolio,
+        positions=(position,),
+        cash_balance=MonetaryAmount(
+            base.portfolio.net_liquidation_value.amount - exposure,
+            "USD",
+        ),
+        gross_exposure=MonetaryAmount(exposure, "USD"),
     )
-    decisions = evaluate_portfolio(decision_request)
-    assert tuple(item.proposed_position for item in decisions) == (second, first)
-
-
-def test_insufficient_cash_rejects() -> None:
-    decision = evaluate_portfolio(request(snapshot(cash=Decimal("1000"))))[0]
-    assert decision.state is PortfolioDecisionState.REJECT
-    assert decision.approved_allocation == 0
-    assert "cash reserve limits new exposure" in decision.reasons
-
-
-def test_buying_power_reduces_to_available_capacity() -> None:
-    decision = evaluate_portfolio(
-        request(snapshot(buying_power=Decimal("5000")))
-    )[0]
-    assert decision.state is PortfolioDecisionState.REDUCE
-    assert decision.approved_allocation == Decimal("0.050000000000")
-
-
-def test_duplicate_instrument_holds_without_new_exposure() -> None:
-    duplicate = holding(instrument())
-    decision = evaluate_portfolio(request(snapshot(holdings=(duplicate,))))[0]
-    assert decision.state is PortfolioDecisionState.HOLD
-    assert decision.approved_allocation == 0
-    assert "existing canonical instrument exposure requires hold" in decision.reasons
-
-
-def test_sector_diversification_limit_reduces_allocation() -> None:
-    existing = holding(exposure=Decimal("38000"))
-    original = request(snapshot(holdings=(existing,)))
-    classified = dataclasses.replace(original.proposed_positions[0], instrument=instrument())
-    decision_request = PortfolioDecisionRequest(
-        original.decision_request_id,
-        original.ranking_result_id,
-        original.portfolio_snapshot,
-        (classified,),
+    no_change_snapshot = PortfolioSnapshot(
+        "snapshot-2", changed_portfolio, base.instrument_valuations, base.observed_at, EVIDENCE
     )
-    decision = evaluate_portfolio(decision_request)[0]
-    assert decision.state is PortfolioDecisionState.REDUCE
-    assert decision.approved_allocation == Decimal("0.020000000000")
-    assert "sector exposure limit constrains diversification" in decision.reasons
-
-
-def test_single_asset_concentration_limit_is_enforced() -> None:
-    decision = evaluate_portfolio(
-        request(),
-        PortfolioParameters(maximum_single_asset_exposure=Decimal("0.05")),
-    )[0]
-    assert decision.state is PortfolioDecisionState.REDUCE
-    assert decision.approved_allocation == Decimal("0.050000000000")
-
-
-def test_maximum_position_boundary_is_exact() -> None:
-    decision = evaluate_portfolio(
-        request(),
-        PortfolioParameters(maximum_position_allocation=Decimal("0.082")),
-    )[0]
-    assert decision.state is PortfolioDecisionState.ACCEPT
-    assert decision.approved_allocation == Decimal("0.082000000000")
-
-
-def test_decision_records_versions_parameters_reasons_and_complete_evidence() -> None:
-    existing = holding()
-    decision = evaluate_portfolio(request(snapshot(holdings=(existing,))))[0]
-    assert decision.decision_algorithm_version == PORTFOLIO_ALGORITHM_VERSION == "v1"
-    assert tuple(name for name, _ in decision.policy_versions) == tuple(
-        sorted(name for name, _ in decision.policy_versions)
-    )
-    assert decision.effective_parameters == PortfolioParameters().canonical_items()
-    assert len(decision.reasons) == len(decision.policy_versions)
-    evidence_ids = {item.referenced_id for item in decision.evidence}
-    assert {"portfolio-observation", "holding-valuation"} <= evidence_ids
-
-
-def test_policy_parameter_change_changes_identity() -> None:
-    decision_request = request()
-    first = evaluate_portfolio(decision_request)[0]
-    second = evaluate_portfolio(
-        decision_request,
-        PortfolioParameters(cash_reserve_ratio=Decimal("0.05")),
-    )[0]
-    assert first.portfolio_decision_id != second.portfolio_decision_id
-
-
-def test_output_is_deeply_immutable() -> None:
-    decision = evaluate_portfolio(request())[0]
-    with pytest.raises(dataclasses.FrozenInstanceError):
-        decision.state = PortfolioDecisionState.REJECT
-    assert not isinstance(decision.reasons, list)
-
-
-def test_empty_request_produces_no_decisions() -> None:
-    original = request()
-    empty = PortfolioDecisionRequest(
-        "empty-request",
-        original.ranking_result_id,
-        original.portfolio_snapshot,
-        (),
-    )
-    assert evaluate_portfolio(empty) == ()
-
-
-def test_unclassified_instrument_does_not_fabricate_sector() -> None:
-    original = request()
-    unclassified = dataclasses.replace(
-        original.proposed_positions[0],
-        instrument=instrument("BBG-UNCLASSIFIED", "OTHER", sector=None),
-    )
-    decision_request = PortfolioDecisionRequest(
-        "unclassified-request",
-        original.ranking_result_id,
-        original.portfolio_snapshot,
-        (unclassified,),
-    )
-    decision = evaluate_portfolio(decision_request)[0]
-    assert decision.state is PortfolioDecisionState.ACCEPT
-    assert "sector policy is not applicable to an unclassified instrument" in decision.reasons
-
-
-@pytest.mark.parametrize(
-    "changes",
-    [
-        {"cash_reserve_ratio": Decimal("-0.01")},
-        {"maximum_position_allocation": Decimal("0")},
-        {"maximum_sector_exposure": Decimal("1.01")},
-        {"maximum_single_asset_exposure": Decimal("0")},
-    ],
-)
-def test_invalid_parameters_are_rejected(changes: dict[str, Decimal]) -> None:
-    with pytest.raises(ValueError):
-        dataclasses.replace(PortfolioParameters(), **changes)
-
-
-def test_v1_identity_regression_vector() -> None:
-    decision = evaluate_portfolio(request())[0]
-    assert decision.portfolio_decision_id == (
-        "5c6a980f268389799d24bac468842568535257b727539216c49d846e018eef0e"
-    )
+    result = evaluate_portfolio(request(no_change_snapshot))[0]
+    assert result.disposition is PortfolioEvaluationDisposition.NO_CHANGE
+    assert result.proposed_delta is None
+    assert result.portfolio_evaluation_result_id
