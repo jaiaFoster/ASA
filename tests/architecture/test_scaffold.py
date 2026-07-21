@@ -10,6 +10,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 ADR_004_PACKAGES = [
     "providers",
     "observation",
+    "reconciliation",
     "facts",
     "indicators",
     "strategies",

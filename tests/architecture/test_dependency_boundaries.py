@@ -3,12 +3,16 @@
 Scans every Python file in each layer package with the AST module and asserts
 that no module imports a module above it in the pipeline order:
 
-    providers -> observation -> facts -> indicators -> strategies
-        -> guardrails -> ranking -> presentation
+    providers -> observation -> reconciliation -> facts -> indicators
+        -> strategies -> guardrails -> ranking -> presentation
 
 Each module may import itself, `domain`, and modules strictly below it.
 `presentation` is narrower: only `ranking` and `domain` (ADR-004 revision).
-`domain` imports nothing but itself.
+`domain` imports nothing but itself. `reconciliation` occupies the Canonical
+Fact Layer's pipeline position alongside `facts` (ADR-004 revision,
+ASA-CORE-003): `facts/` owns storage/versioning orchestration and depends on
+`reconciliation/`'s pure, repository-free reconciliation logic; nothing in
+`reconciliation/` depends on `facts/`.
 """
 from __future__ import annotations
 
@@ -22,6 +26,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 PIPELINE_ORDER = [
     "providers",
     "observation",
+    "reconciliation",
     "facts",
     "indicators",
     "strategies",

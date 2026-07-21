@@ -8,6 +8,7 @@ Do not add substantive reasoning to this file. If an entry needs more than two s
 
 | Date | Summary | ADR |
 |---|---|---|
+| 2026-07-21 | `reconciliation/` split out of `facts/` as a pure, repository-free module at the Canonical Fact Layer's pipeline position; `facts/` now depends on it for storage/versioning orchestration. | ADR-004 (amended, ASA-CORE-003) |
 | 2026-07-21 | Expected Outcome Metrics units fixed at the domain level (decimal-fraction return, USD amounts, [0,1] probability); expected_return, maximum_loss, and capital_required are mandatory. Domain primitives enforce normalized immutable values, legal ranges, positive versions, and timezone-aware timestamps. | ADR-003 (domain level, ASA-CORE-001A) |
 | 2026-07-21 | "Strategy confidence" is removed and replaced by Expected Outcome Metrics — standardized, objective financial characteristics every Strategy must produce; Ranking compares Opportunities using these common metrics. | ADR-003 (amended) |
 | 2026-07-21 | Reconciliation confidence is clarified as an internal attribute; Provenance is elevated to a first-class externally visible concept with a binding drill-down requirement (contributing providers, selected provider, disagreements, timestamps, reconciliation metadata). | ADR-001 (amended) |

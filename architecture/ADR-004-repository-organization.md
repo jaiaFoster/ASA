@@ -17,7 +17,8 @@ The repository is organized into one top-level module per pipeline layer, plus o
 
 - `providers/` — Provider adapters (ADR-002). Owns all Provider-specific fetching, normalization, and retry logic.
 - `observation/` — Observation Layer. Owns Observation storage and identity (ADR-001).
-- `facts/` — Canonical Fact Layer. Owns reconciliation and Canonical Fact versioning (ADR-001).
+- `reconciliation/` — sits within the Canonical Fact Layer's pipeline position, immediately after `observation/` and before `facts/` (see Revision note, ASA-CORE-003). Owns pure, deterministic Observation-to-Canonical-Fact reconciliation logic — grouping, value resolution, disagreement detection, confidence, and fact identity (ADR-001). No repository access, no I/O.
+- `facts/` — Canonical Fact Layer. Owns Canonical Fact storage and versioning orchestration, depending on `reconciliation/` for the reconciliation logic itself (ADR-001).
 - `indicators/` — Derived Indicator Layer. Owns shared, reusable indicator calculations.
 - `strategies/` — Strategy Layer, including a `capabilities/` sub-package for the Capability concept defined in `DOMAIN_GLOSSARY.md`. Owns deterministic Strategy evaluation and Opportunity production (ADR-003).
 - `guardrails/` — Guardrail Layer. Owns platform-wide risk and eligibility rules, shared across all Strategies (Constitution Law 8).
@@ -28,7 +29,7 @@ The repository is organized into one top-level module per pipeline layer, plus o
 **Dependency direction** is strictly one-way and mirrors the Vision's pipeline order:
 
 ```
-providers → observation → facts → indicators → strategies → guardrails → ranking → presentation
+providers → observation → reconciliation → facts → indicators → strategies → guardrails → ranking → presentation
 ```
 
 Each module may depend on itself, on `domain/`, and on any module strictly below it in this order. No module may depend on a module above it. `presentation/` may be depended on by nothing — it is the terminal layer. This directly operationalizes `ARCHITECTURE_VISION.md`'s Open Question about Ranking-versus-Guardrail dependency direction: Ranking depends on Guardrail output; Guardrail never depends on Ranking.
@@ -64,6 +65,8 @@ Each module may depend on itself, on `domain/`, and on any module strictly below
 `ARCHITECTURE_VISION.md`'s Open Questions section currently asks whether Ranking ever depends on Guardrail output only, or whether the reverse is possible. This ADR settles it: the dependency is strictly one-way, Ranking depends on Guardrail, never the reverse. Recommend removing that Open Question from `ARCHITECTURE_VISION.md` and replacing it with a reference to this ADR.
 
 **Revision note (post-review):** this ADR originally permitted `presentation/` to depend on any module below it, which directly contradicted ADR-003's constraint that the Presentation Layer never has independent access to raw Evidence sources. That contradiction is fixed above by narrowing `presentation/`'s allowed dependencies to `ranking/` and `domain/` only. This ADR also originally asserted a settled Architect/Founder approval hierarchy for repository-organization decisions; that assertion has been walked back to an explicitly flagged assumption, since no other reviewed document establishes such a hierarchy — see Open Questions.
+
+**Revision note (ASA-CORE-003):** this ADR originally assigned reconciliation logic and Canonical Fact versioning to a single `facts/` module. Implementing the reconciliation engine surfaced a reason to split them: reconciliation is a pure, deterministic function of an Observation set (no repository access, fully replayable), while Canonical Fact storage and version-sequence enforcement inherently require repository state. Splitting them keeps `reconciliation/`'s replayability guarantee structurally enforceable (it cannot accidentally acquire a repository dependency) and keeps `facts/`'s storage concerns from leaking into what should be a pure function. `reconciliation/` is added at the Canonical Fact Layer's pipeline position — before `facts/`, which now depends on it — rather than as a new, separately-ranked layer; this is a decomposition of the existing Canonical Fact Layer, not a new pipeline stage.
 
 ## References
 
