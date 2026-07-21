@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import hashlib
 from datetime import date
-from decimal import Decimal
+from decimal import Context, Decimal, ROUND_HALF_EVEN, localcontext
 from typing import cast
 
 from domain import (
@@ -66,6 +66,7 @@ EARNINGS_EVENT = StrategyTypeReference("EarningsEvent", "1.0.0")
 OPTION_STRUCTURE = StrategyTypeReference("OptionStructure", "1.0.0")
 OPTION_STRUCTURE_LIST = StrategyTypeReference("List", "1.0.0", (OPTION_STRUCTURE,))
 OPTIONAL_DECIMAL = StrategyTypeReference("Optional", "1.0.0", (D,))
+FINANCIAL_DECIMAL_CONTEXT = Context(prec=34, rounding=ROUND_HALF_EVEN)
 
 
 def _definition(
@@ -108,7 +109,9 @@ def _input(inputs: ComponentValues, name: str, expected: type[object]) -> object
         value = inputs.get(name).value
     except KeyError as exc:
         raise ComponentContractError(f"missing required input: {name}") from exc
-    if not isinstance(value, expected):
+    if expected is int and (isinstance(value, bool) or not isinstance(value, int)):
+        raise ComponentContractError(f"input {name} must be Integer")
+    if expected is not int and not isinstance(value, expected):
         raise ComponentContractError(f"input {name} has invalid type")
     return value
 
@@ -511,6 +514,41 @@ class ForwardFactor(BaseComponent):
         return ComponentValues((("factor", TypedValue(D, front / forward - Decimal(1))),))
 
 
+class ImpliedForwardVolatility(BaseComponent):
+    """Derive annualized forward volatility from explicit IV and DTE inputs."""
+
+    __slots__ = ()
+    definition = _definition(
+        "asa.stonk.options",
+        "implied_forward_volatility",
+        ComponentCategory.TRANSFORM,
+        (
+            PortDefinition("front_iv", D),
+            PortDefinition("back_iv", D),
+            PortDefinition("front_dte", INTEGER),
+            PortDefinition("back_dte", INTEGER),
+        ),
+        (PortDefinition("implied_forward_iv", D),),
+    )
+
+    def evaluate(self, inputs: ComponentValues, parameters: ComponentValues) -> ComponentValues:
+        front_iv = cast(Decimal, _input(inputs, "front_iv", Decimal))
+        back_iv = cast(Decimal, _input(inputs, "back_iv", Decimal))
+        front_dte = cast(int, _input(inputs, "front_dte", int))
+        back_dte = cast(int, _input(inputs, "back_dte", int))
+        if not (Decimal(0) < front_iv <= Decimal(5)) or not (Decimal(0) < back_iv <= Decimal(5)):
+            raise ComponentContractError("IV inputs must be annualized decimal ratios")
+        if front_dte < 1 or back_dte <= front_dte:
+            raise ComponentContractError("back DTE must be greater than positive front DTE")
+        with localcontext(FINANCIAL_DECIMAL_CONTEXT):
+            numerator = back_iv * back_iv * back_dte - front_iv * front_iv * front_dte
+            variance = numerator / Decimal(back_dte - front_dte)
+            if variance <= 0:
+                raise ComponentContractError("implied forward variance must be positive")
+            forward_iv = variance.sqrt()
+        return ComponentValues((("implied_forward_iv", TypedValue(D, forward_iv)),))
+
+
 class OptionLegLiquidity(BaseComponent):
     """Evaluate quote width, open interest, and volume without deriving a mark."""
 
@@ -853,6 +891,7 @@ OPTIONS_STONK_COMPONENTS: tuple[BaseComponent, ...] = (
     DtePairSelector(),
     ExpirationPairProjection(),
     ForwardFactor(),
+    ImpliedForwardVolatility(),
     OptionLegLiquidity(),
     DeltaNearestLeg(),
     CalendarStructure(),

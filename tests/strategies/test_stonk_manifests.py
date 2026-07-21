@@ -73,14 +73,14 @@ def test_four_manifest_catalog_is_canonical_serializable_and_identity_pinned() -
     expected = {
         "asa.stonk.earnings_calendar": "f349ab40630bc0b319b2f255cfe4a7bdb16a1b220f0845c30ebb9d4541918475",
         "asa.stonk.skew_momentum_vertical": "f5ea7d5d16771104bb324b109e75c16672bdbfabdece766be67f8fb4b71caf8c",
-        "asa.stonk.forward_factor_calendar": "91090dc54d2007290985b4b580ddf8071e5a354bb6db86aa2f28768c83a9b47a",
+        "asa.stonk.forward_factor_calendar": "098822354245d9cfccd8d2b77b2fc185dfb30425429b608a58430807cbf7b857",
         "asa.stonk.stock_momentum": "456a84aa09ca73c65c32490ebaa270beb5b85db273e9d0c10d987f434e13047d",
     }
     graph_ids = {
-        "asa.stonk.earnings_calendar": "4b0d862c92302564a9a379d0e05794e8a58d7f2dbb72bcc8e7c4b423a8fe7c56",
-        "asa.stonk.skew_momentum_vertical": "7d85e92b281403d5c2aee57732e9bed648b307c77a48b3355d649cdf1ef70c85",
-        "asa.stonk.forward_factor_calendar": "a7bb1171e14e677d04b6d84bf768aa5152d41687c1d9c821f518afd2fc3c8e16",
-        "asa.stonk.stock_momentum": "9f76991ed4a0bacba87794391f0a3e7e7cc582865d8c5916203d5be4392686e8",
+        "asa.stonk.earnings_calendar": "59aeabea7aba834500d51984f08f2ec2882684e410ba3ef4c0bb7c2da422c050",
+        "asa.stonk.skew_momentum_vertical": "a71634910794bc6b456a4913910ce4c2d7ca6d5839797f7cfbffdfb137586292",
+        "asa.stonk.forward_factor_calendar": "d16cd960df3f90aab348052c6f6126047b455a8d5b0ec897a710621e23ed2582",
+        "asa.stonk.stock_momentum": "f4e723912f41e4602bd37d4d4ef59be210ff82b889a550e9a7f34c1ee980d537",
     }
     component_registry = registry()
     for manifest in STONK_STRATEGY_MANIFESTS:
@@ -173,13 +173,27 @@ def test_forward_factor_manifest_requires_source_iv_and_builds_double_calendar()
         **{
             "expiration_select.expirations": (EXPIRATION_COLLECTION, expirations),
             "double_calendar.chain": (OPTION_CHAIN, option_chain),
-            "factor.front_ex_earnings_iv": (D, Decimal("0.30")),
-            "factor.implied_forward_iv": (D, Decimal("0.25")),
+            "forward_iv.front_iv": (D, Decimal("0.48")),
+            "forward_iv.back_iv": (
+                D,
+                Decimal("0.4548992562461861547567860943472296"),
+            ),
+            "forward_iv.front_dte": (
+                StrategyTypeReference("Integer", "1.0.0"),
+                60,
+            ),
+            "forward_iv.back_dte": (
+                StrategyTypeReference("Integer", "1.0.0"),
+                90,
+            ),
+            "factor.front_ex_earnings_iv": (D, Decimal("0.48")),
         }
     )
     graph = compile_strategy_graph(FORWARD_FACTOR_CALENDAR_MANIFEST, registry())
     result = execute_strategy_graph(graph, execution_context)
-    assert result.outputs.get("forward_factor").value == Decimal("0.2")
+    assert result.outputs.get("forward_factor").value.quantize(Decimal("0.00000001")) == Decimal(
+        "0.20000000"
+    )
     assert result.outputs.get("verdict").value == "PASS"
     assert len(result.outputs.get("structures").value) == 2
 

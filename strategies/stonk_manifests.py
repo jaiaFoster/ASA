@@ -170,7 +170,7 @@ SKEW_MOMENTUM_VERTICAL_MANIFEST = StrategyManifest(
 FORWARD_FACTOR_CALENDAR_MANIFEST = StrategyManifest(
     "1.0.0",
     "asa.stonk.forward_factor_calendar",
-    "1.0.0",
+    "1.1.0",
     ManifestMetadata(
         "Forward Factor Calendar",
         "Source-qualified forward factor with a delta-selected double calendar.",
@@ -204,6 +204,7 @@ FORWARD_FACTOR_CALENDAR_MANIFEST = StrategyManifest(
                 _parameter("call_delta_target", "Decimal", "0.35"),
             ),
         ),
+        _node("forward_iv", "asa.stonk.options", "implied_forward_volatility"),
         _node("factor", "asa.stonk.options", "forward_factor"),
         _node(
             "verdict",
@@ -219,6 +220,7 @@ FORWARD_FACTOR_CALENDAR_MANIFEST = StrategyManifest(
         EdgeSpec("expiration_select", "selected", "pair", "selected"),
         EdgeSpec("pair", "front_expiration", "double_calendar", "front_expiration"),
         EdgeSpec("pair", "back_expiration", "double_calendar", "back_expiration"),
+        EdgeSpec("forward_iv", "implied_forward_iv", "factor", "implied_forward_iv"),
         EdgeSpec("factor", "factor", "verdict", "score"),
     ),
     (
