@@ -1,4 +1,5 @@
 """STRAT-004: immutable explicit Component Registry tests."""
+
 from __future__ import annotations
 
 import pytest
@@ -62,7 +63,9 @@ class TestRegistry:
             "Filter",
             "PassThrough",
         )
-        assert registry.resolve(ComponentReference("asa.core", "PassThrough", "1.0.0")) is passthrough
+        assert (
+            registry.resolve(ComponentReference("asa.core", "PassThrough", "1.0.0")) is passthrough
+        )
 
     def test_input_order_does_not_change_identity(self):
         first = ComponentRegistry((PassThrough(), Filter()))
@@ -75,7 +78,7 @@ class TestRegistry:
         assert REGISTRY_IDENTITY_NAMESPACE == "asa.strategy_component_registry"
         assert REGISTRY_IDENTITY_VERSION == "v1"
         assert registry.identity == (
-            "3081a32b4a495a15a495c1642294e79502c984d537e4517024af11ebb7021fa1"
+            "a00ed33d8bae40ced3ef48d9aa77d450b28e09fa9d1d8f90a4b95a5f93b7dede"
         )
 
     def test_duplicate_exact_registration_is_rejected(self):

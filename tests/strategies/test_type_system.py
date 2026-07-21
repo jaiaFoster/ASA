@@ -22,6 +22,7 @@ from strategies import (
     build_default_type_system,
 )
 from tests.instrument_helpers import TEST_INSTRUMENT
+from tests.domain.test_financial_contracts import all_contracts
 
 
 def ref(
@@ -39,7 +40,7 @@ def ref(
 
 class TestCatalog:
     def test_version_and_closed_v1_catalog_are_pinned(self):
-        assert TYPE_SYSTEM_VERSION == "1.1.0"
+        assert TYPE_SYSTEM_VERSION == "1.2.0"
         assert {item.name for item in DEFAULT_TYPE_SYSTEM.definitions} == {
             "Boolean",
             "Integer",
@@ -60,6 +61,18 @@ class TestCatalog:
             "Evidence",
             "ExpectedOutcomeMetrics",
             "Opportunity",
+            "Security",
+            "SecurityCollection",
+            "OptionContract",
+            "OptionCollection",
+            "OptionChain",
+            "ExpirationCycle",
+            "ExpirationCollection",
+            "EarningsEvent",
+            "EarningsCalendar",
+            "VolatilityEvidence",
+            "OptionLeg",
+            "OptionStructure",
             "Enum",
             "Optional",
             "List",
@@ -72,7 +85,7 @@ class TestCatalog:
         assert first.definitions == second.definitions
         assert first.identity == second.identity
         assert first.identity == (
-            "ccf778c9867812e0141d06837c2815a3082816def0248e086dd6ae9e15e9766e"
+            "a1b4694371eb8089c9849dd531f2b11c1253683b312a91e9542957dbfdfdbb10"
         )
 
     def test_duplicate_exact_definition_is_rejected(self):
@@ -176,6 +189,33 @@ class TestValueValidation:
         DEFAULT_TYPE_SYSTEM.validate_value(TypedValue(enum, "BUY"))
         with pytest.raises(ComponentContractError):
             DEFAULT_TYPE_SYSTEM.validate_value(TypedValue(enum, "HOLD"))
+
+    def test_arch_005_financial_types_are_exact_and_nominal(self):
+        type_names = (
+            "Security",
+            "SecurityCollection",
+            "OptionContract",
+            "OptionCollection",
+            "OptionChain",
+            "ExpirationCycle",
+            "ExpirationCollection",
+            "EarningsEvent",
+            "EarningsCalendar",
+            "VolatilityEvidence",
+            "OptionLeg",
+            "OptionStructure",
+        )
+        values = all_contracts()
+        by_name = {type(value).__name__: value for value in values}
+        for name in type_names:
+            DEFAULT_TYPE_SYSTEM.validate_value(TypedValue(ref(name), by_name[name]))
+            with pytest.raises(ComponentContractError):
+                DEFAULT_TYPE_SYSTEM.validate_value(TypedValue(ref(name), (by_name[name],)))
+
+        assert not DEFAULT_TYPE_SYSTEM.compatible(ref("Instrument"), ref("Security"))
+        assert not DEFAULT_TYPE_SYSTEM.compatible(
+            ref("List", ref("OptionContract")), ref("OptionCollection")
+        )
 
 
 class TestTypedComponentValues:

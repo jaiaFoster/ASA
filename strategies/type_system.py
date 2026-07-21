@@ -10,11 +10,23 @@ from enum import Enum
 
 from domain import (
     CanonicalFact,
+    EarningsCalendar,
+    EarningsEvent,
     EvidenceReference,
+    ExpirationCollection,
+    ExpirationCycle,
     ExpectedOutcomeMetrics,
     Indicator,
     Instrument,
+    OptionChain,
+    OptionCollection,
+    OptionContract,
+    OptionLeg,
+    OptionStructure,
     Opportunity,
+    Security,
+    SecurityCollection,
+    VolatilityEvidence,
 )
 from strategies.errors import ComponentContractError
 from strategies.manifest import (
@@ -24,7 +36,7 @@ from strategies.manifest import (
     validate_strategy_identifier,
 )
 
-TYPE_SYSTEM_VERSION = "1.1.0"
+TYPE_SYSTEM_VERSION = "1.2.0"
 
 
 class StrategyTypeKind(str, Enum):
@@ -267,6 +279,18 @@ def _value_matches(
         "Evidence": EvidenceReference,
         "ExpectedOutcomeMetrics": ExpectedOutcomeMetrics,
         "Opportunity": Opportunity,
+        "Security": Security,
+        "SecurityCollection": SecurityCollection,
+        "OptionContract": OptionContract,
+        "OptionCollection": OptionCollection,
+        "OptionChain": OptionChain,
+        "ExpirationCycle": ExpirationCycle,
+        "ExpirationCollection": ExpirationCollection,
+        "EarningsEvent": EarningsEvent,
+        "EarningsCalendar": EarningsCalendar,
+        "VolatilityEvidence": VolatilityEvidence,
+        "OptionLeg": OptionLeg,
+        "OptionStructure": OptionStructure,
     }
     expected = domain_types.get(name)
     return expected is not None and isinstance(value, expected)
@@ -301,6 +325,18 @@ def build_default_type_system() -> StrategyTypeSystem:
         "Evidence",
         "ExpectedOutcomeMetrics",
         "Opportunity",
+        "Security",
+        "SecurityCollection",
+        "OptionContract",
+        "OptionCollection",
+        "OptionChain",
+        "ExpirationCycle",
+        "ExpirationCollection",
+        "EarningsEvent",
+        "EarningsCalendar",
+        "VolatilityEvidence",
+        "OptionLeg",
+        "OptionStructure",
     )
     definitions = (
         tuple(
