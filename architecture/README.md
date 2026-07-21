@@ -1,4 +1,4 @@
-<!-- Repository path: docs/architecture/README.md -->
+<!-- Repository path: architecture/README.md -->
 
 # ASA Architecture Documentation
 
@@ -11,7 +11,7 @@ This directory is the authoritative architecture documentation for ASA (Algo Sto
 | [`CONSTITUTION.md`](./CONSTITUTION.md) | What must never change? |
 | [`ARCHITECTURE_VISION.md`](./ARCHITECTURE_VISION.md) | What kind of system are we building, and why? |
 | [`DOMAIN_GLOSSARY.md`](./DOMAIN_GLOSSARY.md) | What does this term mean? |
-| ADRs (`docs/architecture/decisions/`) | Why was this specific decision made? |
+| ADRs (`architecture/`) | Why was this specific decision made? |
 | [`DECISION_LOG.md`](./DECISION_LOG.md) | What has been decided, and where is the reasoning? |
 
 Each document has exactly one job. If you find the same explanation in two places, that is a defect — file an issue.
@@ -67,4 +67,4 @@ Deployment decisions, database technology choices, CI implementation, secrets ma
 
 ## Open Questions / Requires ADR
 
-- No ADR index or numbering convention has been formally adopted yet. This README assumes ADRs live at `docs/architecture/decisions/` and are individually numbered; that convention itself should be confirmed by an ADR rather than assumed here.
+- No ADR index or numbering convention has been formally adopted yet. This README assumes ADRs live at `architecture/` and are individually numbered (the repository's actual location); that convention itself should be confirmed by an ADR rather than assumed here.

@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from domain.references import EvidenceReference
+from domain.values import require_tz_aware
 
 
 @dataclass(frozen=True, slots=True)
@@ -26,3 +27,6 @@ class GuardrailOutcome:
     reason: str
     evidence: tuple[EvidenceReference, ...]
     evaluated_at: datetime
+
+    def __post_init__(self) -> None:
+        require_tz_aware(self.evaluated_at, "GuardrailOutcome", "evaluated_at")

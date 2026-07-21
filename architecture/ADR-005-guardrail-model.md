@@ -1,4 +1,4 @@
-<!-- Repository path: docs/architecture/decisions/ADR-005-guardrail-model.md -->
+<!-- Repository path: architecture/ADR-005-guardrail-model.md -->
 
 # ADR-005: Guardrail Model
 

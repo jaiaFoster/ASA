@@ -1,4 +1,4 @@
-<!-- Repository path: docs/architecture/DOMAIN_GLOSSARY.md -->
+<!-- Repository path: architecture/DOMAIN_GLOSSARY.md -->
 
 # ASA Domain Glossary
 

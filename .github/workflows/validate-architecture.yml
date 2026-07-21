@@ -1,6 +1,8 @@
 name: Validate Architecture
 
 on:
+  push:
+    branches: [main]
   pull_request:
     paths:
       - 'providers/**'

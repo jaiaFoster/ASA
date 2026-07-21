@@ -1,4 +1,4 @@
-<!-- Repository path: docs/architecture/decisions/ADR-003-opportunity-model.md -->
+<!-- Repository path: architecture/ADR-003-opportunity-model.md -->
 
 # ADR-003: Explainable Opportunity Model
 

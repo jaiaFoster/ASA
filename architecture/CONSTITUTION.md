@@ -1,4 +1,4 @@
-<!-- Repository path: docs/architecture/CONSTITUTION.md -->
+<!-- Repository path: architecture/CONSTITUTION.md -->
 
 # ASA Constitution
 
