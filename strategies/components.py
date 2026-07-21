@@ -24,6 +24,7 @@ from strategies.manifest import (
     validate_semantic_version,
     validate_strategy_identifier,
 )
+from strategies.type_system import ComponentValues, StrategyTypeReference
 
 COMPONENT_IDENTITY_NAMESPACE = "asa.strategy_component"
 COMPONENT_IDENTITY_VERSION = "v1"
@@ -49,22 +50,6 @@ class PortCardinality(str, Enum):
     SINGLE = "single"
     OPTIONAL = "optional"
     MANY = "many"
-
-
-@dataclass(frozen=True, slots=True, order=True)
-class StrategyTypeReference:
-    """Exact reference to a versioned Strategy Type.
-
-    STRAT-006 owns type definitions and compatibility; this record lets
-    Component ports pin those definitions without inventing compatibility.
-    """
-
-    name: str
-    version: str
-
-    def __post_init__(self) -> None:
-        validate_strategy_identifier(self.name, "type.name")
-        validate_semantic_version(self.version, "type.version")
 
 
 @dataclass(frozen=True, slots=True, order=True)
@@ -171,8 +156,13 @@ def _require_unique_names(names: tuple[str, ...], field_name: str) -> None:
         raise ComponentContractError(f"component {field_name} contain duplicate names")
 
 
-def _type_data(value: StrategyTypeReference) -> dict[str, str]:
-    return {"name": value.name, "version": value.version}
+def _type_data(value: StrategyTypeReference) -> dict[str, object]:
+    data: dict[str, object] = {"name": value.name, "version": value.version}
+    if value.arguments:
+        data["arguments"] = [_type_data(item) for item in value.arguments]
+    if value.qualifiers.entries:
+        data["qualifiers"] = manifest_value_to_data(value.qualifiers)
+    return data
 
 
 def _port_data(value: PortDefinition) -> dict[str, object]:
@@ -236,7 +226,7 @@ class BaseComponent(ABC):
 
     @abstractmethod
     def evaluate(
-        self, inputs: ManifestObject, parameters: ManifestObject
-    ) -> ManifestObject:
+        self, inputs: ComponentValues, parameters: ComponentValues
+    ) -> ComponentValues:
         """Return complete immutable typed outputs or raise a deterministic error."""
         raise NotImplementedError

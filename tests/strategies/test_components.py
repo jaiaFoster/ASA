@@ -13,11 +13,13 @@ from strategies import (
     ComponentCategory,
     ComponentContractError,
     ComponentDefinition,
+    ComponentValues,
     ManifestObject,
     ParameterDefinition,
     PortCardinality,
     PortDefinition,
     StrategyTypeReference,
+    TypedValue,
 )
 
 DECIMAL = StrategyTypeReference("Decimal", "1.0.0")
@@ -59,17 +61,18 @@ class ComparatorComponent(BaseComponent):
     definition = _definition()
 
     def evaluate(
-        self, inputs: ManifestObject, parameters: ManifestObject
-    ) -> ManifestObject:
-        values = dict(inputs.entries)
-        configured = dict(parameters.entries)
-        left = values["left"]
-        right = values["right"]
+        self, inputs: ComponentValues, parameters: ComponentValues
+    ) -> ComponentValues:
+        left = inputs.get("left").value
+        right = inputs.get("right").value
         if not isinstance(left, int) or not isinstance(right, int):
             raise ComponentContractError("test comparator requires integer values")
-        inclusive = configured.get("inclusive", True)
+        try:
+            inclusive = parameters.get("inclusive").value
+        except KeyError:
+            inclusive = True
         result = left >= right if inclusive is True else left > right
-        return ManifestObject((("result", result),))
+        return ComponentValues((("result", TypedValue(BOOLEAN, result)),))
 
 
 class TestComponentDefinition:
@@ -203,16 +206,20 @@ class TestBaseComponent:
     def test_stateless_component_evaluates_from_immutable_values(self):
         component = ComparatorComponent()
         result = component.evaluate(
-            ManifestObject((("left", 3), ("right", 2))),
-            ManifestObject((("inclusive", True),)),
+            ComponentValues(
+                (("left", TypedValue(DECIMAL, 3)), ("right", TypedValue(DECIMAL, 2)))
+            ),
+            ComponentValues((("inclusive", TypedValue(BOOLEAN, True)),)),
         )
-        assert result == ManifestObject((("result", True),))
+        assert result == ComponentValues((("result", TypedValue(BOOLEAN, True)),))
         assert not hasattr(component, "__dict__")
 
     def test_component_does_not_mutate_inputs_or_parameters(self):
         component = ComparatorComponent()
-        inputs = ManifestObject((("left", 2), ("right", 2)))
-        parameters = ManifestObject((("inclusive", False),))
+        inputs = ComponentValues(
+            (("left", TypedValue(DECIMAL, 2)), ("right", TypedValue(DECIMAL, 2)))
+        )
+        parameters = ComponentValues((("inclusive", TypedValue(BOOLEAN, False)),))
         before = (inputs, parameters)
         component.evaluate(inputs, parameters)
         assert (inputs, parameters) == before
