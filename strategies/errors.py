@@ -58,3 +58,19 @@ class UnknownStrategyIdError(StrategyError):
     def __init__(self, strategy_id: str) -> None:
         super().__init__(f"no strategy registered for id: {strategy_id!r}")
         self.strategy_id = strategy_id
+
+
+# ---------------------------------------------------------------------------
+# Manifest errors
+# ---------------------------------------------------------------------------
+
+class ManifestValidationError(StrategyError, ValueError):
+    """A Strategy Manifest violates the frozen v1 schema."""
+
+
+class UnsupportedManifestSchemaError(ManifestValidationError):
+    """A manifest uses a schema version this runtime does not support."""
+
+
+class ManifestSerializationError(ManifestValidationError):
+    """A manifest cannot be decoded from canonical JSON data."""

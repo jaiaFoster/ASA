@@ -19,7 +19,10 @@ FORBIDDEN_INFRASTRUCTURE_MODULES = {
     "random", "secrets",
 }
 
-STDLIB_ALLOWED = {"__future__", "datetime", "hashlib", "decimal", "typing", "dataclasses"}
+STDLIB_ALLOWED = {
+    "__future__", "dataclasses", "datetime", "decimal", "enum", "hashlib", "json", "re",
+    "typing",
+}
 
 
 def _imported_roots(py_file: Path) -> set[str]:
