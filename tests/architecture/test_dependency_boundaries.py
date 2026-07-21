@@ -49,6 +49,10 @@ def _allowed_imports(layer: str) -> set[str]:
         # only — not observation or providers, despite sitting below in the
         # general pipeline order.
         return {"indicators", "facts", "reconciliation", "domain"}
+    if layer == "strategies":
+        # Narrowed rule (ADR-004, ASA-CORE-005): indicators, facts,
+        # reconciliation, domain only — not observation or providers.
+        return {"strategies", "indicators", "facts", "reconciliation", "domain"}
     idx = PIPELINE_ORDER.index(layer)
     return set(PIPELINE_ORDER[: idx + 1]) | {"domain"}
 

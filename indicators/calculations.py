@@ -28,6 +28,13 @@ All functions sort their input facts by ``(effective_time, fact_id)``
 before computing, so results never depend on the order facts are supplied
 in — required for "deterministic execution order" / order-independent
 replay.
+
+**Parameter validation** (ASA-CORE-005 Phase 0 hardening): the four
+period-based calculations validate ``params["period"]`` via
+``_require_period`` — missing, non-int, bool, or non-positive values raise
+``InvalidIndicatorParameterError`` instead of a raw ``KeyError`` or
+silently misbehaving (e.g. a bool ``period`` would previously have sliced
+``facts[-True:]`` == ``facts[-1:]``, silently computing a 1-period window).
 """
 from __future__ import annotations
 
@@ -38,6 +45,7 @@ from indicators.errors import (
     IndicatorCalculationError,
     InconsistentFactGroupError,
     InsufficientDataError,
+    InvalidIndicatorParameterError,
 )
 
 DECIMAL_PRECISION = 28  # explicit, pinned — independent of ambient decimal context
@@ -45,7 +53,7 @@ DECIMAL_PRECISION = 28  # explicit, pinned — independent of ambient decimal co
 CalculationResult = tuple[object, tuple[CanonicalFact, ...]]
 
 
-def _extract_price(fact: CanonicalFact) -> Decimal:
+def extract_price(fact: CanonicalFact) -> Decimal:
     """Extract the ``"price"`` field from a fact's immutable mapping value."""
     if not isinstance(fact.value, tuple):
         raise IndicatorCalculationError(
@@ -80,6 +88,30 @@ def _require_min_facts(indicator_type: str, facts: tuple[CanonicalFact, ...],
         raise InsufficientDataError(indicator_type, minimum, len(facts))
 
 
+def _require_period(indicator_type: str, params: dict) -> int:
+    """Validate and return ``params["period"]``: present, exact int, positive.
+
+    ``bool`` is explicitly rejected even though ``isinstance(True, int)`` is
+    ``True`` in Python — a bool period would otherwise silently slice
+    ``facts[-True:]`` == ``facts[-1:]``, producing a misleading 1-period
+    result instead of a clear error.
+    """
+    if "period" not in params:
+        raise InvalidIndicatorParameterError(indicator_type, "missing required parameter 'period'")
+    period = params["period"]
+    if isinstance(period, bool) or not isinstance(period, int):
+        raise InvalidIndicatorParameterError(
+            indicator_type,
+            f"'period' must be an exact int (bool is not accepted); "
+            f"got {type(period).__name__} {period!r}",
+        )
+    if period < 1:
+        raise InvalidIndicatorParameterError(
+            indicator_type, f"'period' must be positive; got {period!r}"
+        )
+    return period
+
+
 # ---------------------------------------------------------------------------
 # latest_price
 # ---------------------------------------------------------------------------
@@ -89,7 +121,7 @@ def latest_price(facts: tuple[CanonicalFact, ...], params: dict) -> CalculationR
     ordered = _sorted_consistent(facts)
     _require_min_facts("latest_price", ordered, 1)
     contributing = (ordered[-1],)
-    return _extract_price(ordered[-1]), contributing
+    return extract_price(ordered[-1]), contributing
 
 
 # ---------------------------------------------------------------------------
@@ -107,8 +139,8 @@ def price_change_percent(facts: tuple[CanonicalFact, ...], params: dict) -> Calc
     contributing = (ordered[-2], ordered[-1])
     with localcontext() as ctx:
         ctx.prec = DECIMAL_PRECISION
-        previous = _extract_price(ordered[-2])
-        current = _extract_price(ordered[-1])
+        previous = extract_price(ordered[-2])
+        current = extract_price(ordered[-1])
         if previous == 0:
             raise IndicatorCalculationError(
                 "price_change_percent: previous price is zero, percent change undefined"
@@ -122,13 +154,13 @@ def price_change_percent(facts: tuple[CanonicalFact, ...], params: dict) -> Calc
 
 def simple_moving_average(facts: tuple[CanonicalFact, ...], params: dict) -> CalculationResult:
     """Arithmetic mean of the last ``params["period"]`` facts' prices."""
-    period = params["period"]
+    period = _require_period("simple_moving_average", params)
     ordered = _sorted_consistent(facts)
     _require_min_facts("simple_moving_average", ordered, period)
     window = ordered[-period:]
     with localcontext() as ctx:
         ctx.prec = DECIMAL_PRECISION
-        total = sum((_extract_price(f) for f in window), Decimal(0))
+        total = sum((extract_price(f) for f in window), Decimal(0))
         return total / Decimal(period), window
 
 
@@ -144,16 +176,16 @@ def exponential_moving_average(facts: tuple[CanonicalFact, ...], params: dict) -
     Contributing facts are the *entire* ordered input (all facts feed the
     running average, unlike SMA/rolling_high/low's fixed trailing window).
     """
-    period = params["period"]
+    period = _require_period("exponential_moving_average", params)
     ordered = _sorted_consistent(facts)
     _require_min_facts("exponential_moving_average", ordered, period)
     with localcontext() as ctx:
         ctx.prec = DECIMAL_PRECISION
         seed_window = ordered[:period]
-        ema = sum((_extract_price(f) for f in seed_window), Decimal(0)) / Decimal(period)
+        ema = sum((extract_price(f) for f in seed_window), Decimal(0)) / Decimal(period)
         multiplier = Decimal(2) / Decimal(period + 1)
         for fact in ordered[period:]:
-            price = _extract_price(fact)
+            price = extract_price(fact)
             ema = (price - ema) * multiplier + ema
         return ema, ordered
 
@@ -164,17 +196,17 @@ def exponential_moving_average(facts: tuple[CanonicalFact, ...], params: dict) -
 
 def rolling_high(facts: tuple[CanonicalFact, ...], params: dict) -> CalculationResult:
     """Maximum price over the last ``params["period"]`` facts."""
-    period = params["period"]
+    period = _require_period("rolling_high", params)
     ordered = _sorted_consistent(facts)
     _require_min_facts("rolling_high", ordered, period)
     window = ordered[-period:]
-    return max(_extract_price(f) for f in window), window
+    return max(extract_price(f) for f in window), window
 
 
 def rolling_low(facts: tuple[CanonicalFact, ...], params: dict) -> CalculationResult:
     """Minimum price over the last ``params["period"]`` facts."""
-    period = params["period"]
+    period = _require_period("rolling_low", params)
     ordered = _sorted_consistent(facts)
     _require_min_facts("rolling_low", ordered, period)
     window = ordered[-period:]
-    return min(_extract_price(f) for f in window), window
+    return min(extract_price(f) for f in window), window

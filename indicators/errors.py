@@ -36,6 +36,21 @@ class IndicatorCalculationError(IndicatorError):
         super().__init__(message)
 
 
+class InconsistentIndicatorGroupError(IndicatorError):
+    """previous_indicator belongs to a different (indicator_type, effective_time) group."""
+
+    def __init__(self, message: str) -> None:
+        super().__init__(message)
+
+
+class InvalidIndicatorParameterError(IndicatorError):
+    """A required calculation parameter is missing or has an invalid value/type."""
+
+    def __init__(self, indicator_type: str, message: str) -> None:
+        super().__init__(f"{indicator_type}: {message}")
+        self.indicator_type = indicator_type
+
+
 # ---------------------------------------------------------------------------
 # Registry errors
 # ---------------------------------------------------------------------------
