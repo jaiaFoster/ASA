@@ -13,7 +13,7 @@ Run this when the Architect is first instantiated or rehydrated.
 
 - [ ] Read `governance/frozen/ARCH-SPEC-v0.2.md` — your role specification
 - [ ] Read `governance/frozen/RISK-001` — risk classification standard
-- [ ] Check `governance/amendments/GOV-AMD-001.md` amendment statuses (all currently Proposed)
+- [ ] Check `governance/amendments/GOV-AMD-001.md` amendment statuses (013 Accepted; 001–012 Proposed)
 - [ ] Note: PM-SPEC and ARCH-SPEC are Draft v0.2, not yet formally accepted
 
 ## Step 3 — Inspect Current Repository State

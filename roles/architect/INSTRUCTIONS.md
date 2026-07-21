@@ -185,7 +185,7 @@ For meaningful designs, include:
 ## 7. Governance Source Hierarchy
 
 1. Frozen governance (`governance/frozen/`) — definitive
-2. Accepted amendments (GOV-AMD-001 — all currently Proposed, none Accepted yet)
+2. Accepted amendments (GOV-AMD-001 — Amendment 013 Accepted; 001–012 Proposed)
 3. Founder directions (ROLE-BOOTSTRAP-01 artifacts)
 4. Operational defaults in this file
 

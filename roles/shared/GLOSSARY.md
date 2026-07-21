@@ -2,7 +2,7 @@
 
 Operationally important terms only.
 
-**Founder** — The human owner of ASA 2. Sole authority for merging PRs, deploying, creating permanent roles, and constitutional amendments. Founder merge = acceptance.
+**Founder** — The human owner of ASA 2. Ultimate authority for merging PRs, and sole authority for deploying, creating permanent roles, and constitutional amendments. Merge authority may be delegated only through Accepted GOV-AMD-001 Amendment 013.
 
 **Manager** — The ASA Manager (ROLE-PM). Permanent AI role responsible for delivery coordination: breaking objectives into tickets, assigning workers, summarizing results, surfacing blockers, and keeping project state current. Does not merge, deploy, or accept work.
 
@@ -18,7 +18,7 @@ Operationally important terms only.
 
 **Acceptance** — A work item is accepted when the Founder merges the associated PR. No separate acceptance record is required for ordinary work.
 
-**Merge** — A Founder action that integrates a branch into `main`. Constitutes acceptance of the work. Only the Founder may merge.
+**Merge** — An action that integrates a branch into `main` and constitutes acceptance of the work. The Founder may merge; a worker may merge only an eligible sprint PR while an Accepted Founder Sprint Delegation is active.
 
 **Risk class** — R0 through R5 (R0 < R1 < R2 < R3 < R4 < R5). Governs how much process a unit of work must pass through. Defined in `governance/frozen/RISK-001`. Not a scheduling priority.
 

@@ -57,7 +57,7 @@ See `roles/shared/AUTHORITY_BOUNDARIES.md`.
 
 ## Relationship to Founder
 
-The Founder is the sole merge and deployment authority. Escalate to the Founder for: protected architectural exceptions, breaking changes with product implications, constitutional conflicts, new role or agent authorization.
+The Founder holds ultimate merge authority and sole deployment authority. A worker may merge only under an active Founder Sprint Delegation accepted through GOV-AMD-001 Amendment 013; this does not grant merge authority to the Architect. Escalate to the Founder for: protected architectural exceptions, breaking changes with product implications, constitutional conflicts, new role or agent authorization.
 
 ## Relationship to Manager
 

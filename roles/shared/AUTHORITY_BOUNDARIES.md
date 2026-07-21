@@ -12,7 +12,7 @@ Source: PM-SPEC §2.2, ARCH-SPEC §2.2, ROLE-BOOTSTRAP-01 Founder directions.
 | Author technical acceptance criteria | Yes | No | **DECIDE** | No |
 | Create bounded worker tickets | Yes | **DECIDE** | Recommend | No |
 | Modify frozen governance | Founder process only | No | No | No |
-| Merge PR | **Yes (sole authority)** | No | No | No |
+| Merge PR | **Yes (ultimate authority)** | No | No | Only under an active, Accepted Founder Sprint Delegation |
 | Deploy | Founder-authorized process | No | No | No |
 | Accept ordinary work | By merge | No | No | No |
 | Create permanent roles | Yes | No | No | No |
@@ -28,12 +28,23 @@ Source: PM-SPEC §2.2, ARCH-SPEC §2.2, ROLE-BOOTSTRAP-01 Founder directions.
 
 The following may not be delegated, automated, or simulated:
 
-- Merging pull requests
+- Merging pull requests outside an Accepted Founder Sprint Delegation
 - Deploying to production
 - Creating permanent roles
 - Authorizing additional agents
 - Constitutional amendments
 - Accepting high-risk work (R4–R5)
+
+## Founder Sprint Delegation
+
+Accepted GOV-AMD-001 Amendment 013 permits the Founder to delegate the merge
+action for the enumerated implementation tickets of one explicitly authorized,
+bounded sprint. It does not delegate governance amendments, architecture or
+contract changes, deployment, risk-floor changes, or scope expansion.
+
+The delegation is valid only while every activation requirement and pre-merge
+gate in Amendment 013 remains satisfied. It expires when the sprint completes,
+stops, or is revoked. Founder-only merge authority remains the default.
 
 ## Manager Authority Limits (PM-SPEC §4.2)
 

@@ -7,11 +7,15 @@ Source: ROLE-BOOTSTRAP-01 Founder directions §1–5.
 | GitHub Event | POS Meaning |
 |--------------|-------------|
 | Founder merges PR | Work accepted |
+| Authorized sprint delegate merges an eligible PR | Work accepted under the Founder's recorded, bounded delegation |
 | Founder requests changes | Work active (changes required) |
 | Founder closes PR without merge | Work rejected or cancelled |
 | PR open, no action | Pending Founder review |
 
-**A Founder merge is acceptance. No separate POS decision record is required for ordinary merged work.**
+**A Founder merge is acceptance. A delegated sprint merge is acceptance only
+when Accepted GOV-AMD-001 Amendment 013 is active and all of its scope and gate
+requirements are evidenced. No separate POS decision record is required for
+ordinary merged work.**
 
 ## What GitHub Already Stores
 
@@ -42,7 +46,8 @@ The POS stores information that GitHub cannot: objective, scope, risk class, arc
 
 ## Acceptance Without Extra Paperwork
 
-When the Founder merges a PR:
+When the Founder, or an authorized sprint delegate acting under Amendment 013,
+merges an eligible PR:
 
 1. The branch is accepted.
 2. The work item status updates to `accepted`.
@@ -53,7 +58,8 @@ For R3+ work, additional evidence may be required before the PR is opened — bu
 
 ## Pending State
 
-A PR that is open is pending Founder action. The Manager should surface open PRs awaiting Founder attention in its regular briefing.
+A PR that is open is pending the applicable merge authority. The Manager should
+surface open PRs awaiting action in its regular briefing.
 
 ## Exception: Staged Rollout or Protected Deployment
 

@@ -23,7 +23,7 @@ Read these in order when instructions appear to conflict:
 3. **Shared authorities** — `roles/shared/AUTHORITY_BOUNDARIES.md`
 4. **Current state** — `project/BOOTSTRAP_STATUS.yaml`, `project/generated/CURRENT_STATE.md`
 
-Note: GOV-AMD-001 amendments are all currently Proposed (not Accepted). They are not yet binding.
+Note: GOV-AMD-001 Amendment 013 is Accepted and binding; Amendments 001–012 remain Proposed.
 
 ## Authority Boundaries
 

@@ -1,17 +1,17 @@
 ---
 id: SPRINT-001
 codename: Execution Intelligence
-version: 1.1
+version: 1.2
 status: APPROVED
 type: IMPLEMENTATION_SPRINT
 
 amendment:
-  issue: 61
+  governance_amendment: GOV-AMD-001-013
   scope: governance_workflow_only
   summary: >
-    Removes autonomous merge authority and preserves Founder-only merge
-    authority. All technical scope, validation, acceptance, architecture,
-    determinism, replay, and stop requirements remain unchanged from v1.0.
+    Activates the bounded Founder Sprint Delegation accepted in Amendment 013.
+    All technical scope, validation, acceptance, architecture, determinism,
+    replay, and stop requirements remain unchanged from v1.1.
 
 objective: >
   Implement the complete execution-intelligence layer defined by
@@ -27,7 +27,7 @@ repository:
   default_branch: main
 
 execution:
-  mode: autonomous_implementation_with_founder_merge_gates
+  mode: founder_authorized_autonomous_sprint
 
   authority:
     implementation: true
@@ -36,21 +36,30 @@ execution:
     refactoring: true
     issue_creation: true
     pull_request_creation: true
-    pull_request_merge: false
+    pull_request_merge: true
+    merge_delegation:
+      amendment: GOV-AMD-001-013
+      founder_authorized: true
+      delegate: ROLE-WORKER
+      limited_to_sprint: SPRINT-001
+      approved_tickets:
+        - ASA-CORE-008
+        - ASA-CORE-009
+        - ASA-CORE-010
 
   review:
     self_review_required: true
 
   merge_strategy:
-    sequential_founder_merge_gates: true
+    sequential_delegated_merges: true
 
 workflow:
   - implement_ticket
   - run_all_validation_gates
   - self_review
   - open_pull_request
-  - mark_ready_for_founder_merge
-  - wait_for_founder_merge
+  - verify_all_required_gates
+  - merge_if_green_and_within_delegation
   - verify_main_contains_merged_commit
   - begin_next_ticket
   - generate_final_report
@@ -162,10 +171,11 @@ authority:
       - update pull requests
       - self review
       - mark READY_FOR_FOUNDER_MERGE
+      - merge enumerated SPRINT-001 implementation pull requests after every required gate passes
       - observe repository state
       - continue after Founder merge
     may_not:
-      - merge pull requests
+      - merge pull requests outside the active SPRINT-001 delegation
       - bypass branch protection
       - modify frozen governance
       - modify Constitution
@@ -226,15 +236,16 @@ self_review:
       - adequate architecture coverage
 
 merge:
-  policy: founder_only
+  policy: founder_sprint_delegation
   cadence:
     after_each_ticket: true
-  worker_result: READY_FOR_FOUNDER_MERGE
-  founder_action: FINAL_APPROVAL_AND_MERGE_REQUIRED
+  authority:
+    ultimate: Founder
+    delegate: ROLE-WORKER
+    amendment: GOV-AMD-001-013
   continue_condition: >
-    The worker observes that Founder merged the ticket pull request and
-    verifies that main contains the merged commit before beginning the next
-    ticket.
+    The worker verifies that main contains the merged ticket commit before
+    beginning the next ticket.
   readiness_conditions:
     validation_passed: true
     self_review_passed: true
@@ -244,9 +255,13 @@ merge:
     architecture_preserved: true
     governance_preserved: true
   on_failure:
-    - do_not_mark_ready
+    - do_not_merge
     - open_issue
     - stop_sprint
+  expires:
+    - sprint_complete
+    - sprint_stopped
+    - Founder_revokes_delegation
 
 report:
   required: true

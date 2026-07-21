@@ -15,7 +15,7 @@ main branch — production state
 
 Key locations:
 - `governance/frozen/` — Frozen normative documents (PM-SPEC, ARCH-SPEC, RISK-001, etc.)
-- `governance/amendments/GOV-AMD-001.md` — Amendment register (all currently Proposed)
+- `governance/amendments/GOV-AMD-001.md` — Amendment register (013 Accepted; 001–012 Proposed)
 - `project/` — POS records (canonical operational state)
 - `project/generated/` — Generated views (not canonical)
 - `tools/pos/` — Validator and generator
@@ -24,7 +24,7 @@ Key locations:
 ## Governance Status
 
 - PM-SPEC v0.2 and ARCH-SPEC v0.2 are Draft — not yet formally reviewed.
-- All 12 GOV-AMD-001 amendments are Proposed — none are Accepted (none are binding yet).
+- GOV-AMD-001 Amendment 013 is Accepted and binding; Amendments 001–012 remain Proposed.
 - Frozen documents under `governance/frozen/` must not be edited.
 - Founder directions recorded in `roles/` take precedence over non-frozen bootstrap assumptions.
 
