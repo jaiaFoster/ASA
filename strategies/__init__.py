@@ -20,6 +20,12 @@ from strategies.components import (
     component_definition_data,
     component_identity,
 )
+from strategies.component_registry import (
+    REGISTRY_IDENTITY_NAMESPACE,
+    REGISTRY_IDENTITY_VERSION,
+    SUPPORTED_COMPONENT_CAPABILITIES,
+    ComponentRegistry,
+)
 from strategies.engine import (
     OPPORTUNITY_IDENTITY_NAMESPACE,
     OPPORTUNITY_IDENTITY_VERSION,
@@ -81,6 +87,9 @@ __all__ = [
     "COMPONENT_IDENTITY_VERSION",
     "DEFAULT_REGISTRY",
     "DEFAULT_TYPE_SYSTEM",
+    "REGISTRY_IDENTITY_NAMESPACE",
+    "REGISTRY_IDENTITY_VERSION",
+    "SUPPORTED_COMPONENT_CAPABILITIES",
     "TYPE_SYSTEM_VERSION",
     "BaseComponent",
     "CapabilityRequirement",
@@ -88,6 +97,7 @@ __all__ = [
     "ComponentContractError",
     "ComponentDefinition",
     "ComponentReference",
+    "ComponentRegistry",
     "ComponentValues",
     "DuplicateStrategyRegistrationError",
     "EdgeSpec",
