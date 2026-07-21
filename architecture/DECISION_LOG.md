@@ -8,6 +8,7 @@ Do not add substantive reasoning to this file. If an entry needs more than two s
 
 | Date | Summary | ADR |
 |---|---|---|
+| 2026-07-21 | Guardrail evaluation is the pipeline envelope containing the immutable Opportunity, ordered Guardrail outcomes, and aggregate decision; Ranking never reconstructs Opportunity data from outcomes or persistence. | ADR-005 (amended, ASA-CORE-007) |
 | 2026-07-21 | `guardrails/`'s allowed dependencies narrowed to `strategies/`, `indicators/`, `facts/`, `reconciliation/`, `domain/` — not `observation/` or `providers/` — making ADR-005's existing "no raw Observation access" prose structurally enforceable. | ADR-004 (amended, ASA-CORE-006) |
 | 2026-07-21 | `strategies/`'s allowed dependencies narrowed to `indicators/`, `facts/`, `reconciliation/`, `domain/` — not `observation/` or `providers/` — making Constitution Law 4 ("consume knowledge, don't gather it") structurally enforceable for the Strategy Layer. | ADR-004 (amended, ASA-CORE-005) |
 | 2026-07-21 | `indicators/`'s allowed dependencies narrowed to `facts/`, `reconciliation/`, `domain/` — not `observation/` or `providers/` — so Indicators derive only from reconciled Canonical Facts, never raw Observations. Canonicalization relocated from `observation/` to `domain/` to support this without duplicating logic. | ADR-004 (amended, ASA-CORE-004) |

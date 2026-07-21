@@ -19,6 +19,7 @@ from domain.opportunity import Opportunity
 from domain.values import require_tz_aware
 from guardrails.evaluations import (
     EffectivePolicyParameters,
+    GuardrailDecision,
     OpportunityGuardrailEvaluation,
     guardrail_cited_evidence,
     guardrail_evaluation_identity,
@@ -87,7 +88,11 @@ def evaluate_opportunity(
         )
         for guardrail_id in registry.registered_ids()
     )
-    overall_passed = all(outcome.passed for outcome in outcomes)
+    overall_decision = (
+        GuardrailDecision.PASS
+        if all(outcome.passed for outcome in outcomes)
+        else GuardrailDecision.FAIL
+    )
     effective_parameters: EffectivePolicyParameters = tuple(
         (
             guardrail_id,
@@ -103,9 +108,9 @@ def evaluate_opportunity(
         evaluation_id=guardrail_evaluation_identity(
             opportunity.opportunity_id, outcomes, effective_parameters
         ),
-        opportunity_id=opportunity.opportunity_id,
-        outcomes=outcomes,
-        passed=overall_passed,
+        opportunity=opportunity,
+        ordered_guardrail_outcomes=outcomes,
+        overall_decision=overall_decision,
         evaluated_at=evaluated_at,
         effective_parameters=effective_parameters,
     )

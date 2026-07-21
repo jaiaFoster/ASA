@@ -25,6 +25,13 @@ A **Guardrail** is a deterministic eligibility rule, evaluated against a single 
 
 **Evaluation scope: single-Opportunity only, for this ADR.** As specified here, a Guardrail evaluates exactly one candidate Opportunity in isolation. It does not have access to other candidate Opportunities being evaluated in the same cycle, and it does not have access to portfolio-level aggregate state (for example, total existing exposure to a given underlying) beyond whatever a Canonical Fact or Indicator already exposes about that state. This is a deliberate, narrower scope than "platform-wide risk rules" might suggest, and it is called out explicitly rather than left as an unstated assumption (see Open Questions) — a genuine portfolio-level or cross-Opportunity Guardrail (e.g., "reject this Opportunity if it would push aggregate exposure to this underlying past a limit, given other Opportunities also being considered right now") is not representable under this ADR's scope, because it requires comparing candidates against each other, not evaluating one candidate against static Facts and Indicators.
 
+**Evaluation envelope.** The complete Guardrail Engine result for one candidate is an
+`OpportunityGuardrailEvaluation`. It retains the exact immutable `Opportunity`, the complete
+deterministically ordered Guardrail outcomes, and one aggregate `PASS` or `FAIL` decision.
+The envelope does not replace the Opportunity and does not duplicate its fields. This makes
+the `guardrails → ranking` pipeline explicit: Ranking receives the eligible Opportunity and
+its full Guardrail trail together, without repository access or reconstruction.
+
 ## Alternatives Considered
 
 1. **Guardrails carry their own Confidence score, independent of the Facts/Indicators they read.** Rejected: this reintroduces the Facts/opinions conflation ADR-003 specifically eliminated at the Opportunity level, one layer over — a Guardrail's job is to apply a deterministic rule to evidence that already carries whatever uncertainty exists, not to add a second, parallel uncertainty judgment.
@@ -54,3 +61,12 @@ A **Guardrail** is a deterministic eligibility rule, evaluated against a single 
 - ADR-001 (Canonical Fact versioning model, extended here to Guardrail evidence)
 - ADR-003 (Opportunity model; Guardrail outcomes as structural content; Strategy versioning precedent)
 - ADR-004 (repository module boundary for `guardrails/`; single-item pipeline assumption this ADR makes explicit)
+
+## Revision note (ASA-CORE-007)
+
+The original implementation represented a Guardrail evaluation with only an
+`opportunity_id`, outcomes, and a boolean result. That shape could establish eligibility but
+could not supply Ranking with the immutable Opportunity and standardized metrics that Ranking
+must compare. The evaluation is now explicitly the pipeline envelope: immutable Opportunity,
+ordered outcomes, and aggregate decision. Redundant copied Opportunity fields and repository
+lookups are prohibited.
