@@ -40,7 +40,7 @@ from datetime import datetime
 from domain.observation import Observation
 from domain.provenance import ProviderDisagreement
 from domain.values import require_tz_aware
-from observation.canonicalization import canonicalize_value, serialize_canonical
+from domain.canonicalization import canonicalize_value, serialize_canonical
 from reconciliation.errors import EmptyObservationGroupError, InconsistentGroupError
 
 FACT_IDENTITY_NAMESPACE = "asa.canonical_fact"

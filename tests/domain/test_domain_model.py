@@ -112,7 +112,8 @@ SAMPLES = {
         value=100.0, effective_time=NOW, recorded_time=NOW),
     CanonicalFact: _sample_fact,
     Indicator: lambda: Indicator(
-        indicator_id="ind-1", version=3, logic_version="2.0.0", value=1.5,
+        indicator_id="ind-1", version=3, indicator_type="latest_price",
+        logic_version="2.0.0", value=1.5,
         computed_from=(EvidenceReference(
             kind=EvidenceKind.CANONICAL_FACT, referenced_id="fact-1", version=1),),
         effective_time=NOW, created_time=NOW),
@@ -194,6 +195,13 @@ def test_identifier_fields_present(cls, field_name):
 def test_indicator_pins_logic_version():
     names = {f.name for f in dataclasses.fields(Indicator)}
     assert "logic_version" in names, "ADR-006: Indicator must pin its calculation-logic version"
+
+
+def test_indicator_has_indicator_type():
+    names = {f.name for f in dataclasses.fields(Indicator)}
+    assert "indicator_type" in names, (
+        "ASA-CORE-004: Indicator must carry its type, mirroring CanonicalFact.fact_type"
+    )
 
 
 def test_opportunity_pins_strategy_version():

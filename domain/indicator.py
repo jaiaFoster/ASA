@@ -1,6 +1,10 @@
 """Indicator — versioned, immutable derived value (ADR-006).
 
 Structural definitions only — no business logic (ASA-CORE-001).
+
+``indicator_type`` added in ASA-CORE-004: required to support deterministic
+indicator identity (namespace ``asa.indicator``) and the Indicator
+repository's ``by_indicator_type`` query, mirroring ``CanonicalFact.fact_type``.
 """
 from __future__ import annotations
 
@@ -23,6 +27,7 @@ class Indicator:
 
     indicator_id: str
     version: int
+    indicator_type: str
     logic_version: str
     value: object
     computed_from: tuple[EvidenceReference, ...]

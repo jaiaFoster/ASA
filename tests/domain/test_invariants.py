@@ -80,7 +80,8 @@ def _fact(**overrides):
 
 def _indicator(**overrides):
     kwargs = dict(
-        indicator_id="ind-1", version=1, logic_version="1.0.0", value=1.5,
+        indicator_id="ind-1", version=1, indicator_type="latest_price",
+        logic_version="1.0.0", value=1.5,
         computed_from=(), effective_time=AWARE, created_time=AWARE,
     )
     kwargs.update(overrides)
