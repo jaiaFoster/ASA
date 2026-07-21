@@ -8,6 +8,7 @@ Do not add substantive reasoning to this file. If an entry needs more than two s
 
 | Date | Summary | ADR |
 |---|---|---|
+| 2026-07-21 | The analytical execution pipeline is Portfolio Delta → Risk Decision → Execution Plan → Planned Orders → deterministic simulation → Portfolio Engine-applied transition; Position, Portfolio, risk, planning, simulation, identity, provenance, and atomic v1 migration contracts are frozen without any live broker capability. | ASA-ARCH-006 |
 | 2026-07-21 | ASA Core may generate immutable analytical Execution Plans and simulate their lifecycle, but it cannot submit, modify, cancel, authenticate with, or otherwise mutate a live broker; any operational subsystem requires a future constitutional amendment and explicit Founder authorization. | GOV-AMD-014 / Constitution Law 5 |
 | 2026-07-21 | Opportunity owns canonical Instrument identity and Ranking preserves it unchanged; ProposedPosition is narrowed to desired allocation and contains no account, portfolio, quantity, price, provider, broker, or order fields. | ADR-003/ADR-009 amendments (Issue #63) |
 | 2026-07-21 | The analytical execution pipeline is RankingResult → ProposedPosition → PortfolioDecision → ExecutionPlan → BrokerRequest; external broker communication alone crosses Constitution Law 5, and no adapter is authorized. | ADR-009 (ASA-ARCH-002) |
@@ -29,9 +30,9 @@ Do not add substantive reasoning to this file. If an entry needs more than two s
 
 ## Open Questions / Requires ADR
 
-- ADR-001 through ADR-009 cover the Observation/Canonical Fact model, Provider contract,
+- ADR-001 through ADR-009 and ASA-ARCH-003 through ASA-ARCH-006 cover the Observation/Canonical Fact model, Provider contract,
   Opportunity model, repository organization, Guardrail model, Indicator versioning, and
   Ranking model, the Intelligence-to-Operational Portfolio contract, and analytical execution
-  semantics. Cross-Opportunity
+  semantics, Strategy composition, financial contracts, and analytical execution. Cross-Opportunity
   (portfolio-level) Guardrails remain open; see ADR-005.
 - No ADR numbering or storage convention has been formally adopted (see `README.md`'s Open Questions). This log assumes ADRs will be referenced by filename or number once that convention exists.

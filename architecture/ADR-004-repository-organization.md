@@ -24,6 +24,11 @@ The repository is organized into one top-level module per pipeline layer, plus o
 - `guardrails/` — Guardrail Layer. Owns platform-wide risk and eligibility rules, shared across all Strategies (Constitution Law 8). Narrower dependency rule (see below, ASA-CORE-006): `guardrails/` may depend only on `guardrails/`, `strategies/`, `indicators/`, `facts/`, `reconciliation/`, and `domain/` — not `observation/` or `providers/`, even though both sit "below" it in the general ordering.
 - `ranking/` — Ranking Layer. Owns ordering of Guardrail-evaluated Opportunities.
 - `presentation/` — Presentation Layer. Owns summarization and user-facing output; the only module permitted to invoke a language model.
+- `position_proposals/` — desired exposure derived from Ranking without portfolio state.
+- `portfolio/` — immutable Position/Portfolio calculation and Portfolio Delta transitions.
+- `risk/` — deterministic evaluation of platform and Strategy-declared Risk Policies.
+- `execution_planning/` — immutable Planned Order and Execution Plan generation.
+- `simulation/` — deterministic interpretation of Execution Plans against explicit simulated market data.
 - `domain/` (shared) — Cross-cutting value types referenced by multiple layers (for example, Confidence and Provenance representations). Exists specifically to satisfy Constitution Law 3: these types are defined once, here, and referenced everywhere, rather than redefined per layer.
 
 **Dependency direction** is strictly one-way and mirrors the Vision's pipeline order:
@@ -80,6 +85,16 @@ data layers. Any import-boundary tooling must enforce this narrower set specific
 **Revision note (post-review):** this ADR originally permitted `presentation/` to depend on any module below it, which directly contradicted ADR-003's constraint that the Presentation Layer never has independent access to raw Evidence sources. That contradiction is fixed above by narrowing `presentation/`'s allowed dependencies to `ranking/` and `domain/` only. This ADR also originally asserted a settled Architect/Founder approval hierarchy for repository-organization decisions; that assertion has been walked back to an explicitly flagged assumption, since no other reviewed document establishes such a hierarchy — see Open Questions.
 
 **Revision note (ASA-CORE-003):** this ADR originally assigned reconciliation logic and Canonical Fact versioning to a single `facts/` module. Implementing the reconciliation engine surfaced a reason to split them: reconciliation is a pure, deterministic function of an Observation set (no repository access, fully replayable), while Canonical Fact storage and version-sequence enforcement inherently require repository state. Splitting them keeps `reconciliation/`'s replayability guarantee structurally enforceable (it cannot accidentally acquire a repository dependency) and keeps `facts/`'s storage concerns from leaking into what should be a pure function. `reconciliation/` is added at the Canonical Fact Layer's pipeline position — before `facts/`, which now depends on it — rather than as a new, separately-ranked layer; this is a decomposition of the existing Canonical Fact Layer, not a new pipeline stage.
+
+**Revision note (ASA-ARCH-006):** pipeline arrows describe value flow, not import permission. The
+closed code-import matrix is: `position_proposals` may import itself, `domain`, `ranking`, and its
+already-authorized lower Intelligence dependencies; `portfolio`, `risk`, and
+`execution_planning` may each import only itself and `domain`; `simulation` may import itself,
+`domain`, and pure public transition functions from `portfolio`. Every other import between these
+operational-analysis packages is prohibited. All five are prohibited from importing providers,
+observation, presentation, backend, infrastructure, networking, authentication, persistence, or
+broker SDKs. Strategy, Guardrails, and Ranking cannot import portfolio, risk, planning, or
+simulation.
 
 ## References
 

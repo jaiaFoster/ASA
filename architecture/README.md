@@ -13,6 +13,7 @@ This directory is the authoritative architecture documentation for ASA (Algo Sto
 | [`DOMAIN_GLOSSARY.md`](./DOMAIN_GLOSSARY.md) | What does this term mean? |
 | ADRs (`architecture/`) | Why was this specific decision made? |
 | [`DECISION_LOG.md`](./DECISION_LOG.md) | What has been decided, and where is the reasoning? |
+| [`ASA-ARCH-006-Analytical-Execution-Contracts.md`](./ASA-ARCH-006-Analytical-Execution-Contracts.md) | What are the immutable portfolio, risk, planning, simulation, and replay contracts? |
 
 Each document has exactly one job. If you find the same explanation in two places, that is a defect — file an issue.
 

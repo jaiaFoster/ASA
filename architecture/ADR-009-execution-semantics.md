@@ -62,11 +62,12 @@ engine responsibility, not a second domain object.
   propagates the ranked thesis, confidence, effective sizing parameters, rationale, and Evidence.
   It never reads cash, buying power, or holdings.
 
-`ProposedPosition.target_allocation` is a decimal fraction in `(0, 1]` of the Position Proposal
-Engine's explicitly parameterized reference capital. It is desired unconstrained allocation, not
-a percentage derived from the observed Portfolio Snapshot. The reference-capital and sizing
-policy values must be present in the proposal's effective parameters, so replay never depends on
-hidden configuration.
+`ProposedPosition.target_allocation` is a snapshot-independent decimal fraction in `[0, 1]` that
+expresses desired unconstrained allocation. Proposed Position contains its sizing-policy version
+and parameters but no reference capital, Portfolio identity, or Portfolio-derived value. Under
+ASA-ARCH-006, Portfolio Engine alone derives sizing reference capital from the source Snapshot net
+liquidation value. Replay binds the immutable proposal and source Snapshot in the identified
+Portfolio Evaluation Result, so no hidden configuration or upstream Portfolio access is required.
 
 - `PortfolioDecision` answers **how much of that proposed exposure survives current portfolio
   constraints**. It references exactly one Proposed Position and Portfolio Snapshot, pins policy
@@ -222,3 +223,14 @@ and account-neutral. CORE-010 no longer needs hidden lookup or fabricated execut
 - ADR-008: Operational Trading Contracts
 - Architecture Constitution, Laws 5, 7, 9, and 10
 - `roles/shared/AUTHORITY_BOUNDARIES.md`
+
+## Revision note (GOV-AMD-014 and ASA-ARCH-006)
+
+GOV-AMD-014 replaces the absolute read-only law with an analytical execution boundary while
+continuing to prohibit every live brokerage operation. ASA-ARCH-006 evolves this v1 analytical
+contract: `BrokerRequest` is superseded by `PlannedOrder`; combined `PortfolioDecision` is split
+into `PortfolioDelta` and `RiskDecision`; and Execution Plan v2 owns Planned Orders, summary,
+trace, and explicit source state. The implementation migration is atomic—no alias, dual-read, or
+compatibility shim is authorized. This revision also supersedes the original reference-capital
+semantic: target allocation is snapshot-independent and Portfolio Engine derives reference
+capital from source Snapshot state. External broker communication remains prohibited.
