@@ -1,0 +1,306 @@
+---
+id: SPRINT-001
+codename: Execution Intelligence
+version: 1.1
+status: APPROVED
+type: IMPLEMENTATION_SPRINT
+
+amendment:
+  issue: 61
+  scope: governance_workflow_only
+  summary: >
+    Removes autonomous merge authority and preserves Founder-only merge
+    authority. All technical scope, validation, acceptance, architecture,
+    determinism, replay, and stop requirements remain unchanged from v1.0.
+
+objective: >
+  Implement the complete execution-intelligence layer defined by
+  ASA-ARCH-001 and ASA-ARCH-002 without modifying the analytical
+  architecture, governance, or constitutional boundaries.
+
+prerequisites:
+  architecture:
+    - ASA-ARCH-001
+    - ASA-ARCH-002
+
+repository:
+  default_branch: main
+
+execution:
+  mode: autonomous_implementation_with_founder_merge_gates
+
+  authority:
+    implementation: true
+    testing: true
+    documentation: true
+    refactoring: true
+    issue_creation: true
+    pull_request_creation: true
+    pull_request_merge: false
+
+  review:
+    self_review_required: true
+
+  merge_strategy:
+    sequential_founder_merge_gates: true
+
+workflow:
+  - implement_ticket
+  - run_all_validation_gates
+  - self_review
+  - open_pull_request
+  - mark_ready_for_founder_merge
+  - wait_for_founder_merge
+  - verify_main_contains_merged_commit
+  - begin_next_ticket
+  - generate_final_report
+
+tickets:
+  - id: ASA-CORE-008
+    title: Position Proposal Engine
+    objective: >
+      Transform RankingResult into ProposedPosition using deterministic
+      allocation policy while remaining completely independent of the
+      current portfolio.
+    input:
+      - RankingResult
+    output:
+      - ProposedPosition
+    responsibilities:
+      - target allocation
+      - desired exposure
+      - confidence propagation
+      - rationale propagation
+      - sizing policy
+      - deterministic identity generation
+      - replay safety
+    prohibited:
+      - PortfolioSnapshot
+      - Holding
+      - buying power
+      - cash analysis
+      - diversification
+      - execution planning
+      - broker interaction
+      - persistence
+      - networking
+    acceptance:
+      - immutable output
+      - deterministic replay
+      - policy version recorded
+      - complete unit tests
+      - architecture tests pass
+
+  - id: ASA-CORE-009
+    title: Portfolio Engine
+    objective: >
+      Evaluate desired positions against the current immutable portfolio
+      snapshot and produce deterministic portfolio decisions.
+    input:
+      - ProposedPosition
+      - PortfolioSnapshot
+    output:
+      - PortfolioDecision
+    responsibilities:
+      - buying power policy
+      - concentration policy
+      - diversification policy
+      - overlap detection
+      - cash reserve policy
+      - rejection policy
+      - acceptance policy
+      - deterministic reasoning
+    prohibited:
+      - execution planning
+      - broker interaction
+      - networking
+      - persistence
+    acceptance:
+      - deterministic
+      - immutable
+      - replay stable
+      - complete test coverage
+
+  - id: ASA-CORE-010
+    title: Execution Planner
+    objective: >
+      Transform portfolio decisions into deterministic broker-neutral
+      execution plans.
+    input:
+      - PortfolioDecision
+    output:
+      - ExecutionPlan
+    responsibilities:
+      - quantity calculation
+      - execution sequencing
+      - order decomposition
+      - execution metadata
+      - deterministic planning
+    prohibited:
+      - broker SDKs
+      - broker APIs
+      - authentication
+      - credentials
+      - networking
+      - persistence
+      - provider payloads
+    acceptance:
+      - deterministic
+      - immutable
+      - replay stable
+      - complete unit tests
+
+authority:
+  worker:
+    may:
+      - implement ticket logic
+      - create helper modules
+      - add tests
+      - improve documentation
+      - perform bounded refactors
+      - create pull requests
+      - update pull requests
+      - self review
+      - mark READY_FOR_FOUNDER_MERGE
+      - observe repository state
+      - continue after Founder merge
+    may_not:
+      - merge pull requests
+      - bypass branch protection
+      - modify frozen governance
+      - modify Constitution
+      - introduce new pipeline stages
+      - introduce new immutable domain contracts
+      - change ADR intent
+      - introduce provider-specific behavior
+      - introduce broker communication
+      - introduce persistence
+
+stop_conditions:
+  architecture:
+    - missing upstream contract
+    - contract ambiguity
+    - conflicting ADR
+    - constitutional conflict
+  governance:
+    - frozen governance conflict
+  implementation:
+    - required domain model missing
+
+on_stop:
+  - open_github_issue
+  - document_blocker
+  - terminate_remaining_sprint
+
+validation:
+  required:
+    - pytest
+    - mypy
+    - ruff
+    - architecture validation
+    - dependency validation
+    - forbidden import validation
+    - circular dependency validation
+    - deterministic replay validation
+    - immutable contract validation
+    - identity validation
+    - integrity validation
+    - git diff --check
+
+self_review:
+  required: true
+  checklist:
+    architecture:
+      - contract boundaries preserved
+      - analytical pipeline preserved
+      - no provider leakage
+      - no infrastructure leakage
+    governance:
+      - Constitution unchanged
+      - frozen governance unchanged
+    implementation:
+      - acceptance criteria satisfied
+      - deterministic outputs
+      - replay stable
+      - adequate unit coverage
+      - adequate architecture coverage
+
+merge:
+  policy: founder_only
+  cadence:
+    after_each_ticket: true
+  worker_result: READY_FOR_FOUNDER_MERGE
+  founder_action: FINAL_APPROVAL_AND_MERGE_REQUIRED
+  continue_condition: >
+    The worker observes that Founder merged the ticket pull request and
+    verifies that main contains the merged commit before beginning the next
+    ticket.
+  readiness_conditions:
+    validation_passed: true
+    self_review_passed: true
+    blocking_issues: 0
+    unresolved_todos: 0
+    skipped_tests: 0
+    architecture_preserved: true
+    governance_preserved: true
+  on_failure:
+    - do_not_mark_ready
+    - open_issue
+    - stop_sprint
+
+report:
+  required: true
+  destination: project/reports/SPRINT-001.md
+  contents:
+    - sprint summary
+    - completed tickets
+    - merged pull requests
+    - validation results
+    - architecture verification
+    - governance verification
+    - replay verification
+    - coverage summary
+    - discovered defects
+    - resolved defects
+    - remaining issues
+    - recommendations
+    - risk assessment
+
+success:
+  repository_state:
+    - main branch green
+    - all validation passing
+    - deterministic replay preserved
+    - no constitutional violations
+    - no governance violations
+  implemented_pipeline:
+    - Observation
+    - CanonicalFact
+    - Indicator
+    - Opportunity
+    - Guardrails
+    - RankingResult
+    - PositionProposalEngine
+    - ProposedPosition
+    - PortfolioEngine
+    - PortfolioDecision
+    - ExecutionPlanner
+    - ExecutionPlan
+    - BrokerRequest
+  explicitly_not_in_scope:
+    - broker adapters
+    - live execution
+    - authentication
+    - persistence
+    - infrastructure
+    - external APIs
+    - provider integrations
+
+definition_of_done: >
+  The sprint is complete when ASA can deterministically transform
+  RankingResult into BrokerRequest entirely within the analytical domain,
+  every ticket has been implemented and merged by Founder after passing all
+  validation gates, the default branch remains continuously green after each
+  merge, and a final sprint report has been committed documenting the
+  implementation, verification results, and recommendations for the next
+  sprint.
