@@ -8,6 +8,7 @@ from domain.outcome_metrics import ExpectedOutcomeMetrics
 from domain.references import Confidence, EvidenceKind, EvidenceReference
 from guardrails.engine import evaluate_opportunity
 from guardrails.evaluations import OpportunityGuardrailEvaluation
+from tests.instrument_helpers import TEST_INSTRUMENT
 
 T0 = datetime(2026, 7, 21, 12, 0, tzinfo=timezone.utc)
 GUARDRAIL_PARAMETERS: dict[str, dict[str, object]] = {
@@ -35,6 +36,7 @@ def evaluation(
         version=1,
         strategy_id="test_strategy",
         strategy_version="v1",
+        instrument=TEST_INSTRUMENT,
         supporting_indicators=(
             EvidenceReference(
                 kind=EvidenceKind.INDICATOR,

@@ -74,9 +74,9 @@ class TimeInForce(str, Enum):
 class PortfolioDecision:
     """Portfolio-policy result for one immutable ProposedPosition.
 
-    Approved quantity and exposure describe how much of the proposal survives
-    portfolio constraints.  They are policy outputs supplied to this contract,
-    never values calculated by it.
+    ``approved_allocation`` describes how much of the desired allocation
+    survives portfolio constraints. It is a policy output supplied to this
+    contract, never a value calculated by it.
     """
 
     portfolio_decision_id: str
@@ -84,8 +84,7 @@ class PortfolioDecision:
     portfolio_snapshot_id: str
     proposed_position: ProposedPosition
     state: PortfolioDecisionState
-    approved_quantity: Decimal
-    approved_gross_exposure: MonetaryAmount
+    approved_allocation: Decimal
     policy_versions: tuple[tuple[str, str], ...]
     effective_parameters: tuple[tuple[str, Decimal], ...]
     reasons: tuple[str, ...]
@@ -98,40 +97,21 @@ class PortfolioDecision:
             "portfolio_snapshot_id",
         ):
             _require_text(getattr(self, field_name), "PortfolioDecision", field_name)
-        _require_non_negative(
-            self.approved_quantity, "PortfolioDecision", "approved_quantity"
-        )
-        _require_non_negative(
-            self.approved_gross_exposure.amount,
-            "PortfolioDecision",
-            "approved_gross_exposure.amount",
-        )
-        if self.approved_gross_exposure.currency != self.proposed_position.gross_exposure.currency:
+        _require_non_negative(self.approved_allocation, "PortfolioDecision", "approved_allocation")
+        if self.approved_allocation > self.proposed_position.target_allocation:
             raise DomainInvariantError(
-                "PortfolioDecision approved exposure currency must match the proposal"
-            )
-        if self.approved_quantity > self.proposed_position.quantity:
-            raise DomainInvariantError(
-                "PortfolioDecision approved_quantity cannot exceed proposed quantity"
-            )
-        if self.approved_gross_exposure.amount > self.proposed_position.gross_exposure.amount:
-            raise DomainInvariantError(
-                "PortfolioDecision approved exposure cannot exceed proposed exposure"
+                "PortfolioDecision approved_allocation cannot exceed proposed allocation"
             )
         if self.state in {PortfolioDecisionState.REJECT, PortfolioDecisionState.HOLD} and (
-            self.approved_quantity != 0 or self.approved_gross_exposure.amount != 0
+            self.approved_allocation != 0
         ):
             raise DomainInvariantError("REJECT and HOLD decisions cannot approve new exposure")
         if self.state is PortfolioDecisionState.ACCEPT and (
-            self.approved_quantity != self.proposed_position.quantity
-            or self.approved_gross_exposure != self.proposed_position.gross_exposure
+            self.approved_allocation != self.proposed_position.target_allocation
         ):
             raise DomainInvariantError("ACCEPT must preserve the complete proposed exposure")
         if self.state is PortfolioDecisionState.REDUCE and not (
-            0 < self.approved_quantity < self.proposed_position.quantity
-            and 0
-            < self.approved_gross_exposure.amount
-            < self.proposed_position.gross_exposure.amount
+            0 < self.approved_allocation < self.proposed_position.target_allocation
         ):
             raise DomainInvariantError("REDUCE must approve a smaller positive exposure")
         _require_unique_keys(self.policy_versions, "PortfolioDecision", "policy_versions")

@@ -56,7 +56,7 @@ engine responsibility, not a second domain object.
 ### Semantic ownership
 
 - `RankingResult` answers **what is attractive**. It orders Opportunities with confidence,
-  scoring provenance, and Evidence. It never reads portfolio state.
+  canonical Instrument, scoring provenance, and Evidence. It never reads portfolio state.
 - `ProposedPosition` answers **what exposure Intelligence would want without portfolio
   constraints**. The Position Proposal Engine owns target-allocation and sizing policy and
   propagates the ranked thesis, confidence, effective sizing parameters, rationale, and Evidence.
@@ -67,10 +67,12 @@ Engine's explicitly parameterized reference capital. It is desired unconstrained
 a percentage derived from the observed Portfolio Snapshot. The reference-capital and sizing
 policy values must be present in the proposal's effective parameters, so replay never depends on
 hidden configuration.
+
 - `PortfolioDecision` answers **how much of that proposed exposure survives current portfolio
   constraints**. It references exactly one Proposed Position and Portfolio Snapshot, pins policy
   versions and effective parameters, and records `ACCEPT`, `REJECT`, `REDUCE`, or `HOLD` with
-  approved quantity, approved exposure, reasons, and Evidence.
+  approved allocation, reasons, and Evidence. Account selection and valuation are later-stage
+  portfolio concerns; they are never fields on Proposed Position.
 - `ExecutionPlan` answers **how the approved decision would be decomposed and sequenced**. It
   retains the complete Portfolio Decision and owns an ordered tuple of analytical
   `BrokerRequest` records. A rejected or held decision has an empty tuple.
@@ -121,8 +123,7 @@ complete semantic inputs:
 
 Proposed Position identity remains in the `asa.proposed_position` namespace and includes the
 Opportunity, Ranked Opportunity, and Ranking Result identities; proposal algorithm version;
-portfolio and account identities; instrument and direction; target allocation; quantity; price;
-gross exposure; confidence; rationale; effective parameters; and Evidence.
+canonical Instrument; target allocation; confidence; rationale; effective parameters; and Evidence.
 
 Identity excludes timestamps, process execution order, serialization order of keyed parameters,
 randomness, provider payloads, and broker state. Contract fields contain no timestamps. Engines
@@ -130,8 +131,8 @@ must canonicalize keyed parameters by key before hashing and reject duplicate ke
 
 ## State Semantics
 
-- `ACCEPT` approves the complete proposed quantity and gross exposure.
-- `REDUCE` approves a smaller positive quantity and gross exposure.
+- `ACCEPT` approves the complete proposed target allocation.
+- `REDUCE` approves a smaller positive target allocation.
 - `REJECT` approves no new exposure because portfolio policy disallows the proposal.
 - `HOLD` approves no new exposure because no portfolio change should be planned.
 
@@ -153,6 +154,12 @@ Workers may implement, test, refactor within ticket scope, file issues, and mark
 merge. They may not merge. Founder remains the sole merge authority, and every sprint PR requires
 Founder approval after tests, replay, dependency, forbidden-import, circularity, and quality gates
 pass.
+
+Opportunity is the canonical owner of Instrument identity before the operational boundary.
+Strategy evaluation receives an explicit canonical Instrument and includes its identity in
+Opportunity identity. Guardrails and Ranking retain the complete immutable Opportunity; neither
+copies, resolves, parses, or looks up Instrument data. Position Proposal therefore consumes the
+Instrument already present in Ranking Result.
 
 ## Alternatives Considered
 
@@ -176,9 +183,17 @@ pass.
 - The architecture can describe a hypothetical execution plan while remaining unable to execute it.
 - Any future broker adapter is a new, explicitly governed concern beyond this sprint.
 
+## Revision note (Issue #63)
+
+`ProposedPosition` is narrowed to desired analytical allocation. Account, portfolio, quantity,
+market price, broker, provider, and order fields belong to later stages. Opportunity now owns the
+canonical Instrument and Ranking preserves it through its existing evaluation envelope, closing
+the last required source path without hidden mappings.
+
 ## References
 
 - GitHub issue #59
+- GitHub issue #63
 - ADR-007: Deterministic Ranking Model
 - ADR-008: Operational Trading Contracts
 - Architecture Constitution, Laws 5, 7, 9, and 10

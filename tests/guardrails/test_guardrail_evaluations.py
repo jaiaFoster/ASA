@@ -1,15 +1,13 @@
 """ASA-CORE-006: guardrail check unit tests (policy validation)."""
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from decimal import Decimal
 
 import pytest
 
-from domain.canonical_fact import CanonicalFact
 from domain.opportunity import Opportunity, RecommendationState
 from domain.outcome_metrics import ExpectedOutcomeMetrics
-from domain.provenance import Provenance
 from domain.references import Confidence, EvidenceKind, EvidenceReference
 from guardrails.errors import EmptyOpportunityEvidenceError, InvalidGuardrailParameterError
 from guardrails.evaluations import (
@@ -20,6 +18,7 @@ from guardrails.evaluations import (
     opportunity_cited_evidence,
     placeholder_metrics_rejection,
 )
+from tests.instrument_helpers import TEST_INSTRUMENT
 
 T0 = datetime(2026, 7, 21, 14, 0, tzinfo=timezone.utc)
 
@@ -33,6 +32,7 @@ def _opp(
 ) -> Opportunity:
     return Opportunity(
         opportunity_id="opp-1", version=1, strategy_id="s1", strategy_version="v1",
+        instrument=TEST_INSTRUMENT,
         supporting_indicators=supporting_indicators, evidence=evidence,
         assumptions=assumptions, evidence_confidence=Confidence(score=evidence_confidence),
         expected_outcome_metrics=ExpectedOutcomeMetrics(

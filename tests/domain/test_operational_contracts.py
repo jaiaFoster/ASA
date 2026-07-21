@@ -80,14 +80,8 @@ def _proposal(**overrides: object) -> ProposedPosition:
         "ranking_result_id": "ranking-result-1",
         "ranking_id": "ranked-opportunity-1",
         "proposal_algorithm_version": "v1",
-        "portfolio_id": "portfolio-1",
-        "account_id": "account-1",
         "instrument": _instrument(),
-        "direction": PositionDirection.LONG,
         "target_allocation": Decimal("0.10"),
-        "quantity": Decimal("2"),
-        "estimated_unit_price": MonetaryAmount(Decimal("210"), USD),
-        "gross_exposure": MonetaryAmount(Decimal("420"), USD),
         "evidence_confidence": Confidence(0.8),
         "rationale": ("ranked opportunity supports desired exposure",),
         "effective_parameters": (
@@ -190,6 +184,18 @@ def test_decision_request_preserves_rank_order_and_requires_matching_ids() -> No
             _snapshot(),
             (first,),
         )
+
+
+def test_proposal_contains_no_portfolio_or_execution_fields() -> None:
+    names = {field.name for field in dataclasses.fields(ProposedPosition)}
+    assert not names & {
+        "account_id",
+        "portfolio_id",
+        "quantity",
+        "estimated_unit_price",
+        "gross_exposure",
+        "direction",
+    }
 
 
 def test_contract_fields_contain_no_broker_or_repository_models() -> None:

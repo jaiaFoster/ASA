@@ -24,7 +24,6 @@ from domain import (
     PortfolioDecision,
     PortfolioDecisionState,
     ProposedPosition,
-    PositionDirection,
     TimeInForce,
 )
 
@@ -46,14 +45,8 @@ def _proposal() -> ProposedPosition:
         ranking_result_id="ranking-result-1",
         ranking_id="ranking-1",
         proposal_algorithm_version="v1",
-        portfolio_id="portfolio-1",
-        account_id="account-1",
         instrument=instrument,
-        direction=PositionDirection.LONG,
         target_allocation=Decimal("0.10"),
-        quantity=Decimal("4"),
-        estimated_unit_price=MonetaryAmount(Decimal("200"), USD),
-        gross_exposure=MonetaryAmount(Decimal("800"), USD),
         evidence_confidence=Confidence(0.8),
         rationale=("ranked opportunity supports desired exposure",),
         effective_parameters=(
@@ -68,22 +61,18 @@ def _decision(
     state: PortfolioDecisionState = PortfolioDecisionState.ACCEPT,
 ) -> PortfolioDecision:
     proposal = _proposal()
-    quantity = proposal.quantity
-    exposure = proposal.gross_exposure
+    allocation = proposal.target_allocation
     if state in {PortfolioDecisionState.REJECT, PortfolioDecisionState.HOLD}:
-        quantity = Decimal("0")
-        exposure = MonetaryAmount(Decimal("0"), USD)
+        allocation = Decimal("0")
     elif state is PortfolioDecisionState.REDUCE:
-        quantity = Decimal("2")
-        exposure = MonetaryAmount(Decimal("400"), USD)
+        allocation = Decimal("0.05")
     return PortfolioDecision(
         portfolio_decision_id="decision-1",
         decision_algorithm_version="v1",
         portfolio_snapshot_id="snapshot-1",
         proposed_position=proposal,
         state=state,
-        approved_quantity=quantity,
-        approved_gross_exposure=exposure,
+        approved_allocation=allocation,
         policy_versions=(("buying_power", "v1"),),
         effective_parameters=(("cash_reserve", Decimal("1000")),),
         reasons=("proposal satisfies portfolio policy",),
@@ -98,11 +87,11 @@ def _request(sequence: int = 1) -> BrokerRequest:
         portfolio_decision_id=decision.portfolio_decision_id,
         sequence=sequence,
         instrument=decision.proposed_position.instrument,
-        account_id=decision.proposed_position.account_id,
+        account_id="account-1",
         side=BrokerRequestSide.BUY,
-        quantity=decision.approved_quantity,
+        quantity=Decimal("4"),
         order_type=OrderType.LIMIT,
-        limit_price=decision.proposed_position.estimated_unit_price,
+        limit_price=MonetaryAmount(Decimal("200"), USD),
         time_in_force=TimeInForce.DAY,
         execution_metadata=(("strategy", "single_limit_v1"),),
         reasoning=EVIDENCE,
@@ -158,19 +147,16 @@ def test_keyed_identity_inputs_require_canonical_order() -> None:
 def test_reject_and_hold_approve_no_new_exposure() -> None:
     for state in (PortfolioDecisionState.REJECT, PortfolioDecisionState.HOLD):
         decision = _decision(state)
-        assert decision.approved_quantity == 0
-        assert decision.approved_gross_exposure.amount == 0
+        assert decision.approved_allocation == 0
         plan = ExecutionPlan("plan-noop", "v1", decision, (), EVIDENCE)
         assert plan.broker_requests == ()
 
 
 def test_reduce_must_be_smaller_than_proposal() -> None:
-    proposal = _proposal()
     with pytest.raises(DomainInvariantError, match="smaller positive exposure"):
         dataclasses.replace(
             _decision(PortfolioDecisionState.REDUCE),
-            approved_quantity=proposal.quantity,
-            approved_gross_exposure=proposal.gross_exposure,
+            approved_allocation=_proposal().target_allocation,
         )
 
 

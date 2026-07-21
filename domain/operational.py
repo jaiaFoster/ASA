@@ -191,26 +191,15 @@ class PortfolioSnapshot:
 
 @dataclass(frozen=True, slots=True)
 class ProposedPosition:
-    """Intelligence output describing desired exposure, never an order.
-
-    ``quantity`` is the absolute size of this proposal, not an order delta or
-    a post-execution portfolio target.  Operational policy compares it with
-    the separately supplied snapshot before any read-only plan is presented.
-    """
+    """Intelligence output describing desired allocation, never an order."""
 
     proposed_position_id: str
     opportunity_id: str
     ranking_result_id: str
     ranking_id: str
     proposal_algorithm_version: str
-    portfolio_id: str
-    account_id: str
     instrument: Instrument
-    direction: PositionDirection
     target_allocation: Decimal
-    quantity: Decimal
-    estimated_unit_price: MonetaryAmount
-    gross_exposure: MonetaryAmount
     evidence_confidence: Confidence
     rationale: tuple[str, ...]
     effective_parameters: tuple[tuple[str, Decimal], ...]
@@ -223,27 +212,12 @@ class ProposedPosition:
             "ranking_result_id",
             "ranking_id",
             "proposal_algorithm_version",
-            "portfolio_id",
-            "account_id",
         ):
             _require_text(getattr(self, field_name), "ProposedPosition", field_name)
         require_finite_decimal(self.target_allocation, "ProposedPosition", "target_allocation")
         require_unit_interval(self.target_allocation, "ProposedPosition", "target_allocation")
         if self.target_allocation == 0:
             raise DomainInvariantError("ProposedPosition.target_allocation must be greater than zero")
-        _require_non_negative(self.quantity, "ProposedPosition", "quantity")
-        if self.quantity == 0:
-            raise DomainInvariantError("ProposedPosition.quantity must be greater than zero")
-        _require_non_negative(
-            self.estimated_unit_price.amount,
-            "ProposedPosition",
-            "estimated_unit_price.amount",
-        )
-        _require_non_negative(
-            self.gross_exposure.amount, "ProposedPosition", "gross_exposure.amount"
-        )
-        if self.estimated_unit_price.currency != self.gross_exposure.currency:
-            raise DomainInvariantError("ProposedPosition valuation currencies must match")
         if not self.rationale:
             raise DomainInvariantError("ProposedPosition.rationale cannot be empty")
         if any(not item or item != item.strip() for item in self.rationale):
@@ -291,11 +265,4 @@ class PortfolioDecisionRequest:
         ):
             raise DomainInvariantError(
                 "PortfolioDecisionRequest proposals must reference ranking_result_id"
-            )
-        if any(
-            item.portfolio_id != self.portfolio_snapshot.portfolio_id
-            for item in self.proposed_positions
-        ):
-            raise DomainInvariantError(
-                "PortfolioDecisionRequest proposals must target the snapshot portfolio_id"
             )

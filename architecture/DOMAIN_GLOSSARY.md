@@ -45,7 +45,7 @@ One immutable, currently valued position within a Portfolio Snapshot. Direction,
 Immutable, raw evidence as reported by an external Provider. An Observation is a historical record: once written, it is never altered, even if later shown to be wrong. Corrections are represented as new Observations and reconciled at the Canonical Fact layer, not by editing history.
 
 **Opportunity**
-A candidate investment action surfaced by the Strategy Layer, prior to Guardrail evaluation and Ranking. An Opportunity that does not pass Guardrail evaluation is never presented to a user as a Recommendation.
+A candidate investment action surfaced by the Strategy Layer, prior to Guardrail evaluation and Ranking. It references exactly one canonical provider-neutral Instrument, which Guardrails and Ranking preserve unchanged. An Opportunity that does not pass Guardrail evaluation is never presented to a user as a Recommendation.
 
 **Portfolio Decision**
 The immutable result of evaluating one Proposed Position against one Portfolio Snapshot. It records the approved portion, policy versions, effective parameters, reasons, and Evidence; it does not plan execution.
@@ -57,7 +57,7 @@ The immutable Operational Portfolio input envelope pairing one Portfolio Snapsho
 Complete immutable portfolio financial state at one semantic observation time: holdings, signed settled cash, non-negative buying power, net liquidation value, gross exposure, base currency, and Evidence. Any state change produces a new snapshot; the object is not a mutable portfolio tracker.
 
 **Proposed Position**
-An evidence-backed description of desired instrument exposure produced from ranked Intelligence. It identifies quantity, direction, estimated price, and gross exposure, but is not an order and carries no broker routing or write semantics.
+An evidence-backed description of desired allocation produced from ranked Intelligence. It retains canonical Instrument, target allocation, confidence, rationale, algorithm version, effective parameters, lineage, and Evidence. It has no account, portfolio, quantity, price, broker, provider, or order semantics.
 
 **Provider**
 An external source of raw data — market data, options data, broker data, financial events, or similar — that ASA does not control. ASA does not assume Providers agree with one another; see Provenance and Confidence.

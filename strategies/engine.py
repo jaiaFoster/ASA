@@ -18,16 +18,19 @@ from domain.canonical_fact import CanonicalFact
 from domain.canonicalization import serialize_canonical
 from domain.indicator import Indicator
 from domain.opportunity import Opportunity, RecommendationState
+from domain.operational import Instrument
 from domain.outcome_metrics import ExpectedOutcomeMetrics
 from domain.references import Confidence, EvidenceKind, EvidenceReference
 from domain.values import require_tz_aware
 from strategies.registry import DEFAULT_REGISTRY, StrategyRegistry
 
 OPPORTUNITY_IDENTITY_NAMESPACE = "asa.opportunity"
-OPPORTUNITY_IDENTITY_VERSION = "v1"
+OPPORTUNITY_IDENTITY_VERSION = "v2"
 
 
-def _metrics_as_normalized_value(metrics: ExpectedOutcomeMetrics) -> tuple:
+def _metrics_as_normalized_value(
+    metrics: ExpectedOutcomeMetrics,
+) -> tuple[tuple[str, object], ...]:
     return (
         ("capital_required", metrics.capital_required),
         ("expected_return", metrics.expected_return),
@@ -40,6 +43,7 @@ def _metrics_as_normalized_value(metrics: ExpectedOutcomeMetrics) -> tuple:
 
 def opportunity_identity(
     strategy_id: str,
+    instrument: Instrument,
     source_indicator_ids: tuple[str, ...],
     source_fact_ids: tuple[str, ...],
     effective_time: datetime,
@@ -47,8 +51,8 @@ def opportunity_identity(
 ) -> str:
     """Deterministic, versioned Opportunity identity (algorithm v1).
 
-    Inputs: strategy_id, source indicator ids, source fact ids, effective
-    time, and expected outcome metrics — mirroring
+    Inputs: strategy_id, canonical instrument identity, source indicator ids,
+    source fact ids, effective time, and expected outcome metrics — mirroring
     ``indicators.engine.indicator_identity``'s and
     ``reconciliation.rules.fact_identity``'s algorithm style under a
     distinct namespace. No UUIDs, no sequence numbers, no insertion time,
@@ -62,6 +66,7 @@ def opportunity_identity(
             OPPORTUNITY_IDENTITY_NAMESPACE,
             OPPORTUNITY_IDENTITY_VERSION,
             serialize_canonical(strategy_id),
+            serialize_canonical((instrument.identity.scheme, instrument.identity.value)),
             serialize_canonical(tuple(sorted(source_indicator_ids))),
             serialize_canonical(tuple(sorted(source_fact_ids))),
             serialize_canonical(effective_time),
@@ -77,7 +82,8 @@ def evaluate_strategy(
     facts: tuple[CanonicalFact, ...],
     effective_time: datetime,
     created_time: datetime,
-    params: dict | None = None,
+    instrument: Instrument,
+    params: dict[str, object] | None = None,
     registry: StrategyRegistry = DEFAULT_REGISTRY,
 ) -> Opportunity | None:
     """Evaluate one strategy; return a discovered Opportunity, or None.
@@ -89,6 +95,10 @@ def evaluate_strategy(
     contributing facts' own Confidence — the weakest link, per ADR-001's
     "internal reconciliation attribute" framing extended here as a simple,
     documented v1 aggregation choice).
+
+    ``instrument`` is the canonical provider-neutral subject supplied by the
+    caller. The Strategy records it unchanged; it performs no symbol parsing,
+    lookup, or provider resolution.
 
     Returns ``None`` when the strategy finds nothing actionable this cycle
     — a legitimate, common outcome; this is a *no-signal* result, not an
@@ -127,12 +137,13 @@ def evaluate_strategy(
 
     opportunity = Opportunity(
         opportunity_id=opportunity_identity(
-            strategy_id, source_indicator_ids, source_fact_ids,
+            strategy_id, instrument, source_indicator_ids, source_fact_ids,
             effective_time, signal.expected_outcome_metrics,
         ),
         version=1,
         strategy_id=strategy_id,
         strategy_version=definition.strategy_version,
+        instrument=instrument,
         supporting_indicators=supporting_indicators,
         evidence=evidence,
         assumptions=signal.assumptions,

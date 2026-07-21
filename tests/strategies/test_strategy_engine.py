@@ -1,6 +1,7 @@
 """ASA-CORE-005: strategy engine tests — determinism, replay, provenance."""
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
@@ -8,13 +9,46 @@ import pytest
 
 from domain.canonical_fact import CanonicalFact
 from domain.opportunity import RecommendationState
+from domain.operational import CanonicalInstrumentIdentity
 from domain.provenance import Provenance
 from domain.references import Confidence, EvidenceKind
 from indicators.engine import compute_indicator
-from strategies.engine import evaluate_strategy, opportunity_identity
+from strategies.engine import (
+    OPPORTUNITY_IDENTITY_VERSION,
+    evaluate_strategy as _evaluate_strategy,
+    opportunity_identity as _opportunity_identity,
+)
 from strategies.errors import UnknownStrategyIdError
+from tests.instrument_helpers import TEST_INSTRUMENT
 
 T0 = datetime(2026, 7, 21, 14, 0, tzinfo=timezone.utc)
+
+
+def evaluate_strategy(
+    strategy_id, indicators, facts, effective_time, created_time, params=None
+):  # type: ignore[no-untyped-def]
+    return _evaluate_strategy(
+        strategy_id,
+        indicators,
+        facts,
+        effective_time,
+        created_time,
+        TEST_INSTRUMENT,
+        params=params,
+    )
+
+
+def opportunity_identity(
+    strategy_id, source_indicator_ids, source_fact_ids, effective_time, metrics
+):  # type: ignore[no-untyped-def]
+    return _opportunity_identity(
+        strategy_id,
+        TEST_INSTRUMENT,
+        source_indicator_ids,
+        source_fact_ids,
+        effective_time,
+        metrics,
+    )
 
 
 def _fact(i: int, price: str) -> CanonicalFact:
@@ -86,6 +120,7 @@ class TestEvaluateStrategyBasics:
             T0 + timedelta(minutes=4), T0 + timedelta(minutes=4))
         assert opp.strategy_id == "breakout"
         assert opp.strategy_version == "v1"
+        assert opp.instrument is TEST_INSTRUMENT
 
 
 class TestDeterminism:
@@ -192,6 +227,9 @@ class TestProvenance:
 
 
 class TestOpportunityIdentity:
+    def test_identity_version_is_pinned_after_instrument_propagation(self):
+        assert OPPORTUNITY_IDENTITY_VERSION == "v2"
+
     def test_same_input_same_id(self):
         a = opportunity_identity("breakout", ("i1",), ("f1",), T0, _dummy_metrics())
         b = opportunity_identity("breakout", ("i1",), ("f1",), T0, _dummy_metrics())
@@ -206,6 +244,20 @@ class TestOpportunityIdentity:
         a = opportunity_identity("breakout", ("i1", "i2"), ("f1",), T0, _dummy_metrics())
         b = opportunity_identity("breakout", ("i2", "i1"), ("f1",), T0, _dummy_metrics())
         assert a == b
+
+    def test_instrument_identity_changes_opportunity_identity(self):
+        other = replace(
+            TEST_INSTRUMENT,
+            identity=CanonicalInstrumentIdentity("figi", "BBG000BLNNH6"),
+            display_symbol="IBM",
+        )
+        a = _opportunity_identity(
+            "breakout", TEST_INSTRUMENT, ("i1",), ("f1",), T0, _dummy_metrics()
+        )
+        b = _opportunity_identity(
+            "breakout", other, ("i1",), ("f1",), T0, _dummy_metrics()
+        )
+        assert a != b
 
 
 def _dummy_metrics():

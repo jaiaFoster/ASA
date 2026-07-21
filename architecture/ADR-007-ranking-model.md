@@ -19,6 +19,8 @@ data, or hiding judgment inside an opaque score.
 Ranking accepts only `OpportunityGuardrailEvaluation` values. It filters to aggregate `PASS`
 decisions, retains each complete evaluation envelope, and produces immutable
 `RankedOpportunity` values in one `RankingResult`. It never mutates or recreates an Opportunity.
+Because Opportunity owns canonical Instrument identity, Ranking preserves that Instrument through
+the retained envelope; it performs no symbol resolution and creates no parallel instrument field.
 
 The algorithm is pinned as `asa.ranking` `v1`. Six independently versioned component scorers
 produce scores in `[0, 1]` with complete provenance:

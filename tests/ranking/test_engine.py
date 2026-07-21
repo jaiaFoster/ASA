@@ -12,6 +12,7 @@ from ranking.engine import rank_opportunities
 from ranking.errors import DuplicateOpportunityEvaluationError, InvalidRankingOutputError
 from ranking.models import RANKING_ALGORITHM_VERSION, RankingParameters
 from tests.ranking.helpers import T0, evaluation
+from tests.instrument_helpers import TEST_INSTRUMENT
 
 
 def ids(result):  # type: ignore[no-untyped-def]
@@ -113,6 +114,7 @@ def test_outputs_are_immutable_and_retain_exact_opportunity() -> None:
     ranked = rank_opportunities((source,)).ranked_opportunities[0]
     assert ranked.evaluation is source
     assert ranked.opportunity is source.opportunity
+    assert ranked.opportunity.instrument is TEST_INSTRUMENT
     with pytest.raises(Exception):
         ranked.rank = 2
 

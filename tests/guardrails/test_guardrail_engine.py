@@ -12,6 +12,7 @@ from domain.references import Confidence, EvidenceKind, EvidenceReference
 from guardrails.engine import evaluate_guardrail, evaluate_opportunity
 from guardrails.errors import UnknownGuardrailIdError
 from guardrails.evaluations import GuardrailDecision, guardrail_evaluation_identity
+from tests.instrument_helpers import TEST_INSTRUMENT
 
 T0 = datetime(2026, 7, 21, 14, 0, tzinfo=timezone.utc)
 
@@ -19,6 +20,7 @@ T0 = datetime(2026, 7, 21, 14, 0, tzinfo=timezone.utc)
 def _opp(assumptions=("a normal, calibrated assumption",)) -> Opportunity:
     return Opportunity(
         opportunity_id="opp-1", version=1, strategy_id="s1", strategy_version="v1",
+        instrument=TEST_INSTRUMENT,
         supporting_indicators=(EvidenceReference(
             kind=EvidenceKind.INDICATOR, referenced_id="i1", version=1),),
         evidence=(EvidenceReference(
