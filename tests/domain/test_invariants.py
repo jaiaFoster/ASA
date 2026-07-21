@@ -31,6 +31,7 @@ from domain import (
     RecommendationState,
     is_normalized_value,
 )
+from tests.instrument_helpers import TEST_INSTRUMENT
 
 AWARE = datetime(2026, 7, 21, tzinfo=timezone.utc)
 NAIVE = datetime(2026, 7, 21)
@@ -92,6 +93,7 @@ def _opportunity(**overrides):
     kwargs = dict(
         opportunity_id="opp-1", version=1,
         strategy_id="strat-1", strategy_version="1.0.0",
+        instrument=TEST_INSTRUMENT,
         supporting_indicators=(), evidence=(), assumptions=(),
         evidence_confidence=Confidence(score=0.5),
         expected_outcome_metrics=_metrics(),

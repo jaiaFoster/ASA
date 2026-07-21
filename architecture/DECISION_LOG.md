@@ -8,6 +8,7 @@ Do not add substantive reasoning to this file. If an entry needs more than two s
 
 | Date | Summary | ADR |
 |---|---|---|
+| 2026-07-21 | Opportunity owns canonical Instrument identity and Ranking preserves it unchanged; ProposedPosition is narrowed to desired allocation and contains no account, portfolio, quantity, price, provider, broker, or order fields. | ADR-003/ADR-009 amendments (Issue #63) |
 | 2026-07-21 | The analytical execution pipeline is RankingResult → ProposedPosition → PortfolioDecision → ExecutionPlan → BrokerRequest; external broker communication alone crosses Constitution Law 5, and no adapter is authorized. | ADR-009 (ASA-ARCH-002) |
 | 2026-07-21 | Provider-neutral immutable Instrument, Holding, PortfolioSnapshot, ProposedPosition, and PortfolioDecisionRequest contracts separate ranked intelligence from read-only operational portfolio policy without introducing broker models, persistence, or execution. | ADR-008 (ASA-ARCH-001) |
 | 2026-07-21 | Ranking v1 deterministically orders eligible Opportunities using six versioned, provenance-preserving component scorers, explicit parameters, and stable tie-breakers; missing liquidity uses an explicit neutral placeholder rather than an invented proxy. | ADR-007 (ASA-CORE-007) |

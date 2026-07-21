@@ -9,6 +9,7 @@ from datetime import datetime
 from enum import Enum
 
 from domain.guardrail import GuardrailOutcome
+from domain.operational import Instrument
 from domain.outcome_metrics import ExpectedOutcomeMetrics
 from domain.references import Confidence, EvidenceReference
 from domain.values import require_positive, require_tz_aware
@@ -28,7 +29,8 @@ class RecommendationState(str, Enum):
 class Opportunity:
     """One immutable version of an Opportunity record (ADR-003 as amended).
 
-    Carries the full minimum structural content: pinned Strategy version,
+    Carries the full minimum structural content: canonical Instrument,
+    pinned Strategy version,
     supporting Indicator versions, Evidence, Assumptions, evidence
     confidence, Expected Outcome Metrics, Guardrail outcomes, and an
     explicit lifecycle state. The Decision Journal entry for a presented
@@ -41,6 +43,7 @@ class Opportunity:
     version: int
     strategy_id: str
     strategy_version: str
+    instrument: Instrument
     supporting_indicators: tuple[EvidenceReference, ...]
     evidence: tuple[EvidenceReference, ...]
     assumptions: tuple[str, ...]

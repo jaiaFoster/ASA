@@ -34,10 +34,10 @@ The shared `domain/` package owns five cross-boundary objects and their supporti
   semantic observation time.
 - `ProposedPosition` is Intelligence's evidence-backed description of desired exposure. It
   references the Opportunity, Ranked Opportunity, and Ranking Result that produced it but
-  contains no order type, route, time-in-force, broker identifier, or write operation. It pins
+  contains no account, portfolio, quantity, market price, order type, route, time-in-force, broker
+  identifier, or write operation. It preserves the Opportunity's canonical Instrument and pins
   proposal-algorithm version, target allocation, effective sizing parameters, confidence,
-  rationale, quantity, and gross exposure. Quantity is the absolute size of the proposal, not an
-  order delta or final portfolio target.
+  rationale, lineage, and Evidence.
 - `PortfolioDecisionRequest` pairs one snapshot with Proposed Positions in Ranking order. It is
   the input envelope for future deterministic portfolio policy; it contains no policy behavior.
 
@@ -80,9 +80,10 @@ Every monetary amount uses finite `Decimal` arithmetic and an explicit currency.
 and holding valuations use the snapshot base currency; currency conversion must occur before
 construction and must be evidenced upstream.
 
-Holding `market_value` is absolute current value. Holding and proposal `gross_exposure` are
-non-negative policy exposure amounts supplied by the valuation owner. Direction is carried
-separately. `net_liquidation_value` is the signed portfolio value supplied by the same snapshot.
+Holding `market_value` is absolute current value. Holding and Portfolio Snapshot
+`gross_exposure` are non-negative policy exposure amounts supplied by the valuation owner.
+Direction is carried separately. `net_liquidation_value` is the signed portfolio value supplied
+by the same snapshot.
 No contract multiplies quantity by price, derives option exposure, substitutes average cost, or
 performs currency conversion.
 

@@ -32,6 +32,7 @@ from domain import (
     ProviderDisagreement,
     RecommendationState,
 )
+from tests.instrument_helpers import TEST_INSTRUMENT
 
 NOW = datetime(2026, 7, 21, tzinfo=timezone.utc)
 
@@ -86,6 +87,7 @@ def _sample_opportunity() -> Opportunity:
     return Opportunity(
         opportunity_id="opp-1", version=1,
         strategy_id="strat-1", strategy_version="1.0.0",
+        instrument=TEST_INSTRUMENT,
         supporting_indicators=(EvidenceReference(
             kind=EvidenceKind.INDICATOR, referenced_id="ind-1", version=3),),
         evidence=(ref,), assumptions=("normal market conditions",),

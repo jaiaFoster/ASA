@@ -15,6 +15,10 @@ An **Opportunity**, from the moment it is produced by the Strategy Layer through
 
 - **Identity.** A stable identifier for the Opportunity that persists across its lifecycle (Strategy discovery → Guardrail evaluation → Ranking → Presentation or rejection), so its full history can be reconstructed from any stage.
 - **Originating Strategy.** The specific Strategy, and the specific version of that Strategy, that produced this Opportunity. Recording the version, not just the Strategy's name, is required for Constitution Law 7 (deterministic, reproducible evaluation) — re-running history must use the Strategy version that actually ran, not whatever version exists today.
+- **Canonical Instrument.** The provider-neutral `Instrument` this Opportunity concerns. The
+  Strategy receives this identity explicitly and records it unchanged; it never resolves a symbol,
+  parses an evidence ID, or consults a Provider. Guardrails and Ranking preserve the same immutable
+  Opportunity envelope, so instrument identity reaches Position Proposal without a parallel field.
 - **Supporting Indicators.** The specific Indicator values the Strategy relied on, each referencing the Canonical Fact version(s) (ADR-001) they were computed from — not just the final numbers, but a traceable path back to Evidence.
 - **Evidence.** The structured Observations and Canonical Facts underlying the above, per `DOMAIN_GLOSSARY.md`'s existing Evidence definition. This is what the Presentation Layer is permitted to summarize; anything not present here is not available for the Presentation Layer to reference.
 - **Assumptions.** Any modeling assumption the Strategy relied on that is not itself a Fact or Indicator (for example, an assumption about normal market conditions, or a simplification in how a spread's risk is modeled). Assumptions are recorded explicitly by the Strategy, not left implicit in code, so they can be surfaced as caveats.
@@ -38,6 +42,8 @@ An **Opportunity**, from the moment it is produced by the Strategy Layer through
 
 - Opportunity records are substantially larger than a "final score plus a label" model would produce, since they must carry a full evidence and Guardrail trail. This is treated as a direct, accepted cost of Constitution Law 6, not an inefficiency to be optimized away later.
 - Every Strategy author must explicitly emit Assumptions and the full set of Expected Outcome Metrics — this is a discipline requirement on Strategy implementation, not merely a data-model nicety. A Strategy that cannot state its Opportunity's expected financial characteristics in the standard vocabulary is not a complete Strategy.
+- Opportunity identity includes canonical Instrument identity. Otherwise identical evidence and
+  metrics concerning different Instruments cannot collide.
 - Rejected Opportunities are retained with their full Guardrail trail rather than discarded, which has a storage-cost and retention-policy implication (see Open Questions), but directly enables future "why wasn't this recommended" functionality without further architectural work.
 - Because the Decision Journal is defined as the Opportunity record itself at presentation time, no separate persistence mechanism needs to be designed or maintained for it.
 
@@ -61,3 +67,9 @@ This ADR originally defined a two-value Confidence model on the Opportunity: *ev
 - `DOMAIN_GLOSSARY.md`: Opportunity, Evidence, Recommendation, Guardrail, Confidence, Decision Journal (provisional), Indicator
 - ADR-001 (Observation & Canonical Fact Model)
 - ADR-006 (Indicator Versioning and Immutability) — clarifies that "Supporting Indicators" here means a pinned Indicator version, not a live value
+
+## Revision note (Issue #63)
+
+Opportunity now references the canonical Instrument it concerns. This closes the missing
+propagation path required by the Position Proposal Engine without adding provider lookup or
+duplicating Instrument fields in Guardrail and Ranking outputs.
