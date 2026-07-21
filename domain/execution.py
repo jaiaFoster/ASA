@@ -1,8 +1,4 @@
-"""Immutable analytical execution contracts (ASA-ARCH-002).
-
-These records describe decisions and hypothetical broker-neutral actions.
-They perform no policy, planning, persistence, networking, or broker work.
-"""
+"""Immutable analytical execution contracts frozen by ASA-ARCH-006."""
 
 from __future__ import annotations
 
@@ -11,314 +7,317 @@ from decimal import Decimal
 from enum import Enum
 
 from domain.operational import (
-    CanonicalInstrumentIdentity,
     Instrument,
     MonetaryAmount,
+    PortfolioSnapshot,
     PositionDirection,
-    ProposedPosition,
 )
 from domain.references import EvidenceReference
-from domain.values import DomainInvariantError, require_finite_decimal, require_positive
+from domain.values import DomainInvariantError, require_finite_decimal
 
 
-def _require_text(value: str, owner: str, field_name: str) -> None:
+def _text(value: str, owner: str, field: str) -> None:
     if not value or value != value.strip():
-        raise DomainInvariantError(f"{owner}.{field_name} must be non-empty normalized text")
+        raise DomainInvariantError(f"{owner}.{field} must be normalized text")
 
 
-def _require_non_negative(value: Decimal, owner: str, field_name: str) -> None:
-    require_finite_decimal(value, owner, field_name)
-    if value < 0:
-        raise DomainInvariantError(f"{owner}.{field_name} cannot be negative")
+def _evidence(value: tuple[EvidenceReference, ...], owner: str) -> None:
+    if not value:
+        raise DomainInvariantError(f"{owner}.evidence cannot be empty")
 
 
-def _require_unique_keys(
-    values: tuple[tuple[str, object], ...], owner: str, field_name: str
-) -> None:
-    keys = tuple(key for key, _ in values)
-    if any(not key or key != key.strip() for key in keys):
-        raise DomainInvariantError(f"{owner}.{field_name} keys must be normalized text")
-    if len(keys) != len(set(keys)):
-        raise DomainInvariantError(f"{owner}.{field_name} keys must be unique")
-    if keys != tuple(sorted(keys)):
-        raise DomainInvariantError(f"{owner}.{field_name} keys must be in canonical order")
+class PortfolioEvaluationDisposition(str, Enum):
+    DELTA_PRODUCED = "delta_produced"
+    NO_CHANGE = "no_change"
 
 
-class PortfolioDecisionState(str, Enum):
-    """Possible deterministic portfolio-policy outcomes for one proposal."""
+class PortfolioDeltaKind(str, Enum):
+    PROPOSED = "proposed"
+    APPROVED = "approved"
+    SIMULATED = "simulated"
 
-    ACCEPT = "accept"
-    REJECT = "reject"
+
+class RiskDecisionState(str, Enum):
+    APPROVE = "approve"
     REDUCE = "reduce"
-    HOLD = "hold"
+    REJECT = "reject"
 
 
-class BrokerRequestSide(str, Enum):
-    """Broker-neutral effect of one analytical request."""
-
+class PlannedOrderSide(str, Enum):
     BUY = "buy"
     SELL = "sell"
-    SELL_SHORT = "sell_short"
     BUY_TO_COVER = "buy_to_cover"
 
 
-class OrderType(str, Enum):
-    """Order shape described analytically; not an external broker command."""
-
+class PlannedOrderType(str, Enum):
     MARKET = "market"
     LIMIT = "limit"
+    STOP = "stop"
+    STOP_LIMIT = "stop_limit"
 
 
 class TimeInForce(str, Enum):
-    """Broker-neutral lifetime requested by an analytical order template."""
-
     DAY = "day"
-    GOOD_TIL_CANCELLED = "good_til_cancelled"
+    GTC = "gtc"
+    IOC = "ioc"
+    FOK = "fok"
+
+
+class PlannedOrderStatus(str, Enum):
+    PLANNED = "planned"
+    SIMULATED_ACCEPTED = "simulated_accepted"
+    SIMULATED_PARTIALLY_FILLED = "simulated_partially_filled"
+    SIMULATED_FILLED = "simulated_filled"
+    SIMULATED_CANCELLED = "simulated_cancelled"
+    SIMULATED_REJECTED = "simulated_rejected"
+
+
+class PlanningTraceEventType(str, Enum):
+    PLAN_STARTED = "plan_started"
+    DELTA_VALIDATED = "delta_validated"
+    RISK_DECISION_VALIDATED = "risk_decision_validated"
+    QUANTITY_DERIVED = "quantity_derived"
+    ORDER_PLANNED = "order_planned"
+    PLAN_COMPLETED = "plan_completed"
+
+
+class ExecutionPlanningEventType(str, Enum):
+    PORTFOLIO_DELTA_PROPOSED = "portfolio_delta_proposed"
+    RISK_APPROVED = "risk_approved"
+    RISK_REDUCED = "risk_reduced"
+    RISK_REJECTED = "risk_rejected"
+    PLAN_CREATED = "plan_created"
+    SIMULATION_STARTED = "simulation_started"
+    ORDER_SIMULATED = "order_simulated"
+    SIMULATION_COMPLETED = "simulation_completed"
+    PORTFOLIO_TRANSITION_APPLIED = "portfolio_transition_applied"
 
 
 @dataclass(frozen=True, slots=True)
-class PortfolioDecision:
-    """Portfolio-policy result for one immutable ProposedPosition.
+class PortfolioDelta:
+    portfolio_delta_id: str
+    delta_version: str
+    kind: PortfolioDeltaKind
+    source_snapshot_id: str
+    source_portfolio_identity: str
+    proposed_position_id: str
+    predecessor_delta_id: str | None
+    account_id: str
+    instrument: Instrument
+    projected_maximum_loss: MonetaryAmount
+    starting_direction: PositionDirection | None
+    starting_quantity: Decimal
+    target_direction: PositionDirection | None
+    target_quantity: Decimal
+    cash_change: MonetaryAmount
+    buying_power_change: MonetaryAmount
+    rationale: tuple[str, ...]
+    effective_parameters: tuple[tuple[str, str], ...]
+    evidence: tuple[EvidenceReference, ...]
 
-    ``approved_allocation`` describes how much of the desired allocation
-    survives portfolio constraints. It is a policy output supplied to this
-    contract, never a value calculated by it.
-    """
+    def __post_init__(self) -> None:
+        for field in (
+            "portfolio_delta_id", "delta_version", "source_snapshot_id",
+            "source_portfolio_identity", "proposed_position_id", "account_id",
+        ):
+            _text(getattr(self, field), "PortfolioDelta", field)
+        for field in ("starting_quantity", "target_quantity"):
+            value = getattr(self, field)
+            require_finite_decimal(value, "PortfolioDelta", field)
+            if value < 0:
+                raise DomainInvariantError(f"PortfolioDelta.{field} cannot be negative")
+        if (self.target_quantity == 0) != (self.target_direction is None):
+            raise DomainInvariantError("zero target and target direction must cohere")
+        if self.projected_maximum_loss.amount < 0:
+            raise DomainInvariantError("projected maximum loss cannot be negative")
+        if self.kind is PortfolioDeltaKind.PROPOSED and self.predecessor_delta_id is not None:
+            raise DomainInvariantError("PROPOSED delta cannot have predecessor")
+        if self.kind is not PortfolioDeltaKind.PROPOSED and self.predecessor_delta_id is None:
+            raise DomainInvariantError("later delta requires predecessor")
+        if not self.rationale:
+            raise DomainInvariantError("PortfolioDelta.rationale cannot be empty")
+        _evidence(self.evidence, "PortfolioDelta")
 
-    portfolio_decision_id: str
-    decision_algorithm_version: str
-    portfolio_snapshot_id: str
-    proposed_position: ProposedPosition
-    state: PortfolioDecisionState
-    approved_allocation: Decimal
-    policy_versions: tuple[tuple[str, str], ...]
-    effective_parameters: tuple[tuple[str, Decimal], ...]
+
+@dataclass(frozen=True, slots=True)
+class PortfolioEvaluationResult:
+    portfolio_evaluation_result_id: str
+    portfolio_algorithm_version: str
+    source_snapshot_id: str
+    proposed_position_id: str
+    disposition: PortfolioEvaluationDisposition
+    proposed_delta: PortfolioDelta | None
+    rationale: tuple[str, ...]
+    evidence: tuple[EvidenceReference, ...]
+
+    def __post_init__(self) -> None:
+        if (self.disposition is PortfolioEvaluationDisposition.DELTA_PRODUCED) != (
+            self.proposed_delta is not None
+        ):
+            raise DomainInvariantError("PortfolioEvaluationResult disposition must match delta")
+        _evidence(self.evidence, "PortfolioEvaluationResult")
+
+
+@dataclass(frozen=True, slots=True)
+class PolicyOutcome:
+    policy_outcome_id: str
+    risk_policy_id: str
+    policy_version: str
+    consumed_inputs: tuple[tuple[str, str], ...]
+    comparison_operator: str
+    threshold: str
+    observed_value: str
+    passed: bool
     reasons: tuple[str, ...]
     evidence: tuple[EvidenceReference, ...]
 
     def __post_init__(self) -> None:
-        for field_name in (
-            "portfolio_decision_id",
-            "decision_algorithm_version",
-            "portfolio_snapshot_id",
-        ):
-            _require_text(getattr(self, field_name), "PortfolioDecision", field_name)
-        _require_non_negative(self.approved_allocation, "PortfolioDecision", "approved_allocation")
-        if self.approved_allocation > self.proposed_position.target_allocation:
-            raise DomainInvariantError(
-                "PortfolioDecision approved_allocation cannot exceed proposed allocation"
-            )
-        if self.state in {PortfolioDecisionState.REJECT, PortfolioDecisionState.HOLD} and (
-            self.approved_allocation != 0
-        ):
-            raise DomainInvariantError("REJECT and HOLD decisions cannot approve new exposure")
-        if self.state is PortfolioDecisionState.ACCEPT and (
-            self.approved_allocation != self.proposed_position.target_allocation
-        ):
-            raise DomainInvariantError("ACCEPT must preserve the complete proposed exposure")
-        if self.state is PortfolioDecisionState.REDUCE and not (
-            0 < self.approved_allocation < self.proposed_position.target_allocation
-        ):
-            raise DomainInvariantError("REDUCE must approve a smaller positive exposure")
-        _require_unique_keys(self.policy_versions, "PortfolioDecision", "policy_versions")
-        _require_unique_keys(
-            self.effective_parameters, "PortfolioDecision", "effective_parameters"
-        )
-        for _, value in self.effective_parameters:
-            require_finite_decimal(value, "PortfolioDecision", "effective_parameters value")
-        if not self.policy_versions:
-            raise DomainInvariantError("PortfolioDecision.policy_versions cannot be empty")
         if not self.reasons:
-            raise DomainInvariantError("PortfolioDecision.reasons cannot be empty")
-        if any(not reason or reason != reason.strip() for reason in self.reasons):
-            raise DomainInvariantError("PortfolioDecision.reasons must be normalized text")
-        if not self.evidence:
-            raise DomainInvariantError("PortfolioDecision.evidence cannot be empty")
+            raise DomainInvariantError("PolicyOutcome.reasons cannot be empty")
+        _evidence(self.evidence, "PolicyOutcome")
 
 
 @dataclass(frozen=True, slots=True)
-class ExecutionContext:
-    """Canonical provider-neutral state required to plan one decision.
-
-    ``unit_exposure`` is the portfolio-base-currency exposure represented by
-    one quantity unit. It already incorporates instrument-specific valuation
-    semantics such as contract multipliers; the planner never derives those
-    semantics from symbols or provider data.
-    """
-
-    execution_context_id: str
-    portfolio_snapshot_id: str
-    account_id: str
-    instrument_identity: CanonicalInstrumentIdentity
-    current_direction: PositionDirection | None
-    current_quantity: Decimal
-    unit_exposure: MonetaryAmount
-    quantity_increment: Decimal
-    valuation_evidence: tuple[EvidenceReference, ...]
+class RiskDecision:
+    risk_decision_id: str
+    risk_algorithm_version: str
+    source_snapshot_id: str
+    proposed_delta: PortfolioDelta
+    decision: RiskDecisionState
+    approved_delta: PortfolioDelta | None
+    ordered_policy_outcomes: tuple[PolicyOutcome, ...]
+    effective_policy_ids: tuple[str, ...]
+    effective_parameters: tuple[tuple[str, str], ...]
+    reasons: tuple[str, ...]
+    evidence: tuple[EvidenceReference, ...]
 
     def __post_init__(self) -> None:
-        for field_name in (
-            "execution_context_id",
-            "portfolio_snapshot_id",
-            "account_id",
+        approved = self.decision in {RiskDecisionState.APPROVE, RiskDecisionState.REDUCE}
+        if approved != (self.approved_delta is not None):
+            raise DomainInvariantError("RiskDecision decision must match approved_delta")
+        if self.decision is RiskDecisionState.APPROVE and self.approved_delta is not None and (
+            self.approved_delta.target_quantity != self.proposed_delta.target_quantity
         ):
-            _require_text(getattr(self, field_name), "ExecutionContext", field_name)
-        _require_non_negative(self.current_quantity, "ExecutionContext", "current_quantity")
-        _require_non_negative(
-            self.unit_exposure.amount,
-            "ExecutionContext",
-            "unit_exposure.amount",
-        )
-        _require_non_negative(
-            self.quantity_increment,
-            "ExecutionContext",
-            "quantity_increment",
-        )
-        if self.unit_exposure.amount == 0:
-            raise DomainInvariantError("ExecutionContext.unit_exposure.amount must be positive")
-        if self.quantity_increment == 0:
-            raise DomainInvariantError("ExecutionContext.quantity_increment must be positive")
-        if self.current_quantity % self.quantity_increment != 0:
-            raise DomainInvariantError(
-                "ExecutionContext.current_quantity must use quantity_increment"
-            )
-        if self.current_quantity == 0 and self.current_direction is not None:
-            raise DomainInvariantError("flat ExecutionContext cannot have current_direction")
-        if self.current_quantity > 0 and self.current_direction is None:
-            raise DomainInvariantError("non-flat ExecutionContext requires current_direction")
-        if not self.valuation_evidence:
-            raise DomainInvariantError("ExecutionContext.valuation_evidence cannot be empty")
+            raise DomainInvariantError("APPROVE must preserve proposed target")
+        if not self.ordered_policy_outcomes or not self.reasons:
+            raise DomainInvariantError("RiskDecision requires outcomes and reasons")
+        _evidence(self.evidence, "RiskDecision")
 
 
 @dataclass(frozen=True, slots=True)
-class BrokerRequest:
-    """Last analytical domain object before the future adapter boundary.
-
-    This is an immutable broker-neutral order template, not an API request.
-    It contains no endpoint, credentials, session, provider payload, or I/O.
-    """
-
-    broker_request_id: str
-    portfolio_decision_id: str
+class PlannedOrder:
+    planned_order_id: str
+    risk_decision_id: str
+    source_snapshot_id: str
     sequence: int
-    instrument: Instrument
     account_id: str
-    side: BrokerRequestSide
+    instrument: Instrument
+    side: PlannedOrderSide
     quantity: Decimal
-    order_type: OrderType
+    order_type: PlannedOrderType
     limit_price: MonetaryAmount | None
+    stop_price: MonetaryAmount | None
+    price_multiplier: Decimal
     time_in_force: TimeInForce
-    execution_metadata: tuple[tuple[str, str], ...]
-    reasoning: tuple[EvidenceReference, ...]
+    initial_status: PlannedOrderStatus
+    planning_metadata: tuple[tuple[str, str], ...]
+    reasoning: tuple[str, ...]
+    evidence: tuple[EvidenceReference, ...]
 
     def __post_init__(self) -> None:
-        for field_name in ("broker_request_id", "portfolio_decision_id", "account_id"):
-            _require_text(getattr(self, field_name), "BrokerRequest", field_name)
-        require_positive(self.sequence, "BrokerRequest", "sequence")
-        _require_non_negative(self.quantity, "BrokerRequest", "quantity")
-        if self.quantity == 0:
-            raise DomainInvariantError("BrokerRequest.quantity must be greater than zero")
-        if self.order_type is OrderType.LIMIT and self.limit_price is None:
-            raise DomainInvariantError("LIMIT BrokerRequest requires limit_price")
-        if self.order_type is OrderType.MARKET and self.limit_price is not None:
-            raise DomainInvariantError("MARKET BrokerRequest cannot contain limit_price")
-        if self.limit_price is not None:
-            _require_non_negative(self.limit_price.amount, "BrokerRequest", "limit_price.amount")
-            if self.limit_price.amount == 0:
-                raise DomainInvariantError("BrokerRequest.limit_price must be greater than zero")
-            if self.limit_price.currency != self.instrument.currency:
-                raise DomainInvariantError(
-                    "BrokerRequest.limit_price currency must match instrument currency"
-                )
-        _require_unique_keys(self.execution_metadata, "BrokerRequest", "execution_metadata")
+        if self.sequence <= 0 or self.quantity <= 0 or self.price_multiplier <= 0:
+            raise DomainInvariantError("PlannedOrder sequence, quantity, and multiplier must be positive")
+        required_limit = self.order_type in {PlannedOrderType.LIMIT, PlannedOrderType.STOP_LIMIT}
+        required_stop = self.order_type in {PlannedOrderType.STOP, PlannedOrderType.STOP_LIMIT}
+        if required_limit != (self.limit_price is not None) or required_stop != (self.stop_price is not None):
+            raise DomainInvariantError("PlannedOrder price fields do not match order type")
+        if self.initial_status is not PlannedOrderStatus.PLANNED:
+            raise DomainInvariantError("PlannedOrder initial status must be PLANNED")
         if not self.reasoning:
-            raise DomainInvariantError("BrokerRequest.reasoning cannot be empty")
+            raise DomainInvariantError("PlannedOrder.reasoning cannot be empty")
+        _evidence(self.evidence, "PlannedOrder")
+
+
+@dataclass(frozen=True, slots=True)
+class ExecutionSummary:
+    execution_summary_id: str
+    target_exposure: MonetaryAmount
+    starting_quantity: Decimal
+    planned_target_quantity: Decimal
+    signed_quantity_change: Decimal
+    expected_cash_effect: MonetaryAmount | None
+    order_count: int
+    reasons: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class PlanningTraceEvent:
+    planning_trace_event_id: str
+    sequence: int
+    event_type: PlanningTraceEventType
+    input_identities: tuple[str, ...]
+    output_identities: tuple[str, ...]
+    algorithm_version: str
+    evidence: tuple[EvidenceReference, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class PlanningTrace:
+    planning_trace_id: str
+    trace_algorithm_version: str
+    events: tuple[PlanningTraceEvent, ...]
+
+    def __post_init__(self) -> None:
+        if tuple(event.sequence for event in self.events) != tuple(range(1, len(self.events) + 1)):
+            raise DomainInvariantError("PlanningTrace sequences must be contiguous")
 
 
 @dataclass(frozen=True, slots=True)
 class ExecutionPlan:
-    """Deterministic ordered decomposition of one PortfolioDecision.
-
-    ``broker_requests`` are analytical templates.  Iterating over this tuple
-    has no side effect and no adapter is reachable from this contract.
-    """
-
     execution_plan_id: str
     planning_algorithm_version: str
-    portfolio_decision: PortfolioDecision
-    execution_context: ExecutionContext
-    broker_requests: tuple[BrokerRequest, ...]
-    reasoning: tuple[EvidenceReference, ...]
+    risk_decision: RiskDecision
+    source_snapshot: PortfolioSnapshot
+    planned_orders: tuple[PlannedOrder, ...]
+    execution_summary: ExecutionSummary
+    planning_trace: PlanningTrace
+    effective_parameters: tuple[tuple[str, str], ...]
+    evidence: tuple[EvidenceReference, ...]
 
     def __post_init__(self) -> None:
-        _require_text(self.execution_plan_id, "ExecutionPlan", "execution_plan_id")
-        _require_text(
-            self.planning_algorithm_version,
-            "ExecutionPlan",
-            "planning_algorithm_version",
-        )
-        if (
-            self.execution_context.portfolio_snapshot_id
-            != self.portfolio_decision.portfolio_snapshot_id
-        ):
-            raise DomainInvariantError(
-                "ExecutionPlan context must reference its PortfolioDecision snapshot"
-            )
-        if (
-            self.execution_context.instrument_identity
-            != self.portfolio_decision.proposed_position.instrument.identity
-        ):
-            raise DomainInvariantError(
-                "ExecutionPlan context instrument must match its PortfolioDecision"
-            )
-        if (
-            self.execution_context.unit_exposure.currency
-            != self.portfolio_decision.proposed_position.instrument.currency
-        ):
-            raise DomainInvariantError(
-                "ExecutionPlan context currency must match its PortfolioDecision instrument"
-            )
-        request_ids = tuple(request.broker_request_id for request in self.broker_requests)
-        if len(request_ids) != len(set(request_ids)):
-            raise DomainInvariantError("ExecutionPlan contains duplicate broker_request_id values")
-        expected_sequences = tuple(range(1, len(self.broker_requests) + 1))
-        actual_sequences = tuple(request.sequence for request in self.broker_requests)
-        if actual_sequences != expected_sequences:
-            raise DomainInvariantError("ExecutionPlan request sequences must be contiguous")
-        if any(
-            request.portfolio_decision_id
-            != self.portfolio_decision.portfolio_decision_id
-            for request in self.broker_requests
-        ):
-            raise DomainInvariantError(
-                "ExecutionPlan requests must reference its PortfolioDecision"
-            )
-        if any(
-            request.account_id != self.execution_context.account_id
-            for request in self.broker_requests
-        ):
-            raise DomainInvariantError("ExecutionPlan requests must use its context account")
-        if any(
-            request.instrument.identity != self.execution_context.instrument_identity
-            for request in self.broker_requests
-        ):
-            raise DomainInvariantError("ExecutionPlan requests must use its context instrument")
-        if any(
-            request.quantity % self.execution_context.quantity_increment != 0
-            for request in self.broker_requests
-        ):
-            raise DomainInvariantError(
-                "ExecutionPlan request quantities must use the context quantity increment"
-            )
-        if self.portfolio_decision.state in {
-            PortfolioDecisionState.REJECT,
-            PortfolioDecisionState.HOLD,
-        } and self.broker_requests:
-            raise DomainInvariantError("REJECT and HOLD decisions cannot produce BrokerRequests")
-        if self.portfolio_decision.state in {
-            PortfolioDecisionState.ACCEPT,
-            PortfolioDecisionState.REDUCE,
-        } and not self.broker_requests:
-            raise DomainInvariantError("approved decisions require at least one BrokerRequest")
-        if not self.reasoning:
-            raise DomainInvariantError("ExecutionPlan.reasoning cannot be empty")
+        if self.risk_decision.decision is RiskDecisionState.REJECT:
+            raise DomainInvariantError("REJECT cannot produce ExecutionPlan")
+        if not self.planned_orders:
+            raise DomainInvariantError("ExecutionPlan requires PlannedOrders")
+        if tuple(order.sequence for order in self.planned_orders) != tuple(range(1, len(self.planned_orders) + 1)):
+            raise DomainInvariantError("PlannedOrder sequences must be contiguous")
+        _evidence(self.evidence, "ExecutionPlan")
+
+
+@dataclass(frozen=True, slots=True)
+class ExecutionPlanningEvent:
+    execution_planning_event_id: str
+    root_risk_decision_id: str
+    sequence: int
+    event_type: ExecutionPlanningEventType
+    subject_identity: str
+    input_identities: tuple[str, ...]
+    output_identities: tuple[str, ...]
+    algorithm_version: str
+    evidence: tuple[EvidenceReference, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class ExecutionPlanningLifecycle:
+    execution_planning_lifecycle_id: str
+    lifecycle_algorithm_version: str
+    root_risk_decision_id: str
+    events: tuple[ExecutionPlanningEvent, ...]
+    evidence: tuple[EvidenceReference, ...]
+
+    def __post_init__(self) -> None:
+        if tuple(event.sequence for event in self.events) != tuple(range(1, len(self.events) + 1)):
+            raise DomainInvariantError("ExecutionPlanningLifecycle sequences must be contiguous")
+        if any(event.root_risk_decision_id != self.root_risk_decision_id for event in self.events):
+            raise DomainInvariantError("lifecycle events must share root RiskDecision")
+        _evidence(self.evidence, "ExecutionPlanningLifecycle")

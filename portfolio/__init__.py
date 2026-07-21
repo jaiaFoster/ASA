@@ -1,13 +1,12 @@
-"""Deterministic portfolio-policy layer (ASA-CORE-009)."""
+"""Deterministic Portfolio Engine calculation layer."""
 
-from portfolio.engine import evaluate_portfolio
+from portfolio.engine import evaluate_one, evaluate_portfolio, reduction_candidates
 from portfolio.models import PORTFOLIO_ALGORITHM_VERSION, PortfolioParameters
-from portfolio.registry import PolicyRegistry, build_default_registry
 
 __all__ = [
     "PORTFOLIO_ALGORITHM_VERSION",
-    "PolicyRegistry",
     "PortfolioParameters",
-    "build_default_registry",
+    "evaluate_one",
     "evaluate_portfolio",
+    "reduction_candidates",
 ]

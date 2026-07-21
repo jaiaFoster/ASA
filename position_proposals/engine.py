@@ -57,6 +57,25 @@ def proposed_position_identity(
             serialize_canonical((instrument.identity.scheme, instrument.identity.value)),
             serialize_canonical(target_allocation),
             serialize_canonical(Decimal(str(ranked.opportunity.evidence_confidence.score))),
+            serialize_canonical((
+                ranked.opportunity.expected_outcome_metrics.expected_return,
+                ranked.opportunity.expected_outcome_metrics.maximum_loss,
+                ranked.opportunity.expected_outcome_metrics.capital_required,
+                ranked.opportunity.expected_outcome_metrics.time_horizon_days,
+                ranked.opportunity.expected_outcome_metrics.maximum_gain,
+                ranked.opportunity.expected_outcome_metrics.probability_of_profit,
+            )),
+            serialize_canonical(tuple(
+                (
+                    policy.risk_policy_id,
+                    policy.policy_type.value,
+                    policy.scope.value,
+                    policy.policy_version,
+                    policy.parameters,
+                    policy.strategy_id,
+                )
+                for policy in ranked.opportunity.strategy_risk_policies
+            )),
             serialize_canonical(rationale),
             serialize_canonical(effective_parameters),
             serialize_canonical(tuple(_evidence_identity(item) for item in evidence)),
@@ -71,7 +90,7 @@ def propose_positions(
 ) -> tuple[ProposedPosition, ...]:
     """Convert ranked Opportunities to desired allocations in rank order.
 
-    This function has no PortfolioSnapshot, Holding, account, price, quantity,
+    This function has no PortfolioSnapshot, Position, account, price, quantity,
     provider, repository, persistence, or network input. Allocation is a pure
     linear interpolation of the pinned Ranking score within explicit policy
     bounds; Portfolio policy may accept, reduce, reject, or hold it later.
@@ -103,6 +122,8 @@ def propose_positions(
                 instrument=ranked.opportunity.instrument,
                 target_allocation=target_allocation,
                 evidence_confidence=ranked.opportunity.evidence_confidence,
+                expected_outcome_metrics=ranked.opportunity.expected_outcome_metrics,
+                strategy_risk_policies=ranked.opportunity.strategy_risk_policies,
                 rationale=rationale,
                 effective_parameters=effective_parameters,
                 evidence=evidence,

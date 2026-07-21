@@ -1,239 +1,207 @@
-"""Pure deterministic Execution Planner (ASA-CORE-010)."""
+"""Pure deterministic analytical Execution Planning Engine."""
 
 from __future__ import annotations
 
 import hashlib
-from decimal import Decimal, ROUND_FLOOR, localcontext
+from decimal import Decimal
 
 from domain.canonicalization import serialize_canonical
 from domain.execution import (
-    BrokerRequest,
-    BrokerRequestSide,
-    ExecutionContext,
+    ExecutionPlanningEvent,
+    ExecutionPlanningEventType,
+    ExecutionPlanningLifecycle,
     ExecutionPlan,
-    PortfolioDecision,
-    PortfolioDecisionState,
+    ExecutionSummary,
+    PlannedOrder,
+    PlannedOrderSide,
+    PlannedOrderStatus,
+    PlanningTrace,
+    PlanningTraceEvent,
+    PlanningTraceEventType,
+    RiskDecision,
+    RiskDecisionState,
 )
-from domain.operational import PositionDirection
+from domain.operational import MonetaryAmount, PortfolioSnapshot, PositionDirection
 from domain.references import EvidenceReference
 from execution_planning.errors import UnplannableDecisionError
 from execution_planning.models import (
-    BROKER_REQUEST_IDENTITY_NAMESPACE,
     EXECUTION_PLAN_IDENTITY_NAMESPACE,
+    PLANNED_ORDER_IDENTITY_NAMESPACE,
     PLANNING_ALGORITHM_VERSION,
     PlanningParameters,
 )
 
 
-def _evidence_identity(reference: EvidenceReference) -> tuple[object, ...]:
-    return (reference.kind.value, reference.referenced_id, reference.version)
+def _key(item: EvidenceReference) -> tuple[object, ...]:
+    return item.kind.value, item.referenced_id, item.version
 
 
-def _reasoning(
-    decision: PortfolioDecision,
-    context: ExecutionContext,
-) -> tuple[EvidenceReference, ...]:
-    unique = {
-        _evidence_identity(reference): reference
-        for reference in decision.evidence + context.valuation_evidence
-    }
-    return tuple(unique[key] for key in sorted(unique))
+def _id(namespace: str, *values: object) -> str:
+    payload = "\n".join((namespace, *(serialize_canonical(value) for value in values)))
+    return hashlib.sha256(payload.encode()).hexdigest()
 
 
-def _context_identity_inputs(context: ExecutionContext) -> tuple[object, ...]:
-    return (
-        context.execution_context_id,
-        context.portfolio_snapshot_id,
-        context.account_id,
-        (context.instrument_identity.scheme, context.instrument_identity.value),
-        context.current_direction.value if context.current_direction is not None else None,
-        context.current_quantity,
-        (context.unit_exposure.amount, context.unit_exposure.currency),
-        context.quantity_increment,
-        tuple(_evidence_identity(item) for item in context.valuation_evidence),
-    )
-
-
-def _request_identity(
-    decision: PortfolioDecision,
-    context: ExecutionContext,
+def _order(
+    decision: RiskDecision,
+    snapshot: PortfolioSnapshot,
     sequence: int,
-    side: BrokerRequestSide,
+    side: PlannedOrderSide,
     quantity: Decimal,
+    multiplier: Decimal,
     parameters: PlanningParameters,
-    reasoning: tuple[EvidenceReference, ...],
-) -> str:
-    instrument = decision.proposed_position.instrument
-    payload = "\n".join(
-        (
-            BROKER_REQUEST_IDENTITY_NAMESPACE,
-            PLANNING_ALGORITHM_VERSION,
-            serialize_canonical(decision.portfolio_decision_id),
-            serialize_canonical(context.execution_context_id),
-            serialize_canonical(sequence),
-            serialize_canonical((instrument.identity.scheme, instrument.identity.value)),
-            serialize_canonical(context.account_id),
-            serialize_canonical(side.value),
-            serialize_canonical(quantity),
-            serialize_canonical(parameters.order_type.value),
-            serialize_canonical(None),
-            serialize_canonical(parameters.time_in_force.value),
-            serialize_canonical(parameters.canonical_items()),
-            serialize_canonical(tuple(_evidence_identity(item) for item in reasoning)),
-        )
+) -> PlannedOrder:
+    delta = decision.approved_delta
+    if delta is None:
+        raise UnplannableDecisionError("approved delta is required")
+    metadata = parameters.canonical_items()
+    reasoning = ("ordered portfolio transition from approved RiskDecision",)
+    values = (
+        decision.risk_decision_id, snapshot.portfolio_snapshot_id, sequence,
+        delta.instrument.identity.scheme, delta.instrument.identity.value,
+        side.value, quantity, multiplier, metadata, tuple(_key(item) for item in decision.evidence),
     )
-    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
-
-
-def _make_request(
-    decision: PortfolioDecision,
-    context: ExecutionContext,
-    sequence: int,
-    side: BrokerRequestSide,
-    quantity: Decimal,
-    parameters: PlanningParameters,
-    reasoning: tuple[EvidenceReference, ...],
-) -> BrokerRequest:
-    return BrokerRequest(
-        broker_request_id=_request_identity(
-            decision,
-            context,
-            sequence,
-            side,
-            quantity,
-            parameters,
-            reasoning,
-        ),
-        portfolio_decision_id=decision.portfolio_decision_id,
-        sequence=sequence,
-        instrument=decision.proposed_position.instrument,
-        account_id=context.account_id,
-        side=side,
-        quantity=quantity,
-        order_type=parameters.order_type,
-        limit_price=None,
-        time_in_force=parameters.time_in_force,
-        execution_metadata=parameters.canonical_items(),
-        reasoning=reasoning,
+    return PlannedOrder(
+        _id(PLANNED_ORDER_IDENTITY_NAMESPACE, values), decision.risk_decision_id,
+        snapshot.portfolio_snapshot_id, sequence, snapshot.portfolio.account_id,
+        delta.instrument, side, quantity, parameters.order_type, None, None, multiplier,
+        parameters.time_in_force, PlannedOrderStatus.PLANNED, metadata, reasoning, decision.evidence,
     )
 
 
-def _target_quantity(decision: PortfolioDecision, context: ExecutionContext) -> Decimal:
-    reference_capital = dict(decision.proposed_position.effective_parameters)[
-        "reference_capital"
-    ]
-    with localcontext() as decimal_context:
-        decimal_context.prec = 40
-        raw_quantity = (
-            decision.approved_allocation
-            * reference_capital
-            / context.unit_exposure.amount
-        )
-        increments = (raw_quantity / context.quantity_increment).to_integral_value(
-            rounding=ROUND_FLOOR
-        )
-        return increments * context.quantity_increment
-
-
-def _approved_requests(
-    decision: PortfolioDecision,
-    context: ExecutionContext,
-    parameters: PlanningParameters,
-    reasoning: tuple[EvidenceReference, ...],
-) -> tuple[BrokerRequest, ...]:
-    target = _target_quantity(decision, context)
-    if target == 0:
-        raise UnplannableDecisionError(
-            "approved exposure is smaller than one context quantity increment"
-        )
-    current = context.current_quantity
-    if context.current_direction is PositionDirection.SHORT:
-        return (
-            _make_request(
-                decision,
-                context,
-                1,
-                BrokerRequestSide.BUY_TO_COVER,
-                current,
-                parameters,
-                reasoning,
-            ),
-            _make_request(
-                decision,
-                context,
-                2,
-                BrokerRequestSide.BUY,
-                target,
-                parameters,
-                reasoning,
-            ),
-        )
-    current_long = current if context.current_direction is PositionDirection.LONG else Decimal("0")
-    delta = target - current_long
-    if delta == 0:
-        raise UnplannableDecisionError("approved decision produces no portfolio delta")
-    side = BrokerRequestSide.BUY if delta > 0 else BrokerRequestSide.SELL
-    return (
-        _make_request(
-            decision,
-            context,
-            1,
-            side,
-            abs(delta),
-            parameters,
-            reasoning,
-        ),
+def _orders(decision: RiskDecision, snapshot: PortfolioSnapshot, parameters: PlanningParameters) -> tuple[PlannedOrder, ...]:
+    delta = decision.approved_delta
+    if delta is None:
+        raise UnplannableDecisionError("REJECT cannot be planned")
+    values = tuple(
+        item for item in snapshot.instrument_valuations
+        if item.instrument.identity == delta.instrument.identity
     )
+    if len(values) != 1:
+        raise UnplannableDecisionError("planning requires one InstrumentValuation")
+    multiplier = values[0].price_multiplier
+    current = delta.starting_quantity
+    target = delta.target_quantity
+    if delta.starting_direction is PositionDirection.SHORT:
+        orders = [_order(decision, snapshot, 1, PlannedOrderSide.BUY_TO_COVER, current, multiplier, parameters)]
+        if target:
+            orders.append(_order(decision, snapshot, 2, PlannedOrderSide.BUY, target, multiplier, parameters))
+        return tuple(orders)
+    difference = target - current
+    if difference == 0:
+        raise UnplannableDecisionError("approved decision has no quantity change")
+    side = PlannedOrderSide.BUY if difference > 0 else PlannedOrderSide.SELL
+    return (_order(decision, snapshot, 1, side, abs(difference), multiplier, parameters),)
 
 
-def _plan_identity(
-    decision: PortfolioDecision,
-    context: ExecutionContext,
-    requests: tuple[BrokerRequest, ...],
-    parameters: PlanningParameters,
-    reasoning: tuple[EvidenceReference, ...],
-) -> str:
-    payload = "\n".join(
-        (
-            EXECUTION_PLAN_IDENTITY_NAMESPACE,
-            PLANNING_ALGORITHM_VERSION,
-            serialize_canonical(decision.portfolio_decision_id),
-            serialize_canonical(_context_identity_inputs(context)),
-            serialize_canonical(parameters.canonical_items()),
-            serialize_canonical(tuple(item.broker_request_id for item in requests)),
-            serialize_canonical(tuple(_evidence_identity(item) for item in reasoning)),
-        )
+def _trace(decision: RiskDecision, orders: tuple[PlannedOrder, ...]) -> PlanningTrace:
+    types = (
+        PlanningTraceEventType.PLAN_STARTED,
+        PlanningTraceEventType.DELTA_VALIDATED,
+        PlanningTraceEventType.RISK_DECISION_VALIDATED,
+        PlanningTraceEventType.QUANTITY_DERIVED,
+        *(PlanningTraceEventType.ORDER_PLANNED for _ in orders),
+        PlanningTraceEventType.PLAN_COMPLETED,
     )
-    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+    events = tuple(
+        PlanningTraceEvent(
+            _id("asa.planning_trace_event.v1", decision.risk_decision_id, sequence, event_type.value),
+            sequence, event_type, (decision.risk_decision_id,),
+            tuple(order.planned_order_id for order in orders) if event_type is PlanningTraceEventType.PLAN_COMPLETED else (),
+            PLANNING_ALGORITHM_VERSION, decision.evidence,
+        )
+        for sequence, event_type in enumerate(types, 1)
+    )
+    return PlanningTrace(
+        _id("asa.planning_trace.v1", PLANNING_ALGORITHM_VERSION, tuple(item.planning_trace_event_id for item in events)),
+        PLANNING_ALGORITHM_VERSION, events,
+    )
 
 
 def plan_execution(
-    decision: PortfolioDecision,
-    context: ExecutionContext,
+    decision: RiskDecision,
+    snapshot: PortfolioSnapshot,
     parameters: PlanningParameters | None = None,
 ) -> ExecutionPlan:
-    """Build one inert broker-neutral plan from complete semantic inputs."""
-    active_parameters = parameters or PlanningParameters()
-    reasoning = _reasoning(decision, context)
-    requests: tuple[BrokerRequest, ...] = ()
-    if decision.state in {PortfolioDecisionState.ACCEPT, PortfolioDecisionState.REDUCE}:
-        requests = _approved_requests(
-            decision,
-            context,
-            active_parameters,
-            reasoning,
-        )
+    if decision.decision is RiskDecisionState.REJECT:
+        raise UnplannableDecisionError("REJECT produces no ExecutionPlan")
+    active = parameters or PlanningParameters()
+    orders = _orders(decision, snapshot, active)
+    delta = decision.approved_delta
+    assert delta is not None
+    valuation = next(
+        item for item in snapshot.instrument_valuations
+        if item.instrument.identity == delta.instrument.identity
+    )
+    target_exposure = MonetaryAmount(
+        delta.target_quantity * valuation.unit_exposure.amount,
+        snapshot.portfolio.base_currency,
+    )
+    summary_values = (delta.portfolio_delta_id, target_exposure.amount, delta.starting_quantity, delta.target_quantity, len(orders))
+    summary = ExecutionSummary(
+        _id("asa.execution_summary.v1", summary_values), target_exposure,
+        delta.starting_quantity, delta.target_quantity,
+        delta.target_quantity - delta.starting_quantity, None, len(orders), decision.reasons,
+    )
+    trace = _trace(decision, orders)
+    values = (
+        decision.risk_decision_id, snapshot.portfolio_snapshot_id,
+        tuple(order.planned_order_id for order in orders), summary.execution_summary_id,
+        trace.planning_trace_id, active.canonical_items(), tuple(_key(item) for item in decision.evidence),
+    )
     return ExecutionPlan(
-        execution_plan_id=_plan_identity(
-            decision,
-            context,
-            requests,
-            active_parameters,
-            reasoning,
+        _id(EXECUTION_PLAN_IDENTITY_NAMESPACE, values), PLANNING_ALGORITHM_VERSION,
+        decision, snapshot, orders, summary, trace, active.canonical_items(), decision.evidence,
+    )
+
+
+def build_planning_lifecycle(
+    decision: RiskDecision,
+    plan: ExecutionPlan | None,
+) -> ExecutionPlanningLifecycle:
+    """Build the immutable pre-simulation lifecycle prefix."""
+    risk_type = {
+        RiskDecisionState.APPROVE: ExecutionPlanningEventType.RISK_APPROVED,
+        RiskDecisionState.REDUCE: ExecutionPlanningEventType.RISK_REDUCED,
+        RiskDecisionState.REJECT: ExecutionPlanningEventType.RISK_REJECTED,
+    }[decision.decision]
+    event_specs: list[tuple[ExecutionPlanningEventType, str, tuple[str, ...], tuple[str, ...]]] = [
+        (
+            ExecutionPlanningEventType.PORTFOLIO_DELTA_PROPOSED,
+            decision.proposed_delta.portfolio_delta_id,
+            (decision.proposed_delta.source_snapshot_id,),
+            (decision.proposed_delta.portfolio_delta_id,),
         ),
-        planning_algorithm_version=PLANNING_ALGORITHM_VERSION,
-        portfolio_decision=decision,
-        execution_context=context,
-        broker_requests=requests,
-        reasoning=reasoning,
+        (
+            risk_type,
+            decision.risk_decision_id,
+            (decision.proposed_delta.portfolio_delta_id,),
+            (decision.risk_decision_id,),
+        ),
+    ]
+    if plan is not None:
+        if decision.decision is RiskDecisionState.REJECT:
+            raise UnplannableDecisionError("rejected lifecycle cannot contain plan")
+        event_specs.append((
+            ExecutionPlanningEventType.PLAN_CREATED,
+            plan.execution_plan_id,
+            (decision.risk_decision_id,),
+            (plan.execution_plan_id,),
+        ))
+    events = tuple(
+        ExecutionPlanningEvent(
+            _id("asa.execution_planning_event.v1", decision.risk_decision_id, sequence, event_type.value, subject),
+            decision.risk_decision_id, sequence, event_type, subject, inputs, outputs,
+            PLANNING_ALGORITHM_VERSION, decision.evidence,
+        )
+        for sequence, (event_type, subject, inputs, outputs) in enumerate(event_specs, 1)
+    )
+    lifecycle_id = _id(
+        "asa.execution_planning_lifecycle.v1",
+        PLANNING_ALGORITHM_VERSION,
+        decision.risk_decision_id,
+        tuple(event.execution_planning_event_id for event in events),
+    )
+    return ExecutionPlanningLifecycle(
+        lifecycle_id, PLANNING_ALGORITHM_VERSION, decision.risk_decision_id,
+        events, decision.evidence,
     )

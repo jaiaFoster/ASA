@@ -41,13 +41,14 @@ def test_amendment_preserves_live_broker_prohibitions_and_r5_lifecycle() -> None
         assert prohibited in amendment
 
 
-def test_existing_execution_contract_remains_inert() -> None:
+def test_execution_contract_remains_inert() -> None:
     execution = (ROOT / "domain" / "execution.py").read_text(encoding="utf-8")
     adr = (ROOT / "architecture" / "ADR-009-execution-semantics.md").read_text(
         encoding="utf-8"
     )
-    assert "not an API request" in execution
-    assert "no side effect" in execution
+    assert "Immutable analytical execution contracts" in execution
+    assert "PlannedOrder" in execution
+    assert "BrokerRequest" not in execution
     assert "BrokerRequest" in adr
     assert "analytical values" in adr
     normalized_adr = adr.lower()

@@ -1,154 +1,251 @@
-"""Pure deterministic Portfolio Engine (ASA-CORE-009)."""
+"""Pure Portfolio Engine calculation owner (ASA-ARCH-006)."""
 
 from __future__ import annotations
 
 import hashlib
-from decimal import Decimal
+from dataclasses import replace
+from decimal import Decimal, ROUND_FLOOR, ROUND_HALF_EVEN, localcontext
 
 from domain.canonicalization import serialize_canonical
-from domain.execution import PortfolioDecision, PortfolioDecisionState
-from domain.operational import PortfolioDecisionRequest, PortfolioSnapshot, ProposedPosition
+from domain.execution import (
+    PortfolioDelta,
+    PortfolioDeltaKind,
+    PortfolioEvaluationDisposition,
+    PortfolioEvaluationResult,
+)
+from domain.operational import (
+    InstrumentValuation,
+    MonetaryAmount,
+    PortfolioEvaluationRequest,
+    PortfolioSnapshot,
+    Position,
+    PositionDirection,
+    ProposedPosition,
+)
 from domain.references import EvidenceReference
+from domain.values import DomainInvariantError
 from portfolio.models import (
-    ALLOCATION_QUANTUM,
     PORTFOLIO_ALGORITHM_VERSION,
-    PORTFOLIO_IDENTITY_NAMESPACE,
-    PolicyOutcome,
+    PORTFOLIO_DELTA_NAMESPACE,
+    PORTFOLIO_EVALUATION_NAMESPACE,
     PortfolioParameters,
 )
-from portfolio.errors import InvalidPolicyOutcomeError
-from portfolio.registry import PolicyRegistry, build_default_registry
 
 
-def _evidence_identity(reference: EvidenceReference) -> tuple[object, ...]:
-    return (reference.kind.value, reference.referenced_id, reference.version)
+def _evidence_key(item: EvidenceReference) -> tuple[object, ...]:
+    return item.kind.value, item.referenced_id, item.version
 
 
-def _decision_evidence(
-    proposal: ProposedPosition, snapshot: PortfolioSnapshot
-) -> tuple[EvidenceReference, ...]:
-    references = proposal.evidence + snapshot.evidence + tuple(
-        reference
-        for holding in snapshot.holdings
-        for reference in holding.valuation_evidence
-    )
-    unique = {
-        _evidence_identity(reference): reference
-        for reference in references
-    }
+def _evidence(*groups: tuple[EvidenceReference, ...]) -> tuple[EvidenceReference, ...]:
+    unique = {_evidence_key(item): item for group in groups for item in group}
     return tuple(unique[key] for key in sorted(unique))
 
 
-def _identity(
+def _identity(namespace: str, *values: object) -> str:
+    payload = "\n".join((namespace, *(serialize_canonical(value) for value in values)))
+    return hashlib.sha256(payload.encode()).hexdigest()
+
+
+def _valuation(proposal: ProposedPosition, snapshot: PortfolioSnapshot) -> InstrumentValuation:
+    matches = tuple(
+        value for value in snapshot.instrument_valuations
+        if value.instrument.identity == proposal.instrument.identity
+    )
+    if len(matches) != 1:
+        raise DomainInvariantError("proposal requires exactly one InstrumentValuation")
+    value = matches[0]
+    if value.instrument.currency != "USD" or value.current_price.currency != "USD":
+        raise DomainInvariantError("Portfolio v1 valuations must use USD")
+    return value
+
+
+def _position(proposal: ProposedPosition, snapshot: PortfolioSnapshot) -> Position | None:
+    matches = tuple(
+        position for position in snapshot.portfolio.positions
+        if position.instrument.identity == proposal.instrument.identity
+    )
+    if len(matches) > 1:
+        raise DomainInvariantError("Portfolio contains duplicate Instrument Position")
+    return matches[0] if matches else None
+
+
+def _quantize(value: Decimal, quantum: Decimal) -> Decimal:
+    return value.quantize(quantum, rounding=ROUND_HALF_EVEN)
+
+
+def evaluate_one(
     proposal: ProposedPosition,
     snapshot: PortfolioSnapshot,
-    state: PortfolioDecisionState,
-    approved_allocation: Decimal,
-    policy_versions: tuple[tuple[str, str], ...],
-    effective_parameters: tuple[tuple[str, Decimal], ...],
-    reasons: tuple[str, ...],
-    evidence: tuple[EvidenceReference, ...],
-) -> str:
-    payload = "\n".join(
-        (
-            PORTFOLIO_IDENTITY_NAMESPACE,
+    parameters: PortfolioParameters | None = None,
+) -> PortfolioEvaluationResult:
+    active = parameters or PortfolioParameters(currency_quantum=snapshot.portfolio.currency_quantum)
+    valuation = _valuation(proposal, snapshot)
+    starting = _position(proposal, snapshot)
+    reference_capital = snapshot.portfolio.net_liquidation_value.amount
+    if reference_capital <= 0:
+        raise DomainInvariantError("Portfolio reference capital must be positive")
+    metrics = proposal.expected_outcome_metrics
+    if metrics.capital_required <= 0:
+        raise DomainInvariantError("ExpectedOutcomeMetrics.capital_required must be positive")
+    with localcontext() as context:
+        context.prec = active.decimal_precision
+        raw = proposal.target_allocation * reference_capital / valuation.unit_exposure.amount
+        increments = (raw / valuation.quantity_increment).to_integral_value(rounding=ROUND_FLOOR)
+        target = increments * valuation.quantity_increment
+        start_quantity = starting.quantity if starting else Decimal("0")
+        start_direction = starting.direction if starting else None
+        evidence = _evidence(proposal.evidence, snapshot.evidence, valuation.evidence)
+        rationale = ("target allocation sized against source Portfolio net liquidation value",)
+        if start_direction in {None, PositionDirection.LONG} and target == start_quantity:
+            result_id = _identity(
+                PORTFOLIO_EVALUATION_NAMESPACE,
+                PORTFOLIO_ALGORITHM_VERSION,
+                snapshot.portfolio_snapshot_id,
+                proposal.proposed_position_id,
+                PortfolioEvaluationDisposition.NO_CHANGE.value,
+                rationale,
+                tuple(_evidence_key(item) for item in evidence),
+            )
+            return PortfolioEvaluationResult(
+                result_id,
+                PORTFOLIO_ALGORITHM_VERSION,
+                snapshot.portfolio_snapshot_id,
+                proposal.proposed_position_id,
+                PortfolioEvaluationDisposition.NO_CHANGE,
+                None,
+                rationale,
+                evidence,
+            )
+        loss_rate = abs(metrics.maximum_loss) / metrics.capital_required
+        target_exposure = target * valuation.unit_exposure.amount
+        projected_loss = _quantize(loss_rate * target_exposure, active.currency_quantum)
+        current_long = start_quantity if start_direction is PositionDirection.LONG else Decimal("0")
+        cash_change = _quantize(
+            -(target - current_long) * valuation.unit_exposure.amount,
+            active.currency_quantum,
+        )
+        delta_inputs = (
             PORTFOLIO_ALGORITHM_VERSION,
-            serialize_canonical(proposal.proposed_position_id),
-            serialize_canonical(snapshot.portfolio_snapshot_id),
-            serialize_canonical(state.value),
-            serialize_canonical(approved_allocation),
-            serialize_canonical(policy_versions),
-            serialize_canonical(effective_parameters),
-            serialize_canonical(reasons),
-            serialize_canonical(tuple(_evidence_identity(item) for item in evidence)),
+            snapshot.portfolio_snapshot_id,
+            snapshot.portfolio.portfolio_state_id,
+            proposal.proposed_position_id,
+            snapshot.portfolio.account_id,
+            proposal.instrument.identity.scheme,
+            proposal.instrument.identity.value,
+            start_direction.value if start_direction else None,
+            start_quantity,
+            target,
+            projected_loss,
+            cash_change,
+            active.canonical_items(),
+            tuple(_evidence_key(item) for item in evidence),
         )
-    )
-    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
-
-
-def _disposition(
-    proposal: ProposedPosition,
-    snapshot: PortfolioSnapshot,
-    outcomes: tuple[PolicyOutcome, ...],
-) -> tuple[PortfolioDecisionState, Decimal, tuple[str, ...]]:
-    reasons = tuple(outcome.reason for outcome in outcomes)
-    if proposal.instrument.currency != snapshot.base_currency:
-        return (
-            PortfolioDecisionState.REJECT,
-            Decimal("0"),
-            (*reasons, "instrument currency does not match portfolio base currency"),
-        )
-    terminal = next(
-        (outcome.terminal_state for outcome in outcomes if outcome.terminal_state is not None),
-        None,
-    )
-    if terminal is not None:
-        return terminal, Decimal("0"), reasons
-    approved = min(
-        (proposal.target_allocation, *(outcome.maximum_allocation for outcome in outcomes))
-    )
-    approved = max(Decimal("0"), approved).quantize(ALLOCATION_QUANTUM)
-    if approved == 0:
-        return PortfolioDecisionState.REJECT, approved, reasons
-    if approved < proposal.target_allocation:
-        return PortfolioDecisionState.REDUCE, approved, reasons
-    return PortfolioDecisionState.ACCEPT, proposal.target_allocation, reasons
-
-
-def _evaluate_one(
-    proposal: ProposedPosition,
-    snapshot: PortfolioSnapshot,
-    parameters: PortfolioParameters,
-    registry: PolicyRegistry,
-) -> PortfolioDecision:
-    definitions = registry.definitions()
-    outcomes = tuple(
-        definition.policy(proposal, snapshot, parameters) for definition in definitions
-    )
-    if any(
-        outcome.policy_name != definition.name
-        for definition, outcome in zip(definitions, outcomes, strict=True)
-    ):
-        raise InvalidPolicyOutcomeError("policy outcome name does not match registry definition")
-    state, approved, reasons = _disposition(proposal, snapshot, outcomes)
-    policy_versions = tuple(
-        (outcome.policy_name, outcome.policy_version) for outcome in outcomes
-    )
-    effective_parameters = parameters.canonical_items()
-    evidence = _decision_evidence(proposal, snapshot)
-    return PortfolioDecision(
-        portfolio_decision_id=_identity(
-            proposal,
-            snapshot,
-            state,
-            approved,
-            policy_versions,
-            effective_parameters,
-            reasons,
+        delta = PortfolioDelta(
+            _identity(PORTFOLIO_DELTA_NAMESPACE, delta_inputs),
+            PORTFOLIO_ALGORITHM_VERSION,
+            PortfolioDeltaKind.PROPOSED,
+            snapshot.portfolio_snapshot_id,
+            snapshot.portfolio.portfolio_state_id,
+            proposal.proposed_position_id,
+            None,
+            snapshot.portfolio.account_id,
+            proposal.instrument,
+            MonetaryAmount(projected_loss, "USD"),
+            start_direction,
+            start_quantity,
+            PositionDirection.LONG if target > 0 else None,
+            target,
+            MonetaryAmount(cash_change, "USD"),
+            MonetaryAmount(cash_change, "USD"),
+            rationale,
+            active.canonical_items(),
             evidence,
-        ),
-        decision_algorithm_version=PORTFOLIO_ALGORITHM_VERSION,
-        portfolio_snapshot_id=snapshot.portfolio_snapshot_id,
-        proposed_position=proposal,
-        state=state,
-        approved_allocation=approved,
-        policy_versions=policy_versions,
-        effective_parameters=effective_parameters,
-        reasons=reasons,
-        evidence=evidence,
-    )
+        )
+        result_id = _identity(
+            PORTFOLIO_EVALUATION_NAMESPACE,
+            PORTFOLIO_ALGORITHM_VERSION,
+            snapshot.portfolio_snapshot_id,
+            proposal.proposed_position_id,
+            PortfolioEvaluationDisposition.DELTA_PRODUCED.value,
+            delta.portfolio_delta_id,
+            rationale,
+            tuple(_evidence_key(item) for item in evidence),
+        )
+        return PortfolioEvaluationResult(
+            result_id,
+            PORTFOLIO_ALGORITHM_VERSION,
+            snapshot.portfolio_snapshot_id,
+            proposal.proposed_position_id,
+            PortfolioEvaluationDisposition.DELTA_PRODUCED,
+            delta,
+            rationale,
+            evidence,
+        )
 
 
 def evaluate_portfolio(
-    request: PortfolioDecisionRequest,
+    request: PortfolioEvaluationRequest,
     parameters: PortfolioParameters | None = None,
-    registry: PolicyRegistry | None = None,
-) -> tuple[PortfolioDecision, ...]:
-    """Evaluate proposals in ranking order against one immutable snapshot."""
-    active_parameters = parameters or PortfolioParameters()
-    active_registry = registry or build_default_registry()
-    active_registry.validate()
-    return tuple(
-        _evaluate_one(proposal, request.portfolio_snapshot, active_parameters, active_registry)
-        for proposal in request.proposed_positions
+) -> tuple[PortfolioEvaluationResult, ...]:
+    return tuple(evaluate_one(proposal, request.portfolio_snapshot, parameters) for proposal in request.proposed_positions)
+
+
+def reduction_candidates(
+    result: PortfolioEvaluationResult,
+    snapshot: PortfolioSnapshot,
+) -> tuple[PortfolioDelta, ...]:
+    """Return the finite descending quantity lattice below one proposed target."""
+    delta = result.proposed_delta
+    if delta is None or delta.target_quantity <= 0:
+        return ()
+    valuation_matches = tuple(
+        item for item in snapshot.instrument_valuations
+        if item.instrument.identity == delta.instrument.identity
     )
+    if len(valuation_matches) != 1:
+        raise DomainInvariantError("reduction candidates require one valuation")
+    valuation = valuation_matches[0]
+    loss_per_exposure = (
+        delta.projected_maximum_loss.amount
+        / (delta.target_quantity * valuation.unit_exposure.amount)
+    )
+    current_long = (
+        delta.starting_quantity if delta.starting_direction is PositionDirection.LONG else Decimal("0")
+    )
+    quantities: list[Decimal] = []
+    minimum = (
+        delta.starting_quantity
+        if delta.starting_direction in {None, PositionDirection.LONG}
+        else Decimal("0")
+    )
+    candidate = delta.target_quantity - valuation.quantity_increment
+    while candidate > minimum:
+        quantities.append(candidate)
+        candidate -= valuation.quantity_increment
+    candidates: list[PortfolioDelta] = []
+    for quantity in quantities:
+        cash = _quantize(
+            -(quantity - current_long) * valuation.unit_exposure.amount,
+            snapshot.portfolio.currency_quantum,
+        )
+        loss = _quantize(
+            loss_per_exposure * quantity * valuation.unit_exposure.amount,
+            snapshot.portfolio.currency_quantum,
+        )
+        candidate_id = _identity(
+            PORTFOLIO_DELTA_NAMESPACE,
+            delta.portfolio_delta_id,
+            quantity,
+            cash,
+            loss,
+        )
+        candidates.append(replace(
+            delta,
+            portfolio_delta_id=candidate_id,
+            target_quantity=quantity,
+            cash_change=MonetaryAmount(cash, "USD"),
+            buying_power_change=MonetaryAmount(cash, "USD"),
+            projected_maximum_loss=MonetaryAmount(loss, "USD"),
+            rationale=(*delta.rationale, "risk reduction candidate"),
+        ))
+    return tuple(candidates)

@@ -6,7 +6,7 @@ import ast
 import dataclasses
 from pathlib import Path
 
-from domain.execution import BrokerRequest, ExecutionContext, ExecutionPlan, PortfolioDecision
+from domain.execution import ExecutionPlan, PlannedOrder, PortfolioDelta, RiskDecision
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 EXECUTION_CONTRACT = REPO_ROOT / "domain" / "execution.py"
@@ -47,7 +47,7 @@ def test_no_operational_or_infrastructure_dependency_is_reachable() -> None:
 
 
 def test_execution_contracts_expose_no_callable_behavior() -> None:
-    for cls in (PortfolioDecision, ExecutionContext, ExecutionPlan, BrokerRequest):
+    for cls in (PortfolioDelta, RiskDecision, ExecutionPlan, PlannedOrder):
         public = {
             name
             for name, value in vars(cls).items()
@@ -56,8 +56,8 @@ def test_execution_contracts_expose_no_callable_behavior() -> None:
         assert public == set()
 
 
-def test_broker_request_is_not_an_adapter_or_api_payload() -> None:
-    names = {field.name for field in dataclasses.fields(BrokerRequest)}
+def test_planned_order_is_not_an_adapter_or_api_payload() -> None:
+    names = {field.name for field in dataclasses.fields(PlannedOrder)}
     prohibited = {
         "adapter",
         "api_url",
@@ -69,3 +69,4 @@ def test_broker_request_is_not_an_adapter_or_api_payload() -> None:
         "token",
     }
     assert not names & prohibited
+    assert "execution_plan_id" not in names
