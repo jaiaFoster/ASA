@@ -436,6 +436,26 @@ def _canonical_json_bytes(value: object) -> bytes:
     ).encode("utf-8")
 
 
+def canonical_strategy_json(value: object) -> bytes:
+    """Serialize built-in Strategy-layer identity material canonically."""
+    return _canonical_json_bytes(value)
+
+
+def manifest_value_to_data(value: ManifestValue) -> object:
+    """Expose an immutable Manifest value as canonical JSON-compatible data."""
+    return _value_to_json(value)
+
+
+def validate_strategy_identifier(value: str, field_name: str) -> None:
+    """Validate one canonical Strategy-layer identifier."""
+    _require_identifier(value, field_name)
+
+
+def validate_semantic_version(value: str, field_name: str) -> None:
+    """Validate one exact Semantic Version used by Strategy-layer contracts."""
+    _require_semver(value, field_name)
+
+
 def serialize_manifest(manifest: StrategyManifest) -> bytes:
     """Serialize one manifest to canonical UTF-8 JSON."""
     return _canonical_json_bytes(manifest_to_data(manifest))

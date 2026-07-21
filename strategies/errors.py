@@ -74,3 +74,7 @@ class UnsupportedManifestSchemaError(ManifestValidationError):
 
 class ManifestSerializationError(ManifestValidationError):
     """A manifest cannot be decoded from canonical JSON data."""
+
+
+class ComponentContractError(StrategyError, ValueError):
+    """A Component Type violates the frozen ASA-ARCH-003 contract."""
