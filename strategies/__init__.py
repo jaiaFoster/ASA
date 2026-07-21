@@ -65,17 +65,30 @@ from strategies.manifest import (
 )
 from strategies.registry import DEFAULT_REGISTRY, StrategyRegistry
 from strategies.signal import StrategySignal
+from strategies.type_system import (
+    DEFAULT_TYPE_SYSTEM,
+    TYPE_SYSTEM_VERSION,
+    ComponentValues,
+    StrategyTypeDefinition,
+    StrategyTypeKind,
+    StrategyTypeSystem,
+    TypedValue,
+    build_default_type_system,
+)
 
 __all__ = [
     "COMPONENT_IDENTITY_NAMESPACE",
     "COMPONENT_IDENTITY_VERSION",
     "DEFAULT_REGISTRY",
+    "DEFAULT_TYPE_SYSTEM",
+    "TYPE_SYSTEM_VERSION",
     "BaseComponent",
     "CapabilityRequirement",
     "ComponentCategory",
     "ComponentContractError",
     "ComponentDefinition",
     "ComponentReference",
+    "ComponentValues",
     "DuplicateStrategyRegistrationError",
     "EdgeSpec",
     "EventBinding",
@@ -103,9 +116,14 @@ __all__ = [
     "StrategyRegistry",
     "StrategySignal",
     "StrategyTypeReference",
+    "StrategyTypeDefinition",
+    "StrategyTypeKind",
+    "StrategyTypeSystem",
+    "TypedValue",
     "UnsupportedManifestSchemaError",
     "UnknownStrategyIdError",
     "canonical_strategy_json",
+    "build_default_type_system",
     "component_definition_data",
     "component_identity",
     "deserialize_manifest",
