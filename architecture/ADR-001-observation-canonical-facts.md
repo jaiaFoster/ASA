@@ -30,6 +30,16 @@ Every Observation carries, at minimum:
 
 **Provenance:** every Canonical Fact version references the specific Observation(s) that produced it, including their Provider identities. This is what makes reconciliation auditable.
 
+**Confidence is internal; Provenance is external.** The Confidence value a Canonical Fact version carries is an **internal attribute of reconciliation**: it is an input to downstream evidence-confidence aggregation (ADR-003) and to reconciliation itself, not a number ASA presents to users as a standalone quality claim. **Provenance, by contrast, is a first-class, externally visible concept.** Any API that exposes a Canonical Fact or a Recommendation must expose that record's complete provenance, with drill-down capability showing, at minimum:
+
+- the contributing Providers (every Provider whose Observations participated in reconciliation),
+- the selected Provider (whose Observation the resolved value was taken from, where applicable),
+- provider disagreements (which Providers reported conflicting values, and what they reported),
+- the relevant timestamps (effective time, recorded time, and reconciliation time),
+- reconciliation metadata (the priority/agreement/staleness inputs that drove the resolution).
+
+"Externally visible" here binds future API design without designing any API in this ADR: whatever surface eventually exposes Facts or Recommendations must be able to answer "where did this number come from, who disagreed, and when" from the stored record alone. The domain model must therefore carry complete provenance structurally on every Canonical Fact version — this is not an optional annotation.
+
 **Historical replay:** because both Observations and Canonical Fact versions are immutable and timestamped with both effective time and recorded time, ASA can reconstruct "what did we believe as of time T" for any past T. This is a required capability of the model, not an incidental byproduct — it is what makes Strategy evaluation reproducible over historical data (Constitution Law 7).
 
 **Determinism is a write-time guarantee, not a re-derivation guarantee.** "Same Observation set always reconciles to the same Canonical Fact version" describes the reconciliation function at the moment it runs, given whatever provider-priority configuration and confidence inputs are in effect at that time. It does not mean that re-running reconciliation *today*, against *yesterday's* Observation set, is guaranteed to reproduce *yesterday's* stored Canonical Fact version — provider priority and confidence-scoring configuration are not versioned by this ADR (see Open Questions and ADR-002), so they may differ between "then" and "now." Historical replay does not depend on this kind of re-derivation matching: replay is a **lookup** of the Canonical Fact version that was actually stored at the relevant time, not a **recomputation** of reconciliation against current configuration. An implementer should not build a test that reconciles historical Observations under today's configuration and asserts the result matches the historically stored version — that test would fail on any configuration change and would not indicate a defect.
@@ -59,6 +69,10 @@ Every Observation carries, at minimum:
 `ARCHITECTURE_VISION.md`'s Open Questions section currently asks: *"The precise mechanism by which the Canonical Fact Layer resolves disagreement between providers... has not been settled by an ADR."* This ADR settles it. Recommend removing that Open Question from `ARCHITECTURE_VISION.md` and replacing it with a reference to this ADR.
 
 Recommend a minor clarifying edit to `DOMAIN_GLOSSARY.md`'s **Observation** entry: "raw provider evidence" should be understood as raw in *content* (the reported value is never altered) but structurally normalized into ASA's schema at the point of recording (see ADR-002). The current Glossary wording does not contradict this, but a reader could plausibly misread "raw" as "untransformed in every sense." Recommend appending a one-clause parenthetical to the existing definition rather than rewriting it.
+
+## Revision note (ASA-CORE-001)
+
+This ADR originally described Confidence and Provenance side by side without distinguishing their visibility. This amendment clarifies that reconciliation confidence is an internal attribute (consumed by reconciliation and downstream evidence-confidence aggregation, not presented as a user-facing quality score), and elevates Provenance to a first-class, externally visible concept with a binding drill-down requirement on any future API exposing Canonical Facts or Recommendations. No reconciliation semantics changed; the amendment constrains what the stored record must be able to answer, and therefore what the domain model must carry.
 
 ## References
 
