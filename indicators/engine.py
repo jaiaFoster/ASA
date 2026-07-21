@@ -1,4 +1,4 @@
-"""Deterministic Indicator engine (ASA-CORE-004).
+"""Deterministic Indicator engine (ASA-CORE-004, hardened in ASA-CORE-005 Phase 0).
 
 Derives immutable Indicators from Canonical Facts via the indicator
 registry (``indicators/registry.py``). Pure orchestration — no repository
@@ -12,10 +12,11 @@ import hashlib
 from datetime import datetime
 
 from domain.canonical_fact import CanonicalFact
-from domain.canonicalization import serialize_canonical
+from domain.canonicalization import canonicalize_value, serialize_canonical
 from domain.indicator import Indicator
 from domain.references import EvidenceKind, EvidenceReference
 from domain.values import require_tz_aware
+from indicators.errors import InconsistentIndicatorGroupError
 from indicators.registry import DEFAULT_REGISTRY, IndicatorRegistry
 
 INDICATOR_IDENTITY_NAMESPACE = "asa.indicator"
@@ -69,10 +70,26 @@ def compute_indicator(
     read from (it sorts and slices internally — see
     ``indicators/calculations.py``). ``previous_indicator`` is the latest
     known version for this ``(indicator_type, effective_time)`` group
-    (``None`` for the first computation). Version assignment mirrors
-    ``reconciliation.engine.reconcile``: ``1`` if none prior; unchanged
-    (idempotent replay, no new version) if the calculated value equals
+    (``None`` for the first computation).
+
+    **Version assignment** mirrors ``reconciliation.engine.reconcile``:
+    ``1`` if none prior; unchanged (idempotent replay, no new version) if
+    the calculated value is semantically equal (canonicalized comparison
+    — ASA-CORE-005 Phase 0 hardening, was a plain ``!=`` before) to
     ``previous_indicator``'s; ``+1`` otherwise.
+
+    **No stale provenance** (ASA-CORE-005 Phase 0 hardening): the returned
+    ``Indicator`` always reflects *this call's* actual inputs — fresh
+    ``computed_from``/``created_time``/``indicator_id`` built from the
+    facts and timestamps just supplied — never a verbatim, possibly
+    long-stale previous object. When ``is_new_version`` is ``False``, the
+    returned object carries ``previous_indicator.version`` (no new version
+    number is warranted) but is otherwise a fresh snapshot of this
+    computation; callers must not persist it (its ``indicator_id`` will
+    generally differ from whatever is actually stored under that version,
+    since the contributing fact set may have grown even though the value
+    didn't change) — it exists only to report "what the value is right
+    now," not to be appended.
 
     Returns ``(indicator, is_new_version)``.
     """
@@ -80,8 +97,21 @@ def compute_indicator(
     require_tz_aware(created_time, "compute_indicator", "created_time")
     params = params or {}
 
+    if previous_indicator is not None:
+        if previous_indicator.indicator_type != indicator_type:
+            raise InconsistentIndicatorGroupError(
+                f"previous_indicator.indicator_type {previous_indicator.indicator_type!r} "
+                f"does not match requested indicator_type {indicator_type!r}"
+            )
+        if previous_indicator.effective_time != effective_time:
+            raise InconsistentIndicatorGroupError(
+                f"previous_indicator.effective_time {previous_indicator.effective_time!r} "
+                f"does not match requested effective_time {effective_time!r}"
+            )
+
     definition = registry.get(indicator_type)
     calculated_value, contributing_facts = definition.compute(facts, params)
+    canonical_value = canonicalize_value(calculated_value)
 
     source_fact_ids = tuple(sorted({fact.fact_id for fact in contributing_facts}))
     computed_from = tuple(
@@ -92,23 +122,24 @@ def compute_indicator(
 
     is_new_version = (
         previous_indicator is None
-        or previous_indicator.value != calculated_value
+        or canonicalize_value(previous_indicator.value) != canonical_value
     )
-    if not is_new_version:
-        return previous_indicator, False
-
-    version = 1 if previous_indicator is None else previous_indicator.version + 1
+    version = (
+        1 if previous_indicator is None
+        else previous_indicator.version if not is_new_version
+        else previous_indicator.version + 1
+    )
 
     indicator = Indicator(
         indicator_id=indicator_identity(
-            indicator_type, source_fact_ids, effective_time, calculated_value
+            indicator_type, source_fact_ids, effective_time, canonical_value
         ),
         version=version,
         indicator_type=indicator_type,
         logic_version=definition.logic_version,
-        value=calculated_value,
+        value=canonical_value,
         computed_from=computed_from,
         effective_time=effective_time,
         created_time=created_time,
     )
-    return indicator, True
+    return indicator, is_new_version

@@ -160,7 +160,25 @@ class TestVersioning:
             "latest_price", facts, T0 + timedelta(minutes=2),
             T0 + timedelta(minutes=2), previous_indicator=ind1)
         assert not is_new
-        assert ind2 is ind1
+        assert ind2.version == ind1.version
+        assert ind2.value == ind1.value
+
+    def test_no_stale_provenance_on_replay_with_new_evidence(self):
+        """A later call in the same group, with the same resolved value but
+        a different created_time, must reflect THIS call's created_time —
+        never a verbatim stale copy of the previous object (ASA-CORE-005
+        Phase 0). effective_time stays fixed (same group); only
+        created_time (the "computed at" wall-clock time) advances."""
+        facts = _facts(1)  # just fact-0, price 200
+        ind1, _ = compute_indicator("latest_price", facts, T0, T0)
+        ind2, is_new = compute_indicator(
+            "latest_price", facts, T0,
+            T0 + timedelta(minutes=10), previous_indicator=ind1)
+        assert not is_new
+        assert ind2.version == ind1.version
+        # created_time reflects THIS call, not the stale original
+        assert ind2.created_time == T0 + timedelta(minutes=10)
+        assert ind2.created_time != ind1.created_time
 
 
 class TestIndicatorIdentity:
