@@ -14,7 +14,6 @@ from strategies.calculations import breakout, momentum, moving_average_crossover
 from strategies.errors import (
     InvalidStrategyParameterError,
     MissingIndicatorInputError,
-    NoContributingFactsError,
 )
 
 T0 = datetime(2026, 7, 21, 14, 0, tzinfo=timezone.utc)

@@ -1,9 +1,10 @@
 """Closed deterministic Strategy Type System (STRAT-006, ASA-ARCH-003)."""
+
 from __future__ import annotations
 
 import hashlib
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from enum import Enum
 
@@ -23,7 +24,7 @@ from strategies.manifest import (
     validate_strategy_identifier,
 )
 
-TYPE_SYSTEM_VERSION = "1.0.0"
+TYPE_SYSTEM_VERSION = "1.1.0"
 
 
 class StrategyTypeKind(str, Enum):
@@ -152,13 +153,9 @@ class StrategyTypeSystem:
             if (definition.name, definition.version) == (reference.name, reference.version):
                 self._validate_shape(reference, definition.kind)
                 return definition
-        raise ComponentContractError(
-            f"unknown Strategy Type: {reference.name}@{reference.version}"
-        )
+        raise ComponentContractError(f"unknown Strategy Type: {reference.name}@{reference.version}")
 
-    def compatible(
-        self, source: StrategyTypeReference, target: StrategyTypeReference
-    ) -> bool:
+    def compatible(self, source: StrategyTypeReference, target: StrategyTypeReference) -> bool:
         self.resolve(source)
         self.resolve(target)
         return source == target
@@ -173,9 +170,7 @@ class StrategyTypeSystem:
                 f"value does not satisfy {typed.type_ref.name}@{typed.type_ref.version}"
             )
 
-    def _validate_shape(
-        self, reference: StrategyTypeReference, kind: StrategyTypeKind
-    ) -> None:
+    def _validate_shape(self, reference: StrategyTypeReference, kind: StrategyTypeKind) -> None:
         expected_arguments = {
             StrategyTypeKind.OPTIONAL: 1,
             StrategyTypeKind.LIST: 1,
@@ -194,8 +189,10 @@ class StrategyTypeSystem:
                 raise ComponentContractError("Money requires an uppercase ISO currency qualifier")
         elif reference.name == "Enum":
             values = qualifiers.get("values")
-            if not isinstance(values, tuple) or not values or not all(
-                isinstance(item, str) for item in values
+            if (
+                not isinstance(values, tuple)
+                or not values
+                or not all(isinstance(item, str) for item in values)
             ):
                 raise ComponentContractError("Enum requires a non-empty string values qualifier")
             if len(values) != len(set(values)):
@@ -241,13 +238,23 @@ def _value_matches(
     if name in {"Decimal", "Ratio", "Quantity", "Money"}:
         return isinstance(value, Decimal) and value.is_finite()
     if name == "Probability":
-        return isinstance(value, Decimal) and value.is_finite() and Decimal(0) <= value <= Decimal(1)
+        return (
+            isinstance(value, Decimal) and value.is_finite() and Decimal(0) <= value <= Decimal(1)
+        )
     if name == "Text":
         return isinstance(value, str)
     if name == "Date":
         return isinstance(value, date) and not isinstance(value, datetime)
     if name == "Instant":
-        return isinstance(value, datetime) and value.tzinfo is not None and value.utcoffset() is not None
+        return (
+            isinstance(value, datetime)
+            and value.tzinfo is not None
+            and value.utcoffset() is not None
+        )
+    if name == "Duration":
+        return isinstance(value, timedelta)
+    if name == "Unknown":
+        return value is None
     if name == "Currency":
         return isinstance(value, str) and len(value) == 3 and value.isupper()
     if name == "Enum":
@@ -276,7 +283,16 @@ def _valid_nested(
 
 
 def build_default_type_system() -> StrategyTypeSystem:
-    primitive = ("Boolean", "Integer", "Decimal", "Text", "Date", "Instant")
+    primitive = (
+        "Boolean",
+        "Integer",
+        "Decimal",
+        "Text",
+        "Date",
+        "Instant",
+        "Duration",
+        "Unknown",
+    )
     financial = ("Currency", "Money", "Ratio", "Probability", "Quantity")
     domain = (
         "Instrument",
@@ -286,20 +302,20 @@ def build_default_type_system() -> StrategyTypeSystem:
         "ExpectedOutcomeMetrics",
         "Opportunity",
     )
-    definitions = tuple(
-        StrategyTypeDefinition(name, "1.0.0", StrategyTypeKind.PRIMITIVE)
-        for name in primitive
-    ) + tuple(
-        StrategyTypeDefinition(name, "1.0.0", StrategyTypeKind.FINANCIAL)
-        for name in financial
-    ) + tuple(
-        StrategyTypeDefinition(name, "1.0.0", StrategyTypeKind.DOMAIN)
-        for name in domain
-    ) + (
-        StrategyTypeDefinition("Enum", "1.0.0", StrategyTypeKind.ENUM),
-        StrategyTypeDefinition("Optional", "1.0.0", StrategyTypeKind.OPTIONAL),
-        StrategyTypeDefinition("List", "1.0.0", StrategyTypeKind.LIST),
-        StrategyTypeDefinition("Map", "1.0.0", StrategyTypeKind.MAP),
+    definitions = (
+        tuple(
+            StrategyTypeDefinition(name, "1.0.0", StrategyTypeKind.PRIMITIVE) for name in primitive
+        )
+        + tuple(
+            StrategyTypeDefinition(name, "1.0.0", StrategyTypeKind.FINANCIAL) for name in financial
+        )
+        + tuple(StrategyTypeDefinition(name, "1.0.0", StrategyTypeKind.DOMAIN) for name in domain)
+        + (
+            StrategyTypeDefinition("Enum", "1.0.0", StrategyTypeKind.ENUM),
+            StrategyTypeDefinition("Optional", "1.0.0", StrategyTypeKind.OPTIONAL),
+            StrategyTypeDefinition("List", "1.0.0", StrategyTypeKind.LIST),
+            StrategyTypeDefinition("Map", "1.0.0", StrategyTypeKind.MAP),
+        )
     )
     return StrategyTypeSystem(definitions)
 

@@ -7,6 +7,7 @@ providers, even though both sit below strategies in the general pipeline
 order (Constitution Law 4: Strategies consume knowledge, they do not
 gather it).
 """
+
 from strategies.components import (
     COMPONENT_IDENTITY_NAMESPACE,
     COMPONENT_IDENTITY_VERSION,
@@ -35,6 +36,9 @@ from strategies.engine import (
 from strategies.errors import (
     ComponentContractError,
     DuplicateStrategyRegistrationError,
+    ExpressionCompileError,
+    ExpressionError,
+    ExpressionEvaluationError,
     InvalidStrategyParameterError,
     ManifestSerializationError,
     ManifestValidationError,
@@ -43,6 +47,18 @@ from strategies.errors import (
     StrategyError,
     UnsupportedManifestSchemaError,
     UnknownStrategyIdError,
+)
+from strategies.expressions import (
+    EXPRESSION_IDENTITY_NAMESPACE,
+    EXPRESSION_IDENTITY_VERSION,
+    EXPRESSION_LANGUAGE_VERSION,
+    CompiledExpression,
+    ExpressionLimits,
+    ExpressionNode,
+    ExpressionResult,
+    ExpressionTrace,
+    compile_expression,
+    evaluate_expression,
 )
 from strategies.manifest import (
     MANIFEST_IDENTITY_NAMESPACE,
@@ -83,6 +99,7 @@ from strategies.type_system import (
 )
 
 __all__ = [
+    "CompiledExpression",
     "COMPONENT_IDENTITY_NAMESPACE",
     "COMPONENT_IDENTITY_VERSION",
     "DEFAULT_REGISTRY",
@@ -100,7 +117,17 @@ __all__ = [
     "ComponentRegistry",
     "ComponentValues",
     "DuplicateStrategyRegistrationError",
+    "EXPRESSION_IDENTITY_NAMESPACE",
+    "EXPRESSION_IDENTITY_VERSION",
+    "EXPRESSION_LANGUAGE_VERSION",
     "EdgeSpec",
+    "ExpressionCompileError",
+    "ExpressionError",
+    "ExpressionEvaluationError",
+    "ExpressionLimits",
+    "ExpressionNode",
+    "ExpressionResult",
+    "ExpressionTrace",
     "EventBinding",
     "InvalidStrategyParameterError",
     "LifecycleEvent",
@@ -136,8 +163,10 @@ __all__ = [
     "build_default_type_system",
     "component_definition_data",
     "component_identity",
+    "compile_expression",
     "deserialize_manifest",
     "evaluate_strategy",
+    "evaluate_expression",
     "freeze_manifest_value",
     "manifest_identity",
     "manifest_to_data",

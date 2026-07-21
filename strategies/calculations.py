@@ -27,6 +27,7 @@ These are placeholders, not calibrated to any backtest, volatility model,
 or historical data — tracked as a non-blocking follow-up (see PR for the
 linked GitHub Issue).
 """
+
 from __future__ import annotations
 
 from decimal import Decimal, localcontext
@@ -52,7 +53,8 @@ def _require_indicator(strategy_id: str, indicators: dict[str, Indicator], key: 
 
 
 def _facts_backing_indicators(
-    contributing_indicators: tuple[Indicator, ...], facts: tuple[CanonicalFact, ...],
+    contributing_indicators: tuple[Indicator, ...],
+    facts: tuple[CanonicalFact, ...],
 ) -> tuple[CanonicalFact, ...]:
     """Narrow ``facts`` down to exactly those cited by the given indicators'
     ``computed_from`` — never the full caller-supplied candidate set.
@@ -63,15 +65,13 @@ def _facts_backing_indicators(
     ``evaluate_strategy``. Mirrors ``indicators/calculations.py``'s
     ``(value, contributing_facts)`` return contract one layer up.
     """
-    cited_ids = {
-        ref.referenced_id
-        for ind in contributing_indicators
-        for ref in ind.computed_from
-    }
-    return tuple(sorted(
-        (fact for fact in facts if fact.fact_id in cited_ids),
-        key=lambda f: f.fact_id,
-    ))
+    cited_ids = {ref.referenced_id for ind in contributing_indicators for ref in ind.computed_from}
+    return tuple(
+        sorted(
+            (fact for fact in facts if fact.fact_id in cited_ids),
+            key=lambda f: f.fact_id,
+        )
+    )
 
 
 def _most_recent_fact(facts: tuple[CanonicalFact, ...]) -> CanonicalFact:
@@ -79,7 +79,8 @@ def _most_recent_fact(facts: tuple[CanonicalFact, ...]) -> CanonicalFact:
 
 
 def _reference_capital_and_loss(
-    strategy_id: str, facts: tuple[CanonicalFact, ...],
+    strategy_id: str,
+    facts: tuple[CanonicalFact, ...],
 ) -> tuple[Decimal, Decimal]:
     if not facts:
         raise NoContributingFactsError(strategy_id)
@@ -98,7 +99,9 @@ MOVING_AVERAGE_CROSSOVER_TIME_HORIZON_DAYS = 20  # v1 placeholder
 
 
 def moving_average_crossover(
-    indicators: dict[str, Indicator], facts: tuple[CanonicalFact, ...], params: dict,
+    indicators: dict[str, Indicator],
+    facts: tuple[CanonicalFact, ...],
+    params: dict,
 ) -> StrategySignal | None:
     """Bullish crossover: short MA was at/below long MA, now short MA > long MA.
 
@@ -154,7 +157,9 @@ BREAKOUT_TIME_HORIZON_DAYS = 10  # v1 placeholder
 
 
 def breakout(
-    indicators: dict[str, Indicator], facts: tuple[CanonicalFact, ...], params: dict,
+    indicators: dict[str, Indicator],
+    facts: tuple[CanonicalFact, ...],
+    params: dict,
 ) -> StrategySignal | None:
     """Bullish breakout: latest price exceeds the rolling high."""
     sid = "breakout"
@@ -169,9 +174,7 @@ def breakout(
     capital_required, maximum_loss = _reference_capital_and_loss(sid, backing_facts)
     with localcontext() as ctx:
         ctx.prec = DECIMAL_PRECISION
-        expected_return = (
-            (latest_price_ind.value - rolling_high_ind.value) / rolling_high_ind.value
-        )
+        expected_return = (latest_price_ind.value - rolling_high_ind.value) / rolling_high_ind.value
 
     metrics = ExpectedOutcomeMetrics(
         expected_return=expected_return,
@@ -202,7 +205,9 @@ MOMENTUM_TIME_HORIZON_DAYS = 5  # v1 placeholder
 
 
 def momentum(
-    indicators: dict[str, Indicator], facts: tuple[CanonicalFact, ...], params: dict,
+    indicators: dict[str, Indicator],
+    facts: tuple[CanonicalFact, ...],
+    params: dict,
 ) -> StrategySignal | None:
     """Positive momentum: price_change_percent exceeds a caller-supplied threshold."""
     sid = "momentum"

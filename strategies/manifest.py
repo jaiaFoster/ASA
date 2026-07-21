@@ -8,6 +8,7 @@ V1 uses canonical UTF-8 JSON. Decimal, date, and instant parameter literals are
 represented by normalized strings and interpreted later from their explicit
 ``type_ref``; binary floating point is rejected at the manifest boundary.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -40,9 +41,7 @@ _SEMVER_RE = re.compile(
 )
 
 ManifestScalar: TypeAlias = None | bool | int | str
-ManifestValue: TypeAlias = (
-    "ManifestScalar | tuple[ManifestValue, ...] | ManifestObject"
-)
+ManifestValue: TypeAlias = "ManifestScalar | tuple[ManifestValue, ...] | ManifestObject"
 
 
 class LifecycleEvent(str, Enum):
@@ -107,9 +106,7 @@ def _require_identifier(value: str, field_name: str) -> None:
 
 def _require_semver(value: str, field_name: str) -> None:
     if not isinstance(value, str) or _SEMVER_RE.fullmatch(value) is None:
-        raise ManifestValidationError(
-            f"{field_name} must be a valid Semantic Version: {value!r}"
-        )
+        raise ManifestValidationError(f"{field_name} must be a valid Semantic Version: {value!r}")
 
 
 def _require_unique(values: tuple[str, ...], field_name: str) -> None:
@@ -315,9 +312,7 @@ class StrategyManifest:
         nodes = tuple(sorted(self.nodes, key=lambda item: item.node_id))
         edges = tuple(sorted(self.edges))
         outputs = tuple(sorted(self.outputs))
-        events = tuple(
-            sorted(self.events, key=lambda item: (item.event.value, item.node_id or ""))
-        )
+        events = tuple(sorted(self.events, key=lambda item: (item.event.value, item.node_id or "")))
 
         _require_unique(tuple(item.name for item in parameters), "manifest.parameters")
         _require_unique(
@@ -376,8 +371,7 @@ def _semantic_manifest_data(manifest: StrategyManifest) -> dict[str, object]:
         "strategy_version": manifest.strategy_version,
         "parameters": [_parameter_to_data(item) for item in manifest.parameters],
         "required_capabilities": [
-            {"name": item.name, "version": item.version}
-            for item in manifest.required_capabilities
+            {"name": item.name, "version": item.version} for item in manifest.required_capabilities
         ],
         "nodes": [
             {
@@ -580,9 +574,7 @@ def _parse_manifest_data(root: dict[str, object]) -> StrategyManifest:
                         component_data["namespace"], f"{path}.component.namespace"
                     ),
                     name=_require_string(component_data["name"], f"{path}.component.name"),
-                    version=_require_string(
-                        component_data["version"], f"{path}.component.version"
-                    ),
+                    version=_require_string(component_data["version"], f"{path}.component.version"),
                 ),
                 parameters=tuple(
                     _parse_parameter(value, f"{path}.parameters[{parameter_index}]")

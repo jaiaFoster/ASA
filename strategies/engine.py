@@ -9,6 +9,7 @@ express opportunity generation only: this engine never ranks, filters,
 manages risk, or allocates capital across Opportunities — a triggered
 signal always becomes exactly one returned Opportunity, or none at all.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -118,13 +119,15 @@ def evaluate_strategy(
         return None
 
     supporting_indicators = tuple(
-        EvidenceReference(kind=EvidenceKind.INDICATOR,
-                          referenced_id=ind.indicator_id, version=ind.version)
+        EvidenceReference(
+            kind=EvidenceKind.INDICATOR, referenced_id=ind.indicator_id, version=ind.version
+        )
         for ind in sorted(signal.contributing_indicators, key=lambda i: i.indicator_id)
     )
     evidence = tuple(
-        EvidenceReference(kind=EvidenceKind.CANONICAL_FACT,
-                          referenced_id=fact.fact_id, version=fact.version)
+        EvidenceReference(
+            kind=EvidenceKind.CANONICAL_FACT, referenced_id=fact.fact_id, version=fact.version
+        )
         for fact in sorted(signal.contributing_facts, key=lambda f: f.fact_id)
     )
 
@@ -132,13 +135,19 @@ def evaluate_strategy(
         score=min(fact.confidence.score for fact in signal.contributing_facts)
     )
 
-    source_indicator_ids = tuple(sorted({ind.indicator_id for ind in signal.contributing_indicators}))
+    source_indicator_ids = tuple(
+        sorted({ind.indicator_id for ind in signal.contributing_indicators})
+    )
     source_fact_ids = tuple(sorted({fact.fact_id for fact in signal.contributing_facts}))
 
     opportunity = Opportunity(
         opportunity_id=opportunity_identity(
-            strategy_id, instrument, source_indicator_ids, source_fact_ids,
-            effective_time, signal.expected_outcome_metrics,
+            strategy_id,
+            instrument,
+            source_indicator_ids,
+            source_fact_ids,
+            effective_time,
+            signal.expected_outcome_metrics,
         ),
         version=1,
         strategy_id=strategy_id,

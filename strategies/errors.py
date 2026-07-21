@@ -1,4 +1,5 @@
 """Strategy engine and registry errors (ASA-CORE-005)."""
+
 from __future__ import annotations
 
 
@@ -9,6 +10,7 @@ class StrategyError(Exception):
 # ---------------------------------------------------------------------------
 # Evaluation errors
 # ---------------------------------------------------------------------------
+
 
 class MissingIndicatorInputError(StrategyError):
     """A required named indicator input was not supplied to the strategy."""
@@ -44,6 +46,7 @@ class NoContributingFactsError(StrategyError):
 # Registry errors
 # ---------------------------------------------------------------------------
 
+
 class DuplicateStrategyRegistrationError(StrategyError):
     """A strategy_id was registered more than once."""
 
@@ -64,6 +67,7 @@ class UnknownStrategyIdError(StrategyError):
 # Manifest errors
 # ---------------------------------------------------------------------------
 
+
 class ManifestValidationError(StrategyError, ValueError):
     """A Strategy Manifest violates the frozen v1 schema."""
 
@@ -78,3 +82,27 @@ class ManifestSerializationError(ManifestValidationError):
 
 class ComponentContractError(StrategyError, ValueError):
     """A Component Type violates the frozen ASA-ARCH-003 contract."""
+
+
+class ExpressionError(StrategyError):
+    """Base deterministic ASA Expression Language error."""
+
+    def __init__(self, phase: str, code: str, message: str, path: str = "$") -> None:
+        super().__init__(f"{phase}:{code}:{path}: {message}")
+        self.phase = phase
+        self.code = code
+        self.path = path
+
+
+class ExpressionCompileError(ExpressionError):
+    """A source expression cannot compile under ASA-ARCH-004."""
+
+    def __init__(self, code: str, message: str, path: str = "$") -> None:
+        super().__init__("compile", code, message, path)
+
+
+class ExpressionEvaluationError(ExpressionError):
+    """A compiled expression deterministically failed evaluation."""
+
+    def __init__(self, code: str, message: str, path: str = "$") -> None:
+        super().__init__("runtime", code, message, path)
