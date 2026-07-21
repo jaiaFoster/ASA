@@ -91,4 +91,3 @@ None of these are architecturally required by the current direction; they are do
 ## Open Questions / Requires ADR
 
 - The precise mechanism by which the Canonical Fact Layer resolves disagreement between providers (priority ordering, confidence scoring, manual override) is described at the principle level here (see "Providers are not assumed to agree") but the specific reconciliation algorithm is an implementation decision that should be captured in its own ADR, not in this document.
-- The boundary between "Ranking Layer" and "Guardrail Layer" — specifically, whether a Guardrail can ever consider relative ranking, or only absolute eligibility — is assumed here to be a strict one-way dependency (Ranking depends on Guardrail output, never the reverse) but this has not been confirmed by a dedicated ADR.
