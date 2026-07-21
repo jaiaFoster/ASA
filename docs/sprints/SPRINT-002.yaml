@@ -1,0 +1,377 @@
+---
+id: SPRINT-002
+name: Strategy Core
+codename: Composable Strategies
+version: 1.0
+status: APPROVED
+type: IMPLEMENTATION_SPRINT
+
+activation:
+  id: AMD-013-SPRINT-002
+  governance_amendment: GOV-AMD-001-013
+  founder_authorized: true
+  founder_direction: STRAT-001 continuation directive
+  effective_when: this sprint definition is Founder-merged to the default branch
+  delegate:
+    role: ROLE-WORKER
+    instance: /root
+  limited_to_sprint: SPRINT-002
+  approved_tickets:
+    - STRAT-002
+    - STRAT-003
+    - STRAT-004
+    - STRAT-005
+    - STRAT-006
+    - STRAT-007
+    - STRAT-008
+    - STRAT-009
+    - STRAT-010
+    - STRAT-011
+  excludes:
+    - STRAT-001
+    - architecture_changes
+    - domain_contract_redefinition
+    - governance_changes
+    - constitutional_changes
+    - deployment
+    - risk_floor_changes
+    - sprint_scope_expansion
+    - breaking_public_contracts
+  expires:
+    - sprint_complete
+    - sprint_stopped
+    - Founder_revokes_delegation
+
+objective: >
+  Implement the Strategy Composition system frozen by ASA-ARCH-003:
+  canonical Strategy Manifests, pure typed Components, an immutable static
+  registry, a deterministic graph runtime, a closed expression evaluator,
+  a static Plugin SDK, a Core Component library, a manifest-only reference
+  strategy, and complete validation coverage.
+
+prerequisites:
+  architecture:
+    - id: STRAT-001
+      document: architecture/ASA-ARCH-003-Strategy-Composition.md
+      merge_commit: 8f0dac6f5662a7217f7feaaf25ffc91219c6b3ec
+      status: FOUNDER_MERGED
+  governance:
+    - GOV-AMD-001-013
+
+bounded_scope:
+  in:
+    - canonical_versioned_strategy_manifest_schema
+    - canonical_manifest_serialization
+    - immutable_component_contracts
+    - closed_strategy_type_system
+    - immutable_static_component_registry
+    - closed_bounded_expression_evaluator
+    - deterministic_typed_DAG_compilation_and_execution
+    - immutable_execution_trace_and_replay
+    - static_plugin_package_and_registration_SDK
+    - approved_core_component_library
+    - manifest_only_reference_strategy
+    - architecture_dependency_and_regression_validation
+    - sprint_report_and_project_status_update
+  out:
+    - visual_strategy_editor
+    - AI_strategy_generation
+    - Stonk_migration
+    - backtesting
+    - paper_trading
+    - live_trading
+    - broker_adapters
+    - broker_execution
+    - authentication
+    - persistence
+    - infrastructure
+    - external_APIs
+    - provider_integrations
+    - dynamic_plugin_discovery
+    - untrusted_plugin_sandboxing
+    - reusable_subgraphs
+    - parallel_graph_execution
+
+architecture_invariants:
+  - manifest_is_the_canonical_strategy_definition
+  - graph_is_a_validated_typed_DAG_and_the_only_execution_source
+  - Core_owns_validation_orchestration_replay_and_identity
+  - Components_own_bounded_financial_logic
+  - Plugins_extend_vocabulary_not_runtime_behavior
+  - registry_construction_is_explicit_static_exact_versioned_and_immutable
+  - expressions_use_a_closed_bounded_AST_evaluator
+  - lifecycle_events_are_trace_records_not_callbacks
+  - execution_is_synchronous_single_threaded_deterministic_and_replayable
+  - Strategies_consume_only_established_Facts_and_Indicators
+  - platform_Guardrails_are_not_reimplemented_in_Strategies
+  - no_provider_observation_infrastructure_or_broker_leakage
+  - no_new_pipeline_stage
+
+execution:
+  mode: founder_authorized_autonomous_sprint
+  branch_strategy: feature_per_ticket
+  ticket_order:
+    - STRAT-002
+    - STRAT-003
+    - STRAT-006
+    - STRAT-004
+    - STRAT-007
+    - STRAT-005
+    - STRAT-008
+    - STRAT-009
+    - STRAT-010
+    - STRAT-011
+  order_rationale: >
+    This is the dependency order frozen by ASA-ARCH-003. It refines execution
+    sequence without changing the approved ticket set or scope.
+  workflow:
+    - implement_one_approved_ticket
+    - run_all_required_validation
+    - perform_and_record_self_review
+    - open_pull_request
+    - verify_pull_request_contains_only_approved_ticket_scope
+    - verify_every_required_gate_is_present_and_green
+    - merge_under_GOV_AMD_001_013
+    - verify_default_branch_contains_merge_commit
+    - run_post_merge_validation
+    - begin_next_ticket
+    - generate_final_report_after_STRAT_011
+
+authority:
+  ultimate: Founder
+  delegate:
+    role: ROLE-WORKER
+    instance: /root
+    may:
+      - implement_enumerated_sprint_tickets
+      - create_helper_modules_within_approved_architecture
+      - add_and_update_tests
+      - improve_typing_and_internal_documentation
+      - perform_bounded_contract_preserving_refactors
+      - create_and_update_pull_requests
+      - execute_validation
+      - perform_self_review
+      - create_non_blocking_GitHub_issues
+      - merge_enumerated_implementation_pull_requests_after_all_gates_pass
+      - observe_and_verify_default_branch_state
+      - continue_to_the_next_ticket_after_post_merge_validation
+    may_not:
+      - merge_STRAT_001_or_any_architecture_contract_or_governance_change
+      - bypass_branch_protection_or_a_required_check
+      - merge_with_a_missing_unavailable_skipped_or_failing_gate
+      - change_or_reinterpret_ASA_ARCH_003
+      - introduce_new_immutable_domain_contracts
+      - introduce_new_pipeline_stages
+      - modify_frozen_governance_or_the_Constitution
+      - lower_a_risk_floor
+      - expand_the_sprint
+      - deploy
+
+tickets:
+  - id: STRAT-002
+    title: Strategy Manifest Specification
+    objective: >
+      Implement the canonical serialized Strategy Manifest schema and
+      versioning rules exactly as frozen by ASA-ARCH-003.
+    deliverables:
+      - manifest_schema
+      - node_edge_parameter_capability_event_and_metadata_schemas
+      - canonical_serialization
+      - deterministic_manifest_identity
+      - semantic_version_validation
+
+  - id: STRAT-003
+    title: Component Framework
+    objective: >
+      Implement immutable pure Component Type contracts with typed ports,
+      parameters, capabilities, versions, provenance, and evaluator semantics.
+    deliverables:
+      - component_type_contract
+      - typed_input_and_output_ports
+      - parameter_definitions_and_defaults
+      - capability_metadata
+      - pure_evaluation_contract
+
+  - id: STRAT-004
+    title: Component Registry
+    objective: >
+      Implement explicit exact-versioned static registration, immutable
+      registry snapshots, deterministic identity, and dependency validation.
+    deliverables:
+      - immutable_registry
+      - exact_component_resolution
+      - duplicate_and_dependency_validation
+      - deterministic_registry_identity
+
+  - id: STRAT-005
+    title: Strategy Graph Runtime
+    objective: >
+      Compile and execute typed Strategy DAGs synchronously with deterministic
+      ordering, immutable traces, provenance, errors, and replay.
+    deliverables:
+      - DAG_validation
+      - deterministic_topological_order
+      - synchronous_graph_evaluator
+      - immutable_execution_trace
+      - deterministic_replay
+
+  - id: STRAT-006
+    title: Strategy Type System
+    objective: >
+      Implement the closed versioned primitive, financial, domain, and
+      container type system plus explicit compatibility rules.
+    deliverables:
+      - primitive_and_financial_types
+      - domain_type_references
+      - immutable_container_types
+      - exact_compatibility_validation
+
+  - id: STRAT-007
+    title: Expression Engine
+    objective: >
+      Implement the closed, typed, resource-bounded expression AST and
+      deterministic evaluator defined by ASA-ARCH-003.
+    deliverables:
+      - closed_parser_and_AST
+      - arithmetic_boolean_comparison_date_aggregation_and_normalization
+      - deterministic_errors
+      - step_and_collection_bounds
+      - forbidden_construct_validation
+
+  - id: STRAT-008
+    title: Plugin SDK
+    objective: >
+      Expose the static Plugin Package contract and validation surface without
+      discovery, runtime mutation, alternate runtimes, or isolation claims.
+    deliverables:
+      - plugin_package_contract
+      - SDK_version_compatibility
+      - explicit_static_registration
+      - plugin_metadata_and_test_vectors
+
+  - id: STRAT-009
+    title: Core Component Library
+    objective: >
+      Implement the approved reusable component vocabulary without adding
+      strategy-specific orchestration to Core.
+    deliverables:
+      - Constant
+      - Filter
+      - Comparator
+      - Boolean
+      - WeightedScore
+      - Rank
+      - PortfolioConstraint
+      - PositionProposal
+      - PassThrough
+
+  - id: STRAT-010
+    title: Reference Strategy
+    objective: >
+      Define and replay one complete strategy exclusively as a canonical
+      manifest using registered components and no handwritten strategy logic.
+    deliverables:
+      - reference_manifest
+      - deterministic_replay_vector
+      - complete_structured_provenance
+
+  - id: STRAT-011
+    title: Strategy Validation Suite
+    objective: >
+      Complete cross-cutting serialization, identity, replay, graph, type,
+      registry, plugin, component, immutability, and architecture validation.
+    deliverables:
+      - full_strategy_core_validation_suite
+      - deterministic_regression_vectors
+      - forbidden_import_and_dependency_tests
+
+validation:
+  required_before_every_delegated_merge:
+    - all_required_CI_checks_pass
+    - pytest_passes_with_no_sprint_test_skips
+    - mypy_passes
+    - ruff_passes
+    - architecture_validation_passes
+    - dependency_validation_passes
+    - forbidden_import_validation_passes
+    - circular_dependency_validation_passes
+    - deterministic_replay_validation_passes
+    - immutable_contract_validation_passes
+    - deterministic_identity_validation_passes
+    - integrity_validation_passes
+    - git_diff_check_passes
+    - self_review_passes
+    - no_governance_violation
+    - no_unresolved_blocking_issue
+    - pull_request_contains_only_the_approved_ticket_scope
+  post_merge:
+    - verify_default_branch_contains_merge_commit
+    - rerun_ticket_validation_from_default_branch
+    - verify_worktree_clean
+
+self_review:
+  required: true
+  checklist:
+    architecture:
+      - ASA_ARCH_003_contract_preserved
+      - existing_analytical_pipeline_preserved
+      - no_provider_observation_infrastructure_or_broker_leakage
+      - no_dynamic_plugin_loading_or_runtime_mutation
+      - manifest_registry_graph_and_trace_authority_not_duplicated
+    governance:
+      - Constitution_unchanged
+      - frozen_governance_unchanged
+      - delegated_scope_and_ticket_match
+      - all_Amendment_013_gates_evidenced
+    implementation:
+      - ticket_acceptance_satisfied
+      - immutable_outputs
+      - deterministic_identity_and_replay
+      - structured_narrow_provenance
+      - no_unresolved_TODO_or_skipped_sprint_test
+
+stop_conditions:
+  - frozen_governance_change_required
+  - architecture_change_or_ASA_ARCH_003_revision_required
+  - missing_or_ambiguous_upstream_contract
+  - new_immutable_domain_contract_required
+  - breaking_public_contract_required
+  - sprint_scope_change_required
+  - deterministic_execution_or_replay_cannot_be_preserved
+  - static_plugin_boundary_cannot_be_preserved
+  - multiple_materially_different_architectural_solutions
+  - validation_failure_cannot_be_resolved_within_ticket_scope
+  - required_gate_missing_unavailable_skipped_or_failing
+  - Founder_revokes_delegation
+
+on_stop:
+  - do_not_merge
+  - open_GitHub_issue_with_evidence
+  - report_architectural_or_governance_blocker
+  - return_merge_authority_to_Founder
+  - terminate_remaining_sprint
+
+report:
+  required: true
+  destination: project/reports/SPRINT-002.md
+  contents:
+    - sprint_summary
+    - completed_tickets
+    - delegated_merged_pull_requests
+    - validation_results
+    - architecture_and_governance_verification
+    - replay_identity_and_immutability_verification
+    - coverage_summary
+    - discovered_and_resolved_defects
+    - remaining_non_blocking_issues
+    - complexity_delta
+    - risk_assessment
+    - recommendations_for_SPRINT_003
+
+definition_of_done: >
+  SPRINT-002 is complete when every enumerated implementation ticket is merged
+  after every Amendment 013 gate passes; main contains a deterministic,
+  replayable, immutable Strategy Composition system conforming to ASA-ARCH-003;
+  the full repository validation suite is green; the final sprint report and
+  project status are committed; and the Founder is asked to verify completion
+  before SPRINT-003 begins.

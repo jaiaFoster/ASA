@@ -134,6 +134,54 @@ def test_sprint_delegation_names_scope_and_required_gates():
     assert "Founder_revokes_delegation" in sprint["merge"]["expires"]
 
 
+def test_sprint_002_delegation_is_recorded_bounded_and_expiring():
+    sprint = yaml.safe_load((REPO_ROOT / "docs/sprints/SPRINT-002.yaml").read_text())
+    activation = sprint["activation"]
+
+    assert activation["id"] == "AMD-013-SPRINT-002"
+    assert activation["governance_amendment"] == "GOV-AMD-001-013"
+    assert activation["founder_authorized"] is True
+    assert activation["effective_when"] == (
+        "this sprint definition is Founder-merged to the default branch"
+    )
+    assert activation["delegate"] == {
+        "role": "ROLE-WORKER",
+        "instance": "/root",
+    }
+    assert activation["limited_to_sprint"] == "SPRINT-002"
+    assert activation["approved_tickets"] == [
+        "STRAT-002",
+        "STRAT-003",
+        "STRAT-004",
+        "STRAT-005",
+        "STRAT-006",
+        "STRAT-007",
+        "STRAT-008",
+        "STRAT-009",
+        "STRAT-010",
+        "STRAT-011",
+    ]
+    assert {
+        "architecture_changes",
+        "domain_contract_redefinition",
+        "governance_changes",
+        "deployment",
+        "sprint_scope_expansion",
+    } <= set(activation["excludes"])
+    assert {
+        "all_required_CI_checks_pass",
+        "architecture_validation_passes",
+        "deterministic_replay_validation_passes",
+        "immutable_contract_validation_passes",
+        "deterministic_identity_validation_passes",
+        "integrity_validation_passes",
+        "no_governance_violation",
+        "no_unresolved_blocking_issue",
+        "pull_request_contains_only_the_approved_ticket_scope",
+    } <= set(sprint["validation"]["required_before_every_delegated_merge"])
+    assert "Founder_revokes_delegation" in activation["expires"]
+
+
 def test_github_acceptance_model_documents_founder_merge():
     content = (REPO_ROOT / "roles/shared/GITHUB_ACCEPTANCE_MODEL.md").read_text()
     assert "Founder" in content
