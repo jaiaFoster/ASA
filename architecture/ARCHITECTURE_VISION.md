@@ -62,11 +62,29 @@ Guardrail Layer
 Ranking Layer
       ┌─┴──────────────┐
       ▼                ▼
-Presentation       Proposed Position
-Layer                   │
+Presentation       Position Proposal
+Layer                  Engine
+                        │
                         ▼
-              Operational Portfolio Policy
-                  (read-only decision)
+                ProposedPosition
+                        │
+PortfolioSnapshot ─────►│
+                        ▼
+                 Portfolio Engine
+                        │
+                        ▼
+                PortfolioDecision
+                        │
+                        ▼
+                Execution Planner
+                        │
+                        ▼
+                  ExecutionPlan
+                        │
+                        ▼
+                  BrokerRequest
+             ═══════════════════════
+             Future adapter boundary
 ```
 
 Each layer consumes only from the layer(s) below it and has a single, well-defined responsibility:
@@ -79,7 +97,9 @@ Each layer consumes only from the layer(s) below it and has a single, well-defin
 - **Guardrail Layer** applies platform-wide risk and eligibility rules to those candidates.
 - **Ranking Layer** orders surviving Opportunities for presentation.
 - **Presentation Layer** communicates the result to the user, including any natural-language summarization. This is the only layer where a language model may participate.
-- **Operational Portfolio Policy** compares evidence-backed Proposed Positions with one immutable, provider-neutral Portfolio Snapshot. It does not gather broker data, mutate Opportunities, or execute trades. ADR-008 defines this separate contract boundary without changing ASA's read-only constitutional limit.
+- **Position Proposal Engine** converts ranked Intelligence into desired exposure without reading portfolio state.
+- **Portfolio Engine** compares Proposed Positions with one immutable, provider-neutral Portfolio Snapshot.
+- **Execution Planner** decomposes accepted portfolio decisions into ordered, inert Broker Requests. It has no adapter, network, authentication, persistence, or broker access. ADR-009 defines these records as analysis and places any future external communication beyond a separately governed boundary.
 
 Provider independence follows from this structure: a provider can be added, removed, or reprioritized without altering any layer above the Observation Layer, because everything above it consumes Canonical Facts, not raw provider payloads.
 

@@ -34,8 +34,10 @@ The shared `domain/` package owns five cross-boundary objects and their supporti
   semantic observation time.
 - `ProposedPosition` is Intelligence's evidence-backed description of desired exposure. It
   references the Opportunity, Ranked Opportunity, and Ranking Result that produced it but
-  contains no order type, route, time-in-force, broker identifier, or write operation. Its
-  quantity is the absolute size of the proposal, not an order delta or final portfolio target.
+  contains no order type, route, time-in-force, broker identifier, or write operation. It pins
+  proposal-algorithm version, target allocation, effective sizing parameters, confidence,
+  rationale, quantity, and gross exposure. Quantity is the absolute size of the proposal, not an
+  order delta or final portfolio target.
 - `PortfolioDecisionRequest` pairs one snapshot with Proposed Positions in Ranking order. It is
   the input envelope for future deterministic portfolio policy; it contains no policy behavior.
 
@@ -95,7 +97,7 @@ normalizer may supply the correct classification while retaining the explicit un
 
 The Intelligence pipeline continues through Ranking. It may produce a `ProposedPosition` from a
 `RankedOpportunity`, preserving the Opportunity and Ranking IDs and the Evidence actually used.
-That transformation is not implemented by this ADR.
+ADR-009 assigns that transformation to the Position Proposal Engine; ASA-CORE-008 implements it.
 
 The Operational Portfolio boundary consumes `ProposedPosition` and `PortfolioSnapshot` through a
 `PortfolioDecisionRequest`. A provider or broker adapter may normalize read-only account data
@@ -139,3 +141,4 @@ Constitution Law 5.
 - ADR-004: Repository Organization
 - ADR-007: Deterministic Ranking Model
 - Architecture Constitution, Laws 3, 4, 5, 9, and 10
+- ADR-009: Execution Semantics and Governance Boundary

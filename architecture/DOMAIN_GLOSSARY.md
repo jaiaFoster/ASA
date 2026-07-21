@@ -8,6 +8,9 @@ Terms are listed alphabetically. Each definition states what the term is and, wh
 
 ---
 
+**Broker Request**
+The final immutable analytical domain record representing one ordered, broker-neutral order template inside an Execution Plan. It is not an API request and contains no provider payload, credential, session, endpoint, or executable behavior.
+
 **Canonical Fact**
 ASA's current best-understanding record derived from one or more Observations. Versioned: a Canonical Fact may be revised as better information arrives, and its prior versions remain part of the historical record. Not the same thing as an Observation — a Canonical Fact is an interpretation of evidence, not the evidence itself.
 
@@ -22,6 +25,9 @@ A per-recommendation record of the specific evidence, Indicators, and Guardrail 
 
 **Evidence**
 The structured Observations, Canonical Facts, and Indicator values cited in support of a Recommendation. Evidence is what makes a Recommendation explainable under Constitution Law 6 — a Recommendation without linked Evidence is not a valid Recommendation.
+
+**Execution Plan**
+An immutable analytical decomposition of one Portfolio Decision into ordered, broker-neutral Broker Requests. It describes how a decision could be carried out but has no adapter, network operation, persistence, or side effect.
 
 **Guardrail**
 A platform-owned rule that determines whether a candidate Opportunity is eligible to be recommended. Guardrails are shared across all Strategies; a Strategy does not implement its own private risk logic (Constitution Law 8).
@@ -40,6 +46,9 @@ Immutable, raw evidence as reported by an external Provider. An Observation is a
 
 **Opportunity**
 A candidate investment action surfaced by the Strategy Layer, prior to Guardrail evaluation and Ranking. An Opportunity that does not pass Guardrail evaluation is never presented to a user as a Recommendation.
+
+**Portfolio Decision**
+The immutable result of evaluating one Proposed Position against one Portfolio Snapshot. It records the approved portion, policy versions, effective parameters, reasons, and Evidence; it does not plan execution.
 
 **Portfolio Decision Request**
 The immutable Operational Portfolio input envelope pairing one Portfolio Snapshot with evidence-backed Proposed Positions in Ranking order. It contains no policy implementation, repository, broker object, or execution instruction.
