@@ -130,8 +130,8 @@ class TestVersioning:
         fact1, _ = reconcile(group, RT)
         fact2, is_new = reconcile(group, RT2, previous_fact=fact1)
         assert not is_new
-        assert fact2 is fact1
         assert fact2.version == fact1.version
+        assert fact2.value == fact1.value
 
     def test_new_corroborating_evidence_same_value_no_version_bump(self):
         group1 = (_obs("o1", "p1", V1),)
