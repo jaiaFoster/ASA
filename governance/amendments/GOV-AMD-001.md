@@ -486,13 +486,40 @@ GitHub remains the operational record for pull requests, reviews, checks, and me
 
 **Founder approval:** The Founder explicitly approved this amendment and the bounded SPRINT-001 activation on 2026-07-21. The amendment itself must still be merged by the Founder under the pre-amendment Founder-only rule.
 
-**Independent Review:** Required by RISK-001 §10.1 and §12. The amendment pull request must receive an approving review from an instance or person other than the amendment author or assigner before Founder merge. Until that review is recorded, this entry must be treated as `Proposed` under §0.3.2 even though its intended post-merge status is `Accepted`.
+**Independent Review:** Completed by `/root/amd013_independent_review`, a reviewer instance distinct from the amendment author and assigner. Review record `GOV-AMD-001-013-IR-001` appears below. The review approves the design and structural conformance subject to successful POS Validation and Founder merge of the remediation PR.
 
 **Structural Review:** The review must verify that the amendment changes only the merge-authority floor for an explicitly activated sprint; preserves the fixed Founder authority hierarchy, default-deny behavior, risk floors, review requirements, deployment authority, and canonical GitHub evidence; and introduces no standing merge authority.
 
 **Regression evidence:** Governance tests must prove that default Founder-only authority remains, activation is scoped to one identified sprint and enumerated tickets, all required gates are mandatory, forbidden changes cannot be delegated, and expiry is explicit.
 
 **Reversion path:** The Founder may revoke an active delegation immediately. Permanent reversion of this accepted entry requires a superseding Founder-approved amendment under the same R4 governance floor. No in-flight pull request retains delegated merge authority after revocation or expiry.
+
+#### Review Record GOV-AMD-001-013-IR-001
+
+| Field | Value |
+|---|---|
+| `review_id` | GOV-AMD-001-013-IR-001 |
+| `subject` | GOV-AMD-001 Amendment 013 and SPRINT-001 v1.2 activation |
+| `reviewer` | `/root/amd013_independent_review` |
+| `reviewer_role` | independent structural reviewer |
+| `date` | 2026-07-21 |
+| `independence` | Reviewer is neither amendment author nor assigner |
+| `independent_review` | Approved with activation conditions |
+| `structural_review` | Approved with activation conditions |
+
+The reviewer inspected PR #66, merge commit `8566e9dd26e151bc1e7c80733b221562b55911f0`, Issue #67, this amendment register, RISK-001, RES-001, RES-002, the operational authority documents, SPRINT-001 v1.2, governance regression tests, and GitHub validation evidence.
+
+The review found that Amendment 013:
+
+- preserves Founder ultimate authority and Founder-only merge authority by default
+- preserves risk, review, acceptance, and deployment floors
+- creates no standing worker merge authority
+- delegates no governance, constitutional, architecture-contract, deployment, risk-floor, or scope-change authority
+- identifies one sprint, one delegate role, and an enumerated ticket set
+- defines explicit expiry and revocation
+- prohibits branch-protection bypass and merge with missing or failing gates
+
+The review classified the amendment as R4 and approved its independent and structural conformance. Activation remained blocked pending a successful POS Validation result and Founder merge of the remediation record. Issue #67 remains the incident record for the original out-of-sequence merge and may close only after those conditions are satisfied.
 
 ---
 

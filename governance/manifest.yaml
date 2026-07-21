@@ -73,7 +73,7 @@ documents:
     filename: governance/amendments/GOV-AMD-001.md
     class: amendment
     status: active
-    version: "0.3"
-    sha256: "bc71308c9c2ffcaae8d8aa9a51286c21f00aa2d7c0454aab122b33e3d44dc49e"
+    version: "0.3.1"
+    sha256: "4b82ad4d129fe9600f9114dbe4127793e3dc2efa4a0454b343a9ba7b28bb38b5"
     original_path: "governance/AMD-001-v0.2-revised.md"
-    notes: "Amendment 013 adds bounded Founder Sprint Delegation; frozen document bodies remain unchanged."
+    notes: "Amendment 013 adds bounded Founder Sprint Delegation and records its independent structural review; frozen document bodies remain unchanged."
