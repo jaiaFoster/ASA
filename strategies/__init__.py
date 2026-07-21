@@ -102,6 +102,14 @@ from strategies.manifest import (
     validate_strategy_identifier,
 )
 from strategies.registry import DEFAULT_REGISTRY, StrategyRegistry
+from strategies.plugins import (
+    PLUGIN_IDENTITY_NAMESPACE,
+    PLUGIN_IDENTITY_VERSION,
+    PLUGIN_SDK_VERSION,
+    PluginMetadata,
+    StrategyPlugin,
+    build_plugin_registry,
+)
 from strategies.signal import StrategySignal
 from strategies.type_system import (
     DEFAULT_TYPE_SYSTEM,
@@ -169,14 +177,19 @@ __all__ = [
     "NodeSpec",
     "OPPORTUNITY_IDENTITY_NAMESPACE",
     "OPPORTUNITY_IDENTITY_VERSION",
+    "PLUGIN_IDENTITY_NAMESPACE",
+    "PLUGIN_IDENTITY_VERSION",
+    "PLUGIN_SDK_VERSION",
     "OutputSpec",
     "ParameterDefinition",
     "ParameterSpec",
     "PortCardinality",
     "PortDefinition",
+    "PluginMetadata",
     "SUPPORTED_MANIFEST_SCHEMA_VERSIONS",
     "StrategyError",
     "StrategyManifest",
+    "StrategyPlugin",
     "StrategyRegistry",
     "StrategySignal",
     "StrategyTypeReference",
@@ -189,6 +202,7 @@ __all__ = [
     "UnknownStrategyIdError",
     "canonical_strategy_json",
     "build_default_type_system",
+    "build_plugin_registry",
     "component_definition_data",
     "component_identity",
     "compile_expression",
