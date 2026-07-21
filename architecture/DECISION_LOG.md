@@ -8,6 +8,8 @@ Do not add substantive reasoning to this file. If an entry needs more than two s
 
 | Date | Summary | ADR |
 |---|---|---|
+| 2026-07-21 | "Strategy confidence" is removed and replaced by Expected Outcome Metrics — standardized, objective financial characteristics every Strategy must produce; Ranking compares Opportunities using these common metrics. | ADR-003 (amended) |
+| 2026-07-21 | Reconciliation confidence is clarified as an internal attribute; Provenance is elevated to a first-class externally visible concept with a binding drill-down requirement (contributing providers, selected provider, disagreements, timestamps, reconciliation metadata). | ADR-001 (amended) |
 | 2026-07-20 | Indicator values are versioned and immutable, mirroring the Canonical Fact model, closing a reproducibility gap between Facts and Strategies. | ADR-006 |
 | 2026-07-20 | Guardrails are defined as deterministic, versioned, single-Opportunity eligibility rules with no independent Confidence; cross-Opportunity guardrails are explicitly out of scope pending a future ADR. | ADR-005 |
 | 2026-07-20 | `presentation/`'s allowed dependencies are narrowed to `ranking/` and `domain/` only, correcting a contradiction with the Presentation Layer's evidence-only constraint. | ADR-004 (revised) |
