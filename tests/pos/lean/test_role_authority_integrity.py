@@ -93,6 +93,47 @@ def test_authority_boundaries_denies_manager_merge():
     assert "no" in content_lower or "may not" in content_lower or "none" in content_lower
 
 
+def test_founder_sprint_delegation_is_bounded_and_expiring():
+    content = (REPO_ROOT / "roles/shared/AUTHORITY_BOUNDARIES.md").read_text()
+    assert "Founder Sprint Delegation" in content
+    assert "Founder-only merge authority remains the default" in content
+    assert "expires" in content
+
+
+def test_founder_sprint_delegation_preserves_governance_guards():
+    content = (REPO_ROOT / "governance/amendments/GOV-AMD-001.md").read_text()
+    amendment = content.split("# Amendment 013", maxsplit=1)[1]
+    assert "Founder Sprint Delegation" in amendment
+    assert "R4" in amendment
+    assert "Independent Review" in amendment
+    assert "Structural Review" in amendment
+    assert "must not bypass branch protection" in amendment
+    assert "merge a governance or constitutional change" in amendment
+    assert "does not grant deployment authority" in amendment
+    assert "Founder remains the sole merge authority" in amendment
+
+
+def test_sprint_delegation_names_scope_and_required_gates():
+    sprint = yaml.safe_load((REPO_ROOT / "docs/sprints/SPRINT-001.yaml").read_text())
+    delegation = sprint["execution"]["authority"]["merge_delegation"]
+    assert delegation["amendment"] == "GOV-AMD-001-013"
+    assert delegation["limited_to_sprint"] == "SPRINT-001"
+    assert delegation["approved_tickets"] == [
+        "ASA-CORE-008",
+        "ASA-CORE-009",
+        "ASA-CORE-010",
+    ]
+    required = set(sprint["validation"]["required"])
+    assert {
+        "architecture validation",
+        "deterministic replay validation",
+        "immutable contract validation",
+        "identity validation",
+        "integrity validation",
+    } <= required
+    assert "Founder_revokes_delegation" in sprint["merge"]["expires"]
+
+
 def test_github_acceptance_model_documents_founder_merge():
     content = (REPO_ROOT / "roles/shared/GITHUB_ACCEPTANCE_MODEL.md").read_text()
     assert "Founder" in content

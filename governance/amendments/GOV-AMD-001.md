@@ -431,6 +431,71 @@ The constitutional corpus should preserve the rationale and evolution of governa
 
 ---
 
+# Amendment 013
+
+## Founder Sprint Delegation
+
+| Field | Value |
+|---|---|
+| `amendment_id` | 013 |
+| `status` | Accepted *(effective only when this entry reaches the default branch after the reviews and Founder merge required below)* |
+| `proposer` | Founder |
+| `date` | 2026-07-21 |
+| `risk_class` | R4 (MAJOR change to the RISK-001 §10.1 merge-authority floor; it preserves the fixed Founder authority hierarchy rather than transferring ultimate authority) |
+| `applies_to` | RISK-001, RES-001, RES-002, PM-SPEC, ARCH-SPEC, POS-RS |
+| `binding_scope` | Model A — accepted-on-entry (§0.1), limited by the activation and expiry rules below |
+
+### Reason
+
+Founder-only merge authority remains the safe organizational default, but it creates an avoidable handoff inside a specifically identified, Founder-approved implementation sprint whose scope and validation gates are already fixed. The Founder needs a narrow, auditable way to delegate the mechanical merge action without transferring product direction, acceptance policy, deployment authority, governance authority, or the ability to waive required evidence.
+
+### Amendment
+
+The Founder may explicitly activate **Founder Sprint Delegation** for one identified implementation sprint with bounded scope.
+
+Activation requires all of the following to be recorded in the sprint definition:
+
+- explicit Founder authorization
+- a unique sprint identifier
+- an enumerated set of approved tickets
+- bounded technical scope and explicit stop conditions
+- required validation and self-review gates
+- the delegate role or instance authorized to perform sprint merges
+
+While the delegation is active, the identified delegate may implement approved tickets, create and update pull requests, execute validation, perform self-review, and merge only the pull requests that implement the enumerated sprint tickets.
+
+Before every delegated merge, all of the following must be true and evidenced in the pull request or its checks:
+
+- all required CI checks pass
+- architecture validation passes
+- deterministic replay validation passes
+- immutable-contract validation passes
+- deterministic-identity validation passes
+- integrity validation passes
+- no governance violation is present
+- no unresolved blocking issue exists
+- the pull request contains only the approved ticket scope
+
+The delegate must not bypass branch protection, force a merge around a required check, lower a risk floor, redefine architecture or domain contracts, merge a governance or constitutional change, deploy software, or expand the sprint. A missing, unavailable, skipped, or failing required gate prevents delegated merge. Any ambiguity about scope, authority, or a required contract activates the sprint's stop condition and returns merge authority to the Founder.
+
+Delegation is limited to the identified sprint and expires immediately when the sprint completes, the sprint stops, or the Founder revokes it. Outside an explicitly activated Founder Sprint Delegation, the Founder remains the sole merge authority. The Founder remains the ultimate authority at all times and may review, merge, decline, pause, or revoke any delegated sprint action.
+
+GitHub remains the operational record for pull requests, reviews, checks, and merges. Every delegated merge must be identified in the sprint's final report. Delegation does not grant deployment authority and does not change the governance floor, acceptance evidence, review depth, or verification required by the underlying work item's Risk Class.
+
+### Governance Reviews and Acceptance Record
+
+**Founder approval:** The Founder explicitly approved this amendment and the bounded SPRINT-001 activation on 2026-07-21. The amendment itself must still be merged by the Founder under the pre-amendment Founder-only rule.
+
+**Independent Review:** Required by RISK-001 §10.1 and §12. The amendment pull request must receive an approving review from an instance or person other than the amendment author or assigner before Founder merge. Until that review is recorded, this entry must be treated as `Proposed` under §0.3.2 even though its intended post-merge status is `Accepted`.
+
+**Structural Review:** The review must verify that the amendment changes only the merge-authority floor for an explicitly activated sprint; preserves the fixed Founder authority hierarchy, default-deny behavior, risk floors, review requirements, deployment authority, and canonical GitHub evidence; and introduces no standing merge authority.
+
+**Regression evidence:** Governance tests must prove that default Founder-only authority remains, activation is scoped to one identified sprint and enumerated tickets, all required gates are mandatory, forbidden changes cannot be delegated, and expiry is explicit.
+
+**Reversion path:** The Founder may revoke an active delegation immediately. Permanent reversion of this accepted entry requires a superseding Founder-approved amendment under the same R4 governance floor. No in-flight pull request retains delegated merge authority after revocation or expiry.
+
+---
+
 ## 12. Open Questions
 
 - **OQ-12.1:** §0.5.1's numeric promotion threshold ("every ten `Accepted` amendments, or annually") is a placeholder pending Founder decision; no evidence in the reviewed corpus fixes this number, and it should be set deliberately rather than defaulted.

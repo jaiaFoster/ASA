@@ -168,7 +168,7 @@ Most routine POS and application work will be R1 or R2. Do not impose R4 process
 When instructions appear to conflict, apply in this order:
 
 1. Frozen governance documents (`governance/frozen/`)
-2. Accepted amendments (GOV-AMD-001 — note: all currently Proposed, none Accepted)
+2. Accepted amendments (GOV-AMD-001 — Amendment 013 Accepted; 001–012 Proposed)
 3. Founder directions (as recorded in role-bootstrap artifacts and BOOTSTRAP_STATUS)
 4. Operational defaults in this file
 

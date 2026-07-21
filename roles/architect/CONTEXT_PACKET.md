@@ -23,7 +23,7 @@ main branch — current state
 | RES-001 | `governance/frozen/RES-001-v0.2.md` | Frozen |
 | RES-002 | `governance/frozen/RES-002-v0.2.md` | Frozen |
 | POS-RS | `governance/frozen/POS-RS-v0.2.md` | Frozen |
-| GOV-AMD-001 | `governance/amendments/GOV-AMD-001.md` | All amendments Proposed (none Accepted) |
+| GOV-AMD-001 | `governance/amendments/GOV-AMD-001.md` | Amendment 013 Accepted; 001–012 Proposed |
 
 Frozen documents must not be edited. Amendments are proposed but not binding.
 

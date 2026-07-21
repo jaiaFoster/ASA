@@ -73,7 +73,7 @@ documents:
     filename: governance/amendments/GOV-AMD-001.md
     class: amendment
     status: active
-    version: "0.2-revised"
-    sha256: "4ca4aa566f04c361c6116ad3f21da7bcd0d13b6716c08f66b752d62ad5de251e"
+    version: "0.3"
+    sha256: "bc71308c9c2ffcaae8d8aa9a51286c21f00aa2d7c0454aab122b33e3d44dc49e"
     original_path: "governance/AMD-001-v0.2-revised.md"
-    notes: "Renamed from AMD-001-v0.2-revised.md to GOV-AMD-001.md for consistency. Content unchanged. Hash corrected in LEAN-POS-05."
+    notes: "Amendment 013 adds bounded Founder Sprint Delegation; frozen document bodies remain unchanged."
