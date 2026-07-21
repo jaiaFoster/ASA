@@ -10,6 +10,7 @@ import pytest
 
 from domain import (
     CanonicalInstrumentIdentity,
+    Confidence,
     DomainInvariantError,
     EvidenceKind,
     EvidenceReference,
@@ -78,13 +79,21 @@ def _proposal(**overrides: object) -> ProposedPosition:
         "opportunity_id": "opportunity-1",
         "ranking_result_id": "ranking-result-1",
         "ranking_id": "ranked-opportunity-1",
+        "proposal_algorithm_version": "v1",
         "portfolio_id": "portfolio-1",
         "account_id": "account-1",
         "instrument": _instrument(),
         "direction": PositionDirection.LONG,
+        "target_allocation": Decimal("0.10"),
         "quantity": Decimal("2"),
         "estimated_unit_price": MonetaryAmount(Decimal("210"), USD),
         "gross_exposure": MonetaryAmount(Decimal("420"), USD),
+        "evidence_confidence": Confidence(0.8),
+        "rationale": ("ranked opportunity supports desired exposure",),
+        "effective_parameters": (
+            ("maximum_allocation", Decimal("0.10")),
+            ("reference_capital", Decimal("4200")),
+        ),
         "evidence": EVIDENCE,
     }
     values.update(overrides)
@@ -190,3 +199,22 @@ def test_contract_fields_contain_no_broker_or_repository_models() -> None:
         for field in dataclasses.fields(cls)
     }
     assert not any("broker" in name or "repository" in name for name in field_names)
+
+
+def test_proposal_carries_sizing_semantics_and_provenance() -> None:
+    proposal = _proposal()
+    assert proposal.target_allocation == Decimal("0.10")
+    assert proposal.evidence_confidence == Confidence(0.8)
+    assert proposal.rationale
+    assert proposal.proposal_algorithm_version == "v1"
+
+
+def test_proposal_parameters_require_canonical_order() -> None:
+    with pytest.raises(DomainInvariantError, match="canonical order"):
+        _proposal(
+            effective_parameters=(
+                ("sizing_weight", Decimal("1")),
+                ("maximum_allocation", Decimal("0.10")),
+                ("reference_capital", Decimal("4200")),
+            )
+        )

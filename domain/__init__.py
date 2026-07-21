@@ -7,6 +7,15 @@ definitions only; no business logic lives in this package (ASA-CORE-001).
 Depends on nothing but itself and the standard library.
 """
 from domain.canonical_fact import CanonicalFact
+from domain.execution import (
+    BrokerRequest,
+    BrokerRequestSide,
+    ExecutionPlan,
+    OrderType,
+    PortfolioDecision,
+    PortfolioDecisionState,
+    TimeInForce,
+)
 from domain.guardrail import GuardrailOutcome
 from domain.indicator import Indicator
 from domain.observation import Observation
@@ -30,6 +39,8 @@ from domain.references import Confidence, EvidenceKind, EvidenceReference
 from domain.values import DomainInvariantError, is_normalized_value
 
 __all__ = [
+    "BrokerRequest",
+    "BrokerRequestSide",
     "CanonicalFact",
     "CanonicalInstrumentIdentity",
     "Confidence",
@@ -38,6 +49,7 @@ __all__ = [
     "EvidenceKind",
     "EvidenceReference",
     "ExpectedOutcomeMetrics",
+    "ExecutionPlan",
     "GuardrailOutcome",
     "Holding",
     "Indicator",
@@ -46,6 +58,9 @@ __all__ = [
     "MonetaryAmount",
     "Observation",
     "Opportunity",
+    "OrderType",
+    "PortfolioDecision",
+    "PortfolioDecisionState",
     "PortfolioDecisionRequest",
     "PortfolioSnapshot",
     "PositionDirection",
@@ -55,4 +70,5 @@ __all__ = [
     "ProposedPosition",
     "RecommendationState",
     "SectorClassification",
+    "TimeInForce",
 ]

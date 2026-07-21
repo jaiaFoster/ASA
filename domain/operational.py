@@ -11,8 +11,13 @@ from datetime import datetime
 from decimal import Decimal
 from enum import Enum
 
-from domain.references import EvidenceReference
-from domain.values import DomainInvariantError, require_finite_decimal, require_tz_aware
+from domain.references import Confidence, EvidenceReference
+from domain.values import (
+    DomainInvariantError,
+    require_finite_decimal,
+    require_tz_aware,
+    require_unit_interval,
+)
 
 
 def _require_text(value: str, owner: str, field_name: str) -> None:
@@ -197,13 +202,18 @@ class ProposedPosition:
     opportunity_id: str
     ranking_result_id: str
     ranking_id: str
+    proposal_algorithm_version: str
     portfolio_id: str
     account_id: str
     instrument: Instrument
     direction: PositionDirection
+    target_allocation: Decimal
     quantity: Decimal
     estimated_unit_price: MonetaryAmount
     gross_exposure: MonetaryAmount
+    evidence_confidence: Confidence
+    rationale: tuple[str, ...]
+    effective_parameters: tuple[tuple[str, Decimal], ...]
     evidence: tuple[EvidenceReference, ...]
 
     def __post_init__(self) -> None:
@@ -212,10 +222,15 @@ class ProposedPosition:
             "opportunity_id",
             "ranking_result_id",
             "ranking_id",
+            "proposal_algorithm_version",
             "portfolio_id",
             "account_id",
         ):
             _require_text(getattr(self, field_name), "ProposedPosition", field_name)
+        require_finite_decimal(self.target_allocation, "ProposedPosition", "target_allocation")
+        require_unit_interval(self.target_allocation, "ProposedPosition", "target_allocation")
+        if self.target_allocation == 0:
+            raise DomainInvariantError("ProposedPosition.target_allocation must be greater than zero")
         _require_non_negative(self.quantity, "ProposedPosition", "quantity")
         if self.quantity == 0:
             raise DomainInvariantError("ProposedPosition.quantity must be greater than zero")
@@ -229,6 +244,26 @@ class ProposedPosition:
         )
         if self.estimated_unit_price.currency != self.gross_exposure.currency:
             raise DomainInvariantError("ProposedPosition valuation currencies must match")
+        if not self.rationale:
+            raise DomainInvariantError("ProposedPosition.rationale cannot be empty")
+        if any(not item or item != item.strip() for item in self.rationale):
+            raise DomainInvariantError("ProposedPosition.rationale must be normalized text")
+        parameter_keys = tuple(key for key, _ in self.effective_parameters)
+        if not parameter_keys:
+            raise DomainInvariantError("ProposedPosition.effective_parameters cannot be empty")
+        if len(parameter_keys) != len(set(parameter_keys)):
+            raise DomainInvariantError("ProposedPosition effective parameter keys must be unique")
+        if parameter_keys != tuple(sorted(parameter_keys)):
+            raise DomainInvariantError(
+                "ProposedPosition effective parameter keys must be in canonical order"
+            )
+        if "reference_capital" not in parameter_keys:
+            raise DomainInvariantError(
+                "ProposedPosition.effective_parameters must include reference_capital"
+            )
+        for key, value in self.effective_parameters:
+            _require_text(key, "ProposedPosition", "effective_parameters key")
+            require_finite_decimal(value, "ProposedPosition", "effective_parameters value")
         if not self.evidence:
             raise DomainInvariantError("ProposedPosition.evidence cannot be empty")
 
