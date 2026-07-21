@@ -106,3 +106,11 @@ class ExpressionEvaluationError(ExpressionError):
 
     def __init__(self, code: str, message: str, path: str = "$") -> None:
         super().__init__("runtime", code, message, path)
+
+
+class GraphValidationError(StrategyError, ValueError):
+    """A Strategy Manifest cannot compile into a valid typed DAG."""
+
+
+class GraphExecutionError(StrategyError):
+    """A compiled graph failed deterministic synchronous evaluation."""
