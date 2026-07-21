@@ -4,7 +4,8 @@ Scans every Python file in each layer package with the AST module and asserts
 that no module imports a module above it in the pipeline order:
 
     providers -> observation -> reconciliation -> facts -> indicators
-        -> strategies -> guardrails -> ranking -> presentation
+        -> strategies -> guardrails -> ranking -> position_proposals
+        -> presentation
 
 Each module may import itself, `domain`, and modules strictly below it.
 `presentation` is narrower: only `ranking` and `domain` (ADR-004 revision).
@@ -32,6 +33,7 @@ PIPELINE_ORDER = [
     "strategies",
     "guardrails",
     "ranking",
+    "position_proposals",
     "presentation",
 ]
 
@@ -69,6 +71,11 @@ def _allowed_imports(layer: str) -> set[str]:
             "reconciliation",
             "domain",
         }
+    if layer == "position_proposals":
+        # ASA-CORE-008: consume ranked envelopes and shared domain contracts
+        # only. Portfolio state and lower evidence/provider layers are not
+        # Position Proposal inputs.
+        return {"position_proposals", "ranking", "domain"}
     idx = PIPELINE_ORDER.index(layer)
     return set(PIPELINE_ORDER[: idx + 1]) | {"domain"}
 
