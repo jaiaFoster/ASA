@@ -1,0 +1,153 @@
+version: 1
+source:
+  repository: https://github.com/jaiaFoster/Stonk
+  revision: 5f3fec846f70e9739cf3f15695fd587f0604344c
+  default_branch: main
+  inventory_rule: executable_registry_plus_service_and_test_trace
+
+production_strategies:
+  - id: earnings_calendar
+    name: Earnings Calendar Spread
+    family: options_event
+    status: active
+    execution_source: app/services/earnings_calendar_strategy_service.py
+    registry_adapter: app/strategies/adapters.py:EarningsCalendarStrategy
+    primary_outputs:
+      - calendar_spread_candidate
+      - near_miss
+      - open_trade_lifecycle
+    required_evidence:
+      - earnings_date
+      - expiration_pair
+      - options_quotes
+      - front_and_back_implied_volatility
+      - debit_estimate
+      - liquidity_metrics
+    strategy_logic:
+      - confirmed_earnings_event_filter
+      - expiration_pair_selection
+      - calendar_structure_construction
+      - iv_relationship_scoring
+      - liquidity_and_debit_gates
+      - candidate_ranking
+    migration_shape:
+      plugin: asa.stonk.options
+      manifest: earnings_calendar.v1
+
+  - id: skew_momentum_vertical
+    name: Skew Momentum Vertical
+    family: options_skew
+    status: active
+    execution_source: app/services/skew_momentum_vertical_service.py
+    registry_adapter: app/strategies/adapters.py:SkewMomentumVerticalStrategy
+    primary_outputs:
+      - vertical_spread_candidate
+    required_evidence:
+      - momentum_metrics
+      - option_chain
+      - implied_volatility_skew
+      - option_liquidity
+      - earnings_risk
+    strategy_logic:
+      - directional_momentum_classification
+      - expiration_filtering
+      - delta_based_leg_selection
+      - skew_richness_scoring
+      - vertical_debit_and_reward_risk
+      - liquidity_and_event_risk_gates
+    migration_shape:
+      plugin: asa.stonk.options
+      manifest: skew_momentum_vertical.v1
+
+  - id: forward_factor_calendar
+    name: Forward Factor Calendar
+    family: options_forward
+    status: dry_run
+    execution_source: app/services/forward_factor_service.py
+    registry_adapter: app/strategies/adapters.py:ForwardFactorCalendarStrategy
+    primary_outputs:
+      - forward_factor_signal
+      - forward_factor_watch
+      - forward_factor_near_miss
+      - diagnostic_signal
+    required_evidence:
+      - quote
+      - daily_candles
+      - average_volume
+      - option_chains_across_expirations
+      - explicit_ex_earnings_implied_volatility
+      - earnings_date
+    strategy_logic:
+      - deterministic_candidate_prescore_and_caps
+      - cheap_data_eligibility
+      - expiration_pair_quality
+      - implied_forward_variance_and_volatility
+      - forward_factor_calculation
+      - matched_strike_double_calendar_construction
+      - liquidity_and_earnings_contamination_gates
+    migration_shape:
+      plugin: asa.stonk.options
+      manifest: forward_factor_calendar.v1
+
+  - id: stock_momentum
+    name: Stock Momentum
+    family: equity_momentum
+    status: active
+    execution_source: app/services/stock_momentum_strategy_service.py
+    registry_adapter: app/strategies/adapters.py:StockMomentumStrategy
+    primary_outputs:
+      - stock_add_candidate
+      - watchlist_hold
+      - avoid
+    required_evidence:
+      - price
+      - returns_3m_6m_12m
+      - simple_moving_average_50d_200d
+      - relative_strength_vs_qqq
+      - average_volume
+      - realized_volatility
+      - current_portfolio_allocation
+    strategy_logic:
+      - trend_and_momentum_score
+      - benchmark_relative_strength
+      - portfolio_and_theme_adjustments
+      - entry_quality_gate
+      - deterministic_action_classification
+    migration_shape:
+      plugin: asa.stonk.equity
+      manifest: stock_momentum.v1
+
+non_production_strategy_artifacts:
+  - id: stock_momentum_unified_test
+    classification: disabled_test_clone
+    migration: test_vector_only
+  - id: custom_strategy_builder
+    classification: authoring_and_validation_capability
+    migration: do_not_treat_as_concrete_strategy
+  - id: calendar_open_trade_lifecycle
+    classification: lifecycle_policy_and_strategy_output
+    migration: shared_lifecycle_components_not_separate_manifest
+  - id: universal_scoring_and_ranking
+    classification: cross_strategy_presentation_and_ordering
+    migration: reconcile_with_existing_ASA_ranking_before_extraction
+  - id: portfolio_gap_and_watchlist
+    classification: upstream_universe_and_portfolio_context
+    migration: explicit_inputs_not_strategy_manifests
+
+shared_component_candidates:
+  - canonical_universe_filter
+  - required_evidence_gate
+  - deterministic_candidate_cap
+  - earnings_event_window
+  - expiration_pair_selector
+  - option_leg_liquidity
+  - option_structure_debit
+  - delta_nearest_leg
+  - calendar_structure
+  - vertical_structure
+  - double_calendar_structure
+  - weighted_score_with_ceiling
+  - verdict_classifier
+  - stable_rank
+  - portfolio_concentration_gate
+  - lifecycle_intent
