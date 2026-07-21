@@ -53,6 +53,7 @@ def _metrics(**overrides):
         expected_return=Decimal("0.10"),
         maximum_loss=Decimal("-100"),
         capital_required=Decimal("1000"),
+        time_horizon_days=30,
     )
     kwargs.update(overrides)
     return ExpectedOutcomeMetrics(**kwargs)
@@ -240,7 +241,8 @@ class TestTimezoneInvariants:
 # ---------------------------------------------------------------------------
 
 class TestOutcomeMetricsContract:
-    @pytest.mark.parametrize("missing", ["expected_return", "maximum_loss", "capital_required"])
+    @pytest.mark.parametrize("missing", ["expected_return", "maximum_loss",
+                                          "capital_required", "time_horizon_days"])
     def test_mandatory_metrics_cannot_be_none(self, missing):
         with pytest.raises(DomainInvariantError):
             _metrics(**{missing: None})
@@ -249,7 +251,6 @@ class TestOutcomeMetricsContract:
         m = _metrics()
         assert m.maximum_gain is None
         assert m.probability_of_profit is None
-        assert m.time_horizon_days is None
 
     def test_maximum_loss_must_be_non_positive(self):
         with pytest.raises(DomainInvariantError):
@@ -266,7 +267,7 @@ class TestOutcomeMetricsContract:
         with pytest.raises(DomainInvariantError):
             _metrics(maximum_gain=Decimal("-1"))
 
-    def test_time_horizon_must_be_positive_when_present(self):
+    def test_time_horizon_must_be_positive(self):
         with pytest.raises(DomainInvariantError):
             _metrics(time_horizon_days=0)
 
@@ -274,7 +275,8 @@ class TestOutcomeMetricsContract:
         """Mandatory metrics guarantee a non-empty payload on every Opportunity."""
         with pytest.raises(DomainInvariantError):
             _opportunity(expected_outcome_metrics=ExpectedOutcomeMetrics(
-                expected_return=None, maximum_loss=None, capital_required=None))
+                expected_return=None, maximum_loss=None, capital_required=None,
+                time_horizon_days=None))
 
     def test_units_documented_in_docstring(self):
         doc = ExpectedOutcomeMetrics.__doc__
