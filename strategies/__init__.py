@@ -7,6 +7,19 @@ providers, even though both sit below strategies in the general pipeline
 order (Constitution Law 4: Strategies consume knowledge, they do not
 gather it).
 """
+from strategies.components import (
+    COMPONENT_IDENTITY_NAMESPACE,
+    COMPONENT_IDENTITY_VERSION,
+    BaseComponent,
+    ComponentCategory,
+    ComponentDefinition,
+    ParameterDefinition,
+    PortCardinality,
+    PortDefinition,
+    StrategyTypeReference,
+    component_definition_data,
+    component_identity,
+)
 from strategies.engine import (
     OPPORTUNITY_IDENTITY_NAMESPACE,
     OPPORTUNITY_IDENTITY_VERSION,
@@ -14,6 +27,7 @@ from strategies.engine import (
     opportunity_identity,
 )
 from strategies.errors import (
+    ComponentContractError,
     DuplicateStrategyRegistrationError,
     InvalidStrategyParameterError,
     ManifestSerializationError,
@@ -39,17 +53,29 @@ from strategies.manifest import (
     OutputSpec,
     ParameterSpec,
     StrategyManifest,
+    canonical_strategy_json,
     deserialize_manifest,
     freeze_manifest_value,
     manifest_identity,
     manifest_to_data,
+    manifest_value_to_data,
     serialize_manifest,
+    validate_semantic_version,
+    validate_strategy_identifier,
 )
 from strategies.registry import DEFAULT_REGISTRY, StrategyRegistry
 from strategies.signal import StrategySignal
 
 __all__ = [
+    "COMPONENT_IDENTITY_NAMESPACE",
+    "COMPONENT_IDENTITY_VERSION",
     "DEFAULT_REGISTRY",
+    "BaseComponent",
+    "CapabilityRequirement",
+    "ComponentCategory",
+    "ComponentContractError",
+    "ComponentDefinition",
+    "ComponentReference",
     "DuplicateStrategyRegistrationError",
     "EdgeSpec",
     "EventBinding",
@@ -67,21 +93,29 @@ __all__ = [
     "OPPORTUNITY_IDENTITY_NAMESPACE",
     "OPPORTUNITY_IDENTITY_VERSION",
     "OutputSpec",
+    "ParameterDefinition",
     "ParameterSpec",
+    "PortCardinality",
+    "PortDefinition",
     "SUPPORTED_MANIFEST_SCHEMA_VERSIONS",
     "StrategyError",
     "StrategyManifest",
     "StrategyRegistry",
     "StrategySignal",
+    "StrategyTypeReference",
     "UnsupportedManifestSchemaError",
     "UnknownStrategyIdError",
-    "CapabilityRequirement",
-    "ComponentReference",
+    "canonical_strategy_json",
+    "component_definition_data",
+    "component_identity",
     "deserialize_manifest",
     "evaluate_strategy",
     "freeze_manifest_value",
     "manifest_identity",
     "manifest_to_data",
+    "manifest_value_to_data",
     "opportunity_identity",
     "serialize_manifest",
+    "validate_semantic_version",
+    "validate_strategy_identifier",
 ]
