@@ -35,6 +35,7 @@ from strategies.core_components import (
     Clamp,
     Compare,
     Constant,
+    ExpressionPredicate,
     Filter,
     Normalize,
     PortfolioConstraint,
@@ -117,6 +118,7 @@ from strategies.manifest import (
     validate_strategy_identifier,
 )
 from strategies.registry import DEFAULT_REGISTRY, StrategyRegistry
+from strategies.reference_strategy import MOVING_AVERAGE_CROSSOVER_MANIFEST
 from strategies.plugins import (
     PLUGIN_IDENTITY_NAMESPACE,
     PLUGIN_IDENTITY_VERSION,
@@ -176,6 +178,7 @@ __all__ = [
     "ExpressionEvaluationError",
     "ExpressionLimits",
     "ExpressionNode",
+    "ExpressionPredicate",
     "ExpressionResult",
     "ExpressionTrace",
     "Filter",
@@ -195,6 +198,7 @@ __all__ = [
     "ManifestObject",
     "ManifestSerializationError",
     "ManifestValidationError",
+    "MOVING_AVERAGE_CROSSOVER_MANIFEST",
     "MissingIndicatorInputError",
     "NoContributingFactsError",
     "NodeSpec",

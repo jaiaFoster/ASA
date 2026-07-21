@@ -13,6 +13,7 @@ from strategies.components import (
     PortDefinition,
 )
 from strategies.errors import ComponentContractError
+from strategies.expressions import compile_expression, evaluate_expression
 from strategies.manifest import ManifestObject
 from strategies.type_system import ComponentValues, StrategyTypeReference, TypedValue
 
@@ -224,6 +225,27 @@ class PositionProposal(BaseComponent):
         return ComponentValues((("target_allocation", inputs.get("target_allocation")),))
 
 
+class ExpressionPredicate(BaseComponent):
+    """Evaluate a closed expression over two Decimal inputs."""
+
+    __slots__ = ()
+    definition = _definition(
+        "expression_predicate",
+        ComponentCategory.PREDICATE,
+        (PortDefinition("left", D), PortDefinition("right", D)),
+        (PortDefinition("result", B),),
+        (ParameterDefinition("expression", StrategyTypeReference("Text", "1.0.0")),),
+    )
+
+    def evaluate(self, inputs: ComponentValues, parameters: ComponentValues) -> ComponentValues:
+        source = cast(str, parameters.get("expression").value)
+        compiled = compile_expression(source, (("left", D), ("right", D)))
+        result = evaluate_expression(compiled, inputs).value
+        if result.type_ref != B:
+            raise ComponentContractError("expression predicate must produce Boolean")
+        return ComponentValues((("result", result),))
+
+
 CORE_COMPONENTS: tuple[BaseComponent, ...] = (
     Constant(),
     Compare(),
@@ -237,4 +259,5 @@ CORE_COMPONENTS: tuple[BaseComponent, ...] = (
     Rank(),
     PortfolioConstraint(),
     PositionProposal(),
+    ExpressionPredicate(),
 )
