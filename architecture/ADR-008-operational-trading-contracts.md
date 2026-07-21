@@ -169,3 +169,11 @@ and replayable.
 - ADR-007: Deterministic Ranking Model
 - Architecture Constitution, Laws 3, 4, 5, 9, and 10
 - ADR-009: Execution Semantics and Governance Boundary
+
+## Revision note (GOV-AMD-014 and ASA-ARCH-006)
+
+The “read-only” wording in this historical decision means read-only with respect to external
+brokerage state. GOV-AMD-014 now explicitly permits immutable analytical order generation and
+deterministic simulation. ASA-ARCH-006 supersedes `Holding` with analytical `Position`, expands
+Portfolio Snapshot around a complete immutable Portfolio revision, and moves account/valuation
+inputs into that canonical state. This does not authorize a broker adapter or any live side effect.

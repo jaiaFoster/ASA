@@ -73,18 +73,25 @@ PortfolioSnapshot ─────►│
                  Portfolio Engine
                         │
                         ▼
-                PortfolioDecision
-                        │ ◄──── ExecutionContext
+                 PortfolioDelta
+                        │ ◄──── RiskPolicy
                         ▼
-                Execution Planner
+                   Risk Engine
                         │
                         ▼
-                  ExecutionPlan
+                  RiskDecision
                         │
                         ▼
-                  BrokerRequest
-             ═══════════════════════
-             Future adapter boundary
+          Execution Planning Engine
+                        │
+                        ▼
+        ExecutionPlan + PlannedOrder(s)
+                        │
+                        ▼
+               Simulation Engine
+                        │
+                        ▼
+           simulated Portfolio transition
 ```
 
 Each layer consumes only from the layer(s) below it and has a single, well-defined responsibility:
@@ -98,8 +105,10 @@ Each layer consumes only from the layer(s) below it and has a single, well-defin
 - **Ranking Layer** orders surviving Opportunities for presentation.
 - **Presentation Layer** communicates the result to the user, including any natural-language summarization. This is the only layer where a language model may participate.
 - **Position Proposal Engine** converts ranked Intelligence into desired exposure without reading portfolio state.
-- **Portfolio Engine** compares Proposed Positions with one immutable, provider-neutral Portfolio Snapshot.
-- **Execution Planner** combines accepted portfolio decisions with one explicit, immutable, provider-neutral Execution Context and decomposes them into ordered, inert Broker Requests. It has no adapter, network, authentication, persistence, or broker access. ADR-009 defines these records as analysis and places any future external communication beyond a separately governed boundary.
+- **Portfolio Engine** owns immutable Position/Portfolio state and produces explicit Portfolio Deltas from Proposed Positions and Snapshots.
+- **Risk Engine** evaluates platform-owned and Strategy-declared Risk Policies without owning Portfolio state or planning orders.
+- **Execution Planning Engine** converts an approved Risk Decision into one immutable Execution Plan with ordered inert Planned Orders and complete provenance.
+- **Simulation Engine** interprets a plan only against explicit immutable simulation market data, then asks the Portfolio Engine to calculate the resulting immutable transition. It has no adapter, network, authentication, persistence, broker access, clock, or randomness.
 
 Provider independence follows from this structure: a provider can be added, removed, or reprioritized without altering any layer above the Observation Layer, because everything above it consumes Canonical Facts, not raw provider payloads.
 
