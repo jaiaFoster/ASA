@@ -63,6 +63,8 @@ def fixture_contract(
     option_type: OptionType,
     delta: str,
     mark: str,
+    *,
+    implied_volatility: str = "0.30",
 ) -> OptionContract:
     mark_value = Decimal(mark)
     return OptionContract(
@@ -81,7 +83,7 @@ def fixture_contract(
         Decimal("-0.02"),
         Decimal("0.03"),
         Decimal("0.01"),
-        Decimal("0.30"),
+        Decimal(implied_volatility),
         OBSERVED_AT,
         EVIDENCE,
     )
@@ -151,12 +153,29 @@ FORWARD_BACK_EXPIRATION = date(2026, 10, 21)  # +91 days
 
 
 def forward_factor_chain() -> OptionChain:
+    # front/back call implied_volatility values are the same known-good pair
+    # previously supplied as hardcoded external manifest context (SCREEN-004);
+    # they now live on the contracts themselves, where implied_volatility
+    # canonically belongs, so ANALYTICS-002's option_implied_volatility feature
+    # can extract them directly instead of anything being pre-baked upstream.
     contracts = (
         fixture_contract(
-            "ff-front-call", FORWARD_FRONT_EXPIRATION, "105", OptionType.CALL, "0.35", "2"
+            "ff-front-call",
+            FORWARD_FRONT_EXPIRATION,
+            "105",
+            OptionType.CALL,
+            "0.35",
+            "2",
+            implied_volatility="0.48",
         ),
         fixture_contract(
-            "ff-back-call", FORWARD_BACK_EXPIRATION, "105", OptionType.CALL, "0.38", "3"
+            "ff-back-call",
+            FORWARD_BACK_EXPIRATION,
+            "105",
+            OptionType.CALL,
+            "0.38",
+            "3",
+            implied_volatility="0.4548992562461861547567860943472296",
         ),
         fixture_contract(
             "ff-front-put", FORWARD_FRONT_EXPIRATION, "95", OptionType.PUT, "-0.35", "2"

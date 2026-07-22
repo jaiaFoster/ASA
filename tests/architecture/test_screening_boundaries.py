@@ -43,16 +43,19 @@ def _screening_files() -> list[Path]:
 
 
 class TestScreeningImportScope:
-    """screening/ imports only screening, domain, and strategies (SCREEN-004
-    adapters wrap existing strategies -- that dependency is intentional and
-    one-directional; strategies/ itself is not permitted to import screening,
-    enforced separately by test_strategy_boundaries.py's own allowlist).
-    Never a provider-facing or infrastructure module.
+    """screening/ imports only screening, domain, strategies, and analytics
+    (SCREEN-004 adapters wrap existing strategies; ANALYTICS-003 context
+    builders use analytics/ for Forward Factor's derived inputs) -- these
+    dependencies are intentional and one-directional: neither strategies/
+    nor analytics/ is permitted to import screening, enforced separately by
+    their own allowlists (test_strategy_boundaries.py,
+    test_analytics_boundaries.py). Never a provider-facing or
+    infrastructure module.
     """
 
     @pytest.mark.parametrize("py_file", _screening_files())
     def test_only_permitted_roots(self, py_file: Path) -> None:
-        permitted = {"screening", "domain", "strategies"} | STDLIB_ALLOWED
+        permitted = {"screening", "domain", "strategies", "analytics"} | STDLIB_ALLOWED
         imported = _imported_roots(py_file)
         assert imported <= permitted, (
             f"{py_file.name} imports outside {permitted}: {imported - permitted}"
