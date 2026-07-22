@@ -15,9 +15,13 @@ def token_matches(presented: str, configured: str) -> bool:
 
 @dataclass
 class OperationsRunLimiter:
-    """Bounds runs to max_runs_per_hour with concurrency capped at one in-process run."""
+    """Bounds runs to max_runs_per_hour with concurrency capped at one in-process run.
 
-    max_runs_per_hour: int = 3
+    max_runs_per_hour=None disables the hourly count check (still one concurrent
+    run at a time); intended for the development environment only.
+    """
+
+    max_runs_per_hour: int | None = 50
     _lock: _thread.LockType = field(default_factory=_thread.allocate_lock, repr=False)
     _run_timestamps: list[float] = field(default_factory=list, repr=False)
     _running: bool = field(default=False, repr=False)
@@ -28,10 +32,11 @@ class OperationsRunLimiter:
         try:
             if self._running:
                 return False
-            self._run_timestamps = [t for t in self._run_timestamps if now - t < 3600]
-            if len(self._run_timestamps) >= self.max_runs_per_hour:
-                return False
-            self._run_timestamps.append(now)
+            if self.max_runs_per_hour is not None:
+                self._run_timestamps = [t for t in self._run_timestamps if now - t < 3600]
+                if len(self._run_timestamps) >= self.max_runs_per_hour:
+                    return False
+                self._run_timestamps.append(now)
             self._running = True
             return True
         finally:

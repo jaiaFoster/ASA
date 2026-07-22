@@ -54,9 +54,10 @@ validation subjects (never symbols or endpoints from the request body).
 Set `ASA_OPERATIONS_TOKEN` as a sealed Railway service variable to enable it; it must
 never be reused for provider credentials. Requests must send
 `Authorization: Bearer <ASA_OPERATIONS_TOKEN>`; a missing, invalid, or absent-configuration
-token all return a generic 404. The endpoint is bounded to 3 runs per hour and one
-concurrent run, and it never widens the market_data validation ceilings (at most 12
-requests per provider run, 3 per capability, 1 retry, 10s timeout). Its JSON response
+token all return a generic 404. The endpoint is bounded to 50 runs per hour (uncapped
+in `ASA_ENVIRONMENT=development`) and one concurrent run, and it never widens the
+market_data validation ceilings (at most 12 requests per provider run, 3 per
+capability, 1 retry, 10s timeout). Its JSON response
 never contains secret values, authorization headers, provider tokens, raw
 secret-bearing URLs, or unrestricted provider payloads; see
 `docs/deployment/market-data-provider-diagnostics.md` for how to interpret the

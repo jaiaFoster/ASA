@@ -212,6 +212,37 @@ def test_dry_run_with_enabled_provider_never_calls_transport(
     assert "sandbox-secret-token" not in response.text
 
 
+# --- rate_limit_environment_tests -----------------------------------------------------
+
+
+def test_non_development_environment_is_capped_at_fifty_runs_per_hour() -> None:
+    client = _client("correct-token", environment="production")
+    for _ in range(50):
+        response = client.post(
+            "/ops/market-data/validate",
+            json={},
+            headers={"Authorization": "Bearer correct-token"},
+        )
+        assert response.status_code == 200
+    limited = client.post(
+        "/ops/market-data/validate",
+        json={},
+        headers={"Authorization": "Bearer correct-token"},
+    )
+    assert limited.status_code == 429
+
+
+def test_development_environment_has_no_hourly_run_cap() -> None:
+    client = _client("correct-token", environment="development")
+    for _ in range(60):
+        response = client.post(
+            "/ops/market-data/validate",
+            json={},
+            headers={"Authorization": "Bearer correct-token"},
+        )
+        assert response.status_code == 200
+
+
 # --- environment_configuration_error_tests --------------------------------------------
 
 

@@ -90,6 +90,7 @@ def build_application(
         build_operations_router(
             settings.operations_token,
             selected.market_data_transport_factory or build_transport_for_provider,
+            max_runs_per_hour=None if settings.environment == "development" else 50,
         )
     )
 
