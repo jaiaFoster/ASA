@@ -80,6 +80,7 @@ from domain.outcome_metrics import ExpectedOutcomeMetrics
 from domain.provenance import Provenance, ProviderDisagreement
 from domain.provider import Provider
 from domain.references import Confidence, EvidenceKind, EvidenceReference
+from domain.replay import ExecutionReplayRecord, ReplayVerification
 from domain.simulation import (
     SimulatedFill,
     SimulatedOrderState,
@@ -105,6 +106,7 @@ __all__ = [
     "ExecutionPlanningEventType",
     "ExecutionPlanningLifecycle",
     "ExecutionPlan",
+    "ExecutionReplayRecord",
     "ExecutionSummary",
     "FINANCIAL_CONTRACT_VERSION",
     "FinancialContractSerializationError",
@@ -157,6 +159,7 @@ __all__ = [
     "RiskPolicyScope",
     "RiskPolicyType",
     "RecommendationState",
+    "ReplayVerification",
     "Security",
     "SecurityAssetType",
     "SecurityCollection",
