@@ -1,10 +1,10 @@
 # ASA-ARCH-007: Market Data Platform Contracts
 
-**Status:** Accepted by Founder merge of PR #110; ARCH-007A clarification proposed
+**Status:** Accepted by Founder merges of PRs #110 and #112; ARCH-007B clarification proposed
 **Date:** 2026-07-22
 **Sprint:** SPRINT-005A
 **Risk:** R3 architecture and public-contract change
-**Clarified by:** ARCH-007A (Issue #111; Founder merge required)
+**Clarified by:** ARCH-007A (Issue #111) and proposed ARCH-007B (Issue #119)
 
 ## 1. Decision and boundary
 
@@ -146,11 +146,99 @@ capabilities. Likewise, a Provider may describe additional source features in bo
 but those descriptions are not registry keys and are not visible to Strategies as capabilities.
 Adding a capability requires a separate Founder-approved architecture change.
 
-`CapabilityRequest` includes capability, canonical subjects, semantic time/window, required fields,
-and freshness/completeness requirements. It never includes a provider name. The immutable registry
+`CapabilityRequest` includes capability, canonical Market Data Subjects, semantic time/window,
+required fields, and freshness/completeness requirements. It never selects a provider. The immutable registry
 maps capabilities to eligible registered provider IDs and declared constraints. Lookup returns a
 canonically ordered candidate tuple; it does not contact providers or choose using hidden health.
 Selection uses explicit versioned policy outside Strategy code.
+
+### 7.1 MarketDataSubject
+
+Every request subject is an immutable, canonically serializable `MarketDataSubject`:
+
+```text
+MarketDataSubject
+  canonical_instrument       complete provider-neutral Instrument
+  subject_type               closed v1 subject classification
+  requested_capability       one canonical MarketCapability
+  request_context            complete MarketDataRequestContext
+
+MarketDataRequestContext
+  semantic_start
+  semantic_end
+  required_fields
+  provider_address_projections
+  evidence
+```
+
+V1 implemented subject types are `INSTRUMENT`, `OPTION_UNDERLYING`, and `EARNINGS_SECURITY`.
+Every subject carries the complete canonical `Instrument`. Trading-calendar subject semantics stay
+deferred with trading-calendar implementation; no synthetic venue Instrument or new Instrument kind
+is invented by this amendment. Required fields use the ARCH-007A projection rules. The subject's
+requested capability must equal its enclosing `CapabilityRequest.capability`. Strategy code may
+supply or preserve the canonical Instrument and requested capability, but never constructs,
+selects, or interprets provider addresses.
+
+The Instrument's existing `CanonicalInstrumentIdentity` remains the sole analytical instrument
+identity and never changes because a Provider or address changes. `MarketDataSubject` additionally
+has a deterministic content identity in `asa.market_data_subject/v1` over all four required fields,
+including the ordered address projections and their Evidence. This content identity protects the
+complete request/replay artifact; it is not a replacement Instrument identity.
+
+### 7.2 ProviderAddressProjection
+
+```text
+ProviderAddressProjection
+  provider_id
+  projection_schema_version
+  address_type
+  address_value
+  effective_from
+  effective_until?
+  evidence
+  projection_identity
+```
+
+A projection is immutable request-address data, never canonical analytical identity. `address_type`
+is provider-defined metadata such as `symbol`, `option_symbol`, or `venue_code`; it is not a new
+capability. `address_value` contains the explicit credential-free transport identifier. Secrets,
+account identifiers, URLs, headers, payload fragments, and session material are prohibited.
+
+Projection identity uses `asa.provider_address_projection/v1` and includes provider ID, projection
+schema version, type, value, semantic validity window, and Evidence. Projections are canonically
+ordered by provider ID, schema version, address type, effective start, and projection identity.
+There is at most one effective projection for a `(provider_id, address_type)` pair at a request's
+semantic time; absence or ambiguity fails closed.
+
+Provider projections are produced upstream from explicit, immutable, versioned Instrument Reference
+evidence. “Derived from the canonical Instrument” means the mapping record names that complete
+Instrument identity and its Evidence; it never means parsing identity strings, copying display text,
+guessing vendor syntax, or consulting an adapter-local map. The mapping owner and persistence model
+remain outside SPRINT-005B, so v1 callers and deterministic fixtures must inject the complete
+projection tuple explicitly.
+
+### 7.3 Addressed request lifecycle
+
+```text
+Strategy or analytical caller
+        |
+        v
+CapabilityRequest with MarketDataSubject
+        |
+Capability Registry selects Provider
+        |
+Address projection selection (pure, exact, effective-time checked)
+        |
+Provider Adapter receives request + its one explicit projection
+        |
+Canonical Observation retains MarketDataSubject identity and projection provenance
+```
+
+The adapter neither infers nor resolves an address. It accepts only the selected projection whose
+`provider_id` matches the adapter. Provider selection remains capability-driven; an analytical
+caller cannot select a Provider by adding or ordering projections. Replay preserves and verifies
+the complete original `MarketDataSubject`, request context, and projections but never invokes an
+adapter or re-resolves an address.
 
 ## 8. ARCH-MD-005 — Provider Registry and lifecycle
 

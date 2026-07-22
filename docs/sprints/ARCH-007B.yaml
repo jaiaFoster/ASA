@@ -1,0 +1,39 @@
+---
+id: ARCH-007B
+name: Market Data Subject Architecture
+version: 1.0
+status: FOUNDER_MERGE_REQUIRED
+kind: architecture_amendment
+trigger: issue_119
+contract: architecture/ASA-ARCH-007-Market-Data-Platform.md
+
+clarifications:
+  subject:
+    complete_canonical_instrument_required: true
+    provider_neutral: true
+    immutable_and_replay_safe: true
+  address_projection:
+    explicit_and_versioned: true
+    analytical_identity_unchanged: true
+    hidden_or_inferred_mapping: prohibited
+  request_lifecycle:
+    strategy_constructs_provider_address: false
+    adapter_infers_provider_address: false
+    replay_preserves_original_subject: true
+
+prohibitions:
+  - runtime_changes
+  - provider_changes
+  - live_provider_calls
+  - capability_changes
+  - persistence_changes
+  - governance_changes
+
+merge:
+  founder_required: true
+  self_merge: false
+
+successor:
+  id: SPRINT-005B
+  resume_ticket: MD-007
+  delegation_reactivation_requires_founder_merge: true
