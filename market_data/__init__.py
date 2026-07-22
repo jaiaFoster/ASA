@@ -49,6 +49,15 @@ from market_data.registry import (
     ProviderPriorityPolicy,
     ProviderRegistry,
 )
+from market_data.budget import (
+    BudgetExhaustedError,
+    BudgetScope,
+    QuotaObservation,
+    RequestAccountingEntry,
+    RequestBudgetManager,
+    RequestBudgetPolicy,
+    RequestOutcome,
+)
 
 __all__ = [
     "ConfigurationError",
@@ -92,4 +101,11 @@ __all__ = [
     "ProviderPriority",
     "ProviderPriorityPolicy",
     "ProviderRegistry",
+    "BudgetExhaustedError",
+    "BudgetScope",
+    "QuotaObservation",
+    "RequestAccountingEntry",
+    "RequestBudgetManager",
+    "RequestBudgetPolicy",
+    "RequestOutcome",
 ]
