@@ -15,21 +15,30 @@ still zero network, still fully deterministic.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 
 from domain import (
     AnnouncementTime,
     CanonicalInstrumentIdentity,
+    CompletenessMetadata,
     EarningsEvent,
+    EvidenceKind,
+    EvidenceReference,
+    ExpirationCycle,
+    FreshnessMetadata,
+    FreshnessStatus,
     MarketCapability,
+    MarketObservation,
     OHLCVBar,
     OptionChain,
     OptionContract,
     OptionType,
+    ProviderProvenance,
     Quote,
     Security,
     SecurityAssetType,
+    market_observation_identity,
 )
 from market_data import (
     CapabilityFulfillmentService,
@@ -41,6 +50,13 @@ from market_data import (
     load_market_data_config,
 )
 from market_data.fixture import DeterministicFixtureProvider
+from market_data.providers import (
+    ProviderAttemptMetadata,
+    ProviderErrorCode,
+    ProviderFetchResult,
+    ProviderResponseMetadata,
+    normalized_provider_error,
+)
 from screening.adapters import TARGET_STRATEGY_REGISTRY
 from screening.live_acquisition import build_capability_registry, build_request_budget_manager
 from screening.live_adapters import build_live_adapters
@@ -324,3 +340,209 @@ class TestFullLiveRunAcrossAllThreeStrategies:
             "skew_momentum",
         }
         assert all(result.subject_identity == f"symbol:{SYMBOL}" for result in results)
+
+
+class TradierShapedMultiExpirationProvider(DeterministicFixtureProvider):
+    """Reproduces real Tradier's actual two-step option-chain acquisition
+    shape (market_data/tradier.py's own required_fields branching), unlike
+    MultiExpirationFixtureProvider above (which -- like the real offline
+    fixture -- always returns every expiration's contracts in one unscoped
+    response, regardless of what was asked for). Each OPTION_CHAIN_V1
+    contracts request here is scoped to exactly the expiration named in the
+    subject's own "expiration" projection -- looked up the same way real
+    Tradier looks it up (subject.projection_for(self.provider_id,
+    "expiration", ...)), so this proves TRADIER-PATCH-003's adapters
+    actually drive the real two-step flow (discover expirations, select,
+    acquire per expiration), not just that they still work against a
+    provider generous enough not to need it.
+
+    option_chain_requests records every OPTION_CHAIN_V1 request's
+    required_fields, in order, for request-count and deduplication
+    assertions.
+    """
+
+    def __init__(self, *args: object, **kwargs: object) -> None:
+        super().__init__(*args, **kwargs)  # type: ignore[arg-type]
+        self.option_chain_requests: list[tuple[str, ...]] = []
+
+    def fetch(self, request, budget):  # noqa: ANN001
+        if request.capability is MarketCapability.OPTION_CHAIN_V1:
+            self.option_chain_requests.append(request.required_fields)
+            if "expirations" in request.required_fields and "contracts" not in request.required_fields:
+                return self._expirations_response(request)
+            if "contracts" in request.required_fields:
+                return self._chain_response_for_one_expiration(request)
+        return super().fetch(request, budget)
+
+    def _attempt(self, request, reference, received_at):  # noqa: ANN001
+        response = ProviderResponseMetadata(
+            self.provider_id, reference, received_at, "fixture", 0, 0, (("network_requests", "0"),)
+        )
+        return ProviderAttemptMetadata(self.provider_id, request.capability, 1, 1, response)
+
+    def _expirations_response(self, request):  # noqa: ANN001
+        received_at = self._dependencies.clock.now().astimezone(UTC)
+        reference = self._request_reference(request)
+        (subject,) = request.subjects
+        as_of = received_at.date()
+        evidence = (EvidenceReference(EvidenceKind.OBSERVATION, "test:tradier-shaped-multi"),)
+        observations = tuple(
+            MarketObservation(
+                market_observation_identity(
+                    self.provider_id, request.capability, subject, received_at, cycle, "v1"
+                ),
+                request.capability,
+                subject,
+                received_at,
+                received_at,
+                cycle,
+                "v1",
+                ProviderProvenance(self.provider_id, reference, evidence),
+                FreshnessMetadata(received_at, received_at, request.maximum_age_seconds, 0, FreshnessStatus.FRESH),
+                CompletenessMetadata(request.required_fields, request.required_fields, ()),
+            )
+            for cycle in (
+                ExpirationCycle(as_of + timedelta(days=days_out), days_out, False, True, as_of, evidence)
+                for days_out, _iv in _EXPIRATIONS_DAYS_OUT_AND_IV
+            )
+        )
+        return ProviderFetchResult(observations, None, (self._attempt(request, reference, received_at),))
+
+    def _chain_response_for_one_expiration(self, request):  # noqa: ANN001
+        (subject,) = request.subjects
+        projection = subject.projection_for(self.provider_id, "expiration", request.effective_end)
+        expiration = date.fromisoformat(projection.address_value)
+        received_at = self._dependencies.clock.now().astimezone(UTC)
+        reference = self._request_reference(request)
+        as_of = received_at.date()
+        days_out = (expiration - as_of).days
+        iv = next(iv for offset_days, iv in _EXPIRATIONS_DAYS_OUT_AND_IV if offset_days == days_out)
+        symbol = subject.canonical_instrument.display_symbol
+        security = Security(subject.canonical_instrument, symbol.upper(), SecurityAssetType.EQUITY, "XNAS")
+        evidence = (
+            EvidenceReference(EvidenceKind.OBSERVATION, f"test:tradier-shaped-chain:{expiration.isoformat()}"),
+        )
+        contracts = tuple(
+            OptionContract(
+                CanonicalInstrumentIdentity(
+                    "fixture-option", f"{symbol}-{expiration.isoformat()}-{_SPOT + offset}-{kind.value}"
+                ),
+                security,
+                expiration,
+                _SPOT + offset,
+                kind,
+                Decimal("4.90"),
+                Decimal("5.10"),
+                Decimal("5.00"),
+                1000,
+                5000,
+                call_delta if kind is OptionType.CALL else call_delta - 1,
+                Decimal("0.03"),
+                Decimal("-0.10"),
+                Decimal("0.20"),
+                Decimal("0.01"),
+                iv,
+                received_at,
+                evidence,
+            )
+            for offset, call_delta in _STRIKE_DELTA_LADDER
+            for kind in (OptionType.CALL, OptionType.PUT)
+        )
+        chain = OptionChain(
+            f"test:tradier-shaped:{expiration.isoformat()}", security, received_at, contracts, evidence
+        )
+        observation = MarketObservation(
+            market_observation_identity(
+                self.provider_id, request.capability, subject, received_at, chain, "v1"
+            ),
+            request.capability,
+            subject,
+            received_at,
+            received_at,
+            chain,
+            "v1",
+            ProviderProvenance(self.provider_id, reference, evidence),
+            FreshnessMetadata(received_at, received_at, request.maximum_age_seconds, 0, FreshnessStatus.FRESH),
+            CompletenessMetadata(request.required_fields, request.required_fields, ()),
+        )
+        return ProviderFetchResult(
+            (observation,), None, (self._attempt(request, reference, received_at),)
+        )
+
+
+class TestTwoStepLiveAcquisitionAgainstATradierShapedProvider:
+    def test_forward_factor_receives_front_and_back_expiration_chains(self) -> None:
+        fulfillment, clock = _fulfillment(TradierShapedMultiExpirationProvider)
+        adapters = build_live_adapters(SYMBOL, fulfillment)
+        (result,) = run_screening(
+            TARGET_STRATEGY_REGISTRY, adapters, clock, strategy_ids=("forward_factor",)
+        )
+        assert result.outcome_status in (ScreeningOutcomeStatus.PASS, ScreeningOutcomeStatus.NO_SIGNAL)
+
+    def test_skew_momentum_receives_its_one_required_expiration_chain(self) -> None:
+        fulfillment, clock = _fulfillment(TradierShapedMultiExpirationProvider)
+        adapters = build_live_adapters(SYMBOL, fulfillment)
+        (result,) = run_screening(
+            TARGET_STRATEGY_REGISTRY, adapters, clock, strategy_ids=("skew_momentum",)
+        )
+        assert result.outcome_status in (ScreeningOutcomeStatus.PASS, ScreeningOutcomeStatus.NO_SIGNAL)
+
+    def test_forward_factor_makes_exactly_three_option_chain_requests(self) -> None:
+        # One expirations-only request, one contracts request per selected
+        # expiration (front, back) -- proves the two-step flow, not a
+        # single all-expirations fetch. Constructed directly (not via
+        # _fulfillment()) to keep a direct reference to the provider
+        # instance for its own request-log, without reaching into
+        # CapabilityFulfillmentService's private internals.
+        shared_clock = FixedClock()
+        config = load_market_data_config({})
+        (fixture_config,) = tuple(item for item in config.providers if item.enabled)
+        budget_manager = build_request_budget_manager((fixture_config,), shared_clock)
+        provider = TradierShapedMultiExpirationProvider(
+            fixture_config, ProviderDependencies(object(), shared_clock, budget_manager)
+        )
+        registry = ProviderRegistry((provider,))
+        capability_registry = build_capability_registry(registry)
+        fulfillment = CapabilityFulfillmentService(registry, capability_registry, budget_manager)
+        adapters = build_live_adapters(SYMBOL, fulfillment)
+        run_screening(TARGET_STRATEGY_REGISTRY, adapters, shared_clock, strategy_ids=("forward_factor",))
+        assert len(provider.option_chain_requests) == 3
+        assert provider.option_chain_requests[0] == ("expirations",)
+        assert all(request == ("contracts",) for request in provider.option_chain_requests[1:])
+
+    def test_a_failed_expiration_specific_chain_request_does_not_crash_the_run(self) -> None:
+        # The back-expiration chain request fails (a genuine per-request
+        # provider failure -- rate limit, timeout, bad data -- unrelated to
+        # whether the front request already succeeded); the whole
+        # screening run must still isolate this as one MISSING_DATA result
+        # for forward_factor, not crash or corrupt the other strategies.
+        class _BackExpirationFailsProvider(TradierShapedMultiExpirationProvider):
+            def _chain_response_for_one_expiration(self, request):  # noqa: ANN001
+                (subject,) = request.subjects
+                projection = subject.projection_for(self.provider_id, "expiration", request.effective_end)
+                expiration = date.fromisoformat(projection.address_value)
+                if (expiration - self._dependencies.clock.now().date()).days >= 49:
+                    reference = self._request_reference(request)
+                    received_at = self._dependencies.clock.now().astimezone(UTC)
+                    error = normalized_provider_error(
+                        ProviderErrorCode.PROVIDER_UNAVAILABLE,
+                        "simulated back-expiration failure",
+                        self.provider_id,
+                        request.capability,
+                        reference,
+                    )
+                    return ProviderFetchResult((), error, (self._attempt(request, reference, received_at),))
+                return super()._chain_response_for_one_expiration(request)
+
+        fulfillment, clock = _fulfillment(_BackExpirationFailsProvider)
+        adapters = build_live_adapters(SYMBOL, fulfillment)
+        results = run_screening(TARGET_STRATEGY_REGISTRY, adapters, clock)
+        by_strategy = {result.strategy_id: result for result in results}
+        assert by_strategy["forward_factor"].outcome_status is ScreeningOutcomeStatus.MISSING_DATA
+        # skew_momentum only needs one (front-month) expiration, unaffected
+        # by the back-expiration failure -- proves isolation is per
+        # acquisition, not a whole-provider outage.
+        assert by_strategy["skew_momentum"].outcome_status in (
+            ScreeningOutcomeStatus.PASS,
+            ScreeningOutcomeStatus.NO_SIGNAL,
+        )
