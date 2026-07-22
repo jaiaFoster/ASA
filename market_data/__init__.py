@@ -63,6 +63,18 @@ from market_data.fixture import (
     FixtureScenario,
     fixture_provider_registration,
 )
+from market_data.validation import (
+    DiagnosticFinding,
+    ProviderValidationRunner,
+    ValidationOverallStatus,
+    ValidationRequest,
+    ValidationRequestPlan,
+    ValidationRunResult,
+    command_main,
+    redact_diagnostic_text,
+    render_validation_result,
+    validation_result_to_data,
+)
 
 __all__ = [
     "ConfigurationError",
@@ -116,4 +128,14 @@ __all__ = [
     "DeterministicFixtureProvider",
     "FixtureScenario",
     "fixture_provider_registration",
+    "DiagnosticFinding",
+    "ProviderValidationRunner",
+    "ValidationOverallStatus",
+    "ValidationRequest",
+    "ValidationRequestPlan",
+    "ValidationRunResult",
+    "command_main",
+    "redact_diagnostic_text",
+    "render_validation_result",
+    "validation_result_to_data",
 ]
