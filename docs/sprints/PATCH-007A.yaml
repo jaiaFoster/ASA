@@ -1,0 +1,507 @@
+---
+id: PATCH-007A
+name: Tradier Expiration-Aware Option-Chain Acquisition
+type: DEFECT_PATCH
+parent_sprint: SPRINT-007
+status: SCOPED
+source_issue:
+  repository: jaiaFoster/ASA
+  number: 156
+  title: >
+    Live Tradier option-chain acquisition fails because the subject never
+    carries an expiration projection.
+priority: high
+
+activation:
+  id: AMD-013-PATCH-007A
+  governance_amendment: GOV-AMD-001-013
+  founder_authorized: true
+  founder_direction: PATCH-007A proposal (source issue #156)
+  effective_when: this patch definition is Founder-merged to the default branch
+  scope_note: >
+    Amendment 013's text identifies its unit of activation as "one
+    identified implementation sprint." PATCH-007A is type: DEFECT_PATCH, not
+    a sprint -- it is treated as this amendment's qualifying unit because its
+    shape satisfies every field Activation requires (explicit Founder
+    authorization, a unique identifier, an enumerated approved-ticket set,
+    bounded technical scope with explicit stop conditions, required
+    validation/self-review gates, and a named delegate), matching
+    SPRINT-006/SPRINT-007's own activation shape exactly. No separate
+    "patch delegation" mechanism exists in governance; this activation
+    record does not establish one -- it applies the sprint mechanism to a
+    smaller, bounded defect-remediation unit under the same rules.
+  delegate:
+    role: ROLE-WORKER
+    instance: implementation-worker
+  limited_to_sprint: PATCH-007A
+  approved_tickets:
+    - TRADIER-PATCH-001
+    - TRADIER-PATCH-002
+    - TRADIER-PATCH-003
+    - TRADIER-PATCH-004
+  excludes:
+    - governance_changes
+    - constitutional_changes
+    - workflow_changes
+    - deployment
+    - risk_floor_changes
+    - patch_scope_expansion
+    - breaking_public_contracts
+    - strategy_semantic_changes
+    - screening_signal_contract_changes
+    - opportunity_contract_changes
+    - ranking_subsystem_changes
+    - portfolio_subsystem_changes
+    - broker_integration_changes
+    - diagnosing_earnings_provider_credentials
+    - finnhub_or_alpha_vantage_earnings_acquisition_repair
+    - new_market_data_providers
+    - broad_option_surface_redesign
+    - unrelated_analytics_expansion
+    - lifecycle_management
+    - notifications
+    - scheduling
+    - automated_execution
+    - successor_sprint_work
+  expires:
+    - patch_complete
+    - patch_stopped
+    - Founder_revokes_delegation
+
+objective: >
+  Repair the live screening acquisition path so option-chain consumers can
+  operate against providers, including Tradier, that require expiration
+  discovery followed by one expiration-specific chain request, without
+  encoding Tradier-specific workflow decisions inside strategies or
+  changing existing strategy semantics.
+
+problem_statement: >
+  The live screening adapters currently assume that one OPTION_CHAIN_V1
+  request returns contracts for all expirations. The deterministic fixture
+  provider supports that assumption, but Tradier requires a specific
+  expiration on every option-chain request. The existing live context
+  builder supplies symbol projections but does not supply an expiration
+  projection, so Tradier is selected correctly and then fails while
+  constructing the provider request.
+
+observed_failure: >
+  no enabled live provider offers option_chain_v1 for SYMBOL:
+  MarketDataSubject requires one effective provider projection
+
+actual_failure: >
+  The selected Tradier provider received a subject without the required
+  expiration projection.
+
+prerequisites:
+  governance:
+    - GOV-AMD-001-013
+  architecture: []
+  note: >
+    No new frozen architecture contract is anticipated. This patch extends
+    existing canonical capability/subject/projection machinery
+    (market_data/, screening/live_acquisition.py, screening/live_context.py)
+    rather than introducing a new one. If implementation reveals that a new
+    frozen public contract is genuinely required, the sprint's own
+    architecture_change_or_new_public_contract_required stop condition
+    applies -- this activation does not pre-approve one.
+
+bounded_scope:
+  in:
+    - expiration_list_acquisition_via_the_existing_capability_model
+    - expiration_aware_option_chain_subject_construction
+    - two_step_live_option_acquisition_orchestration_in_live_adapters
+    - reuse_of_existing_canonical_expiration_selection_functions
+    - acquisition_error_classification_correction
+    - bounded_live_tradier_validation_of_the_repaired_path
+  out:
+    - diagnosing_earnings_provider_credentials
+    - repairing_finnhub_or_alpha_vantage_earnings_acquisition
+    - adding_new_market_data_providers
+    - portfolio_work
+    - robinhood_integration
+    - lifecycle_management
+    - opportunity_ranking
+    - scheduling
+    - alerts
+    - automated_trading
+    - broad_option_surface_redesign
+    - unrelated_analytics_expansion
+
+architecture_principles:
+  - provider_independent_screening
+  - provider_specific_transport_at_provider_boundary
+  - canonical_market_data_subjects
+  - deterministic_execution
+  - bounded_live_requests
+  - failure_isolation
+  - immutable_normalized_observations
+  - existing_strategy_semantics_unchanged
+
+implementation_guidance:
+  preferred_shape: >
+    Treat expiration discovery and expiration-specific chain acquisition as
+    separate canonical acquisitions orchestrated by the live input-
+    preparation layer.
+  avoid: >
+    Do not introduce a new broad OptionSurfaceResolver abstraction unless
+    the existing architecture cannot express the two-step flow cleanly.
+    This patch repairs the confirmed defect without expanding into an
+    unbounded market-data redesign.
+  request_sequence_example:
+    - capability: option_chain_v1
+      required_fields: [expirations]
+    - select: [front_expiration, back_expiration]
+    - capability: option_chain_v1
+      subject: {symbol: SYMBOL, expiration: FRONT_EXPIRATION}
+      required_fields: [contracts]
+    - capability: option_chain_v1
+      subject: {symbol: SYMBOL, expiration: BACK_EXPIRATION}
+      required_fields: [contracts]
+
+execution:
+  mode: founder_authorized_autonomous_patch
+  branch_strategy: feature_per_ticket
+  branch_pattern: agent/<ticket-id>-<short-description>
+  ticket_order:
+    - TRADIER-PATCH-001
+    - TRADIER-PATCH-002
+    - TRADIER-PATCH-003
+    - TRADIER-PATCH-004
+  order_rationale: >
+    Expiration-list acquisition must exist before expiration-aware subjects
+    can be built against it; expiration-aware subjects must exist before
+    live adapters can orchestrate a two-step acquisition around them; error
+    classification and live validation come last because they verify the
+    complete repaired path, not any single piece of it.
+  workflow:
+    - review_relevant_open_and_recent_closed_issues_and_prs_for_the_subsystem
+    - implement_one_approved_ticket
+    - run_all_required_validation
+    - perform_and_record_self_review
+    - open_pull_request
+    - verify_pull_request_contains_only_approved_ticket_scope
+    - verify_every_required_gate_is_present_and_green
+    - check_for_an_unresolved_architecture_or_founder_gate
+    - merge_under_GOV_AMD_001_013_only_if_no_gate_is_unresolved
+    - verify_default_branch_contains_merge_commit
+    - run_post_merge_validation
+    - begin_next_ticket
+
+live_execution_policy:
+  rule: >
+    TRADIER-PATCH-004 is this patch's own live-validation ticket and issues
+    real requests against configured live provider credentials for the same
+    bounded six-symbol universe SPRINT-007/LIVE-003 already validated
+    against once. Because Founder confirmation for exactly this universe,
+    against exactly this Tradier credential, was already explicitly
+    obtained for LIVE-003 (SPRINT-007, PR #157), and this patch's live
+    validation is a bounded re-run of the same acquisition surface (not a
+    broader universe or a new provider), this policy treats that prior
+    confirmation as covering TRADIER-PATCH-004 as well. If implementation
+    reveals a need to exceed the six-symbol universe or exercise a provider
+    not already validated under LIVE-003, the delegate must stop and obtain
+    fresh explicit Founder confirmation before that specific run, per the
+    same principle SPRINT-007 applied.
+  applies_to:
+    - TRADIER-PATCH-004
+
+tickets:
+  - id: TRADIER-PATCH-001
+    title: Canonical Expiration Discovery Acquisition
+    objective: >
+      Extend the live acquisition vocabulary so screening adapters can
+      request and receive an option expiration list independently from
+      option contracts.
+    deliverables:
+      - expiration_list_acquisition_request_construction
+      - canonical_expiration_list_normalization
+      - deterministic_expiration_ordering
+      - empty_and_malformed_response_handling
+      - fixture_backed_boundary_tests
+    requirements:
+      - use_the_existing_canonical_market_data_capability_model
+      - request_expiration_data_through_the_market_data_platform
+      - do_not_call_tradier_directly_from_screening
+      - do_not_infer_expirations_from_option_contracts_when_an_explicit_expiration_list_acquisition_is_required
+      - preserve_support_for_providers_or_fixtures_capable_of_returning_broader_chain_data
+    acceptance_criteria:
+      - live_acquisition_can_request_required_fields_expirations
+      - returned_expirations_are_canonical_unique_and_deterministically_ordered
+      - empty_expiration_responses_produce_an_isolated_missing_data_result
+      - no_provider_specific_object_escapes_the_market_data_boundary
+
+  - id: TRADIER-PATCH-002
+    title: Expiration-Aware Option-Chain Subjects
+    objective: >
+      Add canonical construction of option-chain subjects carrying the
+      selected expiration projection required by Tradier.
+    deliverables:
+      - expiration_aware_market_data_subject_builder
+      - matching_provider_projection_construction
+      - validation_for_missing_or_inconsistent_expiration_values
+      - unit_and_boundary_tests
+    requirements:
+      - keep_symbol_and_expiration_projections_explicit
+      - use_the_canonical_expiration_selected_by_screening_input_preparation
+      - do_not_hard_code_expiration_selection_policy_in_the_tradier_provider
+      - do_not_expose_tradier_specific_addressing_to_strategies
+    acceptance_criteria:
+      - a_tradier_option_chain_request_receives_one_effective_provider_address_projection_for_expiration
+      - the_subject_produces_the_expected_expiration_query_value
+      - missing_expiration_data_fails_with_an_accurate_invariant_error
+      - existing_symbol_only_acquisitions_remain_unchanged
+
+  - id: TRADIER-PATCH-003
+    title: Two-Step Live Option Acquisition
+    objective: >
+      Update live strategy adapters to discover expirations, select the
+      expiration or expiration pair required by the strategy, and acquire
+      the corresponding chains before constructing strategy inputs.
+    affected_adapters:
+      - forward_factor
+      - skew_momentum
+      - earnings_calendar_only_if_it_consumes_option_chains
+    required_flow:
+      - acquire_underlying_quote_and_other_required_observations
+      - acquire_available_option_expirations
+      - apply_existing_canonical_expiration_selection_functions
+      - acquire_one_chain_for_each_selected_expiration
+      - combine_normalized_observations_into_the_existing_strategy_context
+      - execute_the_existing_strategy_without_semantic_modification
+    existing_selection_logic_to_reuse:
+      - select_expiration_pair
+      - select_earnings_relative_expiration_pair
+    deliverables:
+      - updated_live_adapter_orchestration
+      - multi_expiration_acquisition_support
+      - deterministic_request_ordering
+      - request_deduplication_where_the_same_expiration_is_selected_twice
+      - partial_acquisition_failure_isolation
+      - integration_tests_using_a_tradier_shaped_provider_double
+    requirements:
+      - do_not_modify_strategy_decision_logic
+      - do_not_move_provider_workflow_into_strategy_packages
+      - do_not_assume_one_chain_response_contains_all_expirations
+      - do_not_exceed_established_live_request_budgets_without_an_explicit_reviewed_budget_amendment
+      - maintain_deterministic_output_for_identical_normalized_inputs
+      - preserve_per_symbol_and_per_strategy_failure_isolation
+    acceptance_criteria:
+      - forward_factor_can_receive_front_and_back_expiration_chains_through_the_live_adapter
+      - skew_momentum_can_receive_its_required_expiration_specific_chain
+      - a_failed_expiration_request_does_not_crash_the_complete_screening_run
+      - repeated_required_expirations_are_acquired_at_most_once_per_symbol_within_the_applicable_execution_scope
+      - fixture_backed_behavior_remains_supported
+
+  - id: TRADIER-PATCH-004
+    title: Acquisition Error Classification and Live Validation
+    objective: >
+      Separate capability-selection failures from provider execution or
+      malformed-subject failures, then validate the repaired path with real
+      Tradier credentials.
+    deliverables:
+      - narrow_exception_handling_in_acquire_or_raise
+      - distinct_canonical_error_messages
+      - regression_tests_for_both_failure_classes
+      - bounded_live_tradier_validation
+      - patch_report_with_request_budget_evidence
+    required_error_classes:
+      no_capable_provider: >
+        No enabled provider declares or satisfies the requested capability.
+      invalid_acquisition_subject: >
+        A provider was selected, but the canonical request subject was
+        incomplete or invalid.
+      provider_acquisition_failure: >
+        A valid provider request could not be completed or normalized.
+    live_validation_universe:
+      - AAPL
+      - MSFT
+      - NVDA
+      - AMD
+      - SPY
+      - QQQ
+    live_validation_command: >
+      railway run -- python -m screening --live
+      --universe AAPL,MSFT,NVDA,AMD,SPY,QQQ
+    acceptance_criteria:
+      - the_previous_missing_expiration_projection_error_is_not_reproduced
+      - tradier_receives_real_expiration_list_and_expiration_specific_option_chain_requests
+      - forward_factor_and_skew_momentum_reach_valid_strategy_evaluation_outcomes_such_as_pass_no_signal_or_a_genuine_data_quality_failure
+      - results_do_not_falsely_report_that_no_provider_offers_the_capability_when_a_provider_was_selected
+      - raw_credentials_and_secret_values_do_not_appear_in_logs_or_reports
+      - request_budgets_remain_enforced
+      - the_live_run_exits_cleanly_with_isolated_results
+
+must_not_modify:
+  - governance/frozen/**
+  - .github/workflows/**
+  - strategy scoring or signal thresholds
+  - ScreeningSignal contract
+  - Opportunity contracts
+  - ranking subsystem
+  - portfolio subsystem
+  - broker integrations
+  - Railway credential values
+
+validation:
+  required_before_every_delegated_merge:
+    - all_required_CI_checks_pass
+    - pytest_tests_market_data
+    - pytest_tests_screening
+    - pytest_tests_architecture
+    - targeted_expiration_discovery_tests
+    - targeted_expiration_aware_subject_tests
+    - targeted_live_adapter_orchestration_tests
+    - deterministic_replay_validation_passes
+    - request_budget_validation_passes
+    - architecture_boundary_validation_passes
+    - ruff_passes
+    - mypy_passes_for_affected_source
+    - governance_integrity_validation_passes
+    - lean_pos_validation_passes
+    - pre_push_check_passes
+    - secret_scan_passes
+    - git_diff_check_passes
+    - self_review_passes
+    - no_governance_violation
+    - no_unresolved_blocking_issue
+    - no_unresolved_architecture_gate
+    - no_unresolved_founder_gate
+    - no_security_sensitive_scope_expansion
+    - pull_request_contains_only_the_approved_ticket_scope
+    - relevant_open_and_recent_closed_issues_and_prs_reviewed
+  live_provider_validation:
+    - required_for: [TRADIER-PATCH-004]
+    - bounded_live_tradier_validation_passes
+  post_merge:
+    - verify_default_branch_contains_merge_commit
+    - rerun_ticket_validation_from_default_branch
+    - verify_worktree_clean
+
+self_review:
+  required: true
+  checklist:
+    architecture:
+      - canonical_capability_boundary_preserved
+      - no_provider_adapter_or_sdk_leakage_into_screening_or_strategy_code
+      - existing_strategy_semantics_unchanged
+      - no_new_frozen_public_contract_introduced_without_a_gate
+      - tradier_specific_workflow_stays_below_the_provider_neutral_screening_boundary
+    governance:
+      - Constitution_unchanged
+      - frozen_governance_unchanged
+      - delegated_scope_and_ticket_match
+      - all_Amendment_013_gates_evidenced
+    implementation:
+      - ticket_acceptance_satisfied
+      - deterministic_outputs_for_identical_inputs_and_clock
+      - structured_narrow_provenance
+      - no_unresolved_TODO_or_skipped_patch_test
+      - live_requests_bounded_and_budget_compliant
+
+stop_conditions:
+  - frozen_governance_change_required
+  - architecture_change_or_new_public_contract_required
+  - missing_or_ambiguous_upstream_contract
+  - new_immutable_domain_contract_required
+  - breaking_public_contract_required
+  - patch_scope_change_required
+  - deterministic_execution_or_replay_cannot_be_preserved
+  - multiple_materially_different_architectural_solutions
+  - validation_failure_cannot_be_resolved_within_ticket_scope
+  - required_gate_missing_unavailable_skipped_or_failing
+  - existing_strategy_semantics_would_need_to_change
+  - live_provider_credentials_or_request_budget_behavior_ambiguous
+  - live_validation_would_need_a_universe_or_provider_not_already_founder_confirmed
+  - Founder_revokes_delegation
+
+on_stop:
+  - do_not_merge
+  - open_GitHub_issue_with_evidence
+  - report_architectural_governance_or_founder_blocker
+  - return_merge_authority_to_Founder
+  - halt_remaining_patch_pending_gate_resolution
+
+explicit_exclusions:
+  - diagnosing_earnings_provider_credentials
+  - repairing_finnhub_or_alpha_vantage_earnings_acquisition
+  - adding_new_market_data_providers
+  - portfolio_work
+  - robinhood_integration
+  - lifecycle_management
+  - opportunity_ranking
+  - scheduling
+  - alerts
+  - automated_trading
+  - broad_option_surface_redesign
+  - unrelated_analytics_expansion
+
+security_constraints:
+  - use_railway_environment_injection_for_live_credentials
+  - never_print_export_persist_or_commit_raw_credential_values
+  - run_secret_scanning_before_opening_the_patch_pr
+  - redact_provider_responses_if_they_contain_sensitive_metadata
+
+regression_matrix:
+  fixture_provider:
+    expected:
+      - existing_fixture_backed_screening_remains_green
+      - deterministic_result_envelopes_remain_unchanged
+  tradier_provider:
+    expected:
+      - expiration_discovery_succeeds
+      - selected_expiration_projection_is_supplied
+      - expiration_specific_chain_request_is_constructed
+      - normalized_contracts_reach_strategy_input_builders
+  incapable_provider_set:
+    expected:
+      - accurate_no_capable_provider_error
+      - isolated_missing_data_result
+  malformed_subject:
+    expected:
+      - accurate_invalid_subject_error
+      - no_false_no_provider_message
+      - isolated_result_without_process_crash
+
+report:
+  required: true
+  destination: project/reports/PATCH-007A.md
+  contents:
+    - root_cause
+    - implementation_summary
+    - files_changed
+    - regression_results
+    - live_validation_timestamp
+    - per_symbol_strategy_outcomes
+    - provider_request_counts
+    - request_budget_evidence
+    - confirmation_that_no_secrets_were_exposed
+    - remaining_limitations
+
+merge_authority:
+  delegation_required: true
+  conditions:
+    - all_required_gates_pass
+    - bounded_live_validation_passes
+    - issue_156_is_referenced_in_the_pull_request
+    - worktree_is_clean_after_merge
+
+successor_sprint:
+  authorized: false
+  candidate:
+    id: SPRINT-008
+    title: Portfolio Domain
+
+definition_of_done: >
+  PATCH-007A is complete when every enumerated ticket is merged after every
+  Amendment 013 gate passes and no stop condition remains unresolved;
+  issue #156's confirmed expiration-projection defect is fixed; live
+  Tradier option-chain acquisition uses a two-step expiration workflow;
+  Forward Factor and Skew Momentum are no longer structurally prevented
+  from evaluating live Tradier data; existing strategy semantics remain
+  unchanged; provider-specific behavior stays below the provider-neutral
+  screening boundary; misleading capability error handling is corrected;
+  all required automated and live validations pass; the patch report is
+  committed recording request counts, outcomes, and any remaining genuine
+  data limitations; issue #156 is linked from the merged pull request and
+  closed only after successful live validation; and the Founder is asked
+  to verify completion.
