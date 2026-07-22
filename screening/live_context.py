@@ -98,6 +98,7 @@ def build_capability_subject(
     *,
     provider_symbol_window_days: int = 2,
     required_fields: tuple[str, ...] | None = None,
+    expiration: date | None = None,
 ) -> MarketDataSubject:
     """A bounded, symbol-scoped subject for acquire_capability(). The
     symbol is always caller-supplied explicitly -- never inferred, never
@@ -109,7 +110,24 @@ def build_capability_subject(
     request) -- CapabilityRequest.__post_init__ requires the subject's own
     required_fields to match exactly what acquire_capability() is called
     with, so the two must always be constructed together, not independently.
+
+    expiration, when given, additionally attaches one "expiration"-address-
+    type ProviderAddressProjection per KNOWN_PROVIDER_IDS entry, explicit
+    and separate from the "symbol" projection -- required by providers
+    (Tradier) whose OPTION_CHAIN_V1 endpoint is scoped to one specific
+    expiration per request (market_data/tradier.py's own
+    subject.projection_for("tradier", "expiration", ...) lookup,
+    TRADIER-PATCH-001/#156). Selecting *which* expiration to request is
+    entirely the caller's own responsibility (via
+    analytics/expiration_selection.py's canonical DTE-policy functions,
+    over acquire_expirations()'s output) -- this only attaches whatever
+    expiration the caller already chose, as an explicit projection value;
+    it never invents, defaults, or hard-codes a selection policy itself.
     """
+    if expiration is not None and expiration < as_of.date():
+        raise ValueError(
+            f"expiration {expiration.isoformat()} is before as_of {as_of.date().isoformat()}"
+        )
     subject_type = {
         MarketCapability.OPTION_CHAIN_V1: MarketDataSubjectType.OPTION_UNDERLYING,
         MarketCapability.EARNINGS_CALENDAR_V1: MarketDataSubjectType.EARNINGS_SECURITY,
@@ -120,6 +138,19 @@ def build_capability_subject(
         ProviderAddressProjection(provider_id, "v1", "symbol", symbol, window_start, None, evidence)
         for provider_id in KNOWN_PROVIDER_IDS
     )
+    if expiration is not None:
+        projections += tuple(
+            ProviderAddressProjection(
+                provider_id,
+                "v1",
+                "expiration",
+                expiration.isoformat(),
+                window_start,
+                None,
+                evidence,
+            )
+            for provider_id in KNOWN_PROVIDER_IDS
+        )
     instrument = Instrument(
         CanonicalInstrumentIdentity("symbol", symbol), InstrumentKind.EQUITY, symbol, "USD"
     )
