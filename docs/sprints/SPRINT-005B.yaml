@@ -1,0 +1,50 @@
+---
+id: SPRINT-005B
+name: Market Data Platform Implementation
+version: 1.0
+status: FOUNDER_VERIFICATION_PENDING
+kind: implementation
+
+predecessor:
+  id: SPRINT-005A
+  architecture: architecture/ASA-ARCH-007-Market-Data-Platform.md
+
+architecture_clarifications:
+  - ARCH-007A
+  - ARCH-007B
+
+completed_tickets:
+  - MD-001
+  - MD-002
+  - MD-003
+  - MD-004
+  - MD-005
+  - MD-006
+  - MD-007
+  - MD-008
+  - MD-009
+  - MD-010
+  - MD-011
+  - MD-012
+  - MD-013
+  - MD-014
+  - MD-015
+  - MD-016
+  - MD-017
+  - MD-018
+  - MD-019
+  - MD-020
+
+live_validation:
+  status: EXTERNALLY_BLOCKED
+  reason: authorized_worker_environment_has_no_provider_credentials
+  providers:
+    - tradier
+    - finnhub
+    - alpha_vantage
+
+completion:
+  offline_validation: complete
+  founder_verification: pending
+  delegated_merge_authority: expired_after_MD_020
+  successor_authorized: false
