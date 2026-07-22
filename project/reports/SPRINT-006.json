@@ -1,0 +1,96 @@
+{
+  "sprint": "SPRINT-006",
+  "name": "Screening Framework v1",
+  "status": "founder_verification_pending",
+  "validated_at": "2026-07-22",
+  "repository_commit": "f65b8c4",
+  "base_branch": "main",
+  "delegation": {
+    "amendment": "GOV-AMD-001-013",
+    "activation_pr": 141,
+    "sprint_definition": "docs/sprints/SPRINT-006.yaml"
+  },
+  "tickets": [
+    {"id": "GOV-006", "title": "Activate SPRINT-006 Founder Sprint Delegation", "pr": 141, "merge_authority": "founder_only"},
+    {"id": "SCREEN-001", "title": "Strategy Inventory and Readiness Audit", "pr": 142, "merge_authority": "founder_only"},
+    {"id": "SCREEN-002", "title": "Screening Framework Contract and Registration", "pr": 144, "merge_authority": "delegated"},
+    {"id": "SCREEN-003", "title": "Canonical Screening Run and Signal Results", "pr": 145, "merge_authority": "delegated"},
+    {"id": "SCREEN-004", "title": "Target Strategy Adapters", "pr": 146, "merge_authority": "delegated"},
+    {"id": "SCREEN-005", "title": "Bounded Screening Entrypoint", "pr": 148, "merge_authority": "delegated"},
+    {"id": "SCREEN-006", "title": "Sprint Integration and Completion Validation", "pr": null, "merge_authority": "delegated"}
+  ],
+  "validation_results": {
+    "full_repository_pytest": {"passed": 2034, "skipped": 2, "failed": 0},
+    "screening_and_architecture_suite": {"passed": 420, "failed": 0},
+    "existing_strategy_regression": {"passed": 259, "failed": 0, "note": "identical to SCREEN-001 baseline"},
+    "ruff": "clean",
+    "mypy_screening_own_files": "zero errors",
+    "mypy_transitive_pre_existing_findings": {
+      "count": 22,
+      "files": [
+        "strategies/calculations.py",
+        "strategies/registry.py",
+        "strategies/__init__.py",
+        "indicators/calculations.py",
+        "indicators/registry.py",
+        "indicators/engine.py"
+      ],
+      "confirmed_pre_existing": true,
+      "confirmation_method": "git stash comparison",
+      "tracked_as_issue": 147
+    },
+    "lean_pos_governance_integrity": "pass",
+    "lean_pos_validate": "pass",
+    "lean_entrypoint_check": "pass",
+    "pre_push_check": "pass, 5/5",
+    "generated_state_drift": "none",
+    "deterministic_repeated_run_comparison": "identical output, byte-diffed",
+    "secret_scan": "clean (all matches confirmed false positive)"
+  },
+  "strategy_readiness_matrix": [
+    {
+      "strategy_id": "forward_factor",
+      "screen_001_status": "partial",
+      "screen_004_status": "integrated_fixture_backed",
+      "live_ready": false,
+      "live_blocker": "no implied-forward-volatility/DTE computation pipeline exists in this codebase"
+    },
+    {
+      "strategy_id": "earnings_calendar",
+      "screen_001_status": "partial",
+      "screen_004_status": "integrated_fixture_backed",
+      "live_ready": false,
+      "live_blocker": "no live symbol/universe acquisition this sprint"
+    },
+    {
+      "strategy_id": "skew_momentum",
+      "screen_001_status": "partial",
+      "screen_004_status": "integrated_fixture_backed",
+      "live_ready": false,
+      "live_blocker": "no live symbol/universe acquisition this sprint"
+    }
+  ],
+  "live_data_gaps": [
+    "no live symbol/universe acquisition (--live fails closed by design)",
+    "forward_factor implied-forward-volatility/DTE inputs have no computation pipeline anywhere in this codebase",
+    "domain.opportunity.Opportunity/ranking bridge deferred per Founder decision in issue #143",
+    "live request-budget integration with the existing Market Data Platform ceilings not yet wired"
+  ],
+  "discovered_defects": [],
+  "caught_pre_merge_authoring_mistakes": [
+    {
+      "description": "initial Earnings Calendar fixture placed the front expiration after the earnings event date, violating expiration_pair_selector's date-relative-to-earnings-event filter",
+      "caught_before_merge": true,
+      "reached_main_broken": false
+    }
+  ],
+  "remaining_non_blocking_issues": [147],
+  "issues_created_this_sprint": [143, 147],
+  "recommendations_for_sprint_007": [
+    "resolve the implied-forward-volatility computation gap before a live Forward Factor run",
+    "implement the Opportunity/ranking bridge only after real signal history exists to calibrate against",
+    "wire --live to the existing Market Data Platform bounded acquisition path and its request-budget ceilings",
+    "address issue #147 as a Founder-reviewed .github/workflows/ change"
+  ],
+  "next_action": "founder_verification"
+}
