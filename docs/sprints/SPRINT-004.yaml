@@ -1,0 +1,55 @@
+---
+id: SPRINT-004
+name: Analytical Execution Platform
+version: 1.0
+status: COMPLETE_PENDING_FOUNDER_VERIFICATION
+phase: Phase-II
+milestone: Analytical Platform
+
+objective: >
+  Convert immutable Strategy intent into portfolio-aware Risk Decisions,
+  broker-neutral Planned Orders, deterministic analytical Simulation Results,
+  and replay-verified Portfolio transitions without modifying brokerage state.
+
+architecture:
+  constitution_amendment: GOV-AMD-014
+  contract: architecture/ASA-ARCH-006-Analytical-Execution-Contracts.md
+  boundary: analytical_only_no_brokerage_state_mutation
+
+tickets:
+  - ARCH-006
+  - EXEC-001
+  - EXEC-002
+  - EXEC-003
+  - EXEC-004
+  - EXEC-005
+  - EXEC-006
+  - EXEC-007
+  - EXEC-008
+  - EXEC-009
+
+merged_pull_requests:
+  - number: 104
+    purpose: analytical_execution_constitution
+  - number: 105
+    purpose: analytical_execution_contracts
+  - number: 106
+    purpose: atomic_EXEC_001_through_EXEC_006_activation
+  - number: 107
+    purpose: analytical_simulation
+  - number: 108
+    purpose: replay_integration
+
+invariants:
+  - Strategy_owns_investment_intent_only
+  - Portfolio_Engine_owns_portfolio_calculation_and_transition
+  - Risk_Engine_evaluates_only_declared_policies
+  - Execution_Planning_produces_inert_PlannedOrders
+  - Simulation_consumes_only_explicit_market_frames
+  - replay_uses_complete_semantic_inputs
+  - no_broker_provider_network_persistence_or_credentials
+
+completion:
+  report: project/reports/SPRINT-004.md
+  founder_verification_required: true
+  next_sprint_blocked_until_founder_verification: true

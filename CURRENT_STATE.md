@@ -10,6 +10,8 @@ Replace the dual legacy/Lean POS operation with Lean POS as the sole active proj
 *(source: project_state:lean-ps-cutover)*
 
 **Active constraints:**
+- analytical_execution_must_be_deterministic_and_replayable
+- asa_core_cannot_authenticate_with_or_mutate_a_broker
 - founder_merge_or_other_required_authority_merge_implies_acceptance
 - frozen_governance_changes_require_authorized_process
 - github_is_canonical_for_issues_prs_reviews_checks_and_merges
@@ -19,7 +21,7 @@ Replace the dual legacy/Lean POS operation with Lean POS as the sole active proj
 
 ## Next Action
 
-project=ASA-II repository=jaiaFoster/ASA migration_status=complete completed_phase=CUTOVER-06 active_operating_system=Lean_POS sprint=SPRINT-003 sprint_status=complete next_action=Founder_verification
+project=ASA-II repository=jaiaFoster/ASA migration_status=complete completed_phase=CUTOVER-06 active_operating_system=Lean_POS sprint=SPRINT-004 sprint_status=complete phase=Phase-II milestone=Analytical_Platform merged_through=EXEC-009 completion_ticket=EXEC-009 next_action=Founder_verification
 
 ## Sources
 
