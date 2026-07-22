@@ -14,19 +14,36 @@ from analytics.engine import FeatureComputation, compute_feature
 from analytics.errors import (
     AnalyticsError,
     DuplicateFeatureRegistrationError,
+    MissingImpliedVolatilityError,
+    NoMatchingContractError,
     UnknownFeatureIdError,
 )
+from analytics.expiration_selection import ExpirationCandidate, select_expiration_pair
 from analytics.features import DerivedFeatureResult
+from analytics.forward_factor import (
+    FORWARD_FACTOR_ANALYTICS_COMPUTATIONS,
+    FORWARD_FACTOR_ANALYTICS_REGISTRY,
+    compute_days_to_expiration,
+    compute_option_implied_volatility,
+)
 from analytics.registry import AnalyticsFeatureDefinition, AnalyticsRegistry
 
 __all__ = [
+    "FORWARD_FACTOR_ANALYTICS_COMPUTATIONS",
+    "FORWARD_FACTOR_ANALYTICS_REGISTRY",
     "AnalyticsError",
     "AnalyticsFeatureDefinition",
     "AnalyticsRegistry",
     "Clock",
     "DerivedFeatureResult",
     "DuplicateFeatureRegistrationError",
+    "ExpirationCandidate",
     "FeatureComputation",
+    "MissingImpliedVolatilityError",
+    "NoMatchingContractError",
     "UnknownFeatureIdError",
+    "compute_days_to_expiration",
     "compute_feature",
+    "compute_option_implied_volatility",
+    "select_expiration_pair",
 ]
