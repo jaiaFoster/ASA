@@ -1,0 +1,37 @@
+---
+id: ARCH-007A
+name: Market Data Platform Clarifications
+version: 1.0
+status: FOUNDER_MERGE_REQUIRED
+kind: architecture_amendment
+trigger: issue_111
+contract: architecture/ASA-ARCH-007-Market-Data-Platform.md
+
+clarifications:
+  capability_projection:
+    canonical_taxonomy: closed
+    option_chain_fields_are_projections: true
+    provider_metadata_does_not_create_capabilities: true
+  validation_status:
+    per_check_taxonomy: closed
+    diagnostic_detail_codes_are_extensible: true
+    overall_result_is_aggregate_only: true
+  resolution:
+    reported_value_selection_only: true
+    statistical_resolution: prohibited
+
+prohibitions:
+  - runtime_changes
+  - provider_implementations
+  - live_provider_calls
+  - credential_access
+  - public_contract_additions
+  - governance_changes
+
+merge:
+  founder_required: true
+  self_merge: false
+
+successor:
+  id: SPRINT-005B
+  resume_after_founder_merge: true

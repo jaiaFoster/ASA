@@ -1,9 +1,10 @@
 # ASA-ARCH-007: Market Data Platform Contracts
 
-**Status:** Proposed — Founder merge required
+**Status:** Accepted by Founder merge of PR #110; ARCH-007A clarification proposed
 **Date:** 2026-07-22
 **Sprint:** SPRINT-005A
 **Risk:** R3 architecture and public-contract change
+**Clarified by:** ARCH-007A (Issue #111; Founder merge required)
 
 ## 1. Decision and boundary
 
@@ -137,6 +138,14 @@ Capabilities are closed, versioned semantic requests, initially:
 - `TRADING_CALENDAR_V1`
 - `CORPORATE_ACTIONS_V1`
 
+This taxonomy is closed for v1. Provider features do not create capabilities. Option expirations,
+individual option contracts, Greeks, implied volatility, option volume, and open interest are
+typed field projections of `OPTION_CHAIN_V1`. An analytical consumer requests
+`OPTION_CHAIN_V1` with explicit `required_fields`; it never requests those projections as
+capabilities. Likewise, a Provider may describe additional source features in bounded metadata,
+but those descriptions are not registry keys and are not visible to Strategies as capabilities.
+Adding a capability requires a separate Founder-approved architecture change.
+
 `CapabilityRequest` includes capability, canonical subjects, semantic time/window, required fields,
 and freshness/completeness requirements. It never includes a provider name. The immutable registry
 maps capabilities to eligible registered provider IDs and declared constraints. Lookup returns a
@@ -168,7 +177,16 @@ Completeness compares present fields/subjects with the request. Disagreement rec
 distinct normalized values and contributing providers. Confidence metadata records inputs and a
 classification, not a user-facing probability. SPRINT-005A freezes shapes only: provider priority,
 thresholds, weights, and selection heuristics remain implementation configuration and must be
-versioned before use. Last-write-wins and input-order selection are prohibited.
+versioned before use. V1 selects one reported value using the provider-priority rule already frozen
+by ADR-001, with freshness, completeness, and confidence as explicit policy inputs, or leaves the
+result unresolved. A single available value and exact agreement are non-conflicting input cases,
+not new resolution methods. Freshness and completeness do not authorize a separate hidden
+heuristic. Last-write-wins and input-order selection are prohibited.
+
+Median, mean, weighted aggregation, voting, statistical fusion, confidence blending,
+probabilistic selection, and other value synthesis are prohibited. Resolution selects one complete
+reported value or remains unresolved; it never manufactures a consensus value. Any statistical
+resolution requires a separate Founder-approved architecture amendment.
 
 ## 10. ARCH-MD-007 — Rate-limit architecture
 
@@ -195,6 +213,20 @@ or `NOT_SUPPORTED`. Authentication validation proves an authorized read without 
 material. Latency is diagnostic and excluded from deterministic analytical identity. Fixture
 comparison is structural and bounded. Reports contain no raw payload, environment value, secret,
 session, token, cookie, authorization header, or full URL. Validation never writes provider state.
+
+The per-check status set is closed. Diagnostic detail codes are extensible, non-authoritative
+metadata and may explain `NOT_CONFIGURED`, `INCONCLUSIVE`, or `BUDGET_EXHAUSTED` conditions without
+becoming status values. Mapping fails closed:
+
+- a check omitted because configuration is absent is `SKIPPED` with `NOT_CONFIGURED` detail;
+- a capability outside a Provider declaration is `NOT_SUPPORTED`;
+- a check that ran but could not establish its required claim is `FAIL` with `INCONCLUSIVE` detail;
+- a check not attempted because its authorized budget was exhausted is `SKIPPED` with
+  `BUDGET_EXHAUSTED` detail.
+
+An overall report outcome is an aggregate summary of the ordered per-check results, not another
+per-check status and not a substitute for them. It cannot turn any failed or skipped required check
+into a pass. Diagnostic detail codes may expand without changing validation-status semantics.
 
 ## 12. ARCH-MD-009 — Replay architecture
 
