@@ -22,8 +22,8 @@ FORBIDDEN_INFRASTRUCTURE_MODULES = {
 }
 
 STDLIB_ALLOWED = {
-    "__future__", "abc", "collections", "dataclasses", "datetime", "decimal", "enum", "hashlib",
-    "json", "re", "typing",
+    "__future__", "abc", "argparse", "collections", "dataclasses", "datetime", "decimal", "enum",
+    "hashlib", "json", "re", "sys", "typing",
 }
 
 
