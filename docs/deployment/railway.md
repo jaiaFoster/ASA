@@ -44,6 +44,24 @@ Seal username, password, and TOTP values in Railway. Do not store them in `.env`
 
 When `robinhood` is selected, ASA validates username and password during startup and exits before serving if either is absent. The optional TOTP secret produces an MFA code in memory. The adapter disables robin_stocks session-file storage and suppresses SDK output; ASA never persists or returns credentials, tokens, cookies, or raw broker payloads.
 
+## Bounded live Market Data validation endpoint
+
+`POST /ops/market-data/validate` runs the existing bounded Market Data validation
+framework (`market_data.validation`, `market_data.factory`, `market_data.budget`)
+against live Tradier/Finnhub/Alpha Vantage APIs, using only fixed, safe, pre-reviewed
+validation subjects (never symbols or endpoints from the request body).
+
+Set `ASA_OPERATIONS_TOKEN` as a sealed Railway service variable to enable it; it must
+never be reused for provider credentials. Requests must send
+`Authorization: Bearer <ASA_OPERATIONS_TOKEN>`; a missing, invalid, or absent-configuration
+token all return a generic 404. The endpoint is bounded to 3 runs per hour and one
+concurrent run, and it never widens the market_data validation ceilings (at most 12
+requests per provider run, 3 per capability, 1 retry, 10s timeout). Its JSON response
+never contains secret values, authorization headers, provider tokens, raw
+secret-bearing URLs, or unrestricted provider payloads; see
+`docs/deployment/market-data-provider-diagnostics.md` for how to interpret the
+`normalized_check_status` / `diagnostic_detail_code` fields it returns.
+
 ## Verification
 
 After deployment:

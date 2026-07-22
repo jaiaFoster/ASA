@@ -25,6 +25,7 @@ class Settings(BaseSettings):
     robinhood_password: SecretStr | None = None
     robinhood_totp_secret: SecretStr | None = None
     robinhood_account_numbers: str | None = None
+    operations_token: SecretStr | None = None
     fresh_for_seconds: int = Field(default=300, ge=1)
     portfolio_fresh_for_seconds: int = Field(default=3600, ge=1)
     cors_origins: str = "http://localhost:5173"

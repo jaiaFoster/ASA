@@ -24,12 +24,18 @@ def test_provider_sdk_imports_are_confined_to_integrations() -> None:
 def test_forbidden_legacy_technologies_are_absent() -> None:
     root = Path(__file__).parents[2]
     inspected = [root / "backend" / "src", root / "frontend" / "src"]
+    # backend/src/market_data and backend/src/domain are byte-identical vendor copies of
+    # the repository-root packages (see tests/market_data_ops/test_vendor_sync.py); they
+    # are governed by that suite's own vocabulary, not the backend legacy-technology list.
+    vendored = {root / "backend" / "src" / "market_data", root / "backend" / "src" / "domain"}
     forbidden = ("flask", "sqlite", "threading", "strategy")
     matches = []
     for directory in inspected:
         if not directory.exists():
             continue
         for path in directory.rglob("*"):
+            if any(vendor in path.parents for vendor in vendored):
+                continue
             if path.is_file() and path.suffix in {".py", ".ts", ".tsx"}:
                 lowered = path.read_text().lower()
                 matches.extend(f"{path}:{term}" for term in forbidden if term in lowered)

@@ -27,6 +27,8 @@ from asa.integrations.providers.deterministic_fake_broker import (
 from asa.integrations.providers.robinhood import RobinhoodPortfolioProvider
 from asa.integrations.runs_postgres import PostgresRunPublicationRepository
 from asa.logging import configure_logging, request_id_context
+from asa.market_data_ops.routes import build_operations_router
+from asa.market_data_ops.transport import build_transport_for_provider
 
 
 @dataclass(frozen=True)
@@ -36,6 +38,7 @@ class DependencyOverrides:
     run_repository: RunPublicationRepository | None = None
     broker_provider: BrokerPortfolioProvider | None = None
     engine_factory: Callable[[str], Engine] | None = None
+    market_data_transport_factory: Callable[[str], object] | None = None
 
 
 def build_application(
@@ -81,6 +84,12 @@ def build_application(
             portfolio_runner=portfolio_runner,
             portfolio_query=portfolio_query,
             run_query=run_query,
+        )
+    )
+    app.include_router(
+        build_operations_router(
+            settings.operations_token,
+            selected.market_data_transport_factory or build_transport_for_provider,
         )
     )
 
