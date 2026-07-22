@@ -84,6 +84,15 @@ from market_data.fulfillment import (
     FulfillmentStatus,
     ProviderFulfillmentAttempt,
 )
+from market_data.resolution import (
+    ConfidenceClassification,
+    FieldDisagreement,
+    ObservationResolver,
+    ResolutionConfidence,
+    ResolutionMethod,
+    ResolutionPolicy,
+    ResolutionResult,
+)
 from market_data.transport import (
     ReadOnlyHttpRequest,
     ReadOnlyHttpResponse,
@@ -169,4 +178,11 @@ __all__ = [
     "CapabilityFulfillmentService",
     "FulfillmentStatus",
     "ProviderFulfillmentAttempt",
+    "ConfidenceClassification",
+    "FieldDisagreement",
+    "ObservationResolver",
+    "ResolutionConfidence",
+    "ResolutionMethod",
+    "ResolutionPolicy",
+    "ResolutionResult",
 ]
