@@ -81,30 +81,74 @@ prerequisites:
     (backend/tests/test_boundaries.py) enforcing a single composition root
     (backend/src/asa/bootstrap.py::build_application()), provider-SDK
     confinement, and a forbidden-legacy-tech scan.
-  unresolved_architecture_question_for_API_001: >
-    backend/ has never imported anything from screening/, analytics/,
-    strategies/, or the root-level domain/market_data/ packages -- it
-    vendors independent, byte-identical copies of market_data/ and domain/
-    only (backend/src/market_data/, backend/src/domain/, verified by
-    backend/tests/market_data_ops/test_vendor_sync.py), deliberately
-    isolated from the rest of this monorepo, the same way market_data_ops's
-    own docstrings describe for transport. This activation does not
-    pre-decide how backend's new screening endpoints reach screening
-    state -- whether by extending that vendoring pattern (a vendored
-    screening read-model DTO plus an external writer/sync path) or by some
-    other mechanism -- because no existing precedent answers it and Section
-    5's own architecture_principles ("reads never trigger provider
-    requests", "provider implementations remain completely internal") cut
-    against simply live-importing screening/'s execution machinery into
-    backend's process. API-001 (owner: Architect) must resolve this
-    explicitly and record the decision before API-002 depends on it; if the
-    resolution requires a new frozen public contract or changes backend's
-    existing isolation boundary in a way not obviously implied by this
-    sprint's own scope, this sprint's architecture_change_or_new_public_
-    contract_required stop condition applies.
+  backend_screening_connection_decision: >
+    RESOLVED by explicit Founder direction, superseding this activation's
+    original "unresolved" framing: backend must NOT be treated as a system
+    separate from the rest of ASA. No vendored screening read-model DTO, no
+    ingestion endpoint, no subprocess invocation of the CLI. Instead:
+
+    1. A new root-level module pair -- screening/state.py (a
+       ScreeningStateRecord dataclass and a ScreeningStateRepository
+       Protocol; pure, no infrastructure imports) and screening/service.py
+       (a thin orchestration layer whose refresh() calls the existing,
+       unmodified run_screening()/build_live_adapters() machinery and then
+       persists via an injected repository, and whose get_state() reads
+       through the same injected repository) -- becomes the single
+       execution graph. Both screening/cli.py and backend's new API
+       handlers call these same functions; neither reimplements or
+       duplicates strategy-selection or execution logic. Because the
+       repository is dependency-injected (the same pattern market_data/
+       already uses to separate pure interfaces from impure
+       implementations), screening/'s existing "no infrastructure imports"
+       architecture boundary test needs no change -- only backend/, which
+       already talks to Postgres, implements the concrete repository.
+
+    2. backend/'s Postgres-backed ScreeningStateRepository implementation
+       (backend/src/asa/integrations/screening_postgres.py) follows the
+       existing raw-SQL, no-ORM pattern exactly, matching
+       PostgresRunPublicationRepository. A new Alembic migration adds the
+       screening_state table.
+
+    3. For backend to import screening/service.py at all (and
+       transitively analytics/, strategies/, market_data/, domain/), its
+       deployed process needs those files on its Python path. Confirmed via
+       Railway's own service configuration (not assumed): this service's
+       rootDirectory is currently "/backend" -- Railway clones the whole
+       monorepo but scopes the build to only backend/'s own subtree, so
+       root-level packages are not present in the deployed container today.
+       Making this architecture work requires changing that rootDirectory
+       to the repo root (still the same Railway service -- not a new,
+       separate deployment, so this does not conflict with this
+       activation's own deployment_outside_the_existing_railway_backend_
+       service exclusion) and extending PYTHONPATH accordingly. This is a
+       real, live-service configuration change, not merely a code change;
+       API-001 must make it deliberately and record exactly what changed
+       (old and new rootDirectory/PYTHONPATH/build command) in its own
+       self-review and PR, not as an incidental side effect discovered
+       later.
+
+    4. The backend/src legacy-technology boundary test
+       (backend/tests/test_boundaries.py::test_forbidden_legacy_
+       technologies_are_absent) forbids the literal substring "strategy"
+       anywhere under backend/src -- confirmed by reading the test
+       directly. Root-level screening/service.py and screening/state.py
+       sit outside backend/src and may use "strategy_id" freely, matching
+       screening/results.py::ScreeningResult's own existing field name.
+       Only backend/'s own HTTP-facing code (route paths, Pydantic
+       response/request models, its own local variable names) must use a
+       different word -- "signal" was chosen explicitly (Founder-confirmed
+       in chat): GET /api/v1/screening/{signal}, GET /api/v1/screening/
+       {signal}/{symbol}, POST /api/v1/screening/{signal}/{symbol}/refresh.
+       This is a pure naming substitution at the HTTP boundary, not a
+       different concept, and does not touch the existing legacy-tech test
+       itself.
 
 bounded_scope:
   in:
+    - shared_screening_service_layer_used_by_both_the_cli_and_the_api
+    - root_level_screening_state_repository_protocol_and_record_type
+    - backend_postgres_implementation_of_that_protocol
+    - backend_railway_root_directory_and_pythonpath_change_to_reach_root_packages
     - api_v1_screening_namespace_additions
     - authentication_middleware_reusing_or_extending_the_existing_bearer_token_pattern
     - openapi_specification_for_the_new_endpoints
@@ -125,6 +169,10 @@ bounded_scope:
     - provider_specific_api_exposure
     - whole_universe_refresh
     - hidden_refresh_behavior_on_GET_endpoints
+    - migrating_the_existing_market_data_domain_vendored_copies_to_live_imports
+    - vendored_screening_read_model_dtos
+    - ingestion_endpoints_for_externally_computed_screening_results
+    - subprocess_invocation_of_the_screening_cli
 
 architecture_principles:
   - api_exposes_current_state_not_historical_runs
@@ -137,6 +185,8 @@ architecture_principles:
   - backend_single_composition_root_preserved_bootstrap_build_application
   - backend_existing_raw_sql_no_orm_persistence_pattern_followed
   - backend_existing_bearer_token_auth_pattern_reused_or_explicitly_extended_not_replaced
+  - single_shared_execution_graph_cli_and_api_call_the_same_service_functions
+  - screening_state_repository_is_dependency_injected_never_imported_concretely_by_screening_itself
 
 execution:
   mode: founder_authorized_autonomous_sprint
@@ -176,8 +226,15 @@ tickets:
     objective: >
       Establish the API framework, routing, authentication, versioning,
       error model, OpenAPI specification, and shared response envelopes --
-      and resolve the unresolved_architecture_question_for_API_001 above
-      before any later ticket depends on an answer.
+      and stand up the shared execution-graph plumbing (screening/state.py,
+      screening/service.py, backend's Postgres repository implementation,
+      and the Railway rootDirectory/PYTHONPATH change) per
+      backend_screening_connection_decision above, so API-002/003/004 have
+      something concrete to build routes against. Route handlers
+      implementing the actual read/refresh business behavior remain
+      API-003/004's own job -- this ticket wires the infrastructure and
+      proves it reachable (e.g. an import smoke test), not the endpoints
+      themselves.
     deliverables:
       - api_v1_namespace_screening_additions
       - authentication_middleware
@@ -185,26 +242,35 @@ tickets:
       - common_response_model
       - deterministic_error_model
       - api_version_negotiation
-      - recorded_decision_for_how_backend_reaches_screening_state
+      - screening_state_py_record_and_repository_protocol
+      - screening_service_py_get_state_and_refresh
+      - backend_postgres_screening_state_repository
+      - screening_state_alembic_migration
+      - railway_root_directory_and_pythonpath_change_explicitly_recorded
     excludes:
-      - business_logic
+      - business_logic_beyond_the_shared_service_wiring_itself
       - provider_integrations
+      - the_actual_api_v1_screening_route_handlers
 
   - id: API-002
     title: Screening State Repository
     owner: Worker
     objective: >
-      Introduce a persistent current-state repository for screening
-      results. Store only the latest evaluated state per strategy/symbol,
-      never historical execution runs.
+      Build out full behavior and coverage for the screening state
+      repository API-001 stood up the skeleton of: upsert semantics that
+      store only the latest evaluated state per strategy/symbol (never
+      historical execution runs), correct JSON-safe serialization of
+      Decimal/datetime fields, and ScreeningService.get_state()/refresh()
+      actually exercised end to end against a real (test) Postgres
+      instance, not just importable.
     deliverables:
-      - screening_state_repository
-      - latest_strategy_results
+      - latest_strategy_results_upsert_semantics_tested
       - metadata_storage
       - dependency_timestamps
       - state_serialization
+      - end_to_end_repository_tests_against_a_real_postgres_instance
     persisted_fields:
-      - strategy
+      - strategy_id
       - symbol
       - outcome
       - explanation
@@ -224,8 +290,8 @@ tickets:
     endpoints:
       - GET /api/v1/capabilities
       - GET /api/v1/screening
-      - GET /api/v1/screening/{strategy}
-      - GET /api/v1/screening/{strategy}/{symbol}
+      - GET /api/v1/screening/{signal}
+      - GET /api/v1/screening/{signal}/{symbol}
     response_requirements:
       - updated_at
       - age_seconds
@@ -243,7 +309,7 @@ tickets:
       Implement an explicit refresh operation that recomputes only the
       requested screening resource and its required dependency graph.
     endpoint:
-      - POST /api/v1/screening/{strategy}/{symbol}/refresh
+      - POST /api/v1/screening/{signal}/{symbol}/refresh
     requirements:
       - dependency_aware_planning
       - minimal_provider_requests
@@ -323,7 +389,7 @@ self_review:
       - reads_never_trigger_provider_requests_verified_by_test_not_just_by_inspection
       - refresh_scope_stays_narrow_never_whole_universe
       - provider_implementations_stay_internal_never_exposed_in_responses
-      - backend_isolation_boundary_from_root_packages_either_preserved_or_its_change_explicitly_recorded_in_API_001
+      - backend_railway_root_directory_and_pythonpath_change_recorded_exactly_as_made_in_API_001
     governance:
       - Constitution_unchanged
       - frozen_governance_unchanged
