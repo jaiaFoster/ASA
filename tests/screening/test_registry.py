@@ -26,7 +26,7 @@ class TestScreeningStrategyDefinition:
 
     @pytest.mark.parametrize("field", ["strategy_id", "strategy_version", "manifest_id"])
     def test_empty_text_field_rejected(self, field: str) -> None:
-        kwargs = {
+        kwargs: dict[str, object] = {
             "strategy_id": "forward_factor",
             "strategy_version": "1.1.0",
             "manifest_id": "asa.stonk.forward_factor_calendar",
@@ -34,7 +34,7 @@ class TestScreeningStrategyDefinition:
         }
         kwargs[field] = ""
         with pytest.raises(ValueError, match="normalized text"):
-            ScreeningStrategyDefinition(**kwargs)
+            ScreeningStrategyDefinition(**kwargs)  # type: ignore[arg-type]
 
     def test_whitespace_padded_text_field_rejected(self) -> None:
         with pytest.raises(ValueError, match="normalized text"):
