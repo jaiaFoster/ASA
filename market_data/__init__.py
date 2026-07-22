@@ -93,6 +93,18 @@ from market_data.resolution import (
     ResolutionPolicy,
     ResolutionResult,
 )
+from market_data.snapshot import (
+    MarketSnapshot,
+    MarketSnapshotBuilder,
+    SNAPSHOT_IDENTITY_NAMESPACE,
+    SNAPSHOT_SCHEMA_VERSION,
+    SnapshotCompleteness,
+    SnapshotRequest,
+    SnapshotValidationMetadata,
+    market_snapshot_digest,
+    market_snapshot_to_data,
+    serialize_market_snapshot,
+)
 from market_data.transport import (
     ReadOnlyHttpRequest,
     ReadOnlyHttpResponse,
@@ -185,4 +197,14 @@ __all__ = [
     "ResolutionMethod",
     "ResolutionPolicy",
     "ResolutionResult",
+    "MarketSnapshot",
+    "MarketSnapshotBuilder",
+    "SNAPSHOT_IDENTITY_NAMESPACE",
+    "SNAPSHOT_SCHEMA_VERSION",
+    "SnapshotCompleteness",
+    "SnapshotRequest",
+    "SnapshotValidationMetadata",
+    "market_snapshot_digest",
+    "market_snapshot_to_data",
+    "serialize_market_snapshot",
 ]
