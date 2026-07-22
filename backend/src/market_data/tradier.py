@@ -344,7 +344,7 @@ class TradierProvider:
         quota = tuple(
             (key.lower(), value)
             for key, value in response.headers
-            if key.lower().startswith("x-ratelimit-")
+            if key.lower().startswith("x-ratelimit-") and value
         )
         return ProviderResponseMetadata(
             "tradier",

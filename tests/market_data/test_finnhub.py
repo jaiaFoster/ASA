@@ -210,6 +210,26 @@ def test_provider_http_failures_are_normalized(status: int, expected: ProviderEr
     assert result.error is not None and result.error.code is expected
 
 
+def test_empty_valued_ratelimit_header_is_dropped_instead_of_crashing() -> None:
+    """An empty-valued *ratelimit* header must never reach ProviderResponseMetadata,
+    which rejects empty quota values -- it must be dropped, not raised uncaught.
+    """
+    transport = Transport(
+        (
+            ReadOnlyHttpResponse(
+                200,
+                {"c": 210.25, "t": int(NOW.timestamp())},
+                (("X-Ratelimit-Remaining", ""),),
+                9,
+                "finnhub-request-1",
+            ),
+        )
+    )
+    adapter, _ = provider(transport)
+    result = adapter.fetch(request(MarketCapability.REAL_TIME_QUOTE_V1, ("last",)), authorization())
+    assert result.error is None and isinstance(result.observations[0].value, Quote)
+
+
 def test_entitlement_failure_is_distinct_even_on_http_200() -> None:
     adapter, _ = provider(Transport((response({"error": "Premium subscription required"}),)))
     result = adapter.fetch(

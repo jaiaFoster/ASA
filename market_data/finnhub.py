@@ -378,7 +378,9 @@ class FinnhubProvider:
 
     def _response_metadata(self, response: ReadOnlyHttpResponse) -> ProviderResponseMetadata:
         quota = tuple(
-            (key.lower(), value) for key, value in response.headers if "ratelimit" in key.lower()
+            (key.lower(), value)
+            for key, value in response.headers
+            if "ratelimit" in key.lower() and value
         )
         return ProviderResponseMetadata(
             "finnhub",
