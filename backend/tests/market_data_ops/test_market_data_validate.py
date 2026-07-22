@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 
 from asa.bootstrap import DependencyOverrides, build_application
 from asa.config import Settings
+from market_data.transport import ReadOnlyHttpResponse
 from tests.fakes import InMemoryObservationRepository
 from tests.market_data_ops.fakes import ScriptedTransport
 
@@ -94,6 +95,98 @@ def test_valid_token_with_no_live_credentials_is_accepted_and_blocked_closed() -
 
 def _raise_if_called(_provider_id: str) -> None:
     raise AssertionError("dry_run must never construct a live transport")
+
+
+def test_tradier_option_chain_live_run_completes_instead_of_crashing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Regression for POST-005B-LIVE-VALIDATION Phase 4: the fixed OPTION_CHAIN_V1
+    validation subject previously carried no "expiration" projection, so Tradier's
+    endpoint routing raised DomainInvariantError before any transport call, crashing
+    the whole request with a raw 500. This exercises the full live (non-dry-run) path
+    for all three of Tradier's capabilities, in the sorted order TradierProvider
+    processes them (historical_bars_v1, option_chain_v1, real_time_quote_v1).
+    """
+    monkeypatch.setenv("ASA_TRADIER_ENABLED", "true")
+    monkeypatch.setenv("ASA_TRADIER_ACCESS_TOKEN", "sandbox-secret-token")
+    option_row = {
+        "symbol": "AAPL260821C00210000",
+        "underlying": "AAPL",
+        "expiration_date": "2026-08-21",
+        "strike": "210",
+        "option_type": "call",
+        "bid": "4.9",
+        "ask": "5.1",
+        "last": "5",
+        "volume": 1000,
+        "open_interest": 5000,
+        "greeks": {"delta": "0.5", "gamma": "0.03", "theta": "-0.1", "vega": "0.2", "rho": "0.01"},
+    }
+    responses = [
+        ReadOnlyHttpResponse(
+            200,
+            {
+                "history": {
+                    "day": [
+                        {
+                            "date": "2026-07-20",
+                            "open": "205.00",
+                            "high": "212",
+                            "low": "204",
+                            "close": "210",
+                            "volume": 50000000,
+                        }
+                    ]
+                }
+            },
+            (),
+            12,
+            "tradier-request-1",
+        ),
+        ReadOnlyHttpResponse(
+            200, {"options": {"option": [option_row]}}, (), 12, "tradier-request-2"
+        ),
+        ReadOnlyHttpResponse(
+            200,
+            {
+                "quotes": {
+                    "quote": {
+                        "symbol": "AAPL",
+                        "bid": "189.10",
+                        "ask": "189.20",
+                        "last": "189.15",
+                        "bidsize": 1,
+                        "asksize": 1,
+                        "volume": 100,
+                    }
+                }
+            },
+            (),
+            12,
+            "tradier-request-3",
+        ),
+    ]
+    client = _client(
+        "correct-token", transport_factory=lambda _provider_id: ScriptedTransport(responses)
+    )
+    result = client.post(
+        "/ops/market-data/validate",
+        json={"providers": ["tradier"], "dry_run": False},
+        headers={"Authorization": "Bearer correct-token"},
+    )
+    assert result.status_code == 200
+    body = result.json()
+    (provider,) = body["providers"]
+    assert provider["configuration_status"] == "enabled"
+    checks_by_capability = {check["capability"]: check for check in provider["checks"]}
+    assert set(checks_by_capability) == {
+        "historical_bars_v1",
+        "option_chain_v1",
+        "real_time_quote_v1",
+    }
+    for check in checks_by_capability.values():
+        assert check["normalized_check_status"] == "pass"
+        assert check["diagnostic_detail_code"] == "VALID_DATA"
 
 
 def test_dry_run_with_enabled_provider_never_calls_transport(

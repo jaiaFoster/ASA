@@ -6,7 +6,7 @@ hard-coded, previously-reviewed, safe read (a single well-known liquid equity).
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 from domain import (
     CanonicalInstrumentIdentity,
@@ -63,19 +63,47 @@ _REQUIRED_FIELDS_BY_CAPABILITY = {
 }
 
 
+def _next_monthly_expiration(as_of: datetime) -> date:
+    """The next third-Friday-of-the-month strictly after as_of (a standard, liquid
+    equity option expiration cycle), matching tradier._is_monthly_expiration.
+    """
+    year, month = as_of.year, as_of.month
+    while True:
+        third_friday = date(year, month, 15)
+        third_friday += timedelta(days=(4 - third_friday.weekday()) % 7)
+        if third_friday > as_of.date():
+            return third_friday
+        month, year = (1, year + 1) if month == 12 else (month + 1, year)
+
+
 def build_validation_subject(
     provider_id: str, capability: MarketCapability, *, as_of: datetime
 ) -> MarketDataSubject:
     subject_type = _SUBJECT_TYPE_BY_CAPABILITY[capability]
     window_start = as_of - timedelta(days=30)
-    projection = ProviderAddressProjection(
-        provider_id, "v1", "symbol", _SAFE_SYMBOL, window_start, None, _EVIDENCE
-    )
+    projections = [
+        ProviderAddressProjection(
+            provider_id, "v1", "symbol", _SAFE_SYMBOL, window_start, None, _EVIDENCE
+        )
+    ]
+    if capability is MarketCapability.OPTION_CHAIN_V1:
+        expiration = _next_monthly_expiration(as_of)
+        projections.append(
+            ProviderAddressProjection(
+                provider_id,
+                "v1",
+                "expiration",
+                expiration.isoformat(),
+                window_start,
+                None,
+                _EVIDENCE,
+            )
+        )
     context = MarketDataRequestContext(
         window_start,
         as_of,
         _REQUIRED_FIELDS_BY_CAPABILITY[capability],
-        (projection,),
+        tuple(projections),
         _EVIDENCE,
     )
     return MarketDataSubject(_SAFE_INSTRUMENT, subject_type, capability, context)
