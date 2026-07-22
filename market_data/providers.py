@@ -320,6 +320,7 @@ class ProviderValidationPlan:
     maximum_requests: int
     maximum_request_units: int
     timeout_seconds: int
+    subjects: tuple[MarketDataSubject, ...] = ()
 
     def __post_init__(self) -> None:
         _text(self.plan_id, "ProviderValidationPlan", "plan_id")
@@ -331,6 +332,10 @@ class ProviderValidationPlan:
             if type(getattr(self, name)) is not int or getattr(self, name) <= 0:
                 raise DomainInvariantError(f"ProviderValidationPlan.{name} must be positive")
         object.__setattr__(self, "capabilities", capabilities)
+        subjects = tuple(sorted(set(self.subjects), key=lambda item: item.subject_identity))
+        if any(subject.requested_capability not in capabilities for subject in subjects):
+            raise DomainInvariantError("ProviderValidationPlan subject capability is not planned")
+        object.__setattr__(self, "subjects", subjects)
 
 
 @dataclass(frozen=True, slots=True)
