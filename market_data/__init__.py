@@ -78,6 +78,12 @@ from market_data.validation import (
 from market_data.tradier import TradierProvider, tradier_provider_registration
 from market_data.finnhub import FinnhubProvider, finnhub_provider_registration
 from market_data.alpha_vantage import AlphaVantageProvider, alpha_vantage_provider_registration
+from market_data.fulfillment import (
+    CapabilityFulfillmentResult,
+    CapabilityFulfillmentService,
+    FulfillmentStatus,
+    ProviderFulfillmentAttempt,
+)
 from market_data.transport import (
     ReadOnlyHttpRequest,
     ReadOnlyHttpResponse,
@@ -159,4 +165,8 @@ __all__ = [
     "ReadOnlyHttpTransport",
     "ReadOnlyTransportError",
     "ReadOnlyTransportTimeout",
+    "CapabilityFulfillmentResult",
+    "CapabilityFulfillmentService",
+    "FulfillmentStatus",
+    "ProviderFulfillmentAttempt",
 ]
