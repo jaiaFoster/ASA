@@ -1,0 +1,88 @@
+{
+  "activity": "POST-005B-LIVE-VALIDATION",
+  "title": "Market Data Provider Bring-Up",
+  "validation_time_UTC": "2026-07-22T04:14:21Z",
+  "repository_commit": "707b5fbdbcf7d589deb91082fec77d267ec71764",
+  "sprint_reference": "SPRINT-005B",
+  "network_free_preflight": {
+    "tests_market_data": "138 passed, 1 skipped",
+    "documentation_drift_check": "current, no drift",
+    "config_loader_credential_detection": "confirmed absent for all three live providers"
+  },
+  "request_plan": {
+    "dry_run_reachable": false,
+    "reason": "ProviderFactory.create() requires config.enabled and a configured credential before a provider instance can be registered with ProviderValidationRunner; disabled/uncredentialed providers cannot reach the planning stage",
+    "authorized_ceilings_if_reachable": {
+      "max_requests_per_provider_run": 12,
+      "max_requests_per_capability_check": 3,
+      "max_retries_per_request": 1,
+      "timeout_seconds": 10,
+      "concurrency_per_provider": 1
+    }
+  },
+  "providers": [
+    {
+      "provider": "tradier",
+      "capability": "all (quote, historical_bars, option_expirations, option_chain)",
+      "environment": "sandbox",
+      "request_count": 0,
+      "endpoint_class": "not_reached",
+      "HTTP_status_category": "not_reached",
+      "normalized_failure_category": "configuration_error",
+      "entitlement_status": "unknown",
+      "quota_status": "not_reached",
+      "response_schema_status": "inconclusive",
+      "freshness_status": "unknown",
+      "likely_cause": "ASA_TRADIER_ACCESS_TOKEN is not set in the authorized worker environment; provider config.enabled is False",
+      "recommended_Founder_action": "Supply ASA_TRADIER_ACCESS_TOKEN (and ASA_TRADIER_ENV if not sandbox) in the authorized environment, then re-run this validation",
+      "evidence_artifact_paths": [
+        "project/reports/POST-005B-LIVE-VALIDATION.md"
+      ]
+    },
+    {
+      "provider": "finnhub",
+      "capability": "all (quote, daily_candle, earnings_calendar)",
+      "environment": "production",
+      "request_count": 0,
+      "endpoint_class": "not_reached",
+      "HTTP_status_category": "not_reached",
+      "normalized_failure_category": "configuration_error",
+      "entitlement_status": "unknown",
+      "quota_status": "not_reached",
+      "response_schema_status": "inconclusive",
+      "freshness_status": "unknown",
+      "likely_cause": "ASA_FINNHUB_API_KEY is not set in the authorized worker environment; provider config.enabled is False",
+      "recommended_Founder_action": "Supply ASA_FINNHUB_API_KEY in the authorized environment, then re-run this validation, prioritizing the daily-candle diagnostic sequence from the runbook",
+      "evidence_artifact_paths": [
+        "project/reports/POST-005B-LIVE-VALIDATION.md"
+      ]
+    },
+    {
+      "provider": "alpha_vantage",
+      "capability": "all (historical_bars, earnings_events)",
+      "environment": "production",
+      "request_count": 0,
+      "endpoint_class": "not_reached",
+      "HTTP_status_category": "not_reached",
+      "normalized_failure_category": "configuration_error",
+      "entitlement_status": "unknown",
+      "quota_status": "not_reached",
+      "response_schema_status": "inconclusive",
+      "freshness_status": "unknown",
+      "likely_cause": "ASA_ALPHA_VANTAGE_API_KEY is not set in the authorized worker environment; provider config.enabled is False",
+      "recommended_Founder_action": "Supply ASA_ALPHA_VANTAGE_API_KEY in the authorized environment, then re-run this validation, watching rate-limit detection on the first bounded call",
+      "evidence_artifact_paths": [
+        "project/reports/POST-005B-LIVE-VALIDATION.md"
+      ]
+    }
+  ],
+  "deterministic_fixture_provider": {
+    "status": "enabled_by_default",
+    "note": "offline-only; not a substitute for live provider validation; exercised via tests/market_data (network-free)"
+  },
+  "overall_success_definition_met": true,
+  "overall_success_rationale": "All three configured live providers produced a documented configuration_issue with precise, secret-free evidence; no secrets were exposed; no unbounded or live requests were made; no additional implementation work was started",
+  "secrets_exposed": false,
+  "unbounded_requests_made": false,
+  "additional_implementation_started": false
+}
