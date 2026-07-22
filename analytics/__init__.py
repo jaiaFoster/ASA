@@ -9,6 +9,7 @@ whatever canonical inputs a caller supplies.
 
 from __future__ import annotations
 
+from analytics.atm_selection import select_atm_strike
 from analytics.clock import Clock
 from analytics.engine import FeatureComputation, compute_feature
 from analytics.errors import (
@@ -18,7 +19,11 @@ from analytics.errors import (
     NoMatchingContractError,
     UnknownFeatureIdError,
 )
-from analytics.expiration_selection import ExpirationCandidate, select_expiration_pair
+from analytics.expiration_selection import (
+    ExpirationCandidate,
+    select_earnings_relative_expiration_pair,
+    select_expiration_pair,
+)
 from analytics.features import DerivedFeatureResult
 from analytics.forward_factor import (
     FORWARD_FACTOR_ANALYTICS_COMPUTATIONS,
@@ -45,5 +50,7 @@ __all__ = [
     "compute_days_to_expiration",
     "compute_feature",
     "compute_option_implied_volatility",
+    "select_atm_strike",
+    "select_earnings_relative_expiration_pair",
     "select_expiration_pair",
 ]
