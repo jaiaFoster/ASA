@@ -43,13 +43,16 @@ def _screening_files() -> list[Path]:
 
 
 class TestScreeningImportScope:
-    """screening/ imports only screening and domain -- never a bounded-context
-    implementation module (strategies, market_data, providers, ranking, ...).
+    """screening/ imports only screening, domain, and strategies (SCREEN-004
+    adapters wrap existing strategies -- that dependency is intentional and
+    one-directional; strategies/ itself is not permitted to import screening,
+    enforced separately by test_strategy_boundaries.py's own allowlist).
+    Never a provider-facing or infrastructure module.
     """
 
     @pytest.mark.parametrize("py_file", _screening_files())
     def test_only_permitted_roots(self, py_file: Path) -> None:
-        permitted = {"screening", "domain"} | STDLIB_ALLOWED
+        permitted = {"screening", "domain", "strategies"} | STDLIB_ALLOWED
         imported = _imported_roots(py_file)
         assert imported <= permitted, (
             f"{py_file.name} imports outside {permitted}: {imported - permitted}"
@@ -58,7 +61,7 @@ class TestScreeningImportScope:
     @pytest.mark.parametrize("py_file", _screening_files())
     def test_prohibited_imports_absent(self, py_file: Path) -> None:
         prohibited = {
-            "market_data", "providers", "observation", "strategies", "ranking",
+            "market_data", "providers", "observation", "ranking",
             "guardrails", "presentation", "simulation", "execution_planning",
         }
         imported = _imported_roots(py_file)
