@@ -1,0 +1,336 @@
+---
+id: SPRINT-006
+name: Screening Framework v1
+codename: Bounded Strategy Screening
+version: 1.0
+status: SCOPED
+type: IMPLEMENTATION_SPRINT
+
+activation:
+  id: AMD-013-SPRINT-006
+  governance_amendment: GOV-AMD-001-013
+  founder_authorized: true
+  founder_direction: GOV-PATCH-SPRINT-006-DELEGATION (ticket GOV-006)
+  effective_when: this sprint definition is Founder-merged to the default branch
+  delegate:
+    role: ROLE-WORKER
+    instance: implementation-worker
+  limited_to_sprint: SPRINT-006
+  approved_tickets:
+    - SCREEN-001
+    - SCREEN-002
+    - SCREEN-003
+    - SCREEN-004
+    - SCREEN-005
+    - SCREEN-006
+  excludes:
+    - architecture_changes_not_separately_approved
+    - domain_contract_redefinition
+    - governance_changes
+    - constitutional_changes
+    - deployment
+    - risk_floor_changes
+    - sprint_scope_expansion
+    - breaking_public_contracts
+    - new_strategy_design
+    - strategy_semantic_changes
+    - portfolio_implementation
+    - broker_integration
+    - position_or_options_lifecycle_management
+    - brokerage_mutation_or_order_execution
+    - scheduled_or_autonomous_screening
+    - production_deployment_expansion
+    - unbounded_provider_requests_or_universe_scans
+    - security_boundary_or_credential_handling_changes
+    - successor_sprint_work
+  expires:
+    - sprint_complete
+    - sprint_stopped
+    - Founder_revokes_delegation
+
+objective: >
+  Establish a canonical, deterministic screening framework that can discover,
+  register, execute, isolate, and rank existing ASA analytical strategies
+  without changing their trading logic, beginning with Forward Factor,
+  Earnings Calendar, and Skew Momentum if those implementations are confirmed
+  present and ready.
+
+prerequisites:
+  governance:
+    - GOV-AMD-001-013
+    - GOV-PATCH-SPRINT-006-DELEGATION
+  architecture: []
+  note: >
+    Unlike SPRINT-002 (which depended on an already Founder-merged
+    ASA-ARCH-003), no frozen architecture document yet exists for a
+    screening/scoring integration surface. SCREEN-001 must determine whether
+    one is needed before SCREEN-002 proceeds; this is an explicit stop
+    condition below, not a precondition assumed satisfied by this activation.
+
+bounded_scope:
+  in:
+    - repository_inventory_of_forward_factor_earnings_calendar_skew_momentum
+    - strategy_readiness_and_dependency_mapping
+    - identification_of_existing_analytical_execution_contracts_from_sprint_004
+    - minimal_common_screening_registration_and_execution_boundary
+    - canonical_signal_result_envelope_with_provenance
+    - per_strategy_failure_isolation_and_normalized_execution_outcomes
+    - deterministic_fixture_backed_screening_tests
+    - one_local_command_or_module_entrypoint_for_bounded_screening
+    - documentation_of_ready_blocked_partial_or_absent_target_strategies
+    - integration_with_canonical_market_data_platform_inputs_where_already_supported
+  out:
+    - new_strategy_design
+    - changes_to_entry_exit_scoring_or_ranking_logic_inside_existing_strategies
+    - portfolio_domain_implementation
+    - robinhood_or_other_broker_integration
+    - options_lifecycle_management
+    - scheduled_scans_alerts_notifications_or_background_jobs
+    - production_UI
+    - autonomous_trade_recommendations_or_execution
+    - unbounded_universe_scanning
+    - new_market_data_capabilities_unless_separately_approved
+    - statistical_fusion_of_provider_observations
+    - database_or_schema_work_unless_discovery_proves_an_existing_approved_persistence_boundary_is_required
+
+architecture_invariants:
+  - strategies_request_canonical_capabilities_never_provider_names
+  - screening_code_consumes_canonical_observations_snapshots_or_approved_analytical_inputs_only
+  - provider_adapters_SDK_types_credentials_and_raw_payloads_forbidden_in_strategy_code
+  - existing_strategy_semantics_unchanged_during_discovery_or_framework_integration
+  - one_failed_strategy_execution_never_terminates_the_full_screening_run
+  - results_are_deterministic_for_identical_inputs_configuration_and_clock
+  - ranking_never_silently_invents_comparability_between_strategies
+  - no_broker_order_execution_mutation_portfolio_lifecycle_or_position_management_behavior
+  - live_screening_remains_bounded_and_explicitly_authorized
+  - no_new_frozen_public_architecture_contract_without_an_architecture_gate
+
+execution:
+  mode: founder_authorized_autonomous_sprint
+  branch_strategy: feature_per_ticket
+  branch_pattern: agent/<ticket-id>-<short-description>
+  ticket_order:
+    - SCREEN-001
+    - SCREEN-002
+    - SCREEN-003
+    - SCREEN-004
+    - SCREEN-005
+    - SCREEN-006
+  order_rationale: >
+    Strict dependency order: inventory before contract, contract before
+    execution, execution before adapters, adapters before entrypoint,
+    entrypoint before final validation.
+  workflow:
+    - review_relevant_open_and_recent_closed_issues_and_prs_for_the_subsystem
+    - implement_one_approved_ticket
+    - run_all_required_validation
+    - perform_and_record_self_review
+    - open_pull_request
+    - verify_pull_request_contains_only_approved_ticket_scope
+    - verify_every_required_gate_is_present_and_green
+    - check_for_an_unresolved_architecture_or_founder_gate
+    - merge_under_GOV_AMD_001_013_only_if_no_gate_is_unresolved
+    - verify_default_branch_contains_merge_commit
+    - run_post_merge_validation
+    - begin_next_ticket
+
+authority:
+  ultimate: Founder
+  delegate:
+    role: ROLE-WORKER
+    instance: implementation-worker
+    may:
+      - implement_enumerated_sprint_tickets
+      - create_helper_modules_within_approved_architecture
+      - add_and_update_tests
+      - improve_typing_and_internal_documentation
+      - perform_bounded_contract_preserving_refactors
+      - create_and_update_pull_requests
+      - execute_validation
+      - perform_self_review
+      - create_non_blocking_GitHub_issues_for_confirmed_defects_or_dependencies
+      - merge_enumerated_implementation_pull_requests_after_all_gates_pass
+      - observe_and_verify_default_branch_state
+      - continue_to_the_next_ticket_after_post_merge_validation
+    may_not:
+      - merge_any_architecture_contract_or_governance_change
+      - bypass_branch_protection_or_a_required_check
+      - merge_with_a_missing_unavailable_skipped_or_failing_gate
+      - introduce_a_new_frozen_public_architecture_contract_without_a_gate
+      - introduce_new_immutable_domain_contracts
+      - change_existing_strategy_entry_exit_scoring_or_ranking_logic
+      - modify_frozen_governance_or_the_Constitution
+      - lower_a_risk_floor
+      - expand_the_sprint
+      - deploy
+      - implement_a_target_strategy_found_to_be_absent
+
+tickets:
+  - id: SCREEN-001
+    title: Strategy Inventory and Readiness Audit
+    objective: >
+      Determine the exact current state of Forward Factor, Earnings Calendar,
+      and Skew Momentum before framework design or code changes.
+    deliverables:
+      - machine_readable_strategy_inventory
+      - human_readable_readiness_report
+      - input_to_canonical_capability_matrix
+      - exact_file_and_test_references
+      - relevant_github_issue_and_pr_links
+      - architecture_or_founder_gate_recommendation_when_required
+
+  - id: SCREEN-002
+    title: Screening Framework Contract and Registration
+    objective: >
+      Introduce the smallest internal framework needed to register and invoke
+      ready strategies through one bounded orchestration path.
+    precondition: >
+      SCREEN-001 confirms an existing approved analytical execution boundary
+      can host the framework without a new frozen contract; otherwise this
+      ticket halts at the architecture gate.
+    deliverables:
+      - closed_explicit_registry_of_supported_screening_strategies
+      - stable_strategy_identity_and_version_metadata
+      - declared_input_requirements_in_canonical_terms
+      - injected_clock_and_configuration
+      - duplicate_and_unknown_registration_rejection
+
+  - id: SCREEN-003
+    title: Canonical Screening Run and Signal Results
+    objective: >
+      Execute registered strategies independently and return immutable,
+      explainable, canonical screening results.
+    deliverables:
+      - canonical_signal_result_envelope_with_provenance
+      - per_strategy_failure_isolation
+      - deterministic_fixture_tests_for_pass_no_signal_missing_data_malformed_output_and_exception_cases
+
+  - id: SCREEN-004
+    title: Target Strategy Adapters
+    objective: >
+      Connect each ready target strategy to the screening framework without
+      altering its existing semantics.
+    deliverables:
+      - forward_factor_adapter_if_ready_or_partial
+      - earnings_calendar_adapter_if_ready_or_partial
+      - skew_momentum_adapter_if_ready_or_partial
+      - explicit_reporting_of_any_absent_or_blocked_target
+
+  - id: SCREEN-005
+    title: Bounded Screening Entrypoint
+    objective: >
+      Provide one operator-facing local command or Python module that runs
+      the supported strategies with explicit bounded inputs.
+    deliverables:
+      - dry_run_or_plan_mode
+      - explicit_strategy_and_universe_selection
+      - explicit_as_of_or_injected_clock
+      - machine_and_human_readable_output
+      - opt_in_bounded_live_execution_respecting_existing_request_budgets
+
+  - id: SCREEN-006
+    title: Sprint Integration and Completion Validation
+    objective: >
+      Validate the complete offline screening path and record the exact
+      readiness of each target strategy for a successor live-signal sprint.
+    deliverables:
+      - full_affected_pytest_suites
+      - strategy_readiness_matrix
+      - canonical_sample_output
+      - explicit_list_of_live_data_gaps
+      - linked_issues_for_confirmed_blockers_only
+
+validation:
+  required_before_every_delegated_merge:
+    - all_required_CI_checks_pass
+    - pytest_passes_with_no_sprint_test_skips
+    - mypy_passes
+    - ruff_passes
+    - architecture_validation_passes
+    - deterministic_replay_validation_passes_when_applicable
+    - immutable_contract_validation_passes
+    - deterministic_identity_validation_passes
+    - governance_integrity_validation_passes
+    - lean_pos_validation_passes
+    - secret_scan_passes
+    - git_diff_check_passes
+    - self_review_passes
+    - no_governance_violation
+    - no_unresolved_blocking_issue
+    - no_unresolved_architecture_gate
+    - no_unresolved_founder_gate
+    - no_security_sensitive_scope_expansion
+    - pull_request_contains_only_the_approved_ticket_scope
+    - relevant_open_and_recent_closed_issues_and_prs_reviewed
+  post_merge:
+    - verify_default_branch_contains_merge_commit
+    - rerun_ticket_validation_from_default_branch
+    - verify_worktree_clean
+
+self_review:
+  required: true
+  checklist:
+    architecture:
+      - canonical_capability_boundary_preserved
+      - no_provider_adapter_or_sdk_leakage_into_strategy_or_screening_code
+      - existing_strategy_semantics_unchanged
+      - no_new_frozen_public_contract_introduced_without_a_gate
+    governance:
+      - Constitution_unchanged
+      - frozen_governance_unchanged
+      - delegated_scope_and_ticket_match
+      - all_Amendment_013_gates_evidenced
+    implementation:
+      - ticket_acceptance_satisfied
+      - deterministic_outputs_for_identical_inputs_and_clock
+      - structured_narrow_provenance
+      - no_unresolved_TODO_or_skipped_sprint_test
+
+stop_conditions:
+  - frozen_governance_change_required
+  - architecture_change_or_new_public_contract_required
+  - missing_or_ambiguous_upstream_contract
+  - new_immutable_domain_contract_required
+  - breaking_public_contract_required
+  - sprint_scope_change_required
+  - deterministic_execution_or_replay_cannot_be_preserved
+  - multiple_materially_different_architectural_solutions
+  - validation_failure_cannot_be_resolved_within_ticket_scope
+  - required_gate_missing_unavailable_skipped_or_failing
+  - target_strategy_absent_requiring_new_implementation
+  - existing_strategy_semantics_ambiguous_or_conflicting
+  - cross_strategy_ranking_requires_a_product_policy_decision
+  - live_universe_size_scan_frequency_or_provider_cost_policy_decision_required
+  - Founder_revokes_delegation
+
+on_stop:
+  - do_not_merge
+  - open_GitHub_issue_with_evidence
+  - report_architectural_governance_or_founder_blocker
+  - return_merge_authority_to_Founder
+  - halt_remaining_sprint_pending_gate_resolution
+
+report:
+  required: true
+  destination: project/reports/SPRINT-006.md
+  contents:
+    - sprint_summary
+    - completed_tickets
+    - delegated_merged_pull_requests
+    - validation_results
+    - architecture_and_governance_verification
+    - strategy_readiness_matrix
+    - canonical_sample_output
+    - explicit_list_of_live_data_gaps
+    - discovered_and_resolved_defects
+    - remaining_non_blocking_issues
+    - recommendations_for_SPRINT_007
+
+definition_of_done: >
+  SPRINT-006 is complete when every enumerated implementation ticket is merged
+  after every Amendment 013 gate passes and no stop condition remains
+  unresolved; main contains a deterministic, canonical, provenance-bearing
+  screening framework executing every ready target strategy through one
+  common bounded path without changing strategy semantics; the full affected
+  validation suite is green; the final sprint report is committed; and the
+  Founder is asked to verify completion before SPRINT-007 begins.
