@@ -48,9 +48,10 @@ class ValidateResponse(BaseModel):
 def build_operations_router(
     operations_token: SecretStr | None,
     transport_factory: Callable[[str], object] = build_transport_for_provider,
+    max_runs_per_hour: int | None = 50,
 ) -> APIRouter:
     router = APIRouter(prefix="/ops")
-    limiter = OperationsRunLimiter(max_runs_per_hour=3)
+    limiter = OperationsRunLimiter(max_runs_per_hour=max_runs_per_hour)
 
     def _authorize(request: Request) -> None:
         if operations_token is None:
