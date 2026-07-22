@@ -1,4 +1,4 @@
-"""Live target strategy adapters (LIVE-002).
+"""Live target strategy adapters (LIVE-002, PATCH-007A/TRADIER-PATCH-003).
 
 Live-data counterparts of screening/adapters.py's fixture-backed run_*
 functions: same manifests, same context_builders, same result
@@ -13,6 +13,18 @@ pair satisfying a strategy's DTE policy, raises StrategyAdapterError with
 MISSING_DATA -- an expected, isolated, non-crashing outcome (SCREEN-003),
 never a raw exception escaping to the runner's more generic
 STRATEGY_EXCEPTION handling.
+
+Option-chain acquisition is a two-step flow (TRADIER-PATCH-003, #156):
+Tradier's real endpoint is scoped to one expiration per request, so a
+strategy needing two expirations (Forward Factor, Earnings Calendar)
+discovers available expirations first (acquire_expirations,
+TRADIER-PATCH-001), selects the required pair via the same canonical
+selection functions screening/context_builders.py already uses, acquires
+one chain per selected expiration with an expiration-aware subject
+(TRADIER-PATCH-002), and combines them into one chain
+(combine_option_chains) before handing it to the unmodified context
+builders and strategy graphs -- never assuming one chain response covers
+every expiration.
 """
 
 from __future__ import annotations
@@ -25,7 +37,7 @@ from analytics.expiration_selection import (
     select_earnings_relative_expiration_pair,
     select_expiration_pair,
 )
-from domain import DomainInvariantError, EarningsEvent, MarketCapability, OptionType, Quote
+from domain import DomainInvariantError, EarningsEvent, MarketCapability, OptionChain, OptionType, Quote
 from market_data import CapabilityFulfillmentService, FulfillmentStatus
 from screening.clock import Clock
 from screening.context_builders import (
@@ -36,8 +48,9 @@ from screening.context_builders import (
 )
 from screening.live_acquisition import acquire_capability
 from screening.live_context import (
+    acquire_expirations,
     build_capability_subject,
-    expirations_from_chain,
+    combine_option_chains,
     select_atm_strike_at_expiration,
 )
 from screening.registry import ScreeningStrategyDefinition
@@ -110,8 +123,12 @@ def _acquire_or_raise(
     capability: MarketCapability,
     now: datetime,
     required_fields: tuple[str, ...],
+    *,
+    expiration: date | None = None,
 ) -> object:
-    subject = build_capability_subject(symbol, capability, now)
+    subject = build_capability_subject(
+        symbol, capability, now, required_fields=required_fields, expiration=expiration
+    )
     try:
         result = acquire_capability(
             fulfillment,
@@ -133,11 +150,33 @@ def _acquire_or_raise(
             f"no enabled live provider offers {capability.value} for {symbol}: {exc}",
         ) from exc
     if result.status is not FulfillmentStatus.FULFILLED or not result.observations:
-        raise StrategyAdapterError(
-            ScreeningOutcomeStatus.MISSING_DATA,
-            f"could not acquire live {capability.value} for {symbol}",
-        )
+        detail = f"could not acquire live {capability.value} for {symbol}"
+        if expiration is not None:
+            detail += f" at expiration {expiration.isoformat()}"
+        raise StrategyAdapterError(ScreeningOutcomeStatus.MISSING_DATA, detail)
     return result.observations[0].value
+
+
+def _acquire_combined_chain(
+    fulfillment: CapabilityFulfillmentService,
+    symbol: str,
+    now: datetime,
+    expirations: tuple[date, ...],
+) -> OptionChain:
+    """Acquire one option chain per distinct expiration in `expirations`
+    (deduplicated, order preserved) and combine them into a single chain --
+    the two-step live counterpart of a single, all-expirations fixture
+    chain fetch (TRADIER-PATCH-003).
+    """
+    unique_expirations = tuple(dict.fromkeys(expirations))
+    chains = tuple(
+        _acquire_or_raise(
+            fulfillment, symbol, MarketCapability.OPTION_CHAIN_V1, now, ("contracts",),
+            expiration=expiration,
+        )
+        for expiration in unique_expirations
+    )
+    return combine_option_chains(chains, observed_at=now)  # type: ignore[arg-type]
 
 
 def _spot_price(quote: Quote) -> Decimal:
@@ -162,10 +201,7 @@ def build_live_forward_factor_adapter(
             fulfillment, symbol, MarketCapability.REAL_TIME_QUOTE_V1, now, ("last",)
         )
         spot_price = _spot_price(quote)  # type: ignore[arg-type]
-        chain = _acquire_or_raise(
-            fulfillment, symbol, MarketCapability.OPTION_CHAIN_V1, now, ("contracts",)
-        )
-        available_expirations = expirations_from_chain(chain, as_of)  # type: ignore[arg-type]
+        available_expirations = acquire_expirations(fulfillment, symbol, now)
         candidates = tuple(
             ExpirationCandidate(cycle.expiration_date, cycle.days_to_expiration)
             for cycle in available_expirations
@@ -176,12 +212,13 @@ def build_live_forward_factor_adapter(
                 ScreeningOutcomeStatus.MISSING_DATA,
                 f"no expiration pair for {symbol} satisfies Forward Factor's DTE policy",
             )
-        front, _back = selected
-        strike = select_atm_strike_at_expiration(
-            chain, front.expiration_date, spot_price, OptionType.CALL  # type: ignore[arg-type]
+        front, back = selected
+        chain = _acquire_combined_chain(
+            fulfillment, symbol, now, (front.expiration_date, back.expiration_date)
         )
+        strike = select_atm_strike_at_expiration(chain, front.expiration_date, spot_price, OptionType.CALL)
         context = build_forward_factor_context(
-            chain, available_expirations, as_of, strike=strike, option_type=OptionType.CALL  # type: ignore[arg-type]
+            chain, available_expirations, as_of, strike=strike, option_type=OptionType.CALL
         )
         graph = compile_strategy_graph(FORWARD_FACTOR_CALENDAR_MANIFEST, _COMPONENT_REGISTRY)
         result = execute_strategy_graph(graph, context)
@@ -192,7 +229,7 @@ def build_live_forward_factor_adapter(
             symbol,
             result.outputs.get("verdict").value,
             result.outputs.get("forward_factor").value,
-            chain.evidence,  # type: ignore[attr-defined]
+            chain.evidence,
         )
 
     return _run
@@ -213,10 +250,7 @@ def build_live_earnings_calendar_adapter(
             fulfillment, symbol, MarketCapability.REAL_TIME_QUOTE_V1, now, ("last",)
         )
         spot_price = _spot_price(quote)  # type: ignore[arg-type]
-        chain = _acquire_or_raise(
-            fulfillment, symbol, MarketCapability.OPTION_CHAIN_V1, now, ("contracts",)
-        )
-        available_expirations = expirations_from_chain(chain, as_of)  # type: ignore[arg-type]
+        available_expirations = acquire_expirations(fulfillment, symbol, now)
         candidates = tuple(
             ExpirationCandidate(cycle.expiration_date, cycle.days_to_expiration)
             for cycle in available_expirations
@@ -246,8 +280,14 @@ def build_live_earnings_calendar_adapter(
             for cycle in available_expirations
             if cycle.expiration_date == back_candidate.expiration_date
         )
+        chain = _acquire_combined_chain(
+            fulfillment,
+            symbol,
+            now,
+            (front_candidate.expiration_date, back_candidate.expiration_date),
+        )
         target_strike = select_atm_strike_at_expiration(
-            chain, front_cycle.expiration_date, spot_price, OptionType.CALL  # type: ignore[arg-type]
+            chain, front_cycle.expiration_date, spot_price, OptionType.CALL
         )
         context = build_earnings_calendar_context(
             chain, event, front_cycle, back_cycle, as_of, target_strike=target_strike  # type: ignore[arg-type]
@@ -261,7 +301,7 @@ def build_live_earnings_calendar_adapter(
             symbol,
             result.outputs.get("verdict").value,
             result.outputs.get("score").value,
-            chain.evidence,  # type: ignore[attr-defined]
+            chain.evidence,
         )
 
     return _run
@@ -279,10 +319,7 @@ def build_live_skew_momentum_adapter(
             fulfillment, symbol, MarketCapability.REAL_TIME_QUOTE_V1, now, ("last",)
         )
         spot_price = _spot_price(quote)  # type: ignore[arg-type]
-        chain = _acquire_or_raise(
-            fulfillment, symbol, MarketCapability.OPTION_CHAIN_V1, now, ("contracts",)
-        )
-        available_expirations = expirations_from_chain(chain, as_of)  # type: ignore[arg-type]
+        available_expirations = acquire_expirations(fulfillment, symbol, now)
         future_expirations = tuple(
             cycle for cycle in available_expirations if cycle.expiration_date > as_of
         )
@@ -295,6 +332,14 @@ def build_live_skew_momentum_adapter(
         # upcoming expiration ("front month") is the simplest, standard,
         # non-editorial default absent any other established policy.
         nearest = min(future_expirations, key=lambda cycle: cycle.expiration_date)
+        chain = _acquire_or_raise(
+            fulfillment,
+            symbol,
+            MarketCapability.OPTION_CHAIN_V1,
+            now,
+            ("contracts",),
+            expiration=nearest.expiration_date,
+        )
         strike = select_atm_strike_at_expiration(
             chain, nearest.expiration_date, spot_price, OptionType.CALL  # type: ignore[arg-type]
         )
