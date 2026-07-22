@@ -1,0 +1,84 @@
+{
+  "patch": "PATCH-007A",
+  "name": "Tradier Expiration-Aware Option-Chain Acquisition",
+  "parent_sprint": "SPRINT-007",
+  "source_issue": 156,
+  "status": "founder_verification_pending",
+  "validated_at": "2026-07-22",
+  "live_validation_at_utc": "2026-07-22T21:00-21:08",
+  "repository_commit_pre_merge": "4b39176",
+  "base_branch": "main",
+  "delegation": {
+    "amendment": "GOV-AMD-001-013",
+    "activation_pr": 158,
+    "patch_definition": "docs/sprints/PATCH-007A.yaml"
+  },
+  "tickets": [
+    {"id": "TRADIER-PATCH-001", "title": "Canonical Expiration Discovery Acquisition", "pr": 159, "merge_authority": "delegated"},
+    {"id": "TRADIER-PATCH-002", "title": "Expiration-Aware Option-Chain Subjects", "pr": 160, "merge_authority": "delegated"},
+    {"id": "TRADIER-PATCH-003", "title": "Two-Step Live Option Acquisition", "pr": 161, "merge_authority": "delegated"},
+    {"id": "TRADIER-PATCH-004", "title": "Acquisition Error Classification and Live Validation", "pr": null, "merge_authority": "delegated"}
+  ],
+  "root_cause": "screening/live_context.py::build_capability_subject() never attached an 'expiration' address projection; market_data/tradier.py's real OPTION_CHAIN_V1 endpoint requires one specific expiration per request via subject.projection_for('tradier', 'expiration', ...), which always raised DomainInvariantError.",
+  "regression_results": {
+    "full_repository_pytest": {"passed": 2201, "skipped": 2, "failed": 0},
+    "ruff": "clean",
+    "mypy_patch_own_files": "zero errors",
+    "lean_pos_governance_integrity": "pass",
+    "pre_push_check": "pass, 5/5",
+    "existing_fixture_backed_tests": "all 7 LIVE-002 tests unchanged and passing after the two-step rewrite",
+    "secret_scan": "clean"
+  },
+  "live_validation_results": {
+    "command": "railway run -- python -m screening --live --universe AAPL,MSFT,NVDA,AMD,SPY,QQQ --json",
+    "environment": "Railway ASA production service, real Tradier credentials, never read or handled by the implementing agent",
+    "exit_code": 0,
+    "total_results": 18,
+    "crashes": 0,
+    "strategy_exceptions": 0,
+    "outcome_breakdown": {"missing_data": 18, "pass": 0, "no_signal": 0},
+    "missing_expiration_projection_error_reproduced": false,
+    "false_no_capable_provider_messages": 0,
+    "targeted_diagnostic_evidence": {
+      "expirations_request": {"path": "/v1/markets/options/expirations", "status": 200, "expirations_returned": 24},
+      "chain_request": {
+        "path": "/v1/markets/options/chains",
+        "query_expiration": "2026-08-21",
+        "status": 200,
+        "contracts_returned": 178,
+        "rejected_by": "STALE_DATA (unrelated freshness gate, issue #162)"
+      }
+    },
+    "forward_factor_and_skew_momentum_blocker": "real-time quote rejected as STALE_DATA post-market-close (issue #162), not the original #156 defect",
+    "earnings_calendar_blocker": "unconfirmed root cause, independent of #156 and #162 (carried from SPRINT-007's own report)"
+  },
+  "request_budget_evidence": {
+    "tradier_rate_limit_observed": {"allowed": 120, "available_after_one_request": 119, "used": 1},
+    "budget_ceiling_approached": false,
+    "budget_rejections": 0
+  },
+  "discovered_and_resolved_defects": [
+    {
+      "description": "combine_option_chains() would raise on duplicate contract identities when merging chains from a provider that returns the same broad chain regardless of requested expiration",
+      "discovered_during": "TRADIER-PATCH-003 test development",
+      "fixed_before_merge": true
+    },
+    {
+      "description": "_acquire_or_raise()'s single DomainInvariantError catch conflated 'no capable provider' with 'provider selected but subject invalid' under one misleading message; acquire_expirations() had the same latent gap uncaught entirely",
+      "discovered_during": "TRADIER-PATCH-004",
+      "fixed_before_merge": true,
+      "regression_tests": ["tests/screening/test_live_context_error_classification.py", "tests/screening/test_live_adapters.py::TestAcquisitionErrorClassificationEndToEnd"]
+    }
+  ],
+  "issues_closed_this_patch": [156],
+  "issues_created_this_patch": [162],
+  "remaining_non_blocking_issues": [147, 162],
+  "confirmation_no_secrets_exposed": true,
+  "recommendations": [
+    "address issue #162 (freshness computation) before expecting a live run to reliably produce PASS/NO_SIGNAL",
+    "re-run python -m screening --live during active market hours for the first real PASS/NO_SIGNAL evidence",
+    "investigate earnings_calendar's separate, still-unconfirmed live acquisition failure",
+    "address issue #147 (CI coverage) as a Founder-reviewed .github/workflows/ change"
+  ],
+  "next_action": "founder_verification"
+}
