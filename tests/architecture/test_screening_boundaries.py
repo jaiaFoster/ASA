@@ -43,19 +43,26 @@ def _screening_files() -> list[Path]:
 
 
 class TestScreeningImportScope:
-    """screening/ imports only screening, domain, strategies, and analytics
-    (SCREEN-004 adapters wrap existing strategies; ANALYTICS-003 context
-    builders use analytics/ for Forward Factor's derived inputs) -- these
-    dependencies are intentional and one-directional: neither strategies/
-    nor analytics/ is permitted to import screening, enforced separately by
-    their own allowlists (test_strategy_boundaries.py,
-    test_analytics_boundaries.py). Never a provider-facing or
-    infrastructure module.
+    """screening/ imports only screening, domain, strategies, analytics, and
+    market_data (SCREEN-004 adapters wrap existing strategies; ANALYTICS-003
+    context builders use analytics/ for Forward Factor's derived inputs;
+    LIVE-001 reuses market_data/'s own canonical, provider-neutral
+    acquisition pipeline instead of building a new one) -- these
+    dependencies are intentional and one-directional: none of strategies/,
+    analytics/, or market_data/ is permitted to import screening, enforced
+    separately by their own allowlists (test_strategy_boundaries.py,
+    test_analytics_boundaries.py, and market_data/'s own existing
+    boundary tests). market_data/ is the sanctioned canonical acquisition
+    layer, not a raw provider SDK -- the raw providers/ package stays
+    prohibited below; no provider-specific code may enter screening/
+    directly.
     """
 
     @pytest.mark.parametrize("py_file", _screening_files())
     def test_only_permitted_roots(self, py_file: Path) -> None:
-        permitted = {"screening", "domain", "strategies", "analytics"} | STDLIB_ALLOWED
+        permitted = (
+            {"screening", "domain", "strategies", "analytics", "market_data"} | STDLIB_ALLOWED
+        )
         imported = _imported_roots(py_file)
         assert imported <= permitted, (
             f"{py_file.name} imports outside {permitted}: {imported - permitted}"
@@ -64,7 +71,7 @@ class TestScreeningImportScope:
     @pytest.mark.parametrize("py_file", _screening_files())
     def test_prohibited_imports_absent(self, py_file: Path) -> None:
         prohibited = {
-            "market_data", "providers", "observation", "ranking",
+            "providers", "observation", "ranking",
             "guardrails", "presentation", "simulation", "execution_planning",
         }
         imported = _imported_roots(py_file)

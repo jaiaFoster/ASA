@@ -13,6 +13,13 @@ from screening.errors import (
     ScreeningError,
     UnknownScreeningStrategyIdError,
 )
+from screening.live_acquisition import (
+    acquire_capability,
+    build_capability_registry,
+    build_fulfillment_service,
+    build_request_budget_manager,
+    enabled_provider_configs,
+)
 from screening.registry import ScreeningRegistry, ScreeningStrategyDefinition
 from screening.results import ScreeningOutcomeStatus, ScreeningResult, bounded_failure_detail
 from screening.runner import StrategyAdapter, StrategyAdapterError, run_screening
@@ -30,6 +37,11 @@ __all__ = [
     "StrategyAdapter",
     "StrategyAdapterError",
     "UnknownScreeningStrategyIdError",
+    "acquire_capability",
     "bounded_failure_detail",
+    "build_capability_registry",
+    "build_fulfillment_service",
+    "build_request_budget_manager",
+    "enabled_provider_configs",
     "run_screening",
 ]
