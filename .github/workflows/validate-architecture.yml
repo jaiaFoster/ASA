@@ -18,9 +18,12 @@ on:
       - 'execution_planning/**'
       - 'presentation/**'
       - 'domain/**'
+      - 'market_data/**'
+      - 'docs/providers/**'
       - 'architecture/**'
       - 'tests/architecture/**'
       - 'tests/domain/**'
+      - 'tests/market_data/**'
       - 'tests/observation/**'
       - 'tests/providers/**'
       - 'tests/reconciliation/**'
@@ -68,6 +71,9 @@ jobs:
           tests/portfolio
           tests/execution_planning
           -v
+
+      - name: Check generated provider documentation drift
+        run: PYTHONPATH=. python -m market_data.documentation
 
 # Mechanical checks only. A passing workflow does NOT constitute approval,
 # merge authorization, or deployment authorization.
