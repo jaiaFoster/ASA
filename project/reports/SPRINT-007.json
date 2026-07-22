@@ -1,0 +1,91 @@
+{
+  "sprint": "SPRINT-007",
+  "name": "Derived Analytics & Live Screening",
+  "codename": "Bounded Live Signals",
+  "status": "founder_verification_pending",
+  "validated_at": "2026-07-22",
+  "repository_commit": "00f7980",
+  "base_branch": "main",
+  "delegation": {
+    "amendment": "GOV-AMD-001-013",
+    "activation_pr": 150,
+    "sprint_definition": "docs/sprints/SPRINT-007.yaml"
+  },
+  "tickets": [
+    {"id": "GOV-007", "title": "Activate SPRINT-007 Founder Sprint Delegation", "pr": 150, "merge_authority": "founder_only"},
+    {"id": "ANALYTICS-001", "title": "Canonical Derived Analytics Framework", "pr": 151, "merge_authority": "delegated"},
+    {"id": "ANALYTICS-002", "title": "Forward Factor Derived Analytics", "pr": 152, "merge_authority": "delegated"},
+    {"id": "ANALYTICS-003", "title": "Strategy Input Builders", "pr": 153, "merge_authority": "delegated"},
+    {"id": "LIVE-001", "title": "Live Market Data Integration", "pr": 154, "merge_authority": "delegated"},
+    {"id": "LIVE-002", "title": "Live Screening Runner", "pr": 155, "merge_authority": "delegated"},
+    {"id": "LIVE-003", "title": "Operational Live Validation", "pr": null, "merge_authority": "delegated_after_founder_confirmation"}
+  ],
+  "validation_results": {
+    "full_repository_pytest": {"passed": 2180, "skipped": 2, "failed": 0},
+    "architecture_market_data_screening_analytics_suite": {"passed": 706, "skipped": 1, "failed": 0},
+    "existing_strategy_regression": {"passed": 259, "failed": 0, "note": "identical to SPRINT-006 baseline"},
+    "ruff": "clean",
+    "mypy_sprint_own_files": "zero errors",
+    "mypy_transitive_pre_existing_findings": {
+      "count": 22,
+      "confirmed_pre_existing": true,
+      "tracked_as_issue": 147
+    },
+    "lean_pos_governance_integrity": "pass",
+    "lean_entrypoint_check": "pass",
+    "pre_push_check": "pass, 5/5",
+    "generated_state_drift": "none",
+    "ci_validate_architecture": "green on every triggering PR",
+    "ci_product_ci_and_validate_pos": "never triggered (no matching path filters touched this sprint)",
+    "secret_scan": "clean (only env var names and one labeled test placeholder found)"
+  },
+  "derived_analytics_catalog": [
+    {"module": "analytics/forward_factor.py", "function": "compute_days_to_expiration"},
+    {"module": "analytics/forward_factor.py", "function": "compute_option_implied_volatility"},
+    {"module": "analytics/expiration_selection.py", "function": "select_expiration_pair"},
+    {"module": "analytics/expiration_selection.py", "function": "select_earnings_relative_expiration_pair"},
+    {"module": "analytics/atm_selection.py", "function": "select_atm_strike"}
+  ],
+  "live_validation_results_per_symbol": {
+    "run_at_utc": "2026-07-22T20:00",
+    "environment": "Railway ASA production service, real Tradier credentials",
+    "execution_method": "railway run -- python -m screening --live --json (credential values never read or handled by the implementing agent)",
+    "validation_universe": ["AAPL", "MSFT", "NVDA", "AMD", "SPY", "QQQ"],
+    "total_results": 18,
+    "crashes": 0,
+    "strategy_exceptions": 0,
+    "outcome_breakdown": {"missing_data": 18, "pass": 0, "no_signal": 0},
+    "forward_factor_and_skew_momentum_blocker": "issue #156 (Tradier option-chain acquisition never supplies a required expiration projection)",
+    "earnings_calendar_blocker": "unconfirmed root cause, independent of #156 -- not investigated further this sprint"
+  },
+  "request_budget_evidence": {
+    "budget_rejections_during_live_run": 0,
+    "budget_manager_sharing": "one RequestBudgetManager instance shared across every enabled provider's dependencies for the whole run",
+    "fixture_provider_forced_disabled_for_live": true,
+    "fails_closed_if_zero_enabled_providers": true,
+    "verified_by": "tests/screening/test_cli.py::TestLive (network-free injected transport, no real credentials needed to prove this behavior)"
+  },
+  "discovered_and_resolved_defects": [
+    {
+      "description": "_acquire_or_raise let a raw DomainInvariantError escape as STRATEGY_EXCEPTION instead of the documented MISSING_DATA contract when no enabled provider declares a requested capability at all",
+      "discovered_during": "LIVE-002 test development",
+      "fixed_before_merge": true,
+      "regression_test": "tests/screening/test_live_adapters.py::TestCapabilityNotOfferedByAnyEnabledProvider"
+    },
+    {
+      "description": "market_data/live_transport.py initially written inside screening/, violating screening/'s own no-network-import architecture boundary",
+      "discovered_during": "LIVE-002 development, caught immediately by tests/architecture/test_screening_boundaries.py",
+      "fixed_before_merge": true,
+      "reached_main_broken": false
+    }
+  ],
+  "remaining_non_blocking_issues": [147, 156],
+  "issues_created_this_sprint": [156],
+  "recommendations_for_sprint_008": [
+    "resolve issue #156 (Tradier two-step expiration-then-chain acquisition) and confirm earnings_calendar's separate live-acquisition failure before treating any target strategy as genuinely live-signal-capable",
+    "once #156 is fixed, re-run python -m screening --live against the same six-symbol validation universe and confirm at least one real PASS/NO_SIGNAL verdict per strategy",
+    "decide the Opportunity/ranking bridge (deferred since SPRINT-006's #143 decision) now that live signals are close to real",
+    "address issue #147 (CI coverage) as a Founder-reviewed .github/workflows/ change"
+  ],
+  "next_action": "founder_verification"
+}
