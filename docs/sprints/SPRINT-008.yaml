@@ -1,0 +1,387 @@
+---
+id: SPRINT-008
+name: Agent Data API v1
+version: 1.0
+status: SCOPED
+type: IMPLEMENTATION_SPRINT
+
+activation:
+  id: AMD-013-SPRINT-008
+  governance_amendment: GOV-AMD-001-013
+  founder_authorized: true
+  founder_direction: SPRINT-008 proposal (ticket GOV-008), founder_status APPROVED_PENDING_EXECUTION
+  effective_when: this sprint definition is Founder-merged to the default branch
+  delegate:
+    role: ROLE-WORKER
+    instance: implementation-worker
+  limited_to_sprint: SPRINT-008
+  approved_tickets:
+    - API-001
+    - API-002
+    - API-003
+    - API-004
+    - API-005
+    - API-006
+  excludes:
+    - architecture_changes_not_separately_approved
+    - domain_contract_redefinition
+    - domain_opportunity_contract_changes
+    - governance_changes
+    - constitutional_changes
+    - workflow_changes
+    - deployment_outside_the_existing_railway_backend_service
+    - risk_floor_changes
+    - sprint_scope_expansion
+    - breaking_public_contracts
+    - strategy_semantic_changes
+    - portfolio_api
+    - lifecycle_api
+    - opportunity_ranking
+    - broker_operations
+    - automatic_scheduling
+    - background_refresh_daemon
+    - websocket_streaming
+    - push_notifications
+    - historical_screening_runs
+    - provider_specific_api_exposure
+    - successor_sprint_work
+  expires:
+    - sprint_complete
+    - sprint_stopped
+    - Founder_revokes_delegation
+
+objective: >
+  Establish ASA's first public, AI-oriented API surface. Expose the current
+  screening state through stable, read-only endpoints with explicit
+  timestamps and optional narrow refresh operations, so the API becomes the
+  canonical interface for AI agents, future UI clients, and downstream
+  automation.
+
+prerequisites:
+  governance:
+    - GOV-AMD-001-013
+    - GOV-008
+  architecture: []
+  research_findings_informing_this_activation: >
+    Investigated before drafting, not assumed. backend/src/asa/api/routes.py
+    already defines an APIRouter(prefix="/api/v1") serving health,
+    readiness, quotes, runs, and portfolio endpoints -- API-001's "/api/v1
+    namespace" deliverable already exists in part; the new work is adding
+    screening-specific routes to it, not creating a fresh namespace. The
+    only existing authentication precedent anywhere in this repository is a
+    static bearer token compared with hmac.compare_digest
+    (backend/src/asa/market_data_ops/auth.py), sourced from one
+    SecretStr setting -- no JWT, OAuth, or API-key-header mechanism exists
+    to draw from instead. backend/ persists state via Postgres, raw SQL
+    through sqlalchemy.Engine/text() (no ORM), and hand-written Alembic
+    migrations (backend/migrations/versions/) -- API-002's state
+    repository should follow this exact established shape, not introduce a
+    new persistence pattern. backend/ is not covered by the root
+    tests/architecture/ boundary suite; it has its own local suite
+    (backend/tests/test_boundaries.py) enforcing a single composition root
+    (backend/src/asa/bootstrap.py::build_application()), provider-SDK
+    confinement, and a forbidden-legacy-tech scan.
+  unresolved_architecture_question_for_API_001: >
+    backend/ has never imported anything from screening/, analytics/,
+    strategies/, or the root-level domain/market_data/ packages -- it
+    vendors independent, byte-identical copies of market_data/ and domain/
+    only (backend/src/market_data/, backend/src/domain/, verified by
+    backend/tests/market_data_ops/test_vendor_sync.py), deliberately
+    isolated from the rest of this monorepo, the same way market_data_ops's
+    own docstrings describe for transport. This activation does not
+    pre-decide how backend's new screening endpoints reach screening
+    state -- whether by extending that vendoring pattern (a vendored
+    screening read-model DTO plus an external writer/sync path) or by some
+    other mechanism -- because no existing precedent answers it and Section
+    5's own architecture_principles ("reads never trigger provider
+    requests", "provider implementations remain completely internal") cut
+    against simply live-importing screening/'s execution machinery into
+    backend's process. API-001 (owner: Architect) must resolve this
+    explicitly and record the decision before API-002 depends on it; if the
+    resolution requires a new frozen public contract or changes backend's
+    existing isolation boundary in a way not obviously implied by this
+    sprint's own scope, this sprint's architecture_change_or_new_public_
+    contract_required stop condition applies.
+
+bounded_scope:
+  in:
+    - api_v1_screening_namespace_additions
+    - authentication_middleware_reusing_or_extending_the_existing_bearer_token_pattern
+    - openapi_specification_for_the_new_endpoints
+    - common_response_envelope_and_deterministic_error_model
+    - persistent_current_state_repository_for_latest_screening_results_only
+    - read_only_screening_endpoints_that_never_trigger_provider_requests
+    - explicit_narrow_per_resource_refresh_endpoint
+    - ai_agent_facing_validation_of_the_complete_flow
+    - deployment_and_authentication_documentation_for_external_consumers
+  out:
+    - portfolio_api
+    - lifecycle_api
+    - opportunity_ranking
+    - broker_operations
+    - automatic_scheduling_or_background_refresh_daemons
+    - websocket_streaming_or_push_notifications
+    - historical_screening_run_storage
+    - provider_specific_api_exposure
+    - whole_universe_refresh
+    - hidden_refresh_behavior_on_GET_endpoints
+
+architecture_principles:
+  - api_exposes_current_state_not_historical_runs
+  - reads_never_trigger_provider_requests
+  - refreshes_are_explicit_and_narrowly_scoped
+  - api_reports_facts_not_policy
+  - provider_implementations_remain_completely_internal
+  - every_resource_is_independently_timestamped
+  - responses_are_deterministic_and_versioned
+  - backend_single_composition_root_preserved_bootstrap_build_application
+  - backend_existing_raw_sql_no_orm_persistence_pattern_followed
+  - backend_existing_bearer_token_auth_pattern_reused_or_explicitly_extended_not_replaced
+
+execution:
+  mode: founder_authorized_autonomous_sprint
+  branch_strategy: feature_per_ticket
+  branch_pattern: agent/<ticket-id>-<short-description>
+  ticket_order:
+    - API-001
+    - API-002
+    - API-003
+    - API-004
+    - API-005
+    - API-006
+  order_rationale: >
+    Strict dependency order matching the proposal: framework and the
+    backend/screening connection decision before persistence, persistence
+    before read endpoints, read endpoints before refresh (refresh updates
+    the same repository reads already depend on), the full stack before
+    AI-agent validation, validation before documentation.
+  workflow:
+    - review_relevant_open_and_recent_closed_issues_and_prs_for_the_subsystem
+    - implement_one_approved_ticket
+    - run_all_required_validation
+    - perform_and_record_self_review
+    - open_pull_request
+    - verify_pull_request_contains_only_approved_ticket_scope
+    - verify_every_required_gate_is_present_and_green
+    - check_for_an_unresolved_architecture_or_founder_gate
+    - merge_under_GOV_AMD_001_013_only_if_no_gate_is_unresolved
+    - verify_default_branch_contains_merge_commit
+    - run_post_merge_validation
+    - begin_next_ticket
+
+tickets:
+  - id: API-001
+    title: Public API Contracts & Infrastructure
+    owner: Architect
+    objective: >
+      Establish the API framework, routing, authentication, versioning,
+      error model, OpenAPI specification, and shared response envelopes --
+      and resolve the unresolved_architecture_question_for_API_001 above
+      before any later ticket depends on an answer.
+    deliverables:
+      - api_v1_namespace_screening_additions
+      - authentication_middleware
+      - openapi_specification
+      - common_response_model
+      - deterministic_error_model
+      - api_version_negotiation
+      - recorded_decision_for_how_backend_reaches_screening_state
+    excludes:
+      - business_logic
+      - provider_integrations
+
+  - id: API-002
+    title: Screening State Repository
+    owner: Worker
+    objective: >
+      Introduce a persistent current-state repository for screening
+      results. Store only the latest evaluated state per strategy/symbol,
+      never historical execution runs.
+    deliverables:
+      - screening_state_repository
+      - latest_strategy_results
+      - metadata_storage
+      - dependency_timestamps
+      - state_serialization
+    persisted_fields:
+      - strategy
+      - symbol
+      - outcome
+      - explanation
+      - metrics
+      - updated_at
+      - dependency_timestamps
+    excludes:
+      - historical_run_storage
+      - provider_payload_persistence
+
+  - id: API-003
+    title: Screening Read Endpoints
+    owner: Worker
+    objective: >
+      Expose screening state through read-only endpoints that never
+      trigger provider requests.
+    endpoints:
+      - GET /api/v1/capabilities
+      - GET /api/v1/screening
+      - GET /api/v1/screening/{strategy}
+      - GET /api/v1/screening/{strategy}/{symbol}
+    response_requirements:
+      - updated_at
+      - age_seconds
+      - deterministic_ordering
+      - pagination_where_applicable
+      - provider_calls_triggered_false
+    excludes:
+      - automatic_refresh
+      - background_execution
+
+  - id: API-004
+    title: Explicit Narrow Refresh
+    owner: Worker
+    objective: >
+      Implement an explicit refresh operation that recomputes only the
+      requested screening resource and its required dependency graph.
+    endpoint:
+      - POST /api/v1/screening/{strategy}/{symbol}/refresh
+    requirements:
+      - dependency_aware_planning
+      - minimal_provider_requests
+      - bounded_execution
+      - updated_timestamps
+      - request_accounting
+    excludes:
+      - whole_universe_refresh
+      - hidden_get_refreshes
+
+  - id: API-005
+    title: AI Agent Validation
+    owner: Worker
+    objective: >
+      Validate the API using an external AI-agent workflow representative
+      of future production use.
+    validation_flow:
+      - discover_capabilities
+      - retrieve_screening_data
+      - inspect_timestamps
+      - determine_whether_refresh_is_needed
+      - refresh_one_opportunity
+      - retrieve_updated_result
+      - generate_structured_morning_brief
+    success_criteria:
+      - no_provider_credentials_exposed
+      - no_cli_dependency
+      - deterministic_responses
+
+  - id: API-006
+    title: Documentation & Deployment
+    owner: Worker
+    objective: >
+      Complete deployment configuration and documentation for external API
+      consumers.
+    deliverables:
+      - deployment_documentation
+      - authentication_guide
+      - api_examples
+      - railway_configuration
+      - operational_documentation
+
+validation:
+  required_before_every_delegated_merge:
+    - all_required_CI_checks_pass
+    - pytest_tests_backend
+    - pytest_tests_screening
+    - pytest_tests_architecture
+    - ruff_passes_backend_and_root
+    - mypy_passes_backend_and_affected_root_source
+    - alembic_upgrade_and_downgrade_round_trip_where_migrations_change
+    - backend_local_boundary_suite_passes
+    - governance_integrity_validation_passes
+    - lean_pos_validation_passes
+    - pre_push_check_passes
+    - secret_scan_passes
+    - git_diff_check_passes
+    - self_review_passes
+    - no_governance_violation
+    - no_unresolved_blocking_issue
+    - no_unresolved_architecture_gate
+    - no_unresolved_founder_gate
+    - no_security_sensitive_scope_expansion
+    - pull_request_contains_only_the_approved_ticket_scope
+    - relevant_open_and_recent_closed_issues_and_prs_reviewed
+  post_merge:
+    - verify_default_branch_contains_merge_commit
+    - rerun_ticket_validation_from_default_branch
+    - verify_worktree_clean
+
+self_review:
+  required: true
+  checklist:
+    architecture:
+      - single_composition_root_preserved
+      - no_new_frozen_public_contract_introduced_without_a_gate
+      - reads_never_trigger_provider_requests_verified_by_test_not_just_by_inspection
+      - refresh_scope_stays_narrow_never_whole_universe
+      - provider_implementations_stay_internal_never_exposed_in_responses
+      - backend_isolation_boundary_from_root_packages_either_preserved_or_its_change_explicitly_recorded_in_API_001
+    governance:
+      - Constitution_unchanged
+      - frozen_governance_unchanged
+      - delegated_scope_and_ticket_match
+      - all_Amendment_013_gates_evidenced
+    implementation:
+      - ticket_acceptance_satisfied
+      - deterministic_outputs_for_identical_repository_state
+      - authentication_required_and_tested_for_every_new_endpoint
+      - no_unresolved_TODO_or_skipped_sprint_test
+      - no_credential_or_secret_value_ever_logged_or_returned_in_a_response
+
+stop_conditions:
+  - frozen_governance_change_required
+  - architecture_change_or_new_public_contract_required
+  - missing_or_ambiguous_upstream_contract
+  - new_immutable_domain_contract_required
+  - breaking_public_contract_required
+  - sprint_scope_change_required
+  - deterministic_execution_or_replay_cannot_be_preserved
+  - multiple_materially_different_architectural_solutions
+  - validation_failure_cannot_be_resolved_within_ticket_scope
+  - required_gate_missing_unavailable_skipped_or_failing
+  - existing_strategy_semantics_would_need_to_change
+  - backend_isolation_boundary_would_need_to_change_beyond_what_API_001_explicitly_records
+  - Founder_revokes_delegation
+
+on_stop:
+  - do_not_merge
+  - open_GitHub_issue_with_evidence
+  - report_architectural_governance_or_founder_blocker
+  - return_merge_authority_to_Founder
+  - halt_remaining_sprint_pending_gate_resolution
+
+report:
+  required: true
+  destination: project/reports/SPRINT-008.md
+  contents:
+    - sprint_summary
+    - completed_tickets
+    - delegated_merged_pull_requests
+    - validation_results
+    - architecture_and_governance_verification
+    - backend_screening_connection_decision_and_rationale
+    - api_endpoint_catalog
+    - ai_agent_validation_results
+    - discovered_and_resolved_defects
+    - remaining_non_blocking_issues
+    - recommendations_for_SPRINT_009
+
+definition_of_done: >
+  SPRINT-008 is complete when every enumerated implementation ticket is
+  merged after every Amendment 013 gate passes and no stop condition
+  remains unresolved; a stable, versioned REST API is available; an AI
+  agent can discover ASA's capabilities and retrieve current screening
+  state instantly; every resource exposes updated_at and age_seconds; read
+  endpoints never invoke providers; the refresh endpoint updates only the
+  requested resource; an OpenAPI specification is published; authentication
+  is enabled on every new endpoint; the full test, lint, type, governance,
+  and secret-scan gates pass; the final sprint report is committed; and the
+  Founder is asked to verify completion before SPRINT-009 begins.
