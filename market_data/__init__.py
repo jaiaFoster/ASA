@@ -42,6 +42,13 @@ from market_data.factory import (
     ProviderFactoryError,
     ProviderRegistration,
 )
+from market_data.registry import (
+    CapabilityRegistry,
+    ProviderCandidate,
+    ProviderPriority,
+    ProviderPriorityPolicy,
+    ProviderRegistry,
+)
 
 __all__ = [
     "ConfigurationError",
@@ -80,4 +87,9 @@ __all__ = [
     "ProviderFactory",
     "ProviderFactoryError",
     "ProviderRegistration",
+    "CapabilityRegistry",
+    "ProviderCandidate",
+    "ProviderPriority",
+    "ProviderPriorityPolicy",
+    "ProviderRegistry",
 ]
