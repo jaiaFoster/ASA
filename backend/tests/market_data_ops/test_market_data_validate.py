@@ -119,6 +119,43 @@ def test_dry_run_with_enabled_provider_never_calls_transport(
     assert "sandbox-secret-token" not in response.text
 
 
+# --- environment_configuration_error_tests --------------------------------------------
+
+
+def test_invalid_environment_configuration_fails_closed_instead_of_crashing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """load_market_data_config_from_environment() raises ConfigurationError for an
+    invalid ASA_TRADIER_ENV value; the endpoint must classify this per-provider
+    rather than propagate an unhandled 500, for both dry_run and live requests.
+    """
+    monkeypatch.setenv("ASA_TRADIER_ENV", "not-a-real-environment")
+    client = _client("correct-token")
+    response = client.post(
+        "/ops/market-data/validate",
+        json={"dry_run": True},
+        headers={"Authorization": "Bearer correct-token"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["overall_status"] == "failed"
+    assert {provider["provider"] for provider in body["providers"]} == {
+        "tradier",
+        "finnhub",
+        "alpha_vantage",
+    }
+    assert all(
+        provider["configuration_status"] == "configuration_error"
+        for provider in body["providers"]
+    )
+    for provider in body["providers"]:
+        (check,) = provider["checks"]
+        assert check["normalized_check_status"] == "fail"
+        assert check["diagnostic_detail_code"] == "CONFIGURATION_ERROR"
+        assert check["request_count"] == 0
+    assert "not-a-real-environment" not in response.text
+
+
 # --- provider_selection_tests --------------------------------------------------------
 
 

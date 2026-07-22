@@ -115,9 +115,35 @@ def run_bounded_validation(
     dry_run: bool,
     transport_factory: Callable[[str], object] = build_transport_for_provider,
 ) -> ValidationRunOutcome:
-    config = load_market_data_config_from_environment()
-    configs_by_id = {item.provider_id: item for item in config.providers}
     clock = Clock()
+    try:
+        config = load_market_data_config_from_environment()
+    except ConfigurationError as exc:
+        redacted = redact_diagnostic_text(str(exc))
+        configuration_error_results = tuple(
+            ProviderCheckResult(
+                provider_id,
+                "configuration_error",
+                (
+                    CapabilityCheckResult(
+                        provider_id,
+                        PROVIDER_CAPABILITIES[provider_id][0],
+                        "fail",
+                        "CONFIGURATION_ERROR",
+                        0,
+                        None,
+                        "unknown",
+                        "inconclusive",
+                        "unknown",
+                        None,
+                        redacted,
+                    ),
+                ),
+            )
+            for provider_id in requested_provider_ids
+        )
+        return ValidationRunOutcome("failed", dry_run, clock.now(), configuration_error_results)
+    configs_by_id = {item.provider_id: item for item in config.providers}
     factory = _provider_factory()
 
     provider_results: list[ProviderCheckResult] = []
