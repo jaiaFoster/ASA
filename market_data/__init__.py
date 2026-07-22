@@ -58,6 +58,11 @@ from market_data.budget import (
     RequestBudgetPolicy,
     RequestOutcome,
 )
+from market_data.fixture import (
+    DeterministicFixtureProvider,
+    FixtureScenario,
+    fixture_provider_registration,
+)
 
 __all__ = [
     "ConfigurationError",
@@ -108,4 +113,7 @@ __all__ = [
     "RequestBudgetManager",
     "RequestBudgetPolicy",
     "RequestOutcome",
+    "DeterministicFixtureProvider",
+    "FixtureScenario",
+    "fixture_provider_registration",
 ]

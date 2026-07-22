@@ -8,8 +8,8 @@ from enum import Enum
 from typing import Protocol, runtime_checkable
 
 from domain import (
-    CanonicalInstrumentIdentity,
     MarketCapability,
+    MarketDataSubject,
     MarketObservation,
     ProviderErrorKind,
 )
@@ -128,7 +128,7 @@ class ProviderMetadata:
 @dataclass(frozen=True, slots=True)
 class CapabilityRequest:
     capability: MarketCapability
-    subjects: tuple[CanonicalInstrumentIdentity, ...]
+    subjects: tuple[MarketDataSubject, ...]
     effective_start: datetime
     effective_end: datetime
     required_fields: tuple[str, ...]
@@ -139,14 +139,24 @@ class CapabilityRequest:
         require_tz_aware(self.effective_end, "CapabilityRequest", "effective_end")
         if self.effective_start > self.effective_end:
             raise DomainInvariantError("CapabilityRequest time window is inverted")
-        subjects = tuple(sorted(set(self.subjects), key=lambda value: (value.scheme, value.value)))
+        subjects = tuple(sorted(set(self.subjects), key=lambda value: value.subject_identity))
         if not subjects:
             raise DomainInvariantError("CapabilityRequest requires canonical subjects")
+        if any(subject.requested_capability is not self.capability for subject in subjects):
+            raise DomainInvariantError("CapabilityRequest subject capability mismatch")
+        if any(
+            subject.request_context.semantic_start != self.effective_start
+            or subject.request_context.semantic_end != self.effective_end
+            for subject in subjects
+        ):
+            raise DomainInvariantError("CapabilityRequest subject time window mismatch")
         required = tuple(sorted(set(self.required_fields)))
         if not required or any(not value or value != value.strip() for value in required):
             raise DomainInvariantError("CapabilityRequest requires normalized required_fields")
         if type(self.maximum_age_seconds) is not int or self.maximum_age_seconds < 0:
             raise DomainInvariantError("CapabilityRequest maximum_age_seconds must be non-negative")
+        if any(subject.request_context.required_fields != required for subject in subjects):
+            raise DomainInvariantError("CapabilityRequest subject required fields mismatch")
         object.__setattr__(self, "subjects", subjects)
         object.__setattr__(self, "required_fields", required)
 
