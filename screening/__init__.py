@@ -6,6 +6,7 @@ through one common bounded contract, without changing their trading logic.
 
 from __future__ import annotations
 
+from screening.adapters import TARGET_STRATEGY_ADAPTERS, TARGET_STRATEGY_REGISTRY
 from screening.clock import Clock
 from screening.errors import (
     DuplicateScreeningRegistrationError,
@@ -17,6 +18,8 @@ from screening.results import ScreeningOutcomeStatus, ScreeningResult, bounded_f
 from screening.runner import StrategyAdapter, StrategyAdapterError, run_screening
 
 __all__ = [
+    "TARGET_STRATEGY_ADAPTERS",
+    "TARGET_STRATEGY_REGISTRY",
     "Clock",
     "DuplicateScreeningRegistrationError",
     "ScreeningError",
