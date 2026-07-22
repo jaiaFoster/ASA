@@ -34,6 +34,14 @@ from market_data.providers import (
     ValidationCheckStatus,
     normalized_provider_error,
 )
+from market_data.factory import (
+    BudgetAuthorizer,
+    Clock,
+    ProviderDependencies,
+    ProviderFactory,
+    ProviderFactoryError,
+    ProviderRegistration,
+)
 
 __all__ = [
     "ConfigurationError",
@@ -66,4 +74,10 @@ __all__ = [
     "ValidationCheckResult",
     "ValidationCheckStatus",
     "normalized_provider_error",
+    "BudgetAuthorizer",
+    "Clock",
+    "ProviderDependencies",
+    "ProviderFactory",
+    "ProviderFactoryError",
+    "ProviderRegistration",
 ]
