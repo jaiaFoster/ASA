@@ -77,6 +77,7 @@ from market_data.validation import (
 )
 from market_data.tradier import TradierProvider, tradier_provider_registration
 from market_data.finnhub import FinnhubProvider, finnhub_provider_registration
+from market_data.alpha_vantage import AlphaVantageProvider, alpha_vantage_provider_registration
 from market_data.transport import (
     ReadOnlyHttpRequest,
     ReadOnlyHttpResponse,
@@ -151,6 +152,8 @@ __all__ = [
     "tradier_provider_registration",
     "FinnhubProvider",
     "finnhub_provider_registration",
+    "AlphaVantageProvider",
+    "alpha_vantage_provider_registration",
     "ReadOnlyHttpRequest",
     "ReadOnlyHttpResponse",
     "ReadOnlyHttpTransport",
