@@ -32,6 +32,10 @@ packages = ["src/asa"]
 [tool.ruff]
 line-length = 100
 target-version = "py312"
+# src/market_data and src/domain are byte-identical vendor copies of the repository-root
+# packages (see tests/market_data_ops/test_vendor_sync.py); they are linted under the
+# root project's own ruff configuration, not duplicated here.
+extend-exclude = ["src/market_data", "src/domain"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
