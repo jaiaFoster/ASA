@@ -105,6 +105,12 @@ from market_data.snapshot import (
     market_snapshot_to_data,
     serialize_market_snapshot,
 )
+from market_data.replay import (
+    SnapshotFixtureLibrary,
+    SnapshotReplayRecord,
+    SnapshotReplayResult,
+    replay_market_snapshot,
+)
 from market_data.transport import (
     ReadOnlyHttpRequest,
     ReadOnlyHttpResponse,
@@ -207,4 +213,8 @@ __all__ = [
     "market_snapshot_digest",
     "market_snapshot_to_data",
     "serialize_market_snapshot",
+    "SnapshotFixtureLibrary",
+    "SnapshotReplayRecord",
+    "SnapshotReplayResult",
+    "replay_market_snapshot",
 ]
