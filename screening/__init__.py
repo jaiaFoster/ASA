@@ -13,12 +13,20 @@ from screening.errors import (
     UnknownScreeningStrategyIdError,
 )
 from screening.registry import ScreeningRegistry, ScreeningStrategyDefinition
+from screening.results import ScreeningOutcomeStatus, ScreeningResult, bounded_failure_detail
+from screening.runner import StrategyAdapter, StrategyAdapterError, run_screening
 
 __all__ = [
     "Clock",
     "DuplicateScreeningRegistrationError",
     "ScreeningError",
+    "ScreeningOutcomeStatus",
     "ScreeningRegistry",
+    "ScreeningResult",
     "ScreeningStrategyDefinition",
+    "StrategyAdapter",
+    "StrategyAdapterError",
     "UnknownScreeningStrategyIdError",
+    "bounded_failure_detail",
+    "run_screening",
 ]
