@@ -76,6 +76,7 @@ from market_data.validation import (
     validation_result_to_data,
 )
 from market_data.tradier import TradierProvider, tradier_provider_registration
+from market_data.finnhub import FinnhubProvider, finnhub_provider_registration
 from market_data.transport import (
     ReadOnlyHttpRequest,
     ReadOnlyHttpResponse,
@@ -148,6 +149,8 @@ __all__ = [
     "validation_result_to_data",
     "TradierProvider",
     "tradier_provider_registration",
+    "FinnhubProvider",
+    "finnhub_provider_registration",
     "ReadOnlyHttpRequest",
     "ReadOnlyHttpResponse",
     "ReadOnlyHttpTransport",
