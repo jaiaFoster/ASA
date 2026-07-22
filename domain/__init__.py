@@ -57,6 +57,28 @@ from domain.financial import (
 )
 from domain.guardrail import GuardrailOutcome
 from domain.indicator import Indicator
+from domain.market_data import (
+    MARKET_DATA_CONTRACT_VERSION,
+    CompletenessMetadata,
+    CorporateActionPlaceholder,
+    CorporateActionStatus,
+    CorporateActionType,
+    FreshnessMetadata,
+    FreshnessStatus,
+    MarketCapability,
+    MarketObservation,
+    NormalizedProviderErrorMetadata,
+    OHLCVBar,
+    ProviderErrorKind,
+    ProviderProvenance,
+    Quote,
+    TradingCalendarEvent,
+    TradingCalendarEventType,
+    deserialize_market_data,
+    market_data_to_data,
+    market_observation_identity,
+    serialize_market_data,
+)
 from domain.observation import Observation
 from domain.opportunity import Opportunity, RecommendationState
 from domain.operational import (
@@ -122,6 +144,22 @@ __all__ = [
     "Instrument",
     "InstrumentKind",
     "MonetaryAmount",
+    "MARKET_DATA_CONTRACT_VERSION",
+    "MarketCapability",
+    "MarketObservation",
+    "Quote",
+    "OHLCVBar",
+    "TradingCalendarEvent",
+    "TradingCalendarEventType",
+    "CorporateActionPlaceholder",
+    "CorporateActionType",
+    "CorporateActionStatus",
+    "FreshnessMetadata",
+    "FreshnessStatus",
+    "CompletenessMetadata",
+    "ProviderProvenance",
+    "ProviderErrorKind",
+    "NormalizedProviderErrorMetadata",
     "Observation",
     "OptionChain",
     "OptionCollection",
@@ -177,4 +215,8 @@ __all__ = [
     "deserialize_financial_contract",
     "financial_contract_to_data",
     "serialize_financial_contract",
+    "deserialize_market_data",
+    "market_data_to_data",
+    "market_observation_identity",
+    "serialize_market_data",
 ]
