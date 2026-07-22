@@ -33,3 +33,25 @@ def test_sprint_charter_requires_founder_merge_and_forbids_runtime() -> None:
     assert "runtime_changes" in text
     assert "live_api_calls" in text
     assert "FOUNDER_REVIEW_REQUIRED" in text
+
+
+def test_arch_007a_keeps_capabilities_closed_and_uses_projections() -> None:
+    text = CONTRACT.read_text()
+    assert "This taxonomy is closed for v1" in text
+    assert "typed field projections of `OPTION_CHAIN_V1`" in text
+    assert "Provider features do not create capabilities" in text
+
+
+def test_arch_007a_keeps_per_check_statuses_closed() -> None:
+    text = CONTRACT.read_text()
+    assert "The per-check status set is closed" in text
+    assert "`SKIPPED` with `NOT_CONFIGURED` detail" in text
+    assert "`FAIL` with `INCONCLUSIVE` detail" in text
+    assert "`BUDGET_EXHAUSTED` detail" in text
+
+
+def test_arch_007a_prohibits_statistical_resolution() -> None:
+    text = CONTRACT.read_text()
+    assert "Median, mean, weighted aggregation, voting, statistical fusion" in text
+    assert "never manufactures a consensus value" in text
+    assert "separate Founder-approved architecture amendment" in text
