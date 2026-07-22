@@ -4,7 +4,11 @@ from datetime import date
 
 import pytest
 
-from analytics.expiration_selection import ExpirationCandidate, select_expiration_pair
+from analytics.expiration_selection import (
+    ExpirationCandidate,
+    select_earnings_relative_expiration_pair,
+    select_expiration_pair,
+)
 
 _POLICY = {
     "front_min_dte": 35,
@@ -73,3 +77,65 @@ class TestSelectExpirationPair:
         policy.update(overrides)
         with pytest.raises(ValueError, match="policy is invalid"):
             select_expiration_pair((), **policy)
+
+
+_EARNINGS_POLICY = {
+    "front_min_dte": 7,
+    "front_max_dte": 21,
+    "back_min_dte": 22,
+    "back_max_dte": 75,
+}
+_EARNINGS_DATE = date(2026, 8, 5)
+
+
+class TestSelectEarningsRelativeExpirationPair:
+    def test_selects_a_pair_spanning_the_earnings_date(self) -> None:
+        candidates = (
+            _candidate(9, date(2026, 7, 31)),  # before earnings, front window
+            _candidate(58, date(2026, 9, 18)),  # after earnings, back window
+        )
+        selected = select_earnings_relative_expiration_pair(
+            candidates, _EARNINGS_DATE, **_EARNINGS_POLICY
+        )
+        assert selected is not None
+        front, back = selected
+        assert front.expiration_date < _EARNINGS_DATE < back.expiration_date
+
+    def test_front_after_earnings_date_is_rejected(self) -> None:
+        candidates = (
+            _candidate(16, date(2026, 8, 7)),  # after earnings -- invalid front
+            _candidate(58, date(2026, 9, 18)),
+        )
+        assert select_earnings_relative_expiration_pair(
+            candidates, _EARNINGS_DATE, **_EARNINGS_POLICY
+        ) is None
+
+    def test_back_before_earnings_date_is_rejected(self) -> None:
+        candidates = (
+            _candidate(9, date(2026, 7, 31)),
+            _candidate(2, date(2026, 8, 3)),  # before earnings -- invalid back regardless of DTE
+        )
+        assert select_earnings_relative_expiration_pair(
+            candidates, _EARNINGS_DATE, **_EARNINGS_POLICY
+        ) is None
+
+    def test_returns_none_for_empty_candidates(self) -> None:
+        assert (
+            select_earnings_relative_expiration_pair((), _EARNINGS_DATE, **_EARNINGS_POLICY)
+            is None
+        )
+
+    def test_is_deterministic(self) -> None:
+        candidates = (
+            _candidate(9, date(2026, 7, 31)),
+            _candidate(58, date(2026, 9, 18)),
+        )
+        first = select_earnings_relative_expiration_pair(candidates, _EARNINGS_DATE, **_EARNINGS_POLICY)
+        second = select_earnings_relative_expiration_pair(candidates, _EARNINGS_DATE, **_EARNINGS_POLICY)
+        assert first == second
+
+    def test_invalid_policy_rejected(self) -> None:
+        policy = dict(_EARNINGS_POLICY)
+        policy["front_min_dte"] = 100
+        with pytest.raises(ValueError, match="policy is invalid"):
+            select_earnings_relative_expiration_pair((), _EARNINGS_DATE, **policy)

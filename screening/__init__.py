@@ -20,6 +20,7 @@ from screening.live_acquisition import (
     build_request_budget_manager,
     enabled_provider_configs,
 )
+from screening.live_adapters import build_live_adapters
 from screening.registry import ScreeningRegistry, ScreeningStrategyDefinition
 from screening.results import ScreeningOutcomeStatus, ScreeningResult, bounded_failure_detail
 from screening.runner import StrategyAdapter, StrategyAdapterError, run_screening
@@ -41,6 +42,7 @@ __all__ = [
     "bounded_failure_detail",
     "build_capability_registry",
     "build_fulfillment_service",
+    "build_live_adapters",
     "build_request_budget_manager",
     "enabled_provider_configs",
     "run_screening",

@@ -31,6 +31,65 @@ class ExpirationCandidate:
     days_to_expiration: int
 
 
+def select_earnings_relative_expiration_pair(
+    candidates: tuple[ExpirationCandidate, ...],
+    earnings_date: date,
+    *,
+    front_min_dte: int,
+    front_max_dte: int,
+    back_min_dte: int,
+    back_max_dte: int,
+    front_must_be_before_earnings: bool = True,
+) -> tuple[ExpirationCandidate, ExpirationCandidate] | None:
+    """Select the front/back pair spanning an earnings event: independent
+    of strategies/stonk_components.py::ExpirationPairSelector (this
+    package cannot import strategies/), using the same earnings-relative
+    selection semantics -- front strictly before the earnings date, back
+    strictly after, both within their own DTE windows -- so a consistent
+    pair is chosen without depending on the graph system. Returns None
+    when no candidate pair satisfies the policy -- an expected,
+    non-exceptional outcome the caller must handle explicitly.
+    """
+    if (
+        min(front_min_dte, front_max_dte, back_min_dte, back_max_dte) < 0
+        or front_min_dte > front_max_dte
+        or back_min_dte > back_max_dte
+    ):
+        raise ValueError("earnings-relative expiration selection policy is invalid")
+
+    fronts = tuple(
+        candidate
+        for candidate in candidates
+        if front_min_dte <= candidate.days_to_expiration <= front_max_dte
+        and (
+            candidate.expiration_date < earnings_date
+            or not front_must_be_before_earnings
+        )
+    )
+    backs = tuple(
+        candidate
+        for candidate in candidates
+        if back_min_dte <= candidate.days_to_expiration <= back_max_dte
+        and candidate.expiration_date > earnings_date
+    )
+    pairs = tuple(
+        (front, back)
+        for front in fronts
+        for back in backs
+        if back.expiration_date > front.expiration_date
+    )
+    return min(
+        pairs,
+        key=lambda pair: (
+            (earnings_date - pair[0].expiration_date).days
+            + (pair[1].expiration_date - earnings_date).days,
+            pair[0].expiration_date,
+            pair[1].expiration_date,
+        ),
+        default=None,
+    )
+
+
 def select_expiration_pair(
     candidates: tuple[ExpirationCandidate, ...],
     *,
