@@ -231,6 +231,9 @@ class PlannedOrder:
         required_stop = self.order_type in {PlannedOrderType.STOP, PlannedOrderType.STOP_LIMIT}
         if required_limit != (self.limit_price is not None) or required_stop != (self.stop_price is not None):
             raise DomainInvariantError("PlannedOrder price fields do not match order type")
+        for price in (self.limit_price, self.stop_price):
+            if price is not None and (price.amount <= 0 or price.currency != self.instrument.currency):
+                raise DomainInvariantError("PlannedOrder prices must be positive Instrument currency")
         if self.initial_status is not PlannedOrderStatus.PLANNED:
             raise DomainInvariantError("PlannedOrder initial status must be PLANNED")
         if not self.reasoning:
@@ -291,6 +294,12 @@ class ExecutionPlan:
             raise DomainInvariantError("ExecutionPlan requires PlannedOrders")
         if tuple(order.sequence for order in self.planned_orders) != tuple(range(1, len(self.planned_orders) + 1)):
             raise DomainInvariantError("PlannedOrder sequences must be contiguous")
+        if any(order.risk_decision_id != self.risk_decision.risk_decision_id for order in self.planned_orders):
+            raise DomainInvariantError("PlannedOrders must reference RiskDecision")
+        if any(order.source_snapshot_id != self.source_snapshot.portfolio_snapshot_id for order in self.planned_orders):
+            raise DomainInvariantError("PlannedOrders must reference source Snapshot")
+        if self.execution_summary.order_count != len(self.planned_orders):
+            raise DomainInvariantError("ExecutionSummary order count must match PlannedOrders")
         _evidence(self.evidence, "ExecutionPlan")
 
 

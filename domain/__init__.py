@@ -80,6 +80,16 @@ from domain.outcome_metrics import ExpectedOutcomeMetrics
 from domain.provenance import Provenance, ProviderDisagreement
 from domain.provider import Provider
 from domain.references import Confidence, EvidenceKind, EvidenceReference
+from domain.simulation import (
+    SimulatedFill,
+    SimulatedOrderState,
+    SimulationFrame,
+    SimulationMarketData,
+    SimulationResult,
+    SimulationTerminalReason,
+    SimulationTraceEvent,
+    SimulationTraceEventType,
+)
 from domain.values import DomainInvariantError, is_normalized_value
 
 __all__ = [
@@ -150,6 +160,14 @@ __all__ = [
     "Security",
     "SecurityAssetType",
     "SecurityCollection",
+    "SimulatedFill",
+    "SimulatedOrderState",
+    "SimulationFrame",
+    "SimulationMarketData",
+    "SimulationResult",
+    "SimulationTerminalReason",
+    "SimulationTraceEvent",
+    "SimulationTraceEventType",
     "SectorClassification",
     "TimeInForce",
     "VolatilityEvidence",
