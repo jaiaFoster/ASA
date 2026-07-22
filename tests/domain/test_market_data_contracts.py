@@ -21,10 +21,14 @@ from domain import (
     Instrument,
     InstrumentKind,
     MarketCapability,
+    MarketDataRequestContext,
+    MarketDataSubject,
+    MarketDataSubjectType,
     MarketObservation,
     NormalizedProviderErrorMetadata,
     OHLCVBar,
     ProviderErrorKind,
+    ProviderAddressProjection,
     ProviderProvenance,
     Quote,
     TradingCalendarEvent,
@@ -42,6 +46,18 @@ INSTRUMENT = Instrument(
     "USD",
 )
 EVIDENCE = (EvidenceReference(EvidenceKind.OBSERVATION, "provider-evidence"),)
+
+
+def subject(
+    capability: MarketCapability = MarketCapability.REAL_TIME_QUOTE_V1,
+) -> MarketDataSubject:
+    projection = ProviderAddressProjection("fixture", "v1", "symbol", "AAPL", NOW, None, EVIDENCE)
+    return MarketDataSubject(
+        INSTRUMENT,
+        MarketDataSubjectType.INSTRUMENT,
+        capability,
+        MarketDataRequestContext(NOW, NOW, ("last",), (projection,), EVIDENCE),
+    )
 
 
 def quote() -> Quote:
@@ -74,12 +90,12 @@ def bar() -> OHLCVBar:
 def observation() -> MarketObservation:
     value = quote()
     identity = market_observation_identity(
-        "fixture", MarketCapability.REAL_TIME_QUOTE_V1, INSTRUMENT.identity, NOW, value, "v1"
+        "fixture", MarketCapability.REAL_TIME_QUOTE_V1, subject(), NOW, value, "v1"
     )
     return MarketObservation(
         identity,
         MarketCapability.REAL_TIME_QUOTE_V1,
-        INSTRUMENT.identity,
+        subject(),
         NOW,
         NOW + timedelta(seconds=1),
         value,
@@ -94,9 +110,7 @@ def contracts() -> tuple[object, ...]:
     return (
         quote(),
         bar(),
-        TradingCalendarEvent(
-            "XNAS", TradingCalendarEventType.OPEN, NOW, NOW, date(2026, 7, 21)
-        ),
+        TradingCalendarEvent("XNAS", TradingCalendarEventType.OPEN, NOW, NOW, date(2026, 7, 21)),
         CorporateActionPlaceholder(
             INSTRUMENT,
             CorporateActionType.DIVIDEND,
@@ -110,6 +124,9 @@ def contracts() -> tuple[object, ...]:
         NormalizedProviderErrorMetadata(
             ProviderErrorKind.RATE_LIMIT, "QUOTA_EXHAUSTED", True, "quota exhausted"
         ),
+        subject().request_context.provider_address_projections[0],
+        subject().request_context,
+        subject(),
         observation(),
     )
 
@@ -120,7 +137,9 @@ def test_market_data_contracts_are_immutable_and_round_trip(value: object) -> No
     assert value.__dataclass_params__.frozen  # type: ignore[attr-defined]
     payload = serialize_market_data(value)  # type: ignore[arg-type]
     assert deserialize_market_data(payload) == value
-    assert json.dumps(json.loads(payload), sort_keys=True, separators=(",", ":")).encode() == payload
+    assert (
+        json.dumps(json.loads(payload), sort_keys=True, separators=(",", ":")).encode() == payload
+    )
     with pytest.raises(dataclasses.FrozenInstanceError):
         setattr(value, dataclasses.fields(value)[0].name, "changed")
 
@@ -153,14 +172,10 @@ def test_market_observation_identity_excludes_recorded_time_and_is_content_deriv
 
 
 def test_observation_value_must_match_capability() -> None:
-    with pytest.raises(DomainInvariantError, match="does not match capability"):
+    with pytest.raises(DomainInvariantError, match="capability mismatch"):
         dataclasses.replace(observation(), capability=MarketCapability.HISTORICAL_BARS_V1)
 
 
 def test_provider_neutral_contracts_have_no_sdk_or_secret_fields() -> None:
-    names = {
-        field.name
-        for contract in contracts()
-        for field in dataclasses.fields(contract)
-    }
+    names = {field.name for contract in contracts() for field in dataclasses.fields(contract)}
     assert not names & {"token", "api_key", "password", "cookie", "raw_payload", "sdk_response"}

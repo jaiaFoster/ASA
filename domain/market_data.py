@@ -72,6 +72,12 @@ class MarketCapability(str, Enum):
     CORPORATE_ACTIONS_V1 = "corporate_actions_v1"
 
 
+class MarketDataSubjectType(str, Enum):
+    INSTRUMENT = "instrument"
+    OPTION_UNDERLYING = "option_underlying"
+    EARNINGS_SECURITY = "earnings_security"
+
+
 class FreshnessStatus(str, Enum):
     FRESH = "fresh"
     STALE = "stale"
@@ -110,6 +116,126 @@ class CorporateActionStatus(str, Enum):
     CONFIRMED = "confirmed"
     CANCELLED = "cancelled"
     UNKNOWN = "unknown"
+
+
+def _evidence(values: tuple[EvidenceReference, ...], owner: str) -> tuple[EvidenceReference, ...]:
+    if not values or not all(isinstance(value, EvidenceReference) for value in values):
+        raise DomainInvariantError(f"{owner}.evidence requires EvidenceReference values")
+    normalized = tuple(
+        sorted(
+            values, key=lambda value: (value.kind.value, value.referenced_id, value.version or 0)
+        )
+    )
+    if len(normalized) != len(set(normalized)):
+        raise DomainInvariantError(f"{owner}.evidence contains duplicates")
+    return normalized
+
+
+@dataclass(frozen=True, slots=True)
+class ProviderAddressProjection:
+    provider_id: str
+    projection_schema_version: str
+    address_type: str
+    address_value: str
+    effective_from: datetime
+    effective_until: datetime | None
+    evidence: tuple[EvidenceReference, ...]
+
+    def __post_init__(self) -> None:
+        for name in ("provider_id", "projection_schema_version", "address_type", "address_value"):
+            _text(getattr(self, name), "ProviderAddressProjection", name)
+        require_tz_aware(self.effective_from, "ProviderAddressProjection", "effective_from")
+        if self.effective_until is not None:
+            require_tz_aware(self.effective_until, "ProviderAddressProjection", "effective_until")
+            if self.effective_until <= self.effective_from:
+                raise DomainInvariantError("ProviderAddressProjection validity window is empty")
+        forbidden = ("://", "authorization", "password", "token", "cookie")
+        if any(value in self.address_value.lower() for value in forbidden):
+            raise DomainInvariantError("ProviderAddressProjection address must be credential-free")
+        object.__setattr__(self, "evidence", _evidence(self.evidence, "ProviderAddressProjection"))
+
+    @property
+    def projection_identity(self) -> str:
+        return _content_identity("asa.provider_address_projection", self)
+
+
+@dataclass(frozen=True, slots=True)
+class MarketDataRequestContext:
+    semantic_start: datetime
+    semantic_end: datetime
+    required_fields: tuple[str, ...]
+    provider_address_projections: tuple[ProviderAddressProjection, ...]
+    evidence: tuple[EvidenceReference, ...]
+
+    def __post_init__(self) -> None:
+        require_tz_aware(self.semantic_start, "MarketDataRequestContext", "semantic_start")
+        require_tz_aware(self.semantic_end, "MarketDataRequestContext", "semantic_end")
+        if self.semantic_start > self.semantic_end:
+            raise DomainInvariantError("MarketDataRequestContext time window is inverted")
+        required = tuple(sorted(set(self.required_fields)))
+        if not required or any(not value or value != value.strip() for value in required):
+            raise DomainInvariantError("MarketDataRequestContext requires normalized fields")
+        projections = tuple(
+            sorted(
+                self.provider_address_projections,
+                key=lambda value: (
+                    value.provider_id,
+                    value.projection_schema_version,
+                    value.address_type,
+                    value.effective_from,
+                    value.projection_identity,
+                ),
+            )
+        )
+        if len(projections) != len(set(projections)):
+            raise DomainInvariantError("MarketDataRequestContext contains duplicate projections")
+        object.__setattr__(self, "required_fields", required)
+        object.__setattr__(self, "provider_address_projections", projections)
+        object.__setattr__(self, "evidence", _evidence(self.evidence, "MarketDataRequestContext"))
+
+
+@dataclass(frozen=True, slots=True)
+class MarketDataSubject:
+    canonical_instrument: Instrument
+    subject_type: MarketDataSubjectType
+    requested_capability: MarketCapability
+    request_context: MarketDataRequestContext
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.canonical_instrument, Instrument):
+            raise DomainInvariantError("MarketDataSubject requires a canonical Instrument")
+        if not isinstance(self.subject_type, MarketDataSubjectType):
+            raise DomainInvariantError("MarketDataSubject subject_type is invalid")
+        expected_type = {
+            MarketCapability.REAL_TIME_QUOTE_V1: MarketDataSubjectType.INSTRUMENT,
+            MarketCapability.HISTORICAL_BARS_V1: MarketDataSubjectType.INSTRUMENT,
+            MarketCapability.OPTION_CHAIN_V1: MarketDataSubjectType.OPTION_UNDERLYING,
+            MarketCapability.EARNINGS_CALENDAR_V1: MarketDataSubjectType.EARNINGS_SECURITY,
+        }.get(self.requested_capability)
+        if expected_type is not None and self.subject_type is not expected_type:
+            raise DomainInvariantError("MarketDataSubject subject type does not match capability")
+
+    @property
+    def subject_identity(self) -> str:
+        return _content_identity("asa.market_data_subject", self)
+
+    def projection_for(
+        self, provider_id: str, address_type: str, at: datetime
+    ) -> ProviderAddressProjection:
+        require_tz_aware(at, "MarketDataSubject", "projection_time")
+        matches = tuple(
+            projection
+            for projection in self.request_context.provider_address_projections
+            if projection.provider_id == provider_id
+            and projection.address_type == address_type
+            and projection.effective_from <= at
+            and (projection.effective_until is None or at < projection.effective_until)
+        )
+        if len(matches) != 1:
+            raise DomainInvariantError(
+                "MarketDataSubject requires one effective provider projection"
+            )
+        return matches[0]
 
 
 @dataclass(frozen=True, slots=True)
@@ -303,7 +429,7 @@ MarketObservationValue: TypeAlias = (
 class MarketObservation:
     observation_id: str
     capability: MarketCapability
-    canonical_subject_id: CanonicalInstrumentIdentity
+    subject: MarketDataSubject
     effective_time: datetime
     recorded_time: datetime
     value: MarketObservationValue
@@ -319,6 +445,8 @@ class MarketObservation:
         require_tz_aware(self.recorded_time, "MarketObservation", "recorded_time")
         if self.freshness.effective_time != self.effective_time:
             raise DomainInvariantError("MarketObservation freshness effective_time mismatch")
+        if self.subject.requested_capability is not self.capability:
+            raise DomainInvariantError("MarketObservation subject capability mismatch")
         expected_capability = {
             Quote: MarketCapability.REAL_TIME_QUOTE_V1,
             OHLCVBar: MarketCapability.HISTORICAL_BARS_V1,
@@ -334,7 +462,7 @@ class MarketObservation:
         expected = market_observation_identity(
             self.provenance.provider_id,
             self.capability,
-            self.canonical_subject_id,
+            self.subject,
             self.effective_time,
             self.value,
             self.schema_version,
@@ -352,6 +480,9 @@ MarketDataContract: TypeAlias = (
     | CompletenessMetadata
     | ProviderProvenance
     | NormalizedProviderErrorMetadata
+    | ProviderAddressProjection
+    | MarketDataRequestContext
+    | MarketDataSubject
     | MarketObservation
 )
 
@@ -366,6 +497,9 @@ _MARKET_TYPES = {
         CompletenessMetadata,
         ProviderProvenance,
         NormalizedProviderErrorMetadata,
+        ProviderAddressProjection,
+        MarketDataRequestContext,
+        MarketDataSubject,
         MarketObservation,
     )
 }
@@ -378,6 +512,7 @@ _ENUM_TYPES = {
         TradingCalendarEventType,
         CorporateActionType,
         CorporateActionStatus,
+        MarketDataSubjectType,
     )
 }
 
@@ -538,7 +673,7 @@ def deserialize_market_data(payload: bytes) -> MarketDataContract:
 def market_observation_identity(
     provider_id: str,
     capability: MarketCapability,
-    canonical_subject_id: CanonicalInstrumentIdentity,
+    subject: MarketDataSubject,
     effective_time: datetime,
     value: MarketObservationValue,
     schema_version: str,
@@ -552,9 +687,19 @@ def market_observation_identity(
         "namespace": "asa.market_observation",
         "provider_id": provider_id,
         "schema_version": schema_version,
-        "subject": [canonical_subject_id.scheme, canonical_subject_id.value],
+        "subject_identity": subject.subject_identity,
         "value": _wire(value),
         "version": MARKET_DATA_CONTRACT_VERSION,
+    }
+    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def _content_identity(namespace: str, value: object) -> str:
+    payload = {
+        "identity_namespace": namespace,
+        "identity_version": MARKET_DATA_CONTRACT_VERSION,
+        "value": _wire(value),
     }
     encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
     return hashlib.sha256(encoded).hexdigest()
