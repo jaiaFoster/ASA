@@ -111,6 +111,11 @@ from market_data.replay import (
     SnapshotReplayResult,
     replay_market_snapshot,
 )
+from market_data.compliance import (
+    ProviderCapabilityCase,
+    ProviderComplianceReport,
+    evaluate_provider_compliance,
+)
 from market_data.transport import (
     ReadOnlyHttpRequest,
     ReadOnlyHttpResponse,
@@ -217,4 +222,7 @@ __all__ = [
     "SnapshotReplayRecord",
     "SnapshotReplayResult",
     "replay_market_snapshot",
+    "ProviderCapabilityCase",
+    "ProviderComplianceReport",
+    "evaluate_provider_compliance",
 ]

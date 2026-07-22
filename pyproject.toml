@@ -22,3 +22,6 @@ strict = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests/deployment_observer"]
+markers = [
+  "live_provider: opt-in bounded provider validation requiring configured credentials",
+]
