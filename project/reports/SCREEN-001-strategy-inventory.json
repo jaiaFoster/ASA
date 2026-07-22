@@ -1,0 +1,144 @@
+{
+  "ticket": "SCREEN-001",
+  "sprint": "SPRINT-006",
+  "audited_at": "2026-07-22",
+  "repository_commit": "1d3483e",
+  "base_branch": "main",
+  "strategies": [
+    {
+      "name": "forward_factor",
+      "ticket_name": "Forward Factor",
+      "status": "partial",
+      "status_reason": "fully implemented and tested; zero production integration",
+      "manifest_id": "asa.stonk.forward_factor_calendar",
+      "manifest_version": "1.1.0",
+      "files": [
+        "strategies/stonk_manifests.py",
+        "strategies/stonk_components.py"
+      ],
+      "components": [
+        "ForwardFactor",
+        "ImpliedForwardVolatility",
+        "DoubleCalendarStructure",
+        "DteSelector"
+      ],
+      "canonical_inputs": ["OptionChain", "OptionContract", "ExpirationCollection"],
+      "market_data_capability_origin": ["option_chain_v1"],
+      "output_fields": ["factor", "verdict"],
+      "clock_dependency": "none direct; ExpirationCollection.as_of / chain.observed_at",
+      "canonical_boundary_compliant": true,
+      "provider_imports_found": false,
+      "wall_clock_usage_found": false,
+      "tests": [
+        "tests/strategies/test_stonk_manifests.py::test_forward_factor_manifest_requires_source_iv_and_builds_double_calendar",
+        "tests/strategies/test_stonk_behavioral_equivalence.py::test_forward_factor_matches_legacy_reference_vector_and_replays"
+      ],
+      "tests_passing": true
+    },
+    {
+      "name": "earnings_calendar",
+      "ticket_name": "Earnings Calendar",
+      "status": "partial",
+      "status_reason": "fully implemented and tested; zero production integration",
+      "manifest_id": "asa.stonk.earnings_calendar",
+      "manifest_version": "1.0.0",
+      "files": [
+        "strategies/stonk_manifests.py",
+        "strategies/stonk_components.py"
+      ],
+      "components": [
+        "EarningsEventWindow",
+        "ExpirationPairSelector",
+        "NearestCommonStrikeCalendar",
+        "OptionStructureDebit"
+      ],
+      "canonical_inputs": ["EarningsEvent", "ExpirationCycle"],
+      "market_data_capability_origin": ["earnings_calendar_v1", "option_chain_v1"],
+      "output_fields": ["eligible", "structure", "debit", "score", "verdict"],
+      "clock_dependency": "none direct; ExpirationCollection.as_of",
+      "canonical_boundary_compliant": true,
+      "provider_imports_found": false,
+      "wall_clock_usage_found": false,
+      "tests": [
+        "tests/strategies/test_stonk_manifests.py::test_earnings_calendar_manifest_executes_and_replays"
+      ],
+      "tests_passing": true,
+      "note": "Distinct from MarketCapability.EARNINGS_CALENDAR_V1, which is a market-data capability, not a strategy."
+    },
+    {
+      "name": "skew_momentum",
+      "ticket_name": "Skew Momentum",
+      "status": "partial",
+      "status_reason": "fully implemented and tested; zero production integration",
+      "manifest_id": "asa.stonk.skew_momentum_vertical",
+      "manifest_version": "1.0.0",
+      "files": [
+        "strategies/stonk_manifests.py",
+        "strategies/stonk_components.py"
+      ],
+      "components": [
+        "VerticalStructure",
+        "OptionLegLiquidity",
+        "OptionStructureDebit"
+      ],
+      "canonical_inputs": ["OptionChain"],
+      "market_data_capability_origin": ["option_chain_v1"],
+      "output_fields": ["structure", "liquid", "score", "verdict"],
+      "clock_dependency": "none direct; chain.observed_at",
+      "canonical_boundary_compliant": true,
+      "provider_imports_found": false,
+      "wall_clock_usage_found": false,
+      "tests": [
+        "tests/strategies/test_stonk_manifests.py (parametrized)",
+        "tests/strategies/test_stonk_behavioral_equivalence.py (parametrized)",
+        "tests/strategies/test_stonk_production_validation.py (parametrized)"
+      ],
+      "tests_passing": true,
+      "note": "No dedicated per-name test file; exercised via suites parametrized across all three manifests."
+    }
+  ],
+  "test_verification": {
+    "command": "PYTHONPATH=. python -m pytest -q tests/strategies/ tests/architecture/test_stonk_decommissioning.py",
+    "passed": 259,
+    "failed": 0,
+    "skipped": 0
+  },
+  "shared_infrastructure": {
+    "strategies_dir": "component/registry/manifest/graph-runtime machinery; runtime.py::execute_strategy_graph returns GraphExecutionResult",
+    "ranking_dir": "engine.py/models.py/scorers.py/registry.py; consumes domain.opportunity.Opportunity and GuardrailDecision",
+    "unused_legacy_engine": "strategies/engine.py + registry.py (evaluate_strategy) produces Opportunity from Facts/Indicators directly; unrelated to and not wired to the manifest/graph runtime used by the three target strategies",
+    "production_callers_of_manifest_runtime": []
+  },
+  "architecture_gate": {
+    "triggered": true,
+    "condition": "No existing analytical execution contract can support screening without a new public interface.",
+    "evidence": [
+      "domain/execution.py (ASA-ARCH-006, PR #109) covers portfolio delta, risk decision, planned orders, and simulation only -- downstream of an approved position, not a scoring surface.",
+      "No file outside strategies/ and its own tests references STONK_STRATEGY_LIBRARY or execute_strategy_graph.",
+      "ranking/*.py consumes domain.opportunity.Opportunity, which requires expected_outcome_metrics and evidence_confidence -- fields a manifest's raw factor/score/verdict output does not map to mechanically."
+    ],
+    "required_action": "Issue one bounded Architect ticket before SCREEN-002 proceeds; do not improvise a public framework contract.",
+    "open_questions": [
+      "Should screening results be represented as domain.opportunity.Opportunity, or a new, narrower canonical type?",
+      "If Opportunity, how does manifest verdict/score map to expected_outcome_metrics and evidence_confidence?",
+      "Where does that mapping live -- strategies/, a new module, or ranking/?"
+    ]
+  },
+  "github_search": {
+    "relevant_open_issues_found": [],
+    "adjacent_open_issues": [54, 55, 46],
+    "claim_in_sprint_doc_confirmed": true
+  },
+  "migration_history": {
+    "source_repository": "jaiaFoster/Stonk",
+    "pinned_commit": "5f3fec8",
+    "ported_via_ticket": "STONK-001",
+    "ported_via_prs": [92, 96, 97, 98],
+    "record_files": [
+      "docs/migration/stonk-strategy-inventory.md",
+      "docs/migration/stonk-strategy-catalog.yaml"
+    ],
+    "legacy_archive_mentions": false,
+    "note": "Ranking/portfolio integration was intentionally left to existing ASA engines at port time, not duplicated."
+  }
+}
