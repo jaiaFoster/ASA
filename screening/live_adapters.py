@@ -1,4 +1,4 @@
-"""Live target strategy adapters (LIVE-002, PATCH-007A/TRADIER-PATCH-003).
+"""Live target strategy adapters (LIVE-002, PATCH-007A/TRADIER-PATCH-003/004).
 
 Live-data counterparts of screening/adapters.py's fixture-backed run_*
 functions: same manifests, same context_builders, same result
@@ -50,6 +50,7 @@ from screening.live_acquisition import acquire_capability
 from screening.live_context import (
     acquire_expirations,
     build_capability_subject,
+    classify_domain_invariant_error,
     combine_option_chains,
     select_atm_strike_at_expiration,
 )
@@ -140,17 +141,14 @@ def _acquire_or_raise(
             maximum_age_seconds=3600,
         )
     except DomainInvariantError as exc:
-        # No enabled provider declares this capability at all (e.g. only
-        # Tradier is configured and Tradier doesn't serve earnings data) --
-        # CapabilityRegistry.lookup() raises rather than returning a
-        # not-fulfilled result. A live-configuration gap, not an adapter
-        # bug: same MISSING_DATA outcome as any other unfulfillable request.
         raise StrategyAdapterError(
-            ScreeningOutcomeStatus.MISSING_DATA,
-            f"no enabled live provider offers {capability.value} for {symbol}: {exc}",
+            ScreeningOutcomeStatus.MISSING_DATA, classify_domain_invariant_error(exc, capability, symbol)
         ) from exc
     if result.status is not FulfillmentStatus.FULFILLED or not result.observations:
-        detail = f"could not acquire live {capability.value} for {symbol}"
+        detail = (
+            f"a valid request for live {capability.value} for {symbol} "
+            "could not be completed or normalized"
+        )
         if expiration is not None:
             detail += f" at expiration {expiration.isoformat()}"
         raise StrategyAdapterError(ScreeningOutcomeStatus.MISSING_DATA, detail)

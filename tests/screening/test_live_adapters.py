@@ -59,9 +59,9 @@ from market_data.providers import (
 )
 from screening.adapters import TARGET_STRATEGY_REGISTRY
 from screening.live_acquisition import build_capability_registry, build_request_budget_manager
-from screening.live_adapters import build_live_adapters
+from screening.live_adapters import _acquire_or_raise, build_live_adapters
 from screening.results import ScreeningOutcomeStatus
-from screening.runner import run_screening
+from screening.runner import StrategyAdapterError, run_screening
 
 NOW = datetime(2026, 7, 22, 16, 0, tzinfo=UTC)
 SYMBOL = "AAPL"
@@ -326,7 +326,7 @@ class TestCapabilityNotOfferedByAnyEnabledProvider:
         )
         assert result.outcome_status is ScreeningOutcomeStatus.MISSING_DATA
         assert result.failure_detail is not None
-        assert "no enabled live provider offers" in result.failure_detail
+        assert "no enabled provider declares or satisfies" in result.failure_detail
 
 
 class TestFullLiveRunAcrossAllThreeStrategies:
@@ -546,3 +546,62 @@ class TestTwoStepLiveAcquisitionAgainstATradierShapedProvider:
             ScreeningOutcomeStatus.PASS,
             ScreeningOutcomeStatus.NO_SIGNAL,
         )
+
+
+class TestAcquisitionErrorClassificationEndToEnd:
+    def test_a_selected_provider_with_a_malformed_subject_is_invalid_acquisition_subject(
+        self,
+    ) -> None:
+        # A regression guard for #156's original defect class: if a caller
+        # ever again asks TradierShapedMultiExpirationProvider for
+        # OPTION_CHAIN_V1 contracts without supplying an expiration
+        # (exactly the bug TRADIER-PATCH-002 fixed), the provider IS
+        # selected -- CapabilityRegistry finds it -- but its own
+        # subject.projection_for(..., "expiration", ...) lookup fails.
+        # _acquire_or_raise must classify this as invalid_acquisition_subject,
+        # never the no_capable_provider message (a provider WAS selected).
+        fulfillment, clock = _fulfillment(TradierShapedMultiExpirationProvider)
+        try:
+            _acquire_or_raise(
+                fulfillment,
+                SYMBOL,
+                MarketCapability.OPTION_CHAIN_V1,
+                clock.now(),
+                ("contracts",),
+                # expiration deliberately omitted.
+            )
+            raise AssertionError("expected StrategyAdapterError")
+        except StrategyAdapterError as error:
+            assert error.outcome_status is ScreeningOutcomeStatus.MISSING_DATA
+            assert "a provider was selected for option_chain_v1 for AAPL" in str(error)
+            assert "canonical request subject was incomplete or invalid" in str(error)
+            assert "no enabled provider declares" not in str(error)
+
+    def test_no_capable_provider_is_never_reported_as_invalid_subject(self) -> None:
+        # The inverse regression guard, using the existing no-capable-
+        # provider fixture from TestCapabilityNotOfferedByAnyEnabledProvider
+        # above: confirms the two message classes stay genuinely distinct,
+        # not just that each one individually looks right in isolation.
+        shared_clock = FixedClock()
+        config = load_market_data_config({})
+        (fixture_config,) = tuple(item for item in config.providers if item.enabled)
+        budget_manager = build_request_budget_manager((fixture_config,), shared_clock)
+        provider = MultiExpirationFixtureProvider(
+            fixture_config, ProviderDependencies(object(), shared_clock, budget_manager)
+        )
+        registry = ProviderRegistry((provider,))
+        priorities = tuple(
+            ProviderPriority(capability, (provider.provider_id,))
+            for capability in provider.capabilities
+            if capability is not MarketCapability.EARNINGS_CALENDAR_V1
+        )
+        capability_registry = CapabilityRegistry(registry, ProviderPriorityPolicy("test-v1", priorities))
+        fulfillment = CapabilityFulfillmentService(registry, capability_registry, budget_manager)
+        try:
+            _acquire_or_raise(
+                fulfillment, SYMBOL, MarketCapability.EARNINGS_CALENDAR_V1, shared_clock.now(), ("earnings_date",)
+            )
+            raise AssertionError("expected StrategyAdapterError")
+        except StrategyAdapterError as error:
+            assert "no enabled provider declares or satisfies" in str(error)
+            assert "canonical request subject was incomplete or invalid" not in str(error)
