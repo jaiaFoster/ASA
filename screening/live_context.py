@@ -1,4 +1,5 @@
-"""Live subject construction and chain-derived expirations (LIVE-002).
+"""Live subject construction and chain-derived expirations (LIVE-002,
+PATCH-007A/TRADIER-PATCH-001).
 
 Bridges screening/live_acquisition.py's canonical acquisition output back
 into the shapes screening/context_builders.py already expects -- no new
@@ -31,6 +32,10 @@ from domain import (
     OptionType,
     ProviderAddressProjection,
 )
+from market_data import CapabilityFulfillmentService, FulfillmentStatus
+from screening.live_acquisition import acquire_capability
+from screening.results import ScreeningOutcomeStatus
+from screening.runner import StrategyAdapterError
 
 
 class NoContractsAtExpirationError(ValueError):
@@ -92,11 +97,18 @@ def build_capability_subject(
     as_of: datetime,
     *,
     provider_symbol_window_days: int = 2,
+    required_fields: tuple[str, ...] | None = None,
 ) -> MarketDataSubject:
     """A bounded, symbol-scoped subject for acquire_capability(). The
     symbol is always caller-supplied explicitly -- never inferred, never
     unbounded (screening/cli.py validates it against an explicit,
     finite universe before this is ever called).
+
+    required_fields defaults to each capability's usual shape but can be
+    overridden (e.g. ("expirations",) for an expirations-only OPTION_CHAIN_V1
+    request) -- CapabilityRequest.__post_init__ requires the subject's own
+    required_fields to match exactly what acquire_capability() is called
+    with, so the two must always be constructed together, not independently.
     """
     subject_type = {
         MarketCapability.OPTION_CHAIN_V1: MarketDataSubjectType.OPTION_UNDERLYING,
@@ -111,14 +123,80 @@ def build_capability_subject(
     instrument = Instrument(
         CanonicalInstrumentIdentity("symbol", symbol), InstrumentKind.EQUITY, symbol, "USD"
     )
-    required_fields = {
-        MarketCapability.OPTION_CHAIN_V1: ("contracts",),
-        MarketCapability.EARNINGS_CALENDAR_V1: ("earnings_date",),
-        MarketCapability.REAL_TIME_QUOTE_V1: ("last",),
-    }.get(capability, ("last",))
+    if required_fields is None:
+        required_fields = {
+            MarketCapability.OPTION_CHAIN_V1: ("contracts",),
+            MarketCapability.EARNINGS_CALENDAR_V1: ("earnings_date",),
+            MarketCapability.REAL_TIME_QUOTE_V1: ("last",),
+        }.get(capability, ("last",))
     return MarketDataSubject(
         instrument,
         subject_type,
         capability,
         MarketDataRequestContext(as_of, as_of, required_fields, projections, evidence),
     )
+
+
+def acquire_expirations(
+    fulfillment: CapabilityFulfillmentService,
+    symbol: str,
+    now: datetime,
+) -> tuple[ExpirationCycle, ...]:
+    """Acquire the option expirations available for `symbol`, independent
+    of any single expiration's contracts (TRADIER-PATCH-001).
+
+    Normalizes two distinct, both-legitimate provider response shapes into
+    one canonical, deterministically-ordered result:
+
+    - A provider (Tradier) that treats an expirations-only request
+      (required_fields=("expirations",), no "contracts") as its own
+      narrower query and returns one MarketObservation per expiration,
+      each wrapping a bare ExpirationCycle.
+    - A provider or fixture that doesn't distinguish an expirations-only
+      request from a full chain request and returns one MarketObservation
+      wrapping a complete OptionChain -- expirations are derived from its
+      contracts locally via expirations_from_chain(), exactly as this
+      module already does for a chain acquired for other reasons.
+
+    Raises StrategyAdapterError(MISSING_DATA) on acquisition failure, an
+    unrecognized response shape, or a result that normalizes to zero
+    expirations -- callers never need a separate empty-result branch, since
+    there is no legitimate case that looks empty but isn't a failure.
+    """
+    subject = build_capability_subject(
+        symbol, MarketCapability.OPTION_CHAIN_V1, now, required_fields=("expirations",)
+    )
+    result = acquire_capability(
+        fulfillment,
+        MarketCapability.OPTION_CHAIN_V1,
+        subject,
+        effective_start=now,
+        effective_end=now,
+        required_fields=("expirations",),
+        maximum_age_seconds=3600,
+    )
+    if result.status is not FulfillmentStatus.FULFILLED or not result.observations:
+        raise StrategyAdapterError(
+            ScreeningOutcomeStatus.MISSING_DATA,
+            f"could not acquire live option expirations for {symbol}",
+        )
+    as_of = now.date()
+    values = tuple(observation.value for observation in result.observations)
+    if all(isinstance(value, ExpirationCycle) for value in values):
+        cycles: tuple[ExpirationCycle, ...] = values  # type: ignore[assignment]
+    elif len(values) == 1 and isinstance(values[0], OptionChain):
+        cycles = expirations_from_chain(values[0], as_of)
+    else:
+        raise StrategyAdapterError(
+            ScreeningOutcomeStatus.MISSING_DATA,
+            f"live option expiration response for {symbol} was neither a clean "
+            "expiration list nor a single option chain",
+        )
+    unique_by_date = {cycle.expiration_date: cycle for cycle in cycles}
+    ordered = tuple(unique_by_date[expiration] for expiration in sorted(unique_by_date))
+    if not ordered:
+        raise StrategyAdapterError(
+            ScreeningOutcomeStatus.MISSING_DATA,
+            f"live provider returned zero option expirations for {symbol}",
+        )
+    return ordered
