@@ -242,6 +242,39 @@ def test_malformed_and_empty_payloads_fail_closed() -> None:
     assert empty.error is not None and empty.error.code is ProviderErrorCode.EMPTY_PAYLOAD
 
 
+def test_empty_valued_ratelimit_header_is_dropped_instead_of_crashing() -> None:
+    """An empty-valued X-Ratelimit-* header must never reach ProviderResponseMetadata,
+    which rejects empty quota values -- it must be dropped, not raised uncaught.
+    """
+    transport = Transport(
+        (
+            ReadOnlyHttpResponse(
+                200,
+                {
+                    "quotes": {
+                        "quote": {
+                            "symbol": "AAPL",
+                            "bid": 209.9,
+                            "ask": 210.1,
+                            "last": 210,
+                            "bidsize": 100,
+                            "asksize": 120,
+                            "volume": 1000000,
+                        }
+                    }
+                },
+                (("X-Ratelimit-Available", ""),),
+                12,
+                "tradier-request-1",
+            ),
+        )
+    )
+    result = provider(transport).fetch(
+        request(MarketCapability.REAL_TIME_QUOTE_V1, ("bid", "ask", "last")), authorization()
+    )
+    assert result.error is None and isinstance(result.observations[0].value, Quote)
+
+
 def test_adapter_has_no_write_or_brokerage_surface() -> None:
     names = set(TradierProvider.__dict__)
     assert not names & {
