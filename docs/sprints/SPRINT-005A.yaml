@@ -1,0 +1,51 @@
+---
+id: SPRINT-005A
+name: Market Data Platform Architecture
+version: 1.0
+status: FOUNDER_REVIEW_REQUIRED
+kind: architecture
+
+objective: >
+  Freeze provider-agnostic Market Data Platform contracts before runtime
+  implementation or live-provider integration.
+
+contract: architecture/ASA-ARCH-007-Market-Data-Platform.md
+
+work_packages:
+  - ARCH-MD-001
+  - ARCH-MD-002
+  - ARCH-MD-003
+  - ARCH-MD-004
+  - ARCH-MD-005
+  - ARCH-MD-006
+  - ARCH-MD-007
+  - ARCH-MD-008
+  - ARCH-MD-009
+  - ARCH-MD-010
+  - ARCH-MD-011
+  - ARCH-MD-012
+  - ARCH-MD-013
+  - ARCH-MD-014
+
+founder_decisions:
+  replay: immutable_snapshots_only
+  provider_selection: capability_driven
+  configuration: centralized_dependency_injection
+  validation: bounded_live_api_validation
+  documentation: generated_from_architecture
+
+prohibitions:
+  - runtime_changes
+  - provider_implementations
+  - live_api_calls
+  - persistence_schema_changes
+  - strategy_or_execution_changes
+  - governance_amendments
+
+merge:
+  founder_required: true
+  self_merge: false
+
+successor:
+  id: SPRINT-005B
+  founder_authorization_required: true
