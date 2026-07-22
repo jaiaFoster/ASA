@@ -55,3 +55,38 @@ def test_arch_007a_prohibits_statistical_resolution() -> None:
     assert "Median, mean, weighted aggregation, voting, statistical fusion" in text
     assert "never manufactures a consensus value" in text
     assert "separate Founder-approved architecture amendment" in text
+
+
+def test_arch_007b_defines_complete_market_data_subject() -> None:
+    text = CONTRACT.read_text()
+    for field in (
+        "canonical_instrument",
+        "subject_type",
+        "requested_capability",
+        "request_context",
+    ):
+        assert field in text
+    assert "complete provider-neutral Instrument" in text
+    assert "asa.market_data_subject/v1" in text
+
+
+def test_arch_007b_requires_explicit_versioned_provider_projection() -> None:
+    text = CONTRACT.read_text()
+    for field in (
+        "provider_id",
+        "projection_schema_version",
+        "address_type",
+        "address_value",
+        "projection_identity",
+    ):
+        assert field in text
+    assert "asa.provider_address_projection/v1" in text
+    assert "adapter-local map" in text
+    assert "Secrets,\naccount identifiers, URLs, headers" in text
+
+
+def test_arch_007b_freezes_request_and_replay_lifecycle() -> None:
+    text = CONTRACT.read_text()
+    assert "Provider Adapter receives request + its one explicit projection" in text
+    assert "adapter neither infers nor resolves an address" in text
+    assert "Replay preserves and verifies\nthe complete original `MarketDataSubject`" in text
