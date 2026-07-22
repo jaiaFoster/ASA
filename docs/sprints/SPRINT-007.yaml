@@ -1,0 +1,347 @@
+---
+id: SPRINT-007
+name: Derived Analytics & Live Screening
+codename: Bounded Live Signals
+version: 1.0
+status: SCOPED
+type: IMPLEMENTATION_SPRINT
+
+activation:
+  id: AMD-013-SPRINT-007
+  governance_amendment: GOV-AMD-001-013
+  founder_authorized: true
+  founder_direction: SPRINT-007 proposal (ticket GOV-007)
+  effective_when: this sprint definition is Founder-merged to the default branch
+  delegate:
+    role: ROLE-WORKER
+    instance: implementation-worker
+  limited_to_sprint: SPRINT-007
+  approved_tickets:
+    - ANALYTICS-001
+    - ANALYTICS-002
+    - ANALYTICS-003
+    - LIVE-001
+    - LIVE-002
+    - LIVE-003
+  excludes:
+    - architecture_changes_not_separately_approved
+    - domain_contract_redefinition
+    - domain_opportunity_contract_changes
+    - governance_changes
+    - constitutional_changes
+    - workflow_changes
+    - deployment
+    - risk_floor_changes
+    - sprint_scope_expansion
+    - breaking_public_contracts
+    - strategy_semantic_changes
+    - ranking_subsystem_changes
+    - portfolio_subsystem_changes
+    - broker_integration_changes
+    - portfolio_management
+    - robinhood_integration
+    - opportunity_generation
+    - ranking_engine_changes
+    - lifecycle_management
+    - notifications
+    - scheduling
+    - automated_execution
+    - successor_sprint_work
+  expires:
+    - sprint_complete
+    - sprint_stopped
+    - Founder_revokes_delegation
+
+objective: >
+  Connect the completed Market Data Platform to the completed Screening
+  Framework through a canonical, provider-neutral Derived Analytics layer,
+  enabling bounded live screening without changing existing strategy
+  semantics.
+
+prerequisites:
+  governance:
+    - GOV-AMD-001-013
+    - GOV-007
+  architecture: []
+  note: >
+    No frozen architecture document exists yet for a derived-analytics
+    contract (ANALYTICS-001 introduces it) or for live provider acquisition
+    inside the screening framework (LIVE-001 introduces it). Both remain
+    subject to this sprint's own architecture_change_or_new_public_contract_
+    required stop condition below -- this activation does not pre-approve a
+    specific contract shape, only the bounded scope to design and implement
+    one deterministically, provider-neutrally, and without touching strategy
+    semantics.
+
+bounded_scope:
+  in:
+    - reusable_provider_neutral_derived_analytics_subsystem
+    - canonical_feature_contracts
+    - deterministic_computation_engine
+    - registry_of_derived_features
+    - forward_factor_implied_forward_volatility_pipeline
+    - dte_and_expiration_selection_computation
+    - strategy_specific_execution_context_builders_as_adapters_only
+    - capability_driven_live_market_data_acquisition_reusing_the_existing_platform
+    - provider_independent_orchestration
+    - request_budget_compliant_live_execution
+    - bounded_live_screening_runner_preserving_determinism_and_failure_isolation
+    - operational_live_validation_against_a_bounded_six_symbol_universe
+  out:
+    - portfolio_management
+    - robinhood_or_other_broker_integration
+    - opportunity_generation
+    - ranking_engine_changes
+    - position_or_lifecycle_management
+    - notifications
+    - scheduling_or_background_jobs
+    - automated_trade_execution
+    - unbounded_universe_scanning
+    - new_market_data_capabilities_beyond_what_the_existing_platform_supports
+    - changes_to_existing_strategy_entry_exit_scoring_or_ranking_logic
+
+architecture_invariants:
+  - provider_independence
+  - deterministic_execution
+  - immutable_domain_objects
+  - canonical_capability_model
+  - reusable_derived_analytics
+  - bounded_live_requests
+  - strategy_semantics_unchanged
+  - analytics_package_must_not_implement_strategy_logic
+  - analytics_package_must_not_reference_providers_directly
+  - analytics_package_must_not_duplicate_market_data_acquisition
+  - strategy_input_builders_are_adapters_only_no_strategy_modifications
+  - no_new_frozen_public_architecture_contract_without_an_architecture_gate
+
+execution:
+  mode: founder_authorized_autonomous_sprint
+  branch_strategy: feature_per_ticket
+  branch_pattern: agent/<ticket-id>-<short-description>
+  ticket_order:
+    - ANALYTICS-001
+    - ANALYTICS-002
+    - ANALYTICS-003
+    - LIVE-001
+    - LIVE-002
+    - LIVE-003
+  order_rationale: >
+    Strict dependency order matching the proposal: the analytics framework
+    before any strategy-specific analytics, strategy-specific analytics
+    before context builders, context builders before live data integration,
+    live data integration before the live runner, the live runner before
+    operational live validation.
+  workflow:
+    - review_relevant_open_and_recent_closed_issues_and_prs_for_the_subsystem
+    - implement_one_approved_ticket
+    - run_all_required_validation
+    - perform_and_record_self_review
+    - open_pull_request
+    - verify_pull_request_contains_only_approved_ticket_scope
+    - verify_every_required_gate_is_present_and_green
+    - check_for_an_unresolved_architecture_or_founder_gate
+    - merge_under_GOV_AMD_001_013_only_if_no_gate_is_unresolved
+    - verify_default_branch_contains_merge_commit
+    - run_post_merge_validation
+    - begin_next_ticket
+
+live_execution_policy:
+  rule: >
+    LIVE-003 (operational live validation) is the first ticket in this
+    sprint that issues real requests against configured live provider
+    credentials for a broader universe than any prior validation has used.
+    Before running LIVE-003 against real provider credentials for the first
+    time, the delegate must stop and obtain explicit Founder confirmation --
+    this is not delegated, even though LIVE-003's implementation and PR are.
+    Reason: the validation_universe (AAPL, MSFT, NVDA, AMD, SPY, QQQ) can
+    materially affect shared free-tier provider quotas (Alpha Vantage in
+    particular) in a way a single-symbol validation subject did not.
+  applies_to:
+    - LIVE-003
+
+tickets:
+  - id: ANALYTICS-001
+    title: Canonical Derived Analytics Framework
+    objective: >
+      Introduce a reusable, provider-neutral analytics subsystem that
+      derives canonical financial features from canonical market data.
+    deliverables:
+      - analytics_package
+      - canonical_feature_contracts
+      - deterministic_computation_engine
+      - registry_of_derived_features
+    must_not:
+      - implement_strategy_logic
+      - reference_providers_directly
+      - duplicate_market_data_acquisition
+
+  - id: ANALYTICS-002
+    title: Forward Factor Derived Analytics
+    objective: >
+      Implement the derived analytics required by Forward Factor,
+      particularly the implied-forward-volatility pipeline discovered
+      during SPRINT-006 (project/reports/SPRINT-006.md section 8, item 2).
+    deliverables:
+      - expiration_selection
+      - dte_computation
+      - forward_iv_computation
+      - validation_tests
+    success:
+      - forward_factor_consumes_analytics_outputs_without_additional_calculations
+
+  - id: ANALYTICS-003
+    title: Strategy Input Builders
+    objective: >
+      Construct strategy-specific execution contexts from canonical derived
+      analytics.
+    deliverables:
+      - forward_factor_context_builder
+      - earnings_calendar_context_builder
+      - skew_momentum_context_builder
+    constraints:
+      - adapters_only
+      - no_strategy_modifications
+      - no_provider_imports
+
+  - id: LIVE-001
+    title: Live Market Data Integration
+    objective: >
+      Reuse the completed Market Data Platform to acquire only the
+      capabilities required by requested strategies.
+    deliverables:
+      - capability_driven_acquisition
+      - provider_independent_orchestration
+      - request_budget_compliance
+
+  - id: LIVE-002
+    title: Live Screening Runner
+    objective: >
+      Replace fixture-backed execution with bounded live execution while
+      preserving deterministic behavior and failure isolation.
+    deliverables:
+      - python_dash_m_screening_dash_dash_live
+      - bounded_universe_support
+      - canonical_screening_signal_output
+
+  - id: LIVE-003
+    title: Operational Live Validation
+    objective: >
+      Validate live execution using a bounded, production-safe universe.
+    validation_universe:
+      - AAPL
+      - MSFT
+      - NVDA
+      - AMD
+      - SPY
+      - QQQ
+    demonstrate:
+      - deterministic_output
+      - request_budget_enforcement
+      - graceful_provider_failures
+      - reproducible_runs
+    gate: >
+      Requires explicit Founder confirmation before the first real run, per
+      live_execution_policy above.
+
+validation:
+  required_before_every_delegated_merge:
+    - all_required_CI_checks_pass
+    - pytest_tests_root
+    - pytest_tests_analytics
+    - pytest_tests_screening
+    - pytest_tests_architecture
+    - ruff_passes
+    - mypy_passes_for_affected_source
+    - architecture_boundary_validation_passes
+    - deterministic_replay_validation_passes
+    - request_budget_validation_passes
+    - governance_integrity_validation_passes
+    - lean_pos_validation_passes
+    - pre_push_check_passes
+    - secret_scan_passes
+    - git_diff_check_passes
+    - self_review_passes
+    - no_governance_violation
+    - no_unresolved_blocking_issue
+    - no_unresolved_architecture_gate
+    - no_unresolved_founder_gate
+    - no_security_sensitive_scope_expansion
+    - pull_request_contains_only_the_approved_ticket_scope
+    - relevant_open_and_recent_closed_issues_and_prs_reviewed
+  live_provider_validation:
+    - required_for: [LIVE-003]
+    - founder_confirmation_obtained_before_first_real_run
+  post_merge:
+    - verify_default_branch_contains_merge_commit
+    - rerun_ticket_validation_from_default_branch
+    - verify_worktree_clean
+
+self_review:
+  required: true
+  checklist:
+    architecture:
+      - canonical_capability_boundary_preserved
+      - no_provider_adapter_or_sdk_leakage_into_analytics_or_strategy_code
+      - existing_strategy_semantics_unchanged
+      - no_new_frozen_public_contract_introduced_without_a_gate
+      - analytics_package_reusable_and_not_strategy_specific
+    governance:
+      - Constitution_unchanged
+      - frozen_governance_unchanged
+      - delegated_scope_and_ticket_match
+      - all_Amendment_013_gates_evidenced
+    implementation:
+      - ticket_acceptance_satisfied
+      - deterministic_outputs_for_identical_inputs_and_clock
+      - structured_narrow_provenance
+      - no_unresolved_TODO_or_skipped_sprint_test
+      - live_requests_bounded_and_budget_compliant_where_applicable
+
+stop_conditions:
+  - frozen_governance_change_required
+  - architecture_change_or_new_public_contract_required
+  - missing_or_ambiguous_upstream_contract
+  - new_immutable_domain_contract_required
+  - breaking_public_contract_required
+  - sprint_scope_change_required
+  - deterministic_execution_or_replay_cannot_be_preserved
+  - multiple_materially_different_architectural_solutions
+  - validation_failure_cannot_be_resolved_within_ticket_scope
+  - required_gate_missing_unavailable_skipped_or_failing
+  - existing_strategy_semantics_would_need_to_change
+  - live_provider_credentials_or_request_budget_behavior_ambiguous
+  - Founder_revokes_delegation
+
+on_stop:
+  - do_not_merge
+  - open_GitHub_issue_with_evidence
+  - report_architectural_governance_or_founder_blocker
+  - return_merge_authority_to_Founder
+  - halt_remaining_sprint_pending_gate_resolution
+
+report:
+  required: true
+  destination: project/reports/SPRINT-007.md
+  contents:
+    - sprint_summary
+    - completed_tickets
+    - delegated_merged_pull_requests
+    - validation_results
+    - architecture_and_governance_verification
+    - derived_analytics_catalog
+    - live_validation_results_per_symbol
+    - request_budget_evidence
+    - discovered_and_resolved_defects
+    - remaining_non_blocking_issues
+    - recommendations_for_SPRINT_008
+
+definition_of_done: >
+  SPRINT-007 is complete when every enumerated implementation ticket is
+  merged after every Amendment 013 gate passes and no stop condition
+  remains unresolved; `python -m screening --live` executes successfully
+  against the bounded validation universe with deterministic, request-
+  budget-compliant, failure-isolated output; Forward Factor, Earnings
+  Calendar, and Skew Momentum execute against live market data without any
+  semantic modification; the full affected validation suite is green; the
+  final sprint report is committed; and the Founder is asked to verify
+  completion before SPRINT-008 begins.
