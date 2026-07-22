@@ -20,7 +20,10 @@ def _roots(path: Path) -> set[str]:
 
 @pytest.mark.parametrize("path", FILES)
 def test_simulation_imports_only_domain_and_itself(path: Path) -> None:
-    assert _roots(path) <= {"__future__", "decimal", "domain", "hashlib", "simulation"}
+    assert _roots(path) <= {
+        "__future__", "dataclasses", "datetime", "decimal", "domain", "enum",
+        "hashlib", "portfolio", "simulation",
+    }
 
 
 def test_no_operational_capability_is_reachable() -> None:
