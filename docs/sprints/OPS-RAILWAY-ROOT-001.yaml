@@ -1,0 +1,230 @@
+---
+id: OPS-RAILWAY-ROOT-001
+name: Restore Repository-Root Railway Deployment
+type: OPERATIONAL_FIX
+parent_sprint: SPRINT-008
+status: SCOPED
+priority: critical
+
+context:
+  summary: >
+    API-001 (SPRINT-008, GOV-008A) already authorized moving the live
+    Railway service's rootDirectory from /backend to the repository root,
+    because backend/ now imports shared root-level packages (screening/,
+    analytics/, strategies/, market_data/, domain/) that a /backend-scoped
+    build cannot see. That change was made (source.rootDirectory = ".",
+    railpack.json added at repo root, backend/railway.json's
+    start/pre-deploy commands updated to `cd backend && ...`) but the last
+    two deploy attempts against it have failed at the BUILD_IMAGE stage in
+    roughly five seconds each, with no error text retrievable beyond the
+    generic "Failed to build an image. Please check the build logs for more
+    details." via get-logs, buildLogsSearchTool, or getDeploymentDiagnosisTool.
+    The previously-working /backend-rooted deployment is still confirmed
+    live and healthy throughout (GET /api/v1/health -> 200 {"status":"ok"}),
+    so there is no production outage -- this is a blocked forward
+    deployment, not a live incident.
+
+activation:
+  id: AMD-013-OPS-RAILWAY-ROOT-001
+  governance_amendment: GOV-AMD-001-013
+  founder_authorized: true
+  founder_direction: OPS-RAILWAY-ROOT-001 handoff (pasted directly by Founder)
+  effective_when: this activation is Founder-merged to the default branch
+  scope_note: >
+    Amendment 013's text identifies its unit of activation as "one
+    identified implementation sprint." OPS-RAILWAY-ROOT-001 is type:
+    OPERATIONAL_FIX, not a sprint -- it is treated as this amendment's
+    qualifying unit because its shape satisfies every field Activation
+    requires (explicit Founder authorization, a unique identifier, an
+    enumerated approved-ticket set, bounded technical scope with explicit
+    stop conditions, required validation/self-review gates, and a named
+    delegate), matching PATCH-007A/GOV-007A's own precedent for applying
+    the sprint delegation mechanism to a smaller, bounded, non-sprint unit
+    under the same rules.
+  delegate:
+    role: ROLE-WORKER
+    instance: implementation-worker
+  limited_to_sprint: OPS-RAILWAY-ROOT-001
+  approved_tickets:
+    - OPS-RAILWAY-ROOT-001
+  excludes:
+    - feature_development
+    - architecture_changes
+    - domain_model_changes
+    - market_data_implementation_changes
+    - api_redesign
+    - provider_changes
+    - governance_changes
+    - sprint_planning
+    - refactoring_unrelated_code
+    - reverting_rootDirectory_to_backend
+    - vendoring_duplicate_packages
+  expires:
+    - fix_complete
+    - fix_stopped
+    - Founder_revokes_delegation
+
+objective: >
+  Restore a successful Railway deployment built from the repository root,
+  without reverting to the /backend-scoped rootDirectory and without
+  compromising the shared-package architecture API-001 introduced.
+
+bounded_scope:
+  in:
+    - inspecting_railpack.json_and_backend_railway.json
+    - inspecting_railway_build_and_runtime_environment_via_available_tooling
+    - comparing_railway_build_logs_against_repository_configuration
+    - modifying_deployment_build_or_runtime_configuration_files
+    - removing_or_adjusting_conflicting_build_stage_commands
+    - verifying_successful_deployment_and_backend_startup
+    - verifying_shared_root_package_imports_succeed_in_the_deployed_container
+    - smoke_testing_the_deployed_health_endpoint
+    - producing_a_deployment_report
+  out:
+    - feature_development
+    - architecture_changes
+    - domain_model_changes
+    - market_data_implementation
+    - api_redesign
+    - provider_changes
+    - governance_changes
+    - sprint_planning
+    - refactoring_unrelated_code
+
+constraints:
+  - repository_root_remains_the_deployment_root
+  - do_not_revert_to_backend_scoped_deployment
+  - preserve_current_package_layout
+  - preserve_shared_package_imports
+  - do_not_vendor_duplicate_packages
+  - do_not_introduce_temporary_workarounds_that_diverge_from_repository_layout
+
+investigation_targets:
+  - root_railpack.json
+  - backend/railway.json
+  - railway_build_environment
+  - railway_runtime_environment
+  - build_stage_working_directory
+  - runtime_working_directory
+  - pythonpath_configuration
+  - install_command_execution_order
+  - start_command_execution
+  - alembic_migration_execution
+
+tickets:
+  - id: OPS-RAILWAY-ROOT-001
+    title: Restore Repository-Root Railway Deployment
+    objective: >
+      Identify and correct the build/runtime configuration causing the
+      BUILD_IMAGE failure on the repository-root-scoped Railway deployment,
+      then verify the fix end-to-end against the live service.
+    deliverables:
+      - root_cause_analysis
+      - corrected_deployment_configuration
+      - successful_repository_root_deployment
+      - smoke_test_evidence_against_the_deployed_health_endpoint
+      - deployment_report
+    acceptance_criteria:
+      - repository_builds_successfully
+      - container_starts_successfully
+      - no_cd_backend_path_failures
+      - no_import_errors_from_shared_packages
+      - fastapi_application_starts
+      - health_endpoint_returns_success
+      - railway_deployment_completes_without_a_restart_loop
+
+must_not_modify:
+  - governance/frozen/**
+  - .github/workflows/**
+  - strategy scoring or signal thresholds
+  - ScreeningSignal contract
+  - Opportunity contracts
+  - ranking subsystem
+  - portfolio subsystem
+  - broker integrations
+  - Railway credential values
+
+validation:
+  required_before_delegated_merge:
+    - all_required_CI_checks_pass
+    - ruff_passes
+    - mypy_passes_for_affected_source
+    - governance_integrity_validation_passes
+    - pre_push_check_passes
+    - secret_scan_passes
+    - git_diff_check_passes
+    - self_review_passes
+    - no_governance_violation
+    - no_unresolved_blocking_issue
+    - no_unresolved_architecture_gate
+    - no_unresolved_founder_gate
+    - pull_request_contains_only_the_approved_ticket_scope
+  live_verification:
+    - railway_deployment_reaches_SUCCESS_status
+    - health_endpoint_returns_200_ok_from_the_new_deployment
+    - shared_root_package_import_confirmed_in_deployed_container_logs_or_behavior
+  post_merge:
+    - verify_default_branch_contains_merge_commit
+    - verify_worktree_clean
+
+self_review:
+  required: true
+  checklist:
+    architecture:
+      - repository_root_remains_deployment_root
+      - shared_package_layout_unchanged
+      - no_duplicate_vendored_packages_introduced
+    governance:
+      - Constitution_unchanged
+      - frozen_governance_unchanged
+      - delegated_scope_and_ticket_match
+      - all_Amendment_013_gates_evidenced
+    implementation:
+      - ticket_acceptance_satisfied
+      - no_unresolved_TODO
+      - fix_is_permanent_not_a_workaround
+
+stop_conditions:
+  - frozen_governance_change_required
+  - architecture_change_or_new_public_contract_required
+  - repository_root_deployment_confirmed_impossible_without_architectural_compromise
+  - railway_build_environment_behaves_differently_than_documented_in_a_way_that_blocks_diagnosis
+  - a_railpack_bug_or_platform_limitation_is_identified
+  - more_than_one_viable_fix_exists_requiring_a_Founder_decision
+  - Founder_revokes_delegation
+
+on_stop:
+  - do_not_merge
+  - open_GitHub_issue_with_evidence
+  - report_architectural_governance_or_founder_blocker
+  - return_merge_authority_to_Founder
+  - halt_pending_gate_resolution
+
+report:
+  required: true
+  destination: project/reports/OPS-RAILWAY-ROOT-001.md
+  contents:
+    - root_cause_analysis
+    - files_modified
+    - explanation_of_why_the_previous_configuration_failed
+    - explanation_of_the_permanent_fix
+    - railway_deployment_url
+    - smoke_test_results
+    - final_deployment_status
+
+merge_authority:
+  delegation_required: true
+  conditions:
+    - all_required_gates_pass
+    - live_verification_passes
+    - worktree_is_clean_after_merge
+
+definition_of_done: >
+  OPS-RAILWAY-ROOT-001 is complete when the Railway service deploys
+  successfully from the repository root, the container starts without a
+  restart loop, shared root-level packages import successfully in the
+  deployed environment, the health endpoint returns 200 from the new
+  deployment, the repository-root architecture introduced by API-001 is
+  fully preserved (no reversion to /backend), a deployment report is
+  committed explaining root cause and fix, and the Founder is asked to
+  verify completion.
