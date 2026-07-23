@@ -5,7 +5,7 @@ from datetime import UTC, datetime, timedelta
 
 from asa.application.ports.quotes import QuoteProvider
 from asa.application.ports.repositories import MarketObservationRepository
-from asa.domain.market import CacheStatus, FreshnessStatus, MarketObservation, QuoteProvenance
+from asa.contracts.market import CacheStatus, FreshnessStatus, MarketObservation, QuoteProvenance
 
 Clock = Callable[[], datetime]
 

@@ -2,8 +2,9 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from asa.market_data_ops.subjects import build_validation_subject
 from domain import MarketCapability
+
+from asa.market_data_ops.subjects import build_validation_subject
 
 AS_OF = datetime(2026, 7, 22, 6, 0, tzinfo=UTC)
 

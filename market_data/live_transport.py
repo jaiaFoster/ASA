@@ -1,11 +1,11 @@
 """Stdlib-only live HTTP transport (LIVE-002).
 
-An independent copy of backend/src/asa/market_data_ops/transport.py's
-UrllibReadOnlyHttpTransport, for callers of the root-level market_data/
-package (e.g. screening/'s --live CLI path) -- backend/ is a separate
-deployable service that itself vendors independent copies of market_data/
-domain (per its own pyproject.toml comment), so root-level callers cannot
-import backend/'s transport and need their own. Same behavior: fixed,
+The one canonical UrllibReadOnlyHttpTransport implementation, used by both
+root-level callers (e.g. screening/'s --live CLI path) and backend/'s own
+asa.market_data_ops (ARCH-MONOREPO-001 Phase 2A -- backend previously
+maintained an independent, drifting copy at
+backend/src/asa/market_data_ops/transport.py because it could not import
+root-level market_data/ directly; that copy is retired). Fixed,
 provider-official documented base URLs only, never inferred from the
 request; no logic beyond translating the ReadOnlyHttpTransport port to
 stdlib urllib.

@@ -5,8 +5,8 @@ from uuid import UUID
 from pydantic import BaseModel, Field
 
 from asa.application.portfolio_use_cases import PublishedPortfolioView
-from asa.domain.market import MarketObservation
-from asa.domain.runs import PublicationRecord, RunRecord
+from asa.contracts.market import MarketObservation
+from asa.contracts.runs import PublicationRecord, RunRecord
 
 
 class IngestQuotesRequest(BaseModel):

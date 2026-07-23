@@ -11,8 +11,8 @@ from asa.application.ports.brokers import (
     BrokerPositionsResult,
 )
 from asa.application.ports.runs import RunPublicationRepository
-from asa.domain.market import FreshnessStatus
-from asa.domain.portfolio import (
+from asa.contracts.market import FreshnessStatus
+from asa.contracts.portfolio import (
     BrokerAccount,
     EquityPosition,
     OptionPositionLeg,
@@ -22,7 +22,7 @@ from asa.domain.portfolio import (
     PublishedPortfolio,
     validate_snapshot,
 )
-from asa.domain.runs import PublicationRecord, RunRecord, RunStatus, RunStepName
+from asa.contracts.runs import PublicationRecord, RunRecord, RunStatus, RunStepName
 
 Clock = Callable[[], datetime]
 T = TypeVar("T")

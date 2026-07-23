@@ -2,8 +2,8 @@ from datetime import datetime
 from typing import Protocol
 from uuid import UUID
 
-from asa.domain.portfolio import PortfolioSnapshot, PublishedPortfolio
-from asa.domain.runs import PublicationRecord, RunRecord, RunStepName
+from asa.contracts.portfolio import PortfolioSnapshot, PublishedPortfolio
+from asa.contracts.runs import PublicationRecord, RunRecord, RunStepName
 
 
 class RunPublicationRepository(Protocol):

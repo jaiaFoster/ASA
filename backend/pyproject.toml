@@ -32,10 +32,6 @@ packages = ["src/asa"]
 [tool.ruff]
 line-length = 100
 target-version = "py312"
-# src/market_data and src/domain are byte-identical vendor copies of the repository-root
-# packages (see tests/market_data_ops/test_vendor_sync.py); they are linted under the
-# root project's own ruff configuration, not duplicated here.
-extend-exclude = ["src/market_data", "src/domain"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
@@ -44,13 +40,12 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 python_version = "3.12"
 strict = true
 packages = ["asa"]
-# src resolves asa/ and its vendored market_data/domain copies, unchanged.
-# ".." (the repository root) additionally resolves screening/, analytics/,
-# strategies/ -- the shared execution-graph modules asa now imports
-# directly (API-001, SPRINT-008). src is listed first so asa's own existing
-# imports keep resolving exactly as before; screening/'s own imports of
-# market_data/domain are guaranteed equivalent either way by
-# tests/market_data_ops/test_vendor_sync.py.
+# src resolves asa/, unchanged. ".." (the repository root) resolves
+# screening/, analytics/, strategies/, market_data/, domain/ -- the shared
+# execution-graph modules asa imports directly (API-001, SPRINT-008;
+# ARCH-MONOREPO-001 Phase 2A retired the vendored market_data/domain copies
+# asa previously required, so it now imports the root packages the same
+# way screening/ always has).
 mypy_path = "src:.."
 plugins = ["pydantic.mypy"]
 

@@ -5,9 +5,9 @@ from uuid import uuid4
 import pytest
 
 from asa.application.portfolio_use_cases import PublishedPortfolioQuery, RunPortfolioIntelligence
-from asa.domain.market import FreshnessStatus
-from asa.domain.portfolio import PublishedPortfolio, validate_snapshot
-from asa.domain.runs import RunRecord, RunStatus
+from asa.contracts.market import FreshnessStatus
+from asa.contracts.portfolio import PublishedPortfolio, validate_snapshot
+from asa.contracts.runs import RunRecord, RunStatus
 from asa.integrations.providers.deterministic_fake_broker import (
     DeterministicFakeBrokerPortfolioProvider,
 )
