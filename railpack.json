@@ -3,12 +3,5 @@
   "provider": "python",
   "packages": {
     "python": "3.12.13"
-  },
-  "steps": {
-    "install": {
-      "commands": [
-        "pwd && ls -la && (if [ -d backend ]; then cd backend; fi) && pwd && pip install -r requirements.txt"
-      ]
-    }
   }
 }
