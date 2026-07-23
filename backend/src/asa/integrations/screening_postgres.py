@@ -10,6 +10,7 @@ rows.
 
 from __future__ import annotations
 
+import json
 from datetime import datetime
 
 from screening.state import ScreeningStateRecord
@@ -75,17 +76,22 @@ class PostgresScreeningStateRepository:
 
 
 def _to_row(record: ScreeningStateRecord) -> dict[str, object]:
+    # text()-based raw SQL carries no column-type metadata, so psycopg has
+    # no adapter for a plain Python dict on write (unlike reads, where it
+    # auto-parses a json/jsonb column back into a dict using the server-
+    # reported column type) -- explicit json.dumps() here, relying on
+    # Postgres's own implicit text-to-json cast for the JSON column.
     return {
         "signal_id": record.signal_id,
         "symbol": record.symbol,
         "signal_version": record.signal_version,
         "outcome": record.outcome,
         "explanation": record.explanation,
-        "metrics": record.metrics,
+        "metrics": json.dumps(record.metrics),
         "updated_at": record.updated_at,
-        "dependency_timestamps": {
-            key: value.isoformat() for key, value in record.dependency_timestamps.items()
-        },
+        "dependency_timestamps": json.dumps(
+            {key: value.isoformat() for key, value in record.dependency_timestamps.items()}
+        ),
     }
 
 
