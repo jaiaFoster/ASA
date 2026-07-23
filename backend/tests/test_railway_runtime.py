@@ -30,9 +30,7 @@ class BrokerMustNotBeCalled:
         raise AssertionError("health endpoint called broker provider")
 
 
-EXPECTED_PRE_DEPLOY_COMMAND = (
-    'cd backend && export PATH="/app/.venv/bin:$PATH" && python -m alembic upgrade head'
-)
+EXPECTED_PRE_DEPLOY_COMMAND = "true"
 EXPECTED_START_COMMAND = (
     'cd backend && export PATH="/app/.venv/bin:$PATH" && export PYTHONPATH=src:.. && '
     "echo DIAG_PATH=$PATH && echo DIAG_WHICH=$(which python) && python -m site && "

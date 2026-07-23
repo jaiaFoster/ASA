@@ -4,7 +4,7 @@
     "builder": "RAILPACK"
   },
   "deploy": {
-    "preDeployCommand": "cd backend && export PATH=\"/app/.venv/bin:$PATH\" && python -m alembic upgrade head",
+    "preDeployCommand": "true",
     "startCommand": "cd backend && export PATH=\"/app/.venv/bin:$PATH\" && export PYTHONPATH=src:.. && echo DIAG_PATH=$PATH && echo DIAG_WHICH=$(which python) && python -m site && find /app /root /mise/installs/python/3.12.13 -maxdepth 6 -iname 'alembic*' 2>/dev/null; python -m alembic upgrade head && exec python -m uvicorn asa.asgi:create_application --factory --host 0.0.0.0 --port \"${PORT}\"",
     "healthcheckPath": "/api/v1/health",
     "healthcheckTimeout": 300,
