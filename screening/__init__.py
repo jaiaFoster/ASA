@@ -24,6 +24,8 @@ from screening.live_adapters import build_live_adapters
 from screening.registry import ScreeningRegistry, ScreeningStrategyDefinition
 from screening.results import ScreeningOutcomeStatus, ScreeningResult, bounded_failure_detail
 from screening.runner import StrategyAdapter, StrategyAdapterError, run_screening
+from screening.service import get_state, refresh
+from screening.state import ScreeningStateRecord, ScreeningStateRepository
 
 __all__ = [
     "TARGET_STRATEGY_ADAPTERS",
@@ -34,6 +36,8 @@ __all__ = [
     "ScreeningOutcomeStatus",
     "ScreeningRegistry",
     "ScreeningResult",
+    "ScreeningStateRecord",
+    "ScreeningStateRepository",
     "ScreeningStrategyDefinition",
     "StrategyAdapter",
     "StrategyAdapterError",
@@ -45,5 +49,7 @@ __all__ = [
     "build_live_adapters",
     "build_request_budget_manager",
     "enabled_provider_configs",
+    "get_state",
+    "refresh",
     "run_screening",
 ]

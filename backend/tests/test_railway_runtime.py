@@ -30,18 +30,25 @@ class BrokerMustNotBeCalled:
         raise AssertionError("health endpoint called broker provider")
 
 
+EXPECTED_PRE_DEPLOY_COMMAND = "cd backend && python -m alembic upgrade head"
 EXPECTED_START_COMMAND = (
-    "export PYTHONPATH=src && python -m alembic upgrade head && "
+    "cd backend && export PYTHONPATH=src:.. && python -m alembic upgrade head && "
     "exec python -m uvicorn asa.asgi:create_application --factory "
     '--host 0.0.0.0 --port "${PORT}"'
 )
 
 
 def test_railway_backend_runtime_contract() -> None:
+    # SPRINT-008 (API-001): this service's rootDirectory changed from
+    # "/backend" to the repo root, so build/deploy commands now start from
+    # the repo root and must cd into backend/ themselves -- PYTHONPATH
+    # additionally includes ".." (the repo root) so screening/, analytics/,
+    # strategies/, market_data/, and domain/ (the shared execution-graph
+    # modules asa now imports) are importable, not just backend/src.
     backend_root = Path(__file__).parents[1]
     config = json.loads((backend_root / "railway.json").read_text())
 
-    assert config["deploy"]["preDeployCommand"] == "python -m alembic upgrade head"
+    assert config["deploy"]["preDeployCommand"] == EXPECTED_PRE_DEPLOY_COMMAND
     assert config["deploy"]["startCommand"] == EXPECTED_START_COMMAND
     assert config["deploy"]["healthcheckPath"] == "/api/v1/health"
 
@@ -97,7 +104,7 @@ def test_exact_production_command_runs_migration_then_serves_health(tmp_path: Pa
     started_at = time.monotonic()
     process = subprocess.Popen(
         EXPECTED_START_COMMAND,
-        cwd=backend_root,
+        cwd=backend_root.parent,
         env=environment,
         executable="/bin/sh",
         shell=True,
@@ -137,7 +144,7 @@ def test_production_command_exits_when_migration_fails(tmp_path: Path) -> None:
 
     completed = subprocess.run(
         EXPECTED_START_COMMAND,
-        cwd=backend_root,
+        cwd=backend_root.parent,
         env=environment,
         executable="/bin/sh",
         shell=True,
