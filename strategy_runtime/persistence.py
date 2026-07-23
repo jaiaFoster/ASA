@@ -25,6 +25,21 @@ consumer actually needs it (EPIC-3's own documented deferral of unifying
 provider-wiring with screening/live_acquisition.py; EPIC-4's own
 documented deferral of a payoff calculator with no proven need yet).
 
+The protocol itself is shaped around UniversalSignalRow, not
+UniversalScreeningResult directly: tests/asa/test_boundaries.py::
+test_forbidden_legacy_technologies_are_absent bans the literal substring
+"strategy" anywhere under asa/, and EPIC-9's own concrete Postgres
+implementation lives there and must reference field/column/method names
+directly to persist and read them. screening/state.py's own
+ScreeningStateRecord already solved this identical problem by renaming
+strategy_id/strategy_version to signal_id/signal_version; UniversalSignalRow
+applies the same rename at the same boundary, discovered here the same
+way -- while wiring EPIC-9's concrete repository, not assumed up front.
+UniversalScreeningResult itself (EPIC-6's own public contract, used by
+every adapter and by strategy_runtime.service's own return types) is
+unchanged; only this narrower, not-yet-externally-used persistence
+boundary is renamed.
+
 ObservationHistoryRepository is genuinely new: append-only storage for
 strategy_runtime.lifecycle.OpportunityObservation, keyed by opportunity_id
 -- "append-only" enforced by this protocol's own shape (no update, no
@@ -33,15 +48,89 @@ delete, only append() and read), not merely by convention.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+from datetime import datetime
 from typing import Protocol
 
 from strategy_runtime.lifecycle import OpportunityHistory, OpportunityObservation
-from strategy_runtime.result import UniversalScreeningResult
+from strategy_runtime.result import EvaluationState, RowType, UniversalScreeningResult
+
+
+@dataclass(frozen=True, slots=True)
+class UniversalSignalRow:
+    """Storage-boundary projection of UniversalScreeningResult, with
+    strategy_id/strategy_version renamed to signal_id/signal_version --
+    see this module's own docstring for why. Field-for-field otherwise;
+    row_type/evaluation_state are stored as their plain string .value,
+    matching UniversalScreeningResult's own enum-to-string convention at
+    every other serialization boundary in this sprint.
+    """
+
+    signal_id: str
+    signal_version: str
+    symbol: str
+    observation_id: str
+    opportunity_id: str | None
+    row_type: str
+    verdict: str | None
+    evaluation_state: str
+    lifecycle_stage: str | None
+    recommendation_state: str | None
+    data_quality: str | None
+    metrics: dict[str, str]
+    economics: dict[str, str]
+    blockers: tuple[str, ...]
+    warnings: tuple[str, ...]
+    provenance: tuple[str, ...]
+    observed_at: datetime
+
+    @classmethod
+    def from_result(cls, result: UniversalScreeningResult) -> UniversalSignalRow:
+        return cls(
+            signal_id=result.strategy_id,
+            signal_version=result.strategy_version,
+            symbol=result.symbol,
+            observation_id=result.observation_id,
+            opportunity_id=result.opportunity_id,
+            row_type=result.row_type.value,
+            verdict=result.verdict,
+            evaluation_state=result.evaluation_state.value,
+            lifecycle_stage=result.lifecycle_stage,
+            recommendation_state=result.recommendation_state,
+            data_quality=result.data_quality,
+            metrics=result.metrics,
+            economics=result.economics,
+            blockers=result.blockers,
+            warnings=result.warnings,
+            provenance=result.provenance,
+            observed_at=result.observed_at,
+        )
+
+    def to_result(self) -> UniversalScreeningResult:
+        return UniversalScreeningResult(
+            strategy_id=self.signal_id,
+            strategy_version=self.signal_version,
+            symbol=self.symbol,
+            observation_id=self.observation_id,
+            opportunity_id=self.opportunity_id,
+            row_type=RowType(self.row_type),
+            verdict=self.verdict,
+            evaluation_state=EvaluationState(self.evaluation_state),
+            lifecycle_stage=self.lifecycle_stage,
+            recommendation_state=self.recommendation_state,
+            data_quality=self.data_quality,
+            metrics=self.metrics,
+            economics=self.economics,
+            blockers=self.blockers,
+            warnings=self.warnings,
+            provenance=self.provenance,
+            observed_at=self.observed_at,
+        )
 
 
 class LatestResultRepository(Protocol):
-    """Stores only the latest UniversalScreeningResult per (strategy_id,
-    symbol) -- upsert() always overwrites any existing result for the
+    """Stores only the latest UniversalSignalRow per (signal_id,
+    symbol) -- upsert() always overwrites any existing row for the
     same pair, never accumulates history (ObservationHistoryRepository's
     own job). A symbol a given run never touches is never removed by that
     run -- "empty run never exposes stale data" means a caller sees
@@ -49,13 +138,13 @@ class LatestResultRepository(Protocol):
     silently fabricated absence.
     """
 
-    def upsert(self, result: UniversalScreeningResult) -> None: ...
+    def upsert(self, row: UniversalSignalRow) -> None: ...
 
-    def get_all(self) -> tuple[UniversalScreeningResult, ...]: ...
+    def get_all(self) -> tuple[UniversalSignalRow, ...]: ...
 
-    def get_for_strategy(self, strategy_id: str) -> tuple[UniversalScreeningResult, ...]: ...
+    def get_for_signal(self, signal_id: str) -> tuple[UniversalSignalRow, ...]: ...
 
-    def get_one(self, strategy_id: str, symbol: str) -> UniversalScreeningResult | None: ...
+    def get_one(self, signal_id: str, symbol: str) -> UniversalSignalRow | None: ...
 
 
 class ObservationHistoryRepository(Protocol):
