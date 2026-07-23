@@ -16,11 +16,13 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from typing import Generic, TypeVar
 
+from market_data import CapabilityFulfillmentService
 from strategy_runtime.clock import Clock
 from strategy_runtime.context import RuntimeContext
 from strategy_runtime.registry import StrategyRegistry
@@ -101,10 +103,12 @@ def _run_one(
     subject: str,
     clock: Clock,
     run_id: str,
+    fulfillment_by_subject: Mapping[str, CapabilityFulfillmentService] | None,
 ) -> StrategyExecutionResult[TResult]:
     adapter = registry.adapter_for(strategy_id)
     contract = registry.contract_for(strategy_id)
-    context = RuntimeContext(contract, subject, clock, run_id)
+    fulfillment = fulfillment_by_subject.get(subject) if fulfillment_by_subject else None
+    context = RuntimeContext(contract, subject, clock, run_id, fulfillment)
     started_at = clock.now()
     try:
         result = adapter(context)
@@ -137,6 +141,7 @@ def run_strategies(
     *,
     subjects: tuple[str, ...],
     strategy_ids: tuple[str, ...] | None = None,
+    fulfillment_by_subject: Mapping[str, CapabilityFulfillmentService] | None = None,
 ) -> tuple[StrategyExecutionResult[TResult], ...]:
     """Run every requested registered strategy against every requested
     subject, independently. One (strategy, subject) pair's adapter
@@ -150,6 +155,16 @@ def run_strategies(
     derived only from those inputs, never randomness, matching the
     determinism guarantee screening/runner.py's own run_screening()
     already provides for its own narrower scope.
+
+    ``fulfillment_by_subject`` (EPIC-3, Shared Data Planning) is optional
+    and defaults to None -- every EPIC-1 caller that never needed shared
+    market data access continues to work completely unmodified. When
+    given (typically strategy_runtime.market_data_planning.
+    build_shared_market_data_access()'s own output), every strategy
+    evaluating the same subject receives the identical
+    CapabilityFulfillmentService instance via RuntimeContext.fulfillment,
+    so an identical request any two of them make is only ever fulfilled
+    once.
     """
     requested_strategy_ids = tuple(
         sorted(strategy_ids if strategy_ids is not None else registry.strategy_ids())
@@ -163,7 +178,7 @@ def run_strategies(
     as_of = clock.now()
     run_id = _compute_run_id(requested_strategy_ids, sorted_subjects, as_of)
     return tuple(
-        _run_one(registry, strategy_id, subject, clock, run_id)
+        _run_one(registry, strategy_id, subject, clock, run_id, fulfillment_by_subject)
         for strategy_id in requested_strategy_ids
         for subject in sorted_subjects
     )
