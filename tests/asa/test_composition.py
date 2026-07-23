@@ -7,7 +7,7 @@ from asa.integrations.providers.deterministic_fake import DeterministicFakeQuote
 from asa.integrations.providers.deterministic_fake_broker import (
     DeterministicFakeBrokerPortfolioProvider,
 )
-from tests.fakes import InMemoryObservationRepository, InMemoryScreeningStateRepository
+from tests.asa.fakes import InMemoryObservationRepository, InMemoryScreeningStateRepository
 
 
 def test_build_application_activates_injected_dependencies() -> None:

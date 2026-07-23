@@ -17,7 +17,7 @@ from fastapi.testclient import TestClient
 from asa.asgi import create_application
 from asa.bootstrap import DependencyOverrides, build_application
 from asa.config import Settings
-from tests.fakes import InMemoryObservationRepository
+from tests.asa.fakes import InMemoryObservationRepository
 
 
 class BrokerMustNotBeCalled:
@@ -30,37 +30,33 @@ class BrokerMustNotBeCalled:
         raise AssertionError("health endpoint called broker provider")
 
 
-EXPECTED_PRE_DEPLOY_COMMAND = "cd backend && python -m alembic upgrade head"
+EXPECTED_PRE_DEPLOY_COMMAND = "python -m alembic upgrade head"
 EXPECTED_START_COMMAND = (
-    "cd backend && export PYTHONPATH=src:.. && python -m alembic upgrade head && "
+    "python -m alembic upgrade head && "
     "exec python -m uvicorn asa.asgi:create_application --factory "
     '--host 0.0.0.0 --port "${PORT}"'
 )
 
 
 def test_railway_backend_runtime_contract() -> None:
-    # SPRINT-008 (API-001): this service's rootDirectory changed from
-    # "/backend" to the repo root, so build/deploy commands now start from
-    # the repo root and must cd into backend/ themselves -- PYTHONPATH
-    # additionally includes ".." (the repo root) so screening/, analytics/,
-    # strategies/, market_data/, and domain/ (the shared execution-graph
-    # modules asa now imports) are importable, not just backend/src.
+    # ARCH-MONOREPO-001 Phase 2B: asa/, alembic.ini, and migrations/ moved to
+    # the repository root (the ADR's recommended single-root-project
+    # consolidation, architecture/ASA-ARCH-MONOREPO-001-Packaging-
+    # Consolidation-ADR.md). railway.json itself remains at backend/railway.json
+    # pending Phase 2D's own relocation/simplification of Railway
+    # configuration -- but its commands can no longer "cd backend" (nothing
+    # asa/alembic-related lives there anymore) or set PYTHONPATH=src:..
+    # (there is no "src" split left to resolve): both the deploy container's
+    # rootDirectory and this repository's own layout now agree the process
+    # runs directly from the repository root.
     #
-    # OPS-RAILWAY-ROOT-001: these are the plain, intended production
-    # commands. A live blocker remains unresolved as of this ticket's
-    # report (project/reports/OPS-RAILWAY-ROOT-001.md): Railpack's
-    # pip-mode install for this service appears to install backend's
-    # dependencies to a user-site directory that isn't present in the
-    # runtime image, so the deployed container's python cannot import
-    # them ("No module named alembic") even though this command is
-    # otherwise correct and this exact form is confirmed to run correctly
-    # end-to-end locally (see the subprocess tests below). Several
-    # mitigations were tried live (PATH prepends, a PIP_USER=0 env var)
-    # without success; this file intentionally reverts to the plain
-    # command rather than keep disproven workarounds. See the report for
-    # the full diagnostic chain and remaining options.
-    backend_root = Path(__file__).parents[1]
-    config = json.loads((backend_root / "railway.json").read_text())
+    # OPS-RAILWAY-ROOT-001's own live blocker (Railpack's pip-mode install
+    # target not on the runtime sys.path, project/reports/OPS-RAILWAY-
+    # ROOT-001.md, issue #178) is a build/runtime packaging behavior this
+    # consolidation targets structurally, per the ADR -- confirming it is
+    # actually resolved requires Phase 2D's own live deployment validation.
+    repo_root = Path(__file__).parents[2]
+    config = json.loads((repo_root / "backend" / "railway.json").read_text())
 
     assert config["deploy"]["preDeployCommand"] == EXPECTED_PRE_DEPLOY_COMMAND
     assert config["deploy"]["startCommand"] == EXPECTED_START_COMMAND
@@ -68,15 +64,15 @@ def test_railway_backend_runtime_contract() -> None:
 
 
 def test_railpack_python_installation_markers() -> None:
-    backend_root = Path(__file__).parents[1]
+    repo_root = Path(__file__).parents[2]
 
-    assert (backend_root / ".python-version").read_text() == "3.12.13\n"
-    assert (backend_root / "requirements.txt").read_text() == ".\n"
+    assert (repo_root / ".python-version").read_text() == "3.12.13\n"
+    assert (repo_root / "requirements.txt").read_text() == ".\n"
 
 
 def test_backend_entrypoint_uses_configured_port() -> None:
-    backend_root = Path(__file__).parents[1]
-    entrypoint = (backend_root / "src" / "asa" / "__main__.py").read_text()
+    repo_root = Path(__file__).parents[2]
+    entrypoint = (repo_root / "asa" / "__main__.py").read_text()
 
     assert "port=settings.port" in entrypoint
 
@@ -113,12 +109,12 @@ def _production_environment(tmp_path: Path, migration_exit_code: int) -> tuple[d
 
 
 def test_exact_production_command_runs_migration_then_serves_health(tmp_path: Path) -> None:
-    backend_root = Path(__file__).parents[1]
+    repo_root = Path(__file__).parents[2]
     environment, port = _production_environment(tmp_path, migration_exit_code=0)
     started_at = time.monotonic()
     process = subprocess.Popen(
         EXPECTED_START_COMMAND,
-        cwd=backend_root.parent,
+        cwd=repo_root,
         env=environment,
         executable="/bin/sh",
         shell=True,
@@ -153,12 +149,12 @@ def test_exact_production_command_runs_migration_then_serves_health(tmp_path: Pa
 
 
 def test_production_command_exits_when_migration_fails(tmp_path: Path) -> None:
-    backend_root = Path(__file__).parents[1]
+    repo_root = Path(__file__).parents[2]
     environment, port = _production_environment(tmp_path, migration_exit_code=37)
 
     completed = subprocess.run(
         EXPECTED_START_COMMAND,
-        cwd=backend_root.parent,
+        cwd=repo_root,
         env=environment,
         executable="/bin/sh",
         shell=True,

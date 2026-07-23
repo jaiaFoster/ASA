@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import pytest
 from fastapi.testclient import TestClient
-from market_data.transport import ReadOnlyHttpResponse
 
 from asa.bootstrap import DependencyOverrides, build_application
 from asa.config import Settings
-from tests.fakes import InMemoryObservationRepository
-from tests.market_data_ops.fakes import ScriptedTransport
+from market_data.transport import ReadOnlyHttpResponse
+from tests.asa.fakes import InMemoryObservationRepository
+from tests.asa.market_data_ops.fakes import ScriptedTransport
 
 
 def _client(
@@ -348,9 +348,8 @@ def test_configuration_error_summary_is_redacted_end_to_end(
 
 
 def test_budget_policy_never_exceeds_the_authorized_validation_ceiling() -> None:
-    from market_data.config import load_market_data_config
-
     from asa.market_data_ops.service import _budget_policy_for
+    from market_data.config import load_market_data_config
 
     config = load_market_data_config(
         {"ASA_TRADIER_ENABLED": "true", "ASA_TRADIER_ACCESS_TOKEN": "x"}
@@ -363,11 +362,10 @@ def test_budget_policy_never_exceeds_the_authorized_validation_ceiling() -> None
 
 def test_request_budget_manager_refuses_requests_beyond_the_authorized_ceiling() -> None:
 
+    from asa.market_data_ops.service import Clock, _budget_policy_for
     from domain import MarketCapability
     from market_data.budget import BudgetExhaustedError, RequestBudgetManager
     from market_data.config import load_market_data_config
-
-    from asa.market_data_ops.service import Clock, _budget_policy_for
 
     config = load_market_data_config(
         {"ASA_TRADIER_ENABLED": "true", "ASA_TRADIER_ACCESS_TOKEN": "x"}

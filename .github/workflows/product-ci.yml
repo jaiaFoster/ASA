@@ -3,7 +3,13 @@ name: Product CI
 on:
   pull_request:
     paths:
-      - "backend/**"
+      - "asa/**"
+      - "tests/asa/**"
+      - "migrations/**"
+      - "alembic.ini"
+      - "pyproject.toml"
+      - "requirements.txt"
+      - ".python-version"
       - "frontend/**"
       - "compose.yaml"
       - ".github/workflows/product-ci.yml"
@@ -27,9 +33,6 @@ jobs:
     env:
       ASA_DATABASE_URL: postgresql+psycopg://asa:asa@localhost:5432/asa_test
       ASA_TEST_DATABASE_URL: postgresql+psycopg://asa:asa@localhost:5432/asa_test
-    defaults:
-      run:
-        working-directory: backend
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -37,10 +40,10 @@ jobs:
           python-version: "3.12"
           cache: pip
       - run: pip install -e '.[dev]'
-      - run: python -m ruff check .
-      - run: python -m mypy src
+      - run: python -m ruff check asa tests/asa
+      - run: python -m mypy asa
       - run: alembic upgrade head
-      - run: python -m pytest -q
+      - run: python -m pytest tests/asa -q
       - run: alembic downgrade base && alembic upgrade head
 
   frontend:

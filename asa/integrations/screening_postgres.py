@@ -13,9 +13,10 @@ from __future__ import annotations
 import json
 from datetime import datetime
 
-from screening.state import ScreeningStateRecord
 from sqlalchemy import Engine, text
 from sqlalchemy.engine import RowMapping
+
+from screening.state import ScreeningStateRecord
 
 
 class PostgresScreeningStateRepository:

@@ -64,6 +64,6 @@ def test_run_step_log_uses_provider_supplied_by_port(
 
     assert caplog.records[-1].provider == "provider_selected_at_composition"
     application_source = (
-        Path(__file__).parents[1] / "src" / "asa" / "application" / "portfolio_use_cases.py"
+        Path(__file__).parents[2] / "asa" / "application" / "portfolio_use_cases.py"
     ).read_text()
     assert "deterministic_fake_broker" not in application_source

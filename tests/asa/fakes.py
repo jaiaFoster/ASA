@@ -1,6 +1,5 @@
-from screening.state import ScreeningStateRecord
-
 from asa.contracts.market import MarketObservation
+from screening.state import ScreeningStateRecord
 
 
 class InMemoryObservationRepository:

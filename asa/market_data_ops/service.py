@@ -10,6 +10,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
+from asa.market_data_ops.subjects import PROVIDER_CAPABILITIES, build_validation_subject
 from domain import MarketCapability
 from market_data.alpha_vantage import alpha_vantage_provider_registration
 from market_data.budget import BudgetScope, RequestBudgetManager, RequestBudgetPolicy
@@ -25,8 +26,6 @@ from market_data.providers import ProviderValidationPlan, ValidationCheckStatus
 from market_data.registry import ProviderRegistry
 from market_data.tradier import tradier_provider_registration
 from market_data.validation import redact_diagnostic_text
-
-from asa.market_data_ops.subjects import PROVIDER_CAPABILITIES, build_validation_subject
 
 ALLOWED_PROVIDER_IDS = ("tradier", "finnhub", "alpha_vantage")
 

@@ -3,7 +3,7 @@ from pathlib import Path
 
 
 def test_provider_sdk_imports_are_confined_to_integrations() -> None:
-    source_root = Path(__file__).parents[1] / "src" / "asa"
+    source_root = Path(__file__).parents[2] / "asa"
     forbidden_roots = {"finnhub", "tradier", "robin_stocks", "alpha_vantage"}
     violations: list[str] = []
     for path in source_root.rglob("*.py"):
@@ -23,7 +23,7 @@ def test_provider_sdk_imports_are_confined_to_integrations() -> None:
 
 def test_forbidden_legacy_technologies_are_absent() -> None:
     root = Path(__file__).parents[2]
-    inspected = [root / "backend" / "src", root / "frontend" / "src"]
+    inspected = [root / "asa", root / "frontend" / "src"]
     forbidden = ("flask", "sqlite", "threading", "strategy")
     matches = []
     for directory in inspected:
@@ -37,7 +37,7 @@ def test_forbidden_legacy_technologies_are_absent() -> None:
 
 
 def test_exactly_one_build_application_composition_root_exists() -> None:
-    source_root = Path(__file__).parents[1] / "src" / "asa"
+    source_root = Path(__file__).parents[2] / "asa"
     definitions = []
     for path in source_root.rglob("*.py"):
         tree = ast.parse(path.read_text())
@@ -63,7 +63,7 @@ def test_broker_provider_contract_is_read_only() -> None:
 
 def test_robinhood_adapter_calls_only_approved_read_sdk_operations() -> None:
     adapter = (
-        Path(__file__).parents[1] / "src" / "asa" / "integrations" / "providers" / "robinhood.py"
+        Path(__file__).parents[2] / "asa" / "integrations" / "providers" / "robinhood.py"
     )
     tree = ast.parse(adapter.read_text())
     references = {
