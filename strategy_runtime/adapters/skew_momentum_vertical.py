@@ -32,6 +32,7 @@ from strategy_runtime.contract import (
     DataRequirement,
     OutputKind,
     RequirementCategory,
+    StrategyCapability,
     StrategyContract,
     StructureKind,
 )
@@ -55,6 +56,7 @@ SKEW_MOMENTUM_VERTICAL_CONTRACT = StrategyContract(
     lifecycle=NO_LIFECYCLE,
     structure=StructureKind.VERTICAL,
     outputs=(OutputKind.METRICS, OutputKind.ECONOMICS),
+    capabilities=(StrategyCapability.ECONOMICS, StrategyCapability.OPTION_STRUCTURES),
 )
 
 

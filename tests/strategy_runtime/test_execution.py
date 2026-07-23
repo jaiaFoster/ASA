@@ -17,15 +17,19 @@ import pytest
 from strategy_runtime import (
     NO_LIFECYCLE,
     DataRequirement,
+    EvaluationState,
     ExecutionStatus,
     OutputKind,
     RequirementCategory,
+    RowType,
     RuntimeContext,
     RuntimeExecutionSummary,
     StrategyContract,
     StrategyRegistry,
     StructureKind,
+    UniversalScreeningResult,
     UnknownStrategyIdError,
+    compute_observation_id,
     run_strategies,
 )
 
@@ -214,3 +218,64 @@ class TestRuntimeExecutionSummary:
         assert summary.completed == 1
         assert summary.failed == 1
         assert summary.total_duration_seconds == pytest.approx(2.0)
+
+
+def _universal_result_adapter(context: RuntimeContext) -> UniversalScreeningResult:
+    """Declares OutputKind.METRICS but never populates it -- exercises
+    EPIC-R1's "declared outputs emitted" runtime_validation.
+    """
+    return UniversalScreeningResult(
+        strategy_id=context.contract.strategy_id,
+        strategy_version=context.contract.version,
+        symbol=context.subject,
+        observation_id=compute_observation_id(
+            context.run_id, context.contract.strategy_id, context.subject
+        ),
+        opportunity_id=None,
+        row_type=RowType.RESULT,
+        verdict="pass",
+        evaluation_state=EvaluationState.PASS,
+        lifecycle_stage=None,
+        recommendation_state=None,
+        data_quality=None,
+        metrics={},
+        economics={},
+        blockers=(),
+        warnings=(),
+        provenance=(),
+        observed_at=context.clock.now(),
+    )
+
+
+class TestContractDerivedValidation:
+    """SPRINT-009R/EPIC-R1: run_strategies() enforces "declared outputs
+    emitted" itself -- a strategy whose result contradicts its own
+    contract fails the same way an adapter exception does, isolated the
+    same way, without run_strategies() needing to know the strategy_id.
+    """
+
+    def test_a_result_missing_a_declared_output_is_reported_as_a_contract_violation(self) -> None:
+        registry = StrategyRegistry(((_contract("alpha"), _universal_result_adapter),))
+        clock = _IncrementingClock(datetime(2026, 1, 1, tzinfo=UTC))
+
+        (result,) = run_strategies(registry, clock, subjects=("AAPL",))
+
+        assert result.status is ExecutionStatus.ADAPTER_EXCEPTION
+        assert result.result is None
+        assert "StrategyContractViolationError" in (result.error_detail or "")
+        assert "OutputKind.METRICS" in (result.error_detail or "")
+
+    def test_one_strategys_contract_violation_never_prevents_another_from_completing(self) -> None:
+        registry = StrategyRegistry(
+            (
+                (_contract("alpha"), _universal_result_adapter),
+                (_contract("beta"), _succeeding_adapter),
+            )
+        )
+        clock = _IncrementingClock(datetime(2026, 1, 1, tzinfo=UTC))
+
+        results = run_strategies(registry, clock, subjects=("AAPL",))
+
+        by_strategy = {item.strategy_id: item for item in results}
+        assert by_strategy["alpha"].status is ExecutionStatus.ADAPTER_EXCEPTION
+        assert by_strategy["beta"].status is ExecutionStatus.COMPLETED

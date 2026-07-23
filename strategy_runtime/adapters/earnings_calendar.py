@@ -56,6 +56,7 @@ from strategy_runtime.contract import (
     LifecycleModel,
     OutputKind,
     RequirementCategory,
+    StrategyCapability,
     StrategyContract,
     StructureKind,
 )
@@ -87,6 +88,11 @@ EARNINGS_CALENDAR_CONTRACT = StrategyContract(
     ),
     structure=StructureKind.CALENDAR,
     outputs=(OutputKind.METRICS, OutputKind.ECONOMICS, OutputKind.LIFECYCLE),
+    capabilities=(
+        StrategyCapability.LIFECYCLE,
+        StrategyCapability.ECONOMICS,
+        StrategyCapability.OPTION_STRUCTURES,
+    ),
 )
 
 _STAGE_BY_OUTCOME = {
