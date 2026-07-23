@@ -4,7 +4,7 @@ results (API-001, SPRINT-008).
 Pure interface and dataclass only -- no infrastructure imports, so
 screening/'s own "no infrastructure imports" architecture boundary
 (tests/architecture/test_screening_boundaries.py) needs no change. A
-concrete repository implementation (owned by backend/, which already talks
+concrete repository implementation (owned by asa/, which already talks
 to Postgres) is dependency-injected by whatever caller constructs one;
 screening/ itself never imports one.
 
@@ -16,14 +16,14 @@ run-specific, not state), and stable to store and overwrite in place
 runs").
 
 Field named signal_id/signal_version, not strategy_id/strategy_version like
-ScreeningResult itself: backend/tests/test_boundaries.py::
+ScreeningResult itself: tests/asa/test_boundaries.py::
 test_forbidden_legacy_technologies_are_absent bans the literal substring
-"strategy" anywhere under backend/src/, and backend/'s Postgres repository
-implementation (which lives there) must reference this record's field
-names directly to persist and read them. Discovered while implementing
-that repository, not assumed up front -- ScreeningStateRecord is a new
-type introduced by this sprint, not the long-established ScreeningResult,
-so renaming its own fields for this reason carries no compatibility cost.
+"strategy" anywhere under asa/, and asa's own Postgres repository
+implementation must reference this record's field names directly to
+persist and read them. Discovered while implementing that repository, not
+assumed up front -- ScreeningStateRecord is a new type introduced by this
+sprint, not the long-established ScreeningResult, so renaming its own
+fields for this reason carries no compatibility cost.
 "signal" was already the Founder-approved word for this sprint's public
 HTTP path segment (GOV-008A); using it here too keeps one consistent
 vocabulary through the whole feature instead of "signal" at the HTTP

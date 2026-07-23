@@ -39,24 +39,20 @@ EXPECTED_START_COMMAND = (
 
 
 def test_railway_backend_runtime_contract() -> None:
-    # ARCH-MONOREPO-001 Phase 2B: asa/, alembic.ini, and migrations/ moved to
-    # the repository root (the ADR's recommended single-root-project
-    # consolidation, architecture/ASA-ARCH-MONOREPO-001-Packaging-
-    # Consolidation-ADR.md). railway.json itself remains at backend/railway.json
-    # pending Phase 2D's own relocation/simplification of Railway
-    # configuration -- but its commands can no longer "cd backend" (nothing
-    # asa/alembic-related lives there anymore) or set PYTHONPATH=src:..
-    # (there is no "src" split left to resolve): both the deploy container's
-    # rootDirectory and this repository's own layout now agree the process
-    # runs directly from the repository root.
+    # ARCH-MONOREPO-001: asa/, alembic.ini, migrations/, and (Phase 2D)
+    # railway.json itself all now live at the repository root (the ADR's
+    # recommended single-root-project consolidation, architecture/
+    # ASA-ARCH-MONOREPO-001-Packaging-Consolidation-ADR.md) -- backend/ no
+    # longer exists. Commands run directly from the repository root: no cd,
+    # no PYTHONPATH export, nothing "src"-relative left to resolve.
     #
     # OPS-RAILWAY-ROOT-001's own live blocker (Railpack's pip-mode install
     # target not on the runtime sys.path, project/reports/OPS-RAILWAY-
     # ROOT-001.md, issue #178) is a build/runtime packaging behavior this
-    # consolidation targets structurally, per the ADR -- confirming it is
-    # actually resolved requires Phase 2D's own live deployment validation.
+    # consolidation targets structurally, per the ADR -- confirmed resolved
+    # (or not) by Phase 2D's own live deployment validation.
     repo_root = Path(__file__).parents[2]
-    config = json.loads((repo_root / "backend" / "railway.json").read_text())
+    config = json.loads((repo_root / "railway.json").read_text())
 
     assert config["deploy"]["preDeployCommand"] == EXPECTED_PRE_DEPLOY_COMMAND
     assert config["deploy"]["startCommand"] == EXPECTED_START_COMMAND

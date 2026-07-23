@@ -17,7 +17,7 @@ services:
 
   backend:
     image: python:3.12-slim
-    working_dir: /app/backend
+    working_dir: /app
     volumes:
       - .:/app
     environment:

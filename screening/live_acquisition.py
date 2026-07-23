@@ -14,10 +14,11 @@ that declares a capability serves it, in deterministic provider_id order.
 Which provider *should* be preferred for a given capability is a Founder/
 business decision, not this ticket's to invent.
 
-Transport construction is injected, never hardcoded here: this package
-cannot import backend/ (a separate deployable service that vendors its own
-copies of market_data/domain), so a real network transport is the
-caller's responsibility to supply -- this module only orchestrates.
+Transport construction is injected, never hardcoded here: screening/'s own
+architecture boundary (tests/architecture/test_screening_boundaries.py)
+forbids importing urllib or performing network I/O directly, so a real
+network transport is the caller's responsibility to supply -- this module
+only orchestrates.
 """
 
 from __future__ import annotations
