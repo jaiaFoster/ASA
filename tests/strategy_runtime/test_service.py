@@ -16,6 +16,8 @@ import pytest
 from strategy_runtime import (
     NO_LIFECYCLE,
     DataRequirement,
+    LifecycleDeclaration,
+    LifecycleModel,
     OutputKind,
     RequirementCategory,
     RuntimeContext,
@@ -23,10 +25,17 @@ from strategy_runtime import (
     StrategyRegistry,
     StructureKind,
     UniversalScreeningResult,
+    compute_observation_id,
 )
-from strategy_runtime.persistence import UniversalSignalRow
+from strategy_runtime.lifecycle import (
+    OpportunityHistory,
+    OpportunityObservation,
+    RecommendedAction,
+    compute_opportunity_id,
+)
+from strategy_runtime.persistence import UniversalSignalRow, replay_opportunity_history
 from strategy_runtime.result import EvaluationState, RowType
-from strategy_runtime.service import get_state, refresh
+from strategy_runtime.service import get_state, record_opportunity_observation, refresh
 
 
 @dataclass
@@ -98,6 +107,63 @@ def _failing_adapter(context: RuntimeContext) -> UniversalScreeningResult:
     raise RuntimeError("deliberate adapter failure")
 
 
+def _lifecycle_contract(strategy_id: str) -> StrategyContract:
+    return StrategyContract(
+        strategy_id=strategy_id,
+        version="1.0.0",
+        category="test",
+        description="A test lifecycle-tracking contract.",
+        requirements=(DataRequirement(RequirementCategory.CUSTOM, identifier="none"),),
+        lifecycle=LifecycleDeclaration(
+            LifecycleModel.OPPORTUNITY,
+            supported_states=("watching", "confirmed"),
+            observation_type="event",
+        ),
+        structure=StructureKind.NONE,
+        outputs=(OutputKind.METRICS, OutputKind.LIFECYCLE),
+    )
+
+
+def _lifecycle_result(
+    strategy_id: str, stage: str, run_id: str, observed_at: datetime
+) -> UniversalScreeningResult:
+    return UniversalScreeningResult(
+        strategy_id=strategy_id,
+        strategy_version="1.0.0",
+        symbol="AAPL",
+        observation_id=compute_observation_id(run_id, strategy_id, "AAPL"),
+        opportunity_id=compute_opportunity_id(strategy_id, "AAPL", "event-1"),
+        row_type=RowType.RESULT,
+        verdict="pass",
+        evaluation_state=EvaluationState.PASS,
+        lifecycle_stage=stage,
+        recommendation_state=None,
+        data_quality=None,
+        metrics={},
+        economics={},
+        blockers=(),
+        warnings=(),
+        provenance=(),
+        observed_at=observed_at,
+    )
+
+
+class InMemoryObservationHistoryRepository:
+    def __init__(self) -> None:
+        self._history: dict[str, OpportunityHistory] = {}
+
+    def append(self, observation: OpportunityObservation) -> None:
+        existing = self._history.get(observation.opportunity_id)
+        self._history[observation.opportunity_id] = (
+            existing.append(observation)
+            if existing is not None
+            else OpportunityHistory(observation.opportunity_id, (observation,))
+        )
+
+    def history_for(self, opportunity_id: str) -> OpportunityHistory | None:
+        return self._history.get(opportunity_id)
+
+
 class TestRefresh:
     def test_refresh_persists_and_returns_the_result(self) -> None:
         registry = StrategyRegistry(((_contract("alpha"), _succeeding_adapter),))
@@ -155,3 +221,36 @@ class TestGetState:
     def test_empty_repository_returns_empty(self) -> None:
         repository = InMemoryLatestResultRepository()
         assert get_state(repository) == ()
+
+
+class TestRecordOpportunityObservation:
+    """SPRINT-009R/EPIC-R3: persistent opportunity evolution -- opt-in,
+    separate from refresh(), never invoked automatically.
+    """
+
+    def test_recorded_observations_replay_through_history_for(self) -> None:
+        registry = StrategyRegistry(((_lifecycle_contract("watched"), _succeeding_adapter),))
+        history_repository = InMemoryObservationHistoryRepository()
+        start = datetime(2026, 1, 1, tzinfo=UTC)
+
+        watching = record_opportunity_observation(
+            registry,
+            history_repository,
+            _lifecycle_result("watched", "watching", "run-1", start),
+            recommended_action=RecommendedAction.MONITOR,
+        )
+        confirmed = record_opportunity_observation(
+            registry,
+            history_repository,
+            _lifecycle_result("watched", "confirmed", "run-2", start),
+            recommended_action=RecommendedAction.ENTER,
+        )
+
+        history = replay_opportunity_history(history_repository, watching.opportunity_id)
+
+        assert history is not None
+        assert history.observations == (watching, confirmed)
+
+    def test_replay_of_an_unrecorded_opportunity_is_none(self) -> None:
+        history_repository = InMemoryObservationHistoryRepository()
+        assert replay_opportunity_history(history_repository, "never-recorded") is None

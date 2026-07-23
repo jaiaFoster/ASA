@@ -34,6 +34,7 @@ from enum import Enum
 
 from strategy_runtime.contract import LifecycleModel, StrategyContract
 from strategy_runtime.errors import StrategyContractError
+from strategy_runtime.result import UniversalScreeningResult
 
 
 def compute_opportunity_id(strategy_id: str, symbol: str, *identity_components: str) -> str:
@@ -144,3 +145,47 @@ def validate_lifecycle_stage(contract: StrategyContract, stage: str) -> None:
             f"{stage!r} is not a lifecycle_stage {contract.strategy_id!r} declared "
             f"(declared: {contract.lifecycle.supported_states})"
         )
+
+
+def observe_transition(
+    contract: StrategyContract,
+    result: UniversalScreeningResult,
+    *,
+    recommended_action: RecommendedAction,
+) -> OpportunityObservation:
+    """The lifecycle transition engine (SPRINT-009R/EPIC-R3): turns one
+    execution's own UniversalScreeningResult into the durable
+    OpportunityObservation EPIC-8's own ObservationHistoryRepository
+    persists. ``recommended_action`` is always supplied by the caller, never
+    derived here -- a recommendation engine is this sprint's own explicit
+    non_goal, so this engine only records whichever action its caller
+    already decided on, exactly the same way strategies_own_financial_logic
+    already keeps every other business judgment out of runtime
+    infrastructure.
+
+    "Event-scoped opportunity identity": raises unless this particular
+    result actually carries an opportunity_id/lifecycle_stage pair (the
+    same invariant strategy_runtime.result.UniversalScreeningResult.
+    __post_init__ already enforces on the result itself) -- an evaluation
+    that never identified an opportunity has no transition to record.
+    """
+    if result.opportunity_id is None or result.lifecycle_stage is None:
+        raise StrategyContractError(
+            f"{result.strategy_id!r} result for {result.symbol!r} carries no "
+            "opportunity_id/lifecycle_stage -- there is no opportunity transition to observe"
+        )
+    if result.verdict is None:
+        raise StrategyContractError(
+            f"{result.strategy_id!r} result for {result.symbol!r} carries no verdict -- an "
+            "opportunity observation always records the verdict that produced its stage"
+        )
+    validate_lifecycle_stage(contract, result.lifecycle_stage)
+    return OpportunityObservation(
+        opportunity_id=result.opportunity_id,
+        strategy_id=result.strategy_id,
+        symbol=result.symbol,
+        lifecycle_stage=result.lifecycle_stage,
+        verdict=result.verdict,
+        recommended_action=recommended_action,
+        observed_at=result.observed_at,
+    )
