@@ -12,6 +12,7 @@ from strategy_runtime import (
     LifecycleModel,
     OutputKind,
     RequirementCategory,
+    StrategyCapability,
     StrategyContract,
     StrategyContractError,
     StructureKind,
@@ -164,3 +165,111 @@ class TestStrategyContract:
         contract = _contract(requirements=(_requirement(), option_requirement))
         assert contract.requirements_in(RequirementCategory.OPTION_DATA) == (option_requirement,)
         assert contract.requirements_in(RequirementCategory.EARNINGS) == ()
+
+
+class TestStrategyCapability:
+    """SPRINT-009R/EPIC-R1: capabilities are additive and one-directional --
+    a contract omitting ``capabilities`` entirely is never itself rejected
+    (every pre-EPIC-R1 contract omits it), only a capability claim that
+    outruns its backing declaration is.
+    """
+
+    def test_duplicate_capabilities_are_rejected(self) -> None:
+        with pytest.raises(StrategyContractError, match="capabilities must be unique"):
+            _contract(
+                capabilities=(StrategyCapability.ECONOMICS, StrategyCapability.ECONOMICS),
+                outputs=(OutputKind.METRICS, OutputKind.ECONOMICS),
+            )
+
+    def test_omitting_capabilities_on_a_legacy_style_contract_is_accepted(self) -> None:
+        contract = _contract(outputs=(OutputKind.METRICS, OutputKind.ECONOMICS))
+        assert contract.capabilities == ()
+
+    def test_lifecycle_capability_without_lifecycle_output_is_rejected(self) -> None:
+        with pytest.raises(StrategyContractError, match="StrategyCapability.LIFECYCLE"):
+            _contract(
+                capabilities=(StrategyCapability.LIFECYCLE,),
+                outputs=(OutputKind.METRICS,),
+                lifecycle=LifecycleDeclaration(
+                    LifecycleModel.OPPORTUNITY,
+                    supported_states=("watching",),
+                    observation_type="spread",
+                ),
+            )
+
+    def test_lifecycle_capability_with_lifecycle_output_and_model_is_accepted(self) -> None:
+        contract = _contract(
+            capabilities=(StrategyCapability.LIFECYCLE,),
+            outputs=(OutputKind.METRICS, OutputKind.LIFECYCLE),
+            lifecycle=LifecycleDeclaration(
+                LifecycleModel.OPPORTUNITY,
+                supported_states=("watching",),
+                observation_type="spread",
+            ),
+        )
+        assert StrategyCapability.LIFECYCLE in contract.capabilities
+
+    def test_history_capability_without_lifecycle_capability_is_rejected(self) -> None:
+        with pytest.raises(StrategyContractError, match="StrategyCapability.HISTORY"):
+            _contract(
+                capabilities=(StrategyCapability.HISTORY,),
+                outputs=(OutputKind.METRICS, OutputKind.LIFECYCLE),
+                lifecycle=LifecycleDeclaration(
+                    LifecycleModel.OPPORTUNITY,
+                    supported_states=("watching",),
+                    observation_type="spread",
+                ),
+            )
+
+    def test_history_capability_with_lifecycle_capability_is_accepted(self) -> None:
+        contract = _contract(
+            capabilities=(StrategyCapability.LIFECYCLE, StrategyCapability.HISTORY),
+            outputs=(OutputKind.METRICS, OutputKind.LIFECYCLE),
+            lifecycle=LifecycleDeclaration(
+                LifecycleModel.OPPORTUNITY,
+                supported_states=("watching",),
+                observation_type="spread",
+            ),
+        )
+        assert StrategyCapability.HISTORY in contract.capabilities
+
+    def test_economics_capability_without_economics_output_is_rejected(self) -> None:
+        with pytest.raises(StrategyContractError, match="StrategyCapability.ECONOMICS"):
+            _contract(capabilities=(StrategyCapability.ECONOMICS,), outputs=(OutputKind.METRICS,))
+
+    def test_recommendations_capability_without_recommendation_output_is_rejected(self) -> None:
+        with pytest.raises(StrategyContractError, match="StrategyCapability.RECOMMENDATIONS"):
+            _contract(
+                capabilities=(StrategyCapability.RECOMMENDATIONS,), outputs=(OutputKind.METRICS,)
+            )
+
+    def test_recommendations_capability_with_recommendation_output_is_accepted(self) -> None:
+        contract = _contract(
+            capabilities=(StrategyCapability.RECOMMENDATIONS,),
+            outputs=(OutputKind.METRICS, OutputKind.RECOMMENDATION_SUPPORT),
+        )
+        assert StrategyCapability.RECOMMENDATIONS in contract.capabilities
+
+    def test_option_structures_capability_without_a_structure_is_rejected(self) -> None:
+        with pytest.raises(StrategyContractError, match="StrategyCapability.OPTION_STRUCTURES"):
+            _contract(
+                capabilities=(StrategyCapability.OPTION_STRUCTURES,), structure=StructureKind.NONE
+            )
+
+    def test_option_structures_capability_with_a_structure_is_accepted(self) -> None:
+        contract = _contract(
+            capabilities=(StrategyCapability.OPTION_STRUCTURES,), structure=StructureKind.VERTICAL
+        )
+        assert StrategyCapability.OPTION_STRUCTURES in contract.capabilities
+
+    def test_multiple_results_and_incremental_refresh_have_no_required_backing(self) -> None:
+        contract = _contract(
+            capabilities=(
+                StrategyCapability.MULTIPLE_RESULTS,
+                StrategyCapability.INCREMENTAL_REFRESH,
+            )
+        )
+        assert contract.capabilities == (
+            StrategyCapability.MULTIPLE_RESULTS,
+            StrategyCapability.INCREMENTAL_REFRESH,
+        )

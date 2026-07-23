@@ -85,7 +85,7 @@ def _succeeding_adapter(context: RuntimeContext) -> UniversalScreeningResult:
         lifecycle_stage=None,
         recommendation_state=None,
         data_quality=None,
-        metrics={},
+        metrics={"strategy_native_score": "1"},
         economics={},
         blockers=(),
         warnings=(),

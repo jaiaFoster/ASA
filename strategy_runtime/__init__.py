@@ -61,12 +61,14 @@ from strategy_runtime.contract import (
     LifecycleModel,
     OutputKind,
     RequirementCategory,
+    StrategyCapability,
     StrategyContract,
     StructureKind,
 )
 from strategy_runtime.errors import (
     DuplicateStrategyRegistrationError,
     StrategyContractError,
+    StrategyContractViolationError,
     UnknownStrategyIdError,
 )
 from strategy_runtime.execution import (
@@ -87,6 +89,7 @@ from strategy_runtime.result import (
     UniversalScreeningResult,
     compute_observation_id,
 )
+from strategy_runtime.validation import validate_result
 
 __all__ = [
     "NO_LIFECYCLE",
@@ -103,8 +106,10 @@ __all__ = [
     "RuntimeContext",
     "RuntimeExecutionSummary",
     "StrategyAdapter",
+    "StrategyCapability",
     "StrategyContract",
     "StrategyContractError",
+    "StrategyContractViolationError",
     "StrategyExecutionResult",
     "StrategyRegistry",
     "StructureKind",
@@ -114,4 +119,5 @@ __all__ = [
     "build_shared_market_data_access",
     "compute_observation_id",
     "run_strategies",
+    "validate_result",
 ]

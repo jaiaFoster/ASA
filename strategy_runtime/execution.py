@@ -25,7 +25,9 @@ from typing import Generic, TypeVar
 from market_data import CapabilityFulfillmentService
 from strategy_runtime.clock import Clock
 from strategy_runtime.context import RuntimeContext
+from strategy_runtime.errors import StrategyContractViolationError
 from strategy_runtime.registry import StrategyRegistry
+from strategy_runtime.validation import validate_result
 
 # Python 3.11-compatible TypeVar/Generic -- see strategy_runtime/registry.py's
 # own comment on TResult for why PEP 695 syntax is not used here.
@@ -112,6 +114,18 @@ def _run_one(
     started_at = clock.now()
     try:
         result = adapter(context)
+        validate_result(contract, result)
+    except StrategyContractViolationError as exc:
+        finished_at = clock.now()
+        return StrategyExecutionResult(
+            strategy_id=strategy_id,
+            subject=subject,
+            run_id=run_id,
+            status=ExecutionStatus.ADAPTER_EXCEPTION,
+            result=None,
+            error_detail=f"{type(exc).__name__}: {exc}",
+            duration_seconds=max(0.0, (finished_at - started_at).total_seconds()),
+        )
     except Exception as exc:
         finished_at = clock.now()
         return StrategyExecutionResult(

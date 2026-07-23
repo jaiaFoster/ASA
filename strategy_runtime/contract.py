@@ -121,6 +121,25 @@ class LifecycleDeclaration:
 NO_LIFECYCLE = LifecycleDeclaration(LifecycleModel.NONE)
 
 
+class StrategyCapability(str, Enum):
+    """Runtime capabilities a strategy opts into (SPRINT-009R/EPIC-R1). Each
+    entry here is cross-checked against this same contract's other
+    declarations in __post_init__ below -- a capability is never merely
+    decorative, it is always backed by a consistent structural declaration
+    elsewhere in the contract, so the runtime can derive behavior from
+    ``capabilities`` alone without re-deriving it from ``outputs``,
+    ``lifecycle``, or ``structure`` separately.
+    """
+
+    LIFECYCLE = "lifecycle"
+    HISTORY = "history"
+    ECONOMICS = "economics"
+    RECOMMENDATIONS = "recommendations"
+    OPTION_STRUCTURES = "option_structures"
+    MULTIPLE_RESULTS = "multiple_results"
+    INCREMENTAL_REFRESH = "incremental_refresh"
+
+
 class StructureKind(str, Enum):
     NONE = "none"
     VERTICAL = "vertical"
@@ -145,6 +164,7 @@ class StrategyContract:
     lifecycle: LifecycleDeclaration
     structure: StructureKind
     outputs: tuple[OutputKind, ...]
+    capabilities: tuple[StrategyCapability, ...] = ()
 
     def __post_init__(self) -> None:
         for name in ("strategy_id", "version", "category", "description"):
@@ -159,6 +179,8 @@ class StrategyContract:
             raise StrategyContractError("StrategyContract.outputs cannot be empty")
         if len(set(self.outputs)) != len(self.outputs):
             raise StrategyContractError("StrategyContract.outputs must be unique")
+        if len(set(self.capabilities)) != len(self.capabilities):
+            raise StrategyContractError("StrategyContract.capabilities must be unique")
         if (
             OutputKind.LIFECYCLE in self.outputs
             and self.lifecycle.lifecycle_model is LifecycleModel.NONE
@@ -166,6 +188,59 @@ class StrategyContract:
             raise StrategyContractError(
                 "a StrategyContract declaring LIFECYCLE output must declare a non-NONE "
                 "lifecycle_model"
+            )
+        self._check_capability_consistency()
+
+    def _check_capability_consistency(self) -> None:
+        """Lifecycle/structure/capability consistency (EPIC-R1's own three
+        runtime_validation entries that are knowable from the contract
+        alone, without an execution having happened yet) -- a *declared*
+        capability must always be backed by the specific other declaration
+        it presupposes. Deliberately one-directional: a contract that omits
+        ``capabilities`` entirely (every contract written before EPIC-R1
+        added this field) is not itself inconsistent -- ``capabilities`` is
+        an additive, opt-in declaration, not a second mandatory encoding of
+        ``lifecycle``/``structure``/``outputs``. Only a capability claim
+        that outruns its backing is ever rejected.
+        """
+        has_lifecycle_model = self.lifecycle.lifecycle_model is not LifecycleModel.NONE
+        declares_lifecycle_output = OutputKind.LIFECYCLE in self.outputs
+        if StrategyCapability.LIFECYCLE in self.capabilities and not (
+            has_lifecycle_model and declares_lifecycle_output
+        ):
+            raise StrategyContractError(
+                "StrategyCapability.LIFECYCLE requires a non-NONE lifecycle_model and "
+                "OutputKind.LIFECYCLE in outputs"
+            )
+        if (
+            StrategyCapability.HISTORY in self.capabilities
+            and StrategyCapability.LIFECYCLE not in self.capabilities
+        ):
+            raise StrategyContractError(
+                "StrategyCapability.HISTORY requires StrategyCapability.LIFECYCLE -- history "
+                "tracks a lifecycle-tracked opportunity's observations over time"
+            )
+        if (
+            StrategyCapability.ECONOMICS in self.capabilities
+            and OutputKind.ECONOMICS not in self.outputs
+        ):
+            raise StrategyContractError(
+                "StrategyCapability.ECONOMICS requires OutputKind.ECONOMICS in outputs"
+            )
+        if (
+            StrategyCapability.RECOMMENDATIONS in self.capabilities
+            and OutputKind.RECOMMENDATION_SUPPORT not in self.outputs
+        ):
+            raise StrategyContractError(
+                "StrategyCapability.RECOMMENDATIONS requires OutputKind.RECOMMENDATION_SUPPORT "
+                "in outputs"
+            )
+        if (
+            StrategyCapability.OPTION_STRUCTURES in self.capabilities
+            and self.structure is StructureKind.NONE
+        ):
+            raise StrategyContractError(
+                "StrategyCapability.OPTION_STRUCTURES requires a non-NONE structure"
             )
 
     def requirements_in(self, category: RequirementCategory) -> tuple[DataRequirement, ...]:
