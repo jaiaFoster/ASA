@@ -1,0 +1,218 @@
+---
+id: ARCH-MONOREPO-001
+name: Repository Packaging Consolidation & Railway Alignment
+type: ARCHITECTURE
+parent_sprint: null
+status: SCOPED
+priority: high
+
+context:
+  summary: >
+    OPS-RAILWAY-ROOT-001 (project/reports/OPS-RAILWAY-ROOT-001.md) restored a
+    working repository-root Railway build and fixed three genuine
+    configuration bugs along the way, but also surfaced the underlying
+    structural issue this ticket exists to address: ASA currently occupies an
+    awkward middle ground between a standalone backend application and a
+    monorepo. Runtime code spans backend/ and repository-root packages
+    (screening/, analytics/, strategies/, market_data/, domain/), requiring
+    custom PYTHONPATH manipulation (backend/pyproject.toml's mypy_path/
+    pythonpath = "src:..", backend/railway.json's export PYTHONPATH=src:..)
+    and deployment-specific configuration rather than conventional Python
+    packaging. This ticket is a two-phase architecture ticket, not an
+    implementation ticket: Phase 1 produces an Architecture Decision Record
+    only; Phase 2 (any actual repository restructuring) is explicitly gated
+    on Founder review and approval of that ADR.
+
+activation:
+  id: AMD-013-ARCH-MONOREPO-001-PHASE-1
+  governance_amendment: GOV-AMD-001-013
+  founder_authorized: true
+  founder_direction: ARCH-MONOREPO-001 handoff (pasted directly by Founder)
+  effective_when: this activation is Founder-merged to the default branch
+  scope_note: >
+    Amendment 013's text identifies its unit of activation as "one
+    identified implementation sprint." ARCH-MONOREPO-001 is type:
+    ARCHITECTURE, not a sprint, and this activation covers only Phase 1
+    (research and ADR authoring, no implementation) -- it is treated as
+    this amendment's qualifying unit for that bounded research phase,
+    matching PATCH-007A/GOV-007A and OPS-RAILWAY-ROOT-001/GOV-008B's own
+    precedent for applying the sprint delegation mechanism to a smaller,
+    bounded, non-sprint unit under the same rules. Phase 2 (any actual
+    repository restructuring) is explicitly out of this activation's scope
+    per the ticket's own text ("Founder approval REQUIRED before
+    implementation") and requires its own separate Founder-merged
+    activation or rescope once the ADR is reviewed, matching the precedent
+    set by GOV-008 -> GOV-008A (SPRINT-008 was rescoped mid-flight after
+    research changed the understanding of the right design).
+  delegate:
+    role: ROLE-WORKER
+    instance: implementation-worker
+  limited_to_sprint: ARCH-MONOREPO-001
+  approved_tickets:
+    - ARCH-MONOREPO-001-PHASE-1
+  excludes:
+    - phase_2_implementation
+    - any_repository_restructuring
+    - any_module_or_package_rename
+    - any_import_path_change
+    - any_pyproject_toml_or_railway_json_change
+    - business_logic_changes
+    - api_architecture_changes
+    - domain_model_changes
+    - fastapi_replacement
+    - alembic_replacement
+    - railway_replacement
+    - execution_graph_behavior_changes
+    - functional_feature_work
+    - governance_changes
+  expires:
+    - phase_1_adr_delivered
+    - phase_1_stopped
+    - Founder_revokes_delegation
+
+objective: >
+  Research and document, in an Architecture Decision Record, why ASA's
+  current packaging layout evolved into its present shape, why that shape
+  requires custom PYTHONPATH manipulation and deployment-specific
+  configuration, and what alternative repository layouts would eliminate
+  that ambiguity while preserving the existing application architecture,
+  domain model, and execution graph -- without making any implementation
+  changes. Produce a recommendation, migration plan, and risk/rollback
+  assessment for Founder review; do not implement anything.
+
+bounded_scope:
+  in:
+    - reading_and_documenting_the_current_repository_layout
+    - identifying_every_runtime_package_boundary
+    - identifying_duplicated_or_vendored_packages
+    - explaining_why_pythonpath_manipulation_is_currently_required
+    - explaining_why_railway_deployment_originally_worked_under_the_prior_backend_scoped_rootdirectory
+    - explaining_what_architectural_change_widened_deployment_scope
+    - comparing_current_layout_against_standard_python_packaging_conventions
+    - comparing_current_layout_against_the_stonk_repository_if_accessible
+    - researching_hatch_workspace_support
+    - researching_uv_workspace_support
+    - researching_railway_deployment_recommendations_for_python_monorepos
+    - evaluating_at_least_three_alternative_repository_layouts
+    - recommending_one_target_architecture
+    - documenting_migration_cost_deployment_impact_and_rollback_strategy
+    - writing_and_publishing_the_adr
+  out:
+    - any_implementation_of_the_recommended_layout
+    - any_file_move_rename_or_import_path_change
+    - any_pyproject_toml_backend_pyproject_toml_railway_json_or_railpack_json_change
+    - business_logic_changes
+    - api_or_cli_behavior_changes
+    - database_schema_or_alembic_history_changes
+    - execution_graph_behavior_changes
+
+constraints:
+  - phase_1_produces_documentation_only_no_code_changes
+  - founder_approval_required_before_any_phase_2_work_begins
+  - preserve_api_cli_behavior_execution_graph_domain_model_screening_analytics_strategy_pipelines_database_schema_and_alembic_history_in_the_recommendation
+  - minimize_public_import_path_changes_module_renames_and_runtime_behavior_changes_in_the_recommendation
+  - avoid_recommending_temporary_compatibility_hacks_duplicated_packages_deployment_only_code_or_unnecessary_abstractions
+
+required_phase_1_adr_content:
+  - why_did_the_existing_layout_evolve
+  - why_did_railway_deployment_originally_work
+  - what_architectural_change_required_widening_deployment_scope
+  - comparison_against_stonk
+  - comparison_against_standard_python_packaging
+  - explanation_of_why_pythonpath_is_currently_required
+  - every_runtime_package_boundary_identified
+  - duplicated_or_vendored_packages_identified
+  - at_least_three_alternative_repository_layouts_evaluated
+  - one_recommended_target_architecture
+  - migration_cost_explained
+  - deployment_impact_explained
+  - rollback_strategy_explained
+
+explicit_questions_to_answer:
+  - can_backend_remain_the_deployable_application_while_shared_packages_become_installable_internal_packages
+  - is_a_true_monorepo_workspace_justified
+  - is_a_single_root_python_project_the_simplest_solution
+  - which_option_best_matches_railways_intended_deployment_model
+  - which_option_best_matches_long_term_maintainability
+
+validation:
+  required_before_delegated_merge_of_the_adr:
+    - adr_answers_every_required_phase_1_content_item
+    - adr_answers_every_explicit_question
+    - at_least_three_alternative_layouts_genuinely_evaluated_not_strawmen
+    - recommendation_is_justified_with_concrete_tradeoffs
+    - migration_plan_deployment_impact_and_rollback_strategy_are_concrete_not_vague
+    - no_implementation_changes_included_in_the_same_pull_request
+    - self_review_passes
+    - no_governance_violation
+
+self_review:
+  required: true
+  checklist:
+    scope:
+      - no_implementation_or_repository_restructuring_included
+      - no_pyproject_toml_or_railway_config_file_modified
+      - phase_1_only
+    content:
+      - every_required_adr_content_item_addressed
+      - every_explicit_question_answered
+      - at_least_three_alternatives_evaluated_with_real_tradeoffs
+      - recommendation_traceable_to_the_evaluated_alternatives
+    governance:
+      - Constitution_unchanged
+      - frozen_governance_unchanged
+      - delegated_scope_and_ticket_match
+      - all_Amendment_013_gates_evidenced
+
+stop_conditions:
+  - implementation_would_require_business_logic_redesign
+  - a_migration_path_would_risk_production_stability_in_a_way_the_adr_cannot_mitigate
+  - more_than_one_equally_viable_architecture_exists_with_no_clear_recommendation_possible
+  - adr_assumptions_cannot_be_validated_against_the_actual_repository
+  - Founder_revokes_delegation
+
+on_stop:
+  - do_not_implement
+  - document_the_blocker_in_the_adr_itself
+  - report_architectural_or_founder_blocker
+  - halt_pending_Founder_decision
+
+report:
+  required: true
+  destination: architecture/ASA-ARCH-MONOREPO-001-Packaging-Consolidation-ADR.md
+  contents:
+    - decision_record_per_required_phase_1_adr_content
+    - repository_migration_plan
+    - implementation_plan_for_the_recommended_option_not_yet_executed
+    - risk_assessment
+    - rollback_plan
+    - final_repository_diagram
+
+merge_authority:
+  delegation_required: true
+  conditions:
+    - all_required_gates_pass
+    - the_adr_itself_contains_no_implementation_changes
+  note: >
+    The ADR document's own publication may be delegate-merged as a regular
+    Phase 1 deliverable once validation passes, matching this repository's
+    established practice of self-merging report/documentation deliverables
+    under an active delegation. This does NOT constitute Founder approval
+    of the ADR's recommendation -- Phase 2 implementation remains blocked
+    until the Founder explicitly reviews the ADR and authorizes a separate
+    Phase 2 activation or rescope.
+
+successor:
+  phase_2:
+    authorized: false
+    requires: explicit_Founder_review_and_approval_of_the_phase_1_ADR
+    activation_mechanism: separate_GOV_activation_or_rescope_once_ADR_is_approved
+
+definition_of_done: >
+  ARCH-MONOREPO-001 Phase 1 is complete when architecture/ASA-ARCH-MONOREPO-001-
+  Packaging-Consolidation-ADR.md is committed, answers every required content
+  item and explicit question listed above, evaluates at least three genuinely
+  distinct alternative repository layouts with concrete tradeoffs, recommends
+  one target architecture with a documented migration plan, deployment impact,
+  and rollback strategy, contains no implementation changes, and the Founder
+  has been asked to review it and decide whether to authorize Phase 2.
