@@ -1,5 +1,5 @@
 """Response models for the public /api/v1/screening* and /api/v1/capabilities
-endpoints (API-003, SPRINT-008).
+endpoints (API-003, API-004, SPRINT-008).
 
 Built on asa.api.agent_models.TimestampedResource so every screening result
 exposes updated_at/age_seconds through the one place that computes it, per
@@ -63,3 +63,23 @@ class ScreeningResultsEnvelope(BaseModel):
     total: int
     limit: int
     offset: int
+
+
+class RefreshResultResponse(ScreeningResultResponse):
+    """Extends, not duplicates, ScreeningResultResponse -- a refresh result
+    is a screening result plus how many live provider requests it took
+    (API-004's own "request_accounting" requirement). Never the raw
+    RequestAccountingEntry records themselves: provider identity, quota
+    detail, and retry mechanics stay internal
+    (architecture_principles: "provider_implementations_remain_completely_
+    internal"), not exposed in a public response.
+    """
+
+    request_count: int
+
+    @classmethod
+    def from_record(  # type: ignore[override]
+        cls, record: ScreeningStateRecord, *, request_count: int
+    ) -> RefreshResultResponse:
+        base = ScreeningResultResponse.from_record(record)
+        return cls(request_count=request_count, **base.model_dump())

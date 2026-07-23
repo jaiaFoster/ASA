@@ -105,7 +105,12 @@ def build_application(
         )
     )
     app.include_router(
-        build_screening_router(screening_state_repository, SIGNAL_REGISTRY, agent_authorize)
+        build_screening_router(
+            screening_state_repository,
+            SIGNAL_REGISTRY,
+            agent_authorize,
+            selected.market_data_transport_factory or build_transport_for_provider,
+        )
     )
 
     @app.middleware("http")
