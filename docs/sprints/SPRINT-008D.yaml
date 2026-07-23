@@ -1,0 +1,453 @@
+---
+id: SPRINT-008D
+name: API Activation & Screening Productionization
+version: 1.0
+status: SCOPED
+type: IMPLEMENTATION_SPRINT
+
+activation:
+  id: AMD-013-SPRINT-008D
+  governance_amendment: GOV-AMD-001-013
+  founder_authorized: true
+  founder_direction: >
+    "SPRINT-008D: API Activation & Screening Productionization" handoff
+    (pasted directly by Founder), issued after SPRINT-008's own final
+    report (project/reports/SPRINT-008.md) and its request for Founder
+    verification.
+  effective_when: this sprint definition is Founder-merged to the default branch
+  delegate:
+    role: ROLE-WORKER
+    instance: implementation-worker
+  limited_to_sprint: SPRINT-008D
+  approved_tickets:
+    - ACT-001
+    - ACT-002
+    - PROD-001
+    - PROD-002
+    - PROD-003
+    - PROD-004
+    - PROD-005
+  excludes:
+    - architecture_changes_not_separately_approved
+    - domain_contract_redefinition
+    - domain_opportunity_contract_changes
+    - governance_changes
+    - constitutional_changes
+    - workflow_changes
+    - deployment_outside_the_existing_railway_service
+    - risk_floor_changes
+    - sprint_scope_expansion
+    - breaking_public_api_contracts
+    - strategy_semantic_changes
+    - portfolio_api
+    - lifecycle_api
+    - opportunity_ranking
+    - broker_operations
+    - always_on_background_daemon_process
+    - websocket_streaming
+    - push_notifications
+    - historical_screening_runs
+    - provider_specific_api_exposure
+    - major_architectural_refactoring
+    - duplicate_execution_paths
+    - database_schema_changes_unless_explicitly_justified_in_a_ticket_self_review
+    - richer_screening_signals_or_new_strategies
+    - recommendation_intelligence
+    - portfolio_analytics
+    - successor_sprint_work
+  expires:
+    - sprint_complete
+    - sprint_stopped
+    - Founder_revokes_delegation
+
+objective: >
+  Complete the transition from a deployed API (SPRINT-008) to an operational
+  screening platform. Phase 1 makes a brand-new deployment genuinely usable
+  by an external AI agent with no internal knowledge of this codebase.
+  Phase 2 gives that API something real to serve: a justified initial
+  production screening universe, a scheduled execution workflow that
+  populates it, a documented caching/freshness policy, validated provider
+  behavior, and an evaluated path for expanding the bounded live-refresh
+  universe.
+
+prerequisites:
+  governance:
+    - GOV-AMD-001-013
+    - GOV-008
+  architecture: []
+  research_findings_informing_this_activation: >
+    SPRINT-008 is complete and self-verified (project/reports/SPRINT-008.md,
+    PR #195): the API surface, its authentication model, and its Railway
+    deployment are all stable per that report's own validation section.
+    That report also already names two of this sprint's own starting
+    points as known, non-blocking gaps at SPRINT-008's own close: (1) no
+    live market data provider credential is configured in production, so
+    POST .../refresh returns 503 NO_LIVE_PROVIDER_CONFIGURED for every
+    request today (project/reports/POST-005B-LIVE-VALIDATION.md); (2)
+    tests/screening/ and root-level mypy have no dedicated CI job
+    (issue #147, still open). Phase 2's provider_quality and execution
+    scope below directly follow from gap (1); Phase 1's own
+    investigation work should confirm whether gap (1) is the entire
+    explanation for the "authenticated 404" usability issue this
+    handoff reports from external beta testing, or whether a second,
+    distinct defect exists -- this is not to be assumed either way before
+    investigating.
+
+    ACT-001 must start by actually reproducing the reported issue against
+    a freshly seeded (i.e. record-empty) database with a correctly
+    configured ASA_AGENT_API_TOKEN, not by reasoning about the code in the
+    abstract -- docs/api/agent-api-authentication.md (SPRINT-008/API-006)
+    already documents that an auth failure and a "no data yet" response
+    both currently return HTTP 404, but with deliberately different
+    bodies (a bare {"detail": "Not Found"} vs. this API's own
+    {error_code, message} shape) specifically so a caller CAN distinguish
+    them without a status-code change. Confirm during investigation
+    whether external beta testers hit that documented distinction as
+    designed, or something else entirely (e.g. GET /api/v1/screening on
+    an empty-but-authenticated database, which returns 200 with an empty
+    results list, not 404 at all -- if a tester reported "404" there, the
+    likelier explanation is a token misconfiguration, not the API).
+  screening_engine_current_state: >
+    screening.live_acquisition.APPROVED_LIVE_UNIVERSE currently authorizes
+    exactly six symbols for POST .../refresh (AAPL, MSFT, NVDA, AMD, SPY,
+    QQQ). Three signals are registered
+    (screening.adapters.TARGET_STRATEGY_REGISTRY): forward_factor,
+    earnings_calendar, skew_momentum. No scheduled or automated execution
+    of any signal against any symbol exists anywhere in the codebase today
+    -- screening_state has never been populated outside of manual CLI runs
+    and this sprint's own test fixtures. This is exactly the state
+    "screening engine exists; public API has no meaningful production
+    data yet" in this handoff's own background section describes.
+
+bounded_scope:
+  in:
+    - diagnosing_and_fixing_any_real_external_consumer_usability_defect_in_authentication_or_empty_state_handling
+    - a_bootstrap_guide_for_a_brand_new_deployment
+    - end_to_end_validation_of_every_documented_workflow_from_an_empty_database
+    - definition_and_written_justification_of_an_initial_production_screening_universe
+    - a_scheduled_or_cron_triggered_execution_workflow_that_populates_screening_state_for_that_universe
+    - a_documented_cache_and_freshness_policy_for_screening_state
+    - investigation_and_resolution_or_documentation_of_the_finnhub_authorization_issue
+    - validation_of_provider_capability_routing_and_forward_factors_data_requirements
+    - documentation_of_provider_fallback_behavior
+    - evaluation_of_whether_and_how_APPROVED_LIVE_UNIVERSE_should_expand
+  out:
+    - new_screening_signals_or_strategies
+    - portfolio_or_ranking_features
+    - a_new_always_on_background_process_or_scheduler_service
+    - websocket_or_push_based_notification_of_screening_updates
+    - changing_the_public_API_contract_established_in_SPRINT_008
+    - relitigating_ARCH_MONOREPO_001_or_OPS_RAILWAY_ROOT_001_packaging_decisions
+    - database_schema_redesign_absent_a_specific_justified_need_recorded_in_a_ticket_self_review
+
+architecture_principles:
+  - preserve_the_single_shared_execution_graph_cli_and_scheduled_runner_and_api_all_call_the_same_screening_service_functions
+  - a_scheduled_execution_workflow_is_not_a_new_background_daemon_inside_the_asa_process_use_railways_own_cron_scheduling_or_an_externally_triggered_script_invocation_of_the_existing_screening_service
+  - reads_never_trigger_provider_requests_unchanged_from_SPRINT_008
+  - refreshes_remain_explicit_and_narrowly_scoped_unchanged_from_SPRINT_008
+  - provider_implementations_remain_completely_internal_unchanged_from_SPRINT_008
+  - caching_and_freshness_policy_is_documented_as_policy_not_hidden_in_code_comments
+  - no_duplicate_execution_path_the_scheduled_workflow_calls_screening_service_refresh_the_same_function_the_api_and_cli_already_call
+
+execution:
+  mode: founder_authorized_autonomous_sprint
+  branch_strategy: feature_per_ticket
+  branch_pattern: agent/<ticket-id>-<short-description>
+  ticket_order:
+    - ACT-001
+    - ACT-002
+    - PROD-001
+    - PROD-004
+    - PROD-002
+    - PROD-003
+    - PROD-005
+  order_rationale: >
+    Phase 1 (ACT-001, ACT-002) first: an unusable API makes every later
+    phase-2 deliverable moot, and this handoff's own definition_of_done
+    lists "API usable by a first-time external agent" first. Within
+    Phase 2: the universe (PROD-001) must be defined before anything
+    executes against it. Provider quality (PROD-004) is validated next,
+    before the first production execution run, so PROD-002 does not
+    populate the database against a known-broken provider path. Execution
+    and persistence (PROD-002) comes before caching policy (PROD-003)
+    because a freshness policy is easier to write accurately once real
+    execution timing and data volume are observed, not guessed at in
+    advance. Refresh-universe expansion (PROD-005) is evaluated last,
+    once real production usage patterns from PROD-002 exist to inform it.
+  workflow:
+    - review_relevant_open_and_recent_closed_issues_and_prs_for_the_subsystem
+    - implement_one_approved_ticket
+    - run_all_required_validation
+    - perform_and_record_self_review
+    - open_pull_request
+    - verify_pull_request_contains_only_approved_ticket_scope
+    - verify_every_required_gate_is_present_and_green
+    - check_for_an_unresolved_architecture_or_founder_gate
+    - merge_under_GOV_AMD_001_013_only_if_no_gate_is_unresolved
+    - verify_default_branch_contains_merge_commit
+    - run_post_merge_validation
+    - begin_next_ticket
+
+tickets:
+  - id: ACT-001
+    title: API Activation Diagnostics
+    owner: Worker
+    objective: >
+      Reproduce, root-cause, and (if a real defect) fix the "authenticated
+      404" usability issue external beta testing identified. Verify
+      authentication behavior against docs/api/agent-api-authentication.md
+      exactly as documented, and confirm empty-system-state responses
+      (e.g. GET /api/v1/screening on a record-empty but correctly
+      authenticated database) are genuinely distinguishable from
+      authentication failures, by test, against a real freshly-migrated
+      database -- not by re-reading the existing code and asserting it is
+      already correct.
+    deliverables:
+      - a_written_reproduction_of_the_reported_issue_against_a_freshly_seeded_database_or_a_written_finding_that_it_could_not_be_reproduced_with_evidence_either_way
+      - a_fix_if_a_genuine_defect_is_found_or_a_documented_explanation_if_the_root_cause_is_caller_side_misconfiguration
+      - verification_that_GET_capabilities_and_GET_screening_behave_correctly_on_an_empty_database_authenticated_and_unauthenticated
+      - verification_that_the_refresh_endpoint_behaves_correctly_on_an_empty_database_first_ever_refresh_for_a_pair
+      - test_coverage_for_whatever_was_found_added_to_the_existing_asa_test_suite_not_a_standalone_script
+    excludes:
+      - changing_the_authentication_scheme_itself
+      - changing_the_404_fail_closed_convention_established_in_SPRINT_008
+
+  - id: ACT-002
+    title: Bootstrap Guide & First-Run Validation
+    owner: Worker
+    objective: >
+      Document, end to end, exactly what a brand-new deployment operator
+      or an external AI agent must do to reach a usable state with zero
+      prior knowledge of this codebase, and prove that documentation
+      correct by actually following it against a genuinely empty
+      deployment (fresh database, no screening_state rows, no assumed
+      local context).
+    deliverables:
+      - docs_api_agent_api_bootstrap_md_the_bootstrap_guide
+      - docs_api_agent_api_operational_workflow_md_or_an_update_to_the_existing_agent_api_operations_md
+      - project_reports_SPRINT_008D_API_ACTIVATION_md_recording_the_end_to_end_validation_run_and_its_results
+    validation_flow:
+      - fresh_migrated_database_with_zero_screening_state_rows
+      - discover_capabilities_with_a_correctly_configured_token
+      - confirm_empty_screening_list_returns_200_with_an_empty_results_array_not_404
+      - perform_a_first_ever_refresh_for_one_approved_pair
+      - confirm_the_refreshed_result_is_then_retrievable
+    excludes:
+      - any_change_to_the_public_api_contract
+
+  - id: PROD-001
+    title: Production Screening Universe Definition
+    owner: Worker
+    objective: >
+      Define and justify an initial production screening universe --
+      which registered signals run against which symbols -- bounded by
+      the existing APPROVED_LIVE_UNIVERSE (screening.live_acquisition),
+      and document a future expansion strategy. This ticket defines the
+      universe; PROD-002 executes against it.
+    deliverables:
+      - a_written_universe_definition_with_explicit_signal_symbol_pairs
+      - written_justification_for_why_this_set_and_not_a_larger_or_smaller_one_e.g._data_requirements_provider_budget_APPROVED_LIVE_UNIVERSE_bound
+      - a_documented_future_expansion_strategy_distinct_from_PROD_005s_own_refresh_universe_evaluation
+    excludes:
+      - expanding_APPROVED_LIVE_UNIVERSE_itself_that_is_PROD_005s_own_job_if_justified
+
+  - id: PROD-004
+    title: Provider Quality Validation
+    owner: Worker
+    objective: >
+      Investigate and resolve or precisely document the Finnhub
+      authorization issue; validate that provider capability routing
+      correctly selects a provider for each canonical capability each
+      registered signal declares; verify Forward Factor's actual data
+      requirements are met by at least one enabled, working provider;
+      document provider fallback behavior when a preferred provider is
+      unavailable or fails.
+    deliverables:
+      - project_reports_SPRINT_008D_PROVIDER_VALIDATION_md
+      - finnhub_authorization_issue_root_caused_with_evidence_fixed_if_within_scope_or_escalated_with_precise_blocker_detail_if_not
+      - confirmation_that_every_registered_signals_required_capabilities_route_to_a_working_provider_for_the_PROD_001_universe
+    excludes:
+      - adding_a_new_provider_integration
+      - changing_provider_selection_or_fallback_architecture_only_documenting_and_validating_the_existing_one
+
+  - id: PROD-002
+    title: Scheduled Execution & Persistence
+    owner: Worker
+    objective: >
+      Establish a scheduled or externally-triggered execution workflow
+      that runs screening.service.refresh() for the PROD-001 universe and
+      persists results through the existing ScreeningStateRepository --
+      the same shared execution graph the CLI and API already use, not a
+      new one. Execute at least one complete production run and confirm
+      the populated results are visible through the public API.
+    deliverables:
+      - the_scheduling_mechanism_itself_railway_cron_schedule_or_an_equivalent_externally_triggered_invocation_not_a_new_in_process_daemon
+      - a_completed_first_production_screening_run_against_the_real_production_database
+      - project_reports_SPRINT_008D_PRODUCTION_SCREENING_md_documenting_that_run_and_its_results
+      - confirmation_via_GET_api_v1_screening_that_results_are_visible_through_the_public_api
+    excludes:
+      - a_new_always_on_background_process_inside_the_asa_deployment
+      - executing_against_symbols_or_signals_outside_the_PROD_001_universe
+
+  - id: PROD-003
+    title: Cache & Freshness Policy
+    owner: Worker
+    objective: >
+      Define and document a cache lifecycle and freshness policy for
+      screening state, informed by PROD-002's real execution timing and
+      data volume: how long a result is considered fresh, when a
+      scheduled re-run should occur, and how this interacts with the
+      existing per-resource explicit refresh endpoint without introducing
+      any hidden refresh-on-read behavior (still explicitly excluded,
+      unchanged from SPRINT-008).
+    deliverables:
+      - docs_screening_cache_lifecycle_md_or_equivalent
+      - a_freshness_policy_that_minimizes_unnecessary_provider_requests_without_ever_making_a_GET_endpoint_trigger_one
+      - confirmation_that_read_endpoint_determinism_findings_from_API_005_still_hold_unchanged
+    excludes:
+      - implementing_hidden_refresh_on_read
+      - a_new_caching_layer_or_service_document_a_policy_for_the_existing_repository_do_not_add_a_new_cache_component
+
+  - id: PROD-005
+    title: Refresh Universe Expansion Strategy
+    owner: Worker
+    objective: >
+      Using real usage data and provider-budget evidence from PROD-002
+      and PROD-004, evaluate whether and how APPROVED_LIVE_UNIVERSE should
+      expand, and document a long-term expansion strategy, while
+      explicitly preserving the existing provider-request safety
+      guarantees (the deterministic_fixture force-disable guard, the
+      per-refresh request budget ceiling) unchanged.
+    deliverables:
+      - a_written_evaluation_of_the_current_six_symbol_bound
+      - a_documented_long_term_expansion_strategy_with_explicit_criteria_for_when_a_symbol_should_be_added
+      - explicit_confirmation_that_no_provider_safety_guarantee_from_API_004_screening_live_acquisition_is_weakened
+    excludes:
+      - actually_expanding_APPROVED_LIVE_UNIVERSE_in_this_ticket_unless_the_evaluation_concludes_it_is_justified_and_records_that_justification_in_the_tickets_own_self_review
+
+validation:
+  required_before_every_delegated_merge:
+    - all_required_CI_checks_pass
+    - pytest_tests_asa
+    - pytest_tests_screening
+    - pytest_tests_architecture
+    - ruff_passes_asa_and_root
+    - mypy_passes_asa_and_affected_root_source
+    - alembic_upgrade_and_downgrade_round_trip_where_migrations_change
+    - asa_local_boundary_suite_passes
+    - governance_integrity_validation_passes
+    - lean_pos_validation_passes
+    - pre_push_check_passes
+    - secret_scan_passes
+    - git_diff_check_passes
+    - self_review_passes
+    - no_governance_violation
+    - no_unresolved_blocking_issue
+    - no_unresolved_architecture_gate
+    - no_unresolved_founder_gate
+    - no_security_sensitive_scope_expansion
+    - pull_request_contains_only_the_approved_ticket_scope
+    - relevant_open_and_recent_closed_issues_and_prs_reviewed
+  sprint_level:
+    - successful_railway_deployment_confirmed_after_PROD_002
+    - populated_screening_database_confirmed_via_the_public_api_not_just_the_database_directly
+    - successful_external_style_ai_agent_validation_re_run_against_populated_data_extending_tests_asa_test_ai_agent_workflow_py_or_an_equivalent
+    - all_named_documentation_deliverables_committed
+  post_merge:
+    - verify_default_branch_contains_merge_commit
+    - rerun_ticket_validation_from_default_branch
+    - verify_worktree_clean
+
+self_review:
+  required: true
+  checklist:
+    architecture:
+      - single_composition_root_preserved
+      - no_new_frozen_public_contract_introduced_without_a_gate
+      - no_new_always_on_background_process_introduced
+      - scheduled_execution_calls_screening_service_refresh_directly_no_duplicate_execution_path
+      - reads_never_trigger_provider_requests_verified_by_test_not_just_by_inspection
+      - refresh_scope_stays_narrow_never_whole_universe
+      - provider_implementations_stay_internal_never_exposed_in_responses
+      - database_schema_unchanged_or_change_explicitly_justified_in_this_ticket
+    governance:
+      - Constitution_unchanged
+      - frozen_governance_unchanged
+      - delegated_scope_and_ticket_match
+      - all_Amendment_013_gates_evidenced
+    implementation:
+      - ticket_acceptance_satisfied
+      - deterministic_outputs_for_identical_repository_state
+      - no_unresolved_TODO_or_skipped_sprint_test
+      - no_credential_or_secret_value_ever_logged_or_returned_in_a_response
+
+stop_conditions:
+  - frozen_governance_change_required
+  - architecture_change_or_new_public_contract_required
+  - missing_or_ambiguous_upstream_contract
+  - new_immutable_domain_contract_required
+  - breaking_public_contract_required
+  - sprint_scope_change_required
+  - deterministic_execution_or_replay_cannot_be_preserved
+  - multiple_materially_different_architectural_solutions
+  - validation_failure_cannot_be_resolved_within_ticket_scope
+  - required_gate_missing_unavailable_skipped_or_failing
+  - existing_strategy_semantics_would_need_to_change
+  - the_scheduled_execution_workflow_would_require_a_new_always_on_process_to_satisfy_this_tickets_objective
+  - Founder_revokes_delegation
+
+on_stop:
+  - do_not_merge
+  - open_GitHub_issue_with_evidence
+  - report_architectural_governance_or_founder_blocker
+  - return_merge_authority_to_Founder
+  - halt_remaining_sprint_pending_gate_resolution
+
+report:
+  required: true
+  destination: project/reports/SPRINT-008D.md
+  contents:
+    - sprint_summary
+    - completed_tickets
+    - delegated_merged_pull_requests
+    - api_activation_findings_and_resolution
+    - screening_universe_definition_and_rationale
+    - provider_validation_results
+    - production_screening_run_results
+    - cache_and_freshness_policy_summary
+    - refresh_universe_expansion_recommendation
+    - validation_results
+    - discovered_and_resolved_defects
+    - remaining_non_blocking_issues
+    - recommendations_for_SPRINT_009
+
+definition_of_done: >
+  SPRINT-008D is complete when every enumerated ticket is merged after
+  every Amendment 013 gate passes and no stop condition remains
+  unresolved; the API is usable by a first-time external agent with no
+  internal knowledge of this codebase; the initial screening universe is
+  defined, justified, and operating in production; screening results are
+  available and populated through the public API; the first production
+  screening run has completed successfully; the refresh endpoint has been
+  validated against populated (not merely seeded-for-test) screening
+  data; provider validation is complete (Finnhub issue resolved or
+  precisely documented); all named documentation deliverables reflect
+  operational reality, not the pre-sprint state; the final sprint report
+  is committed; and the Founder is asked to verify completion before
+  SPRINT-009 begins.
+
+next_program:
+  id: SPRINT-009
+  focus:
+    - richer_screening_signals
+    - forward_factor_maturation
+    - recommendation_intelligence
+    - portfolio_analytics
+    - strategy_expansion
+  note: >
+    Infrastructure work should thereafter be limited to defects or
+    targeted improvements -- consistent with SPRINT-008's own
+    next_expected_program note. This sprint (SPRINT-008D) is itself the
+    bridge: it exists specifically so SPRINT-009 can start on product
+    capability against a genuinely populated, validated production
+    system rather than an empty one.
