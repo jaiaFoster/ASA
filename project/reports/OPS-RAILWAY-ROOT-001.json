@@ -1,0 +1,96 @@
+{
+  "ticket": "OPS-RAILWAY-ROOT-001",
+  "name": "Restore Repository-Root Railway Deployment",
+  "parent_sprint": "SPRINT-008",
+  "status": "partially_complete_blocked_on_platform_issue",
+  "investigation_window_utc": "2026-07-23T01:30-03:30",
+  "repository_commit_current": "94a95df",
+  "base_branch": "main",
+  "delegation": {
+    "amendment": "GOV-AMD-001-013",
+    "activation_pr": 167,
+    "ticket_definition": "docs/sprints/OPS-RAILWAY-ROOT-001.yaml"
+  },
+  "pull_requests": [168, 169, 170, 171, 172, 173, 174, 175, 176, 177],
+  "root_causes": [
+    {
+      "id": 1,
+      "description": "railpack.json's custom steps.install.commands override replaced Railpack's auto-generated install step, losing whatever implicit inputs wiring gives that step access to the copied repository files; the install step ran against an empty working directory.",
+      "status": "fixed",
+      "fix_pr": 169
+    },
+    {
+      "id": 2,
+      "description": "Railway's startCommand/preDeployCommand parser rejects bash control-flow syntax (if/then/fi) outright -- discovered and reverted within this same investigation.",
+      "status": "identified_and_avoided",
+      "introduced_pr": 168,
+      "reverted_pr": 170
+    },
+    {
+      "id": 3,
+      "description": "A root-level pyproject.toml/uv.lock pair (belonging to tools/deployment_observer/'s own dev tooling) sat at the same directory level as backend/'s own dependency files once rootDirectory widened to the repo root, causing Railpack to intermittently select uv and the wrong project's (empty) dependency set instead of pip and backend/'s real dependencies.",
+      "status": "fixed",
+      "fix_pr": 171
+    },
+    {
+      "id": 4,
+      "description": "Railpack's pip-mode install target does not appear to be on the runtime container's sys.path -- USER_SITE ('/root/.local/lib/python3.12/site-packages') confirmed not to exist in the deployed image via a live 'python -m site' diagnostic, resulting in 'No module named alembic' despite alembic being correctly declared as a dependency and the build succeeding.",
+      "status": "unresolved",
+      "issue": 178
+    }
+  ],
+  "mitigations_attempted_for_root_cause_4": [
+    {"description": "Prepend /app/.venv/bin to PATH in start/pre-deploy commands", "pr": 173, "result": "no effect -- no python binary exists at that path for this build"},
+    {"description": "Set PIP_USER=0 as a Railway service environment variable", "result": "no effect -- Railway does not inject regular service variables into the build step"}
+  ],
+  "diagnostic_findings": {
+    "preDeployCommand_stdout_capture": "unreliable via Railway's deploy-log stream regardless of command content, confirmed via Railway's own support agent exhaustively searching every available log filter",
+    "startCommand_stdout_capture": "reliable across every attempt",
+    "runtime_python_interpreter": "/mise/installs/python/3.12.13/bin/python (raw mise-managed interpreter, no venv)",
+    "runtime_sys_path": [
+      "/app/backend",
+      "/app/backend/src",
+      "/app",
+      "/mise/installs/python/3.12.13/lib/python312.zip",
+      "/mise/installs/python/3.12.13/lib/python3.12",
+      "/mise/installs/python/3.12.13/lib/python3.12/lib-dynload",
+      "/mise/installs/python/3.12.13/lib/python3.12/site-packages"
+    ],
+    "user_site_exists": false
+  },
+  "files_changed": [
+    "railpack.json",
+    "backend/railway.json",
+    "pyproject.toml (moved to tools/deployment_observer/pyproject.toml)",
+    "uv.lock (moved to tools/deployment_observer/uv.lock)",
+    "tests/deployment_observer/test_workflow.py",
+    "backend/tests/test_railway_runtime.py",
+    "docs/sprints/OPS-RAILWAY-ROOT-001.yaml"
+  ],
+  "regression_results": {
+    "backend_full_suite": {"passed": 85, "skipped": 13, "failed": 0},
+    "deployment_observer_suite": {"passed": 70, "skipped": 0, "failed": 0},
+    "ruff": "clean",
+    "mypy": "clean",
+    "ci_status": "green on every PR that triggered CI (path-filtered workflows did not trigger for config-only or deployment_observer-only changes; verified locally in those cases)"
+  },
+  "live_deployment_url": "https://asa-production-b2c4.up.railway.app",
+  "live_service_health_during_investigation": "200 {\"status\": \"ok\"} confirmed repeatedly before, during, and after every deploy attempt -- never degraded",
+  "final_deployment_status": {
+    "root_directory": ".",
+    "build_status": "succeeds consistently",
+    "runtime_status": "fails at container startup, No module named alembic",
+    "live_cutover_succeeded": false,
+    "previous_deployment_still_serving_traffic": true
+  },
+  "issues_created_this_ticket": [178],
+  "issues_closed_this_ticket": [],
+  "remaining_non_blocking_issues": [147, 162, 178],
+  "confirmation_no_secrets_exposed": true,
+  "recommendations": [
+    "Open a Railway support thread referencing service 43195c7a-8c18-4711-98a8-633d280a3b77 and deployment 96d1f190-f595-4ede-b8a5-c67209466e3c to inspect the actual pip install output from the Metal builder",
+    "Attempt a custom railpack.json install step with explicit --no-user/--target flags and correct inputs wiring, now that this investigation understands why the earlier custom-install-step attempt broke",
+    "The previous /backend-scoped deployment continues to serve production safely with no urgency from an availability perspective"
+  ],
+  "next_action": "founder_decision_on_issue_178"
+}
