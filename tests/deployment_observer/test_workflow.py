@@ -4,7 +4,9 @@ from typing import Any, cast
 import pytest
 import yaml  # type: ignore[import-untyped]
 
-WORKFLOW_PATH = Path(".github/workflows/railway-deployment-observer.yml")
+WORKFLOW_PATH = (
+    Path(__file__).parents[2] / ".github" / "workflows" / "railway-deployment-observer.yml"
+)
 FORBIDDEN_MUTATIONS = (
     "railway up",
     "redeploy",
