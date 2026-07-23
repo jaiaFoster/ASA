@@ -5,8 +5,10 @@ from uuid import uuid4
 
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from screening.state import ScreeningStateRepository
 from sqlalchemy import Engine
 
+from asa.api.agent_auth import build_agent_authorizer
 from asa.api.routes import build_router
 from asa.application.portfolio_use_cases import (
     PublishedPortfolioQuery,
@@ -26,6 +28,7 @@ from asa.integrations.providers.deterministic_fake_broker import (
 )
 from asa.integrations.providers.robinhood import RobinhoodPortfolioProvider
 from asa.integrations.runs_postgres import PostgresRunPublicationRepository
+from asa.integrations.screening_postgres import PostgresScreeningStateRepository
 from asa.logging import configure_logging, request_id_context
 from asa.market_data_ops.routes import build_operations_router
 from asa.market_data_ops.transport import build_transport_for_provider
@@ -39,6 +42,7 @@ class DependencyOverrides:
     broker_provider: BrokerPortfolioProvider | None = None
     engine_factory: Callable[[str], Engine] | None = None
     market_data_transport_factory: Callable[[str], object] | None = None
+    screening_state_repository: ScreeningStateRepository | None = None
 
 
 def build_application(
@@ -57,6 +61,11 @@ def build_application(
         engine_factory(settings.database_url)
     )
     broker_provider = selected.broker_provider or _build_broker_provider(settings)
+    screening_state_repository = (
+        selected.screening_state_repository
+        or PostgresScreeningStateRepository(engine_factory(settings.database_url))
+    )
+    agent_authorize = build_agent_authorizer(settings.agent_api_token)
     quote_service = MarketQuoteService(
         provider=provider,
         repository=repository,
@@ -104,6 +113,12 @@ def build_application(
         try:
             response = await call_next(request)
             response.headers["X-Request-ID"] = request_id
+            # Explicit API version negotiation (SPRINT-008): every response
+            # names the API version it was served by, so a caller can
+            # confirm which contract it's talking to. Future versions get
+            # their own /api/v2 prefix (URL-path versioning, matching the
+            # existing /api/v1 convention) rather than a header switch.
+            response.headers["API-Version"] = "v1"
             return response
         finally:
             request_id_context.reset(token)
@@ -116,6 +131,8 @@ def build_application(
         "broker_provider": broker_provider,
         "portfolio_runner": portfolio_runner,
         "portfolio_query": portfolio_query,
+        "screening_state_repository": screening_state_repository,
+        "agent_authorize": agent_authorize,
     }
     return app
 

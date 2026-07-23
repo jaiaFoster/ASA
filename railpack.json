@@ -1,0 +1,14 @@
+{
+  "$schema": "https://schema.railpack.com",
+  "provider": "python",
+  "packages": {
+    "python": "3.12.13"
+  },
+  "steps": {
+    "install": {
+      "commands": [
+        "cd backend && pip install -r requirements.txt"
+      ]
+    }
+  }
+}
