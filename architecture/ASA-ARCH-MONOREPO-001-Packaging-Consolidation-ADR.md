@@ -2,12 +2,15 @@
 
 # ASA-ARCH-MONOREPO-001: Repository Packaging Consolidation
 
-**Status:** Proposed — Phase 1 deliverable, Founder review required before Phase 2 implementation
+**Status:** Accepted — Founder-approved via the "GOV-009-PHASE-2: Packaging Consolidation
+Implementation" handoff. Phase 2 (implementation) is now activated; see
+`docs/sprints/ARCH-MONOREPO-001.yaml`'s `phase_2_activation` block.
 **Date:** 2026-07-23
 **Delegation:** GOV-AMD-001-013 / GOV-009 (#180), `docs/sprints/ARCH-MONOREPO-001.yaml`
-**Scope:** This document is Phase 1 only — research and recommendation. It contains no
-implementation changes. Phase 2 requires a separate Founder-merged activation once this ADR
-is reviewed, per the activation's own `successor.phase_2` gate.
+**Scope:** This document is Phase 1's own deliverable — research and recommendation only. It
+was intentionally free of implementation changes at the time it was written. Phase 2
+implementation work is tracked separately, under its own activation, not by editing this
+document.
 
 ## Context
 

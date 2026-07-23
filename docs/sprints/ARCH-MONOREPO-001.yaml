@@ -3,7 +3,7 @@ id: ARCH-MONOREPO-001
 name: Repository Packaging Consolidation & Railway Alignment
 type: ARCHITECTURE
 parent_sprint: null
-status: SCOPED
+status: PHASE_1_COMPLETE_PHASE_2_ACTIVATED
 priority: high
 
 context:
@@ -216,3 +216,202 @@ definition_of_done: >
   one target architecture with a documented migration plan, deployment impact,
   and rollback strategy, contains no implementation changes, and the Founder
   has been asked to review it and decide whether to authorize Phase 2.
+
+# =============================================================================
+# PHASE 2: IMPLEMENTATION
+# =============================================================================
+# Founder reviewed and approved architecture/ASA-ARCH-MONOREPO-001-Packaging-
+# Consolidation-ADR.md (Phase 1's deliverable, PR #181) and authorized Phase 2
+# implementation via the "GOV-009-PHASE-2: Packaging Consolidation
+# Implementation" handoff. Phase 1's own activation record above is left
+# unmodified as the historical delegation record for that phase; this section
+# is Phase 2's own activation, matching the layering precedent set by
+# GOV-008 -> GOV-008A (SPRINT-008.yaml extended in place, not replaced).
+
+phase_2_activation:
+  id: AMD-013-ARCH-MONOREPO-001-PHASE-2
+  governance_amendment: GOV-AMD-001-013
+  founder_authorized: true
+  founder_direction: GOV-009-PHASE-2 handoff (pasted directly by Founder), prerequisite "ADR ASA-ARCH-MONOREPO-001 approved" satisfied
+  effective_when: this rescope is Founder-merged to the default branch
+  scope_note: >
+    Same Amendment 013 non-sprint-unit precedent as Phase 1's own activation
+    and PATCH-007A/OPS-RAILWAY-ROOT-001 before it. This activation authorizes
+    Phase 2 (actual repository restructuring) specifically, which Phase 1's
+    own activation explicitly excluded and gated on Founder ADR approval.
+  delegate:
+    role: ROLE-WORKER
+    instance: implementation-worker
+  limited_to_sprint: ARCH-MONOREPO-001
+  approved_tickets:
+    - ARCH-MONOREPO-001-PHASE-2A
+    - ARCH-MONOREPO-001-PHASE-2B
+    - ARCH-MONOREPO-001-PHASE-2C
+    - ARCH-MONOREPO-001-PHASE-2D
+  excludes:
+    - business_logic_redesign
+    - screening_pipeline_redesign
+    - strategy_engine_redesign
+    - database_schema_redesign
+    - permanent_temporary_compatibility_layers
+    - governance_changes
+    - functional_feature_work
+  expires:
+    - phase_2_complete
+    - phase_2_stopped
+    - Founder_revokes_delegation
+
+phase_2_objective: >
+  Implement the ADR's recommended single-root-Python-project consolidation
+  (Option 3) with minimal disruption: preserve identical API, CLI, database,
+  and execution-graph behavior while reducing deployment complexity,
+  maintenance burden (duplicated source/config, ambiguous ownership,
+  competing dependency manifests, deployment-specific import hacks), and the
+  architectural context a contributor or AI assistant must load before making
+  a routine change.
+
+phase_2_design_constraints:
+  do:
+    - migrate_incrementally
+    - keep_repository_runnable_after_every_commit
+    - prefer_moves_over_rewrites
+    - preserve_git_history_where_practical_via_git_mv
+    - consolidate_duplicated_code
+  do_not:
+    - redesign_business_logic
+    - redesign_screening_pipeline
+    - redesign_strategy_engine
+    - redesign_database_schema
+    - introduce_temporary_compatibility_layers_that_become_permanent
+
+phase_2_tickets:
+  - id: ARCH-MONOREPO-001-PHASE-2A
+    title: Canonical ownership
+    objective: >
+      Resolve every duplicated/vendored package identified in the ADR to one
+      canonical owner before any packaging changes, so Phase 2B's project
+      consolidation has nothing left to deduplicate mid-move.
+    tasks:
+      - identify_every_duplicated_package
+      - designate_canonical_owner_for_each
+      - remove_unnecessary_copies
+      - add_regression_tests_where_duplication_previously_provided_safety
+    known_targets_from_the_adr:
+      - backend/src/market_data (vendored copy of root market_data/)
+      - backend/src/domain (vendored copy of root domain/)
+      - market_data/live_transport.py vs backend/src/asa/market_data_ops/transport.py (unguarded drift, already diverged in naming)
+      - asa.domain vs root domain/ naming collision (not duplicated code, but ambiguous ownership per the ADR)
+
+  - id: ARCH-MONOREPO-001-PHASE-2B
+    title: Packaging
+    objective: >
+      Establish the one canonical Python project the ADR recommends -- move
+      backend/src/asa/ to a repository-root package, fold backend/pyproject.toml's
+      dependencies into one root-level manifest, remove backend/'s own
+      pyproject.toml.
+    tasks:
+      - establish_one_canonical_python_project
+      - consolidate_dependency_management_into_one_manifest
+      - remove_ambiguous_project_roots
+
+  - id: ARCH-MONOREPO-001-PHASE-2C
+    title: Imports
+    objective: >
+      Eliminate the PYTHONPATH requirement the ADR traced to the current
+      split-root layout, now that Phase 2B has removed its precondition.
+    tasks:
+      - eliminate_pythonpath_requirements
+      - replace_path_dependent_imports
+      - normalize_package_boundaries
+
+  - id: ARCH-MONOREPO-001-PHASE-2D
+    title: Deployment
+    objective: >
+      Simplify Railway configuration to the plain form the ADR's Consequences
+      section described, and validate a real, clean deployment.
+    tasks:
+      - simplify_railway_configuration
+      - remove_deployment_specific_workarounds
+      - validate_clean_deployment
+
+phase_2_success_metrics:
+  architecture:
+    - one_runtime_dependency_graph
+    - one_canonical_package_owner_per_module
+    - no_duplicated_runtime_implementations
+  deployment:
+    - no_pythonpath_manipulation
+    - no_repository_root_ambiguity
+    - standard_railway_deployment
+  maintenance:
+    - fewer_synchronized_edits
+    - fewer_deployment_specific_files
+    - simpler_onboarding
+  token_efficiency:
+    before_after_analysis_required_in_report:
+      - files_touched_for_a_representative_common_feature_change
+      - duplicated_modules_removed
+      - duplicated_configs_removed
+      - import_complexity_reduced
+      - deployment_complexity_reduced
+
+phase_2_acceptance_criteria:
+  technical:
+    - full_test_suite_passes
+    - railway_deployment_succeeds
+    - imports_deterministic
+  architectural:
+    - adr_recommendations_implemented
+    - no_new_ambiguity_introduced
+  operational:
+    - railway_configuration_simpler_than_before
+    - repository_easier_to_explain_than_before
+
+phase_2_stop_conditions:
+  - migration_requires_business_redesign
+  - behavior_changes_unexpectedly
+  - repository_cannot_remain_deployable_throughout_migration
+  - Founder_revokes_delegation
+
+phase_2_on_stop:
+  - do_not_proceed_to_the_next_phase_2_ticket
+  - revert_the_in_progress_change_to_the_last_known_good_commit_if_the_repository_is_not_deployable
+  - open_GitHub_issue_with_evidence
+  - report_architectural_or_founder_blocker
+  - halt_pending_Founder_decision
+
+phase_2_validation:
+  required_before_delegated_merge_of_each_ticket:
+    - all_required_CI_checks_pass_or_local_verification_documented_if_CI_does_not_trigger
+    - full_backend_and_root_test_suites_pass_locally
+    - ruff_and_mypy_clean
+    - repository_remains_runnable_at_this_commit_cli_and_local_dev_server
+    - git_history_preserved_via_git_mv_where_practical
+    - self_review_passes
+    - no_governance_violation
+  required_before_phase_2d_merge_specifically:
+    - a_real_railway_deployment_attempt_reaches_a_healthy_state
+    - no_pythonpath_export_remains_in_railway_json_or_railpack_json
+    - vendor_sync_guard_test_removed_or_confirmed_unnecessary
+
+phase_2_report:
+  required: true
+  destination: project/reports/ARCH-MONOREPO-001-PHASE-2.md
+  contents:
+    - summary_per_sub_ticket_2a_2b_2c_2d
+    - files_moved_or_removed
+    - before_after_token_efficiency_analysis_per_the_success_metrics_above
+    - regression_results
+    - railway_deployment_evidence
+    - remaining_limitations_or_open_questions
+    - confirmation_no_secrets_exposed
+
+phase_2_definition_of_done: >
+  ARCH-MONOREPO-001 Phase 2 is complete when the repository has one canonical
+  Python project rooted at the repository root, no duplicated runtime
+  packages remain (per the ADR's own inventory), no PYTHONPATH manipulation
+  exists anywhere in the repository or its deployment configuration, a real
+  Railway deployment from the consolidated layout reaches a healthy state,
+  the full test suite passes throughout, project/reports/ARCH-MONOREPO-001-
+  PHASE-2.md is committed with the required before/after token-efficiency
+  analysis, and the Founder is asked to verify completion.
