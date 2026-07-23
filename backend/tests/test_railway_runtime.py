@@ -30,7 +30,10 @@ class BrokerMustNotBeCalled:
         raise AssertionError("health endpoint called broker provider")
 
 
-EXPECTED_PRE_DEPLOY_COMMAND = "cd backend && python -m alembic upgrade head"
+EXPECTED_PRE_DEPLOY_COMMAND = (
+    'cd backend && python -c "print(\'OPS-RAILWAY-ROOT-001 predeploy bisection: '
+    "container init ok')\""
+)
 EXPECTED_START_COMMAND = (
     "cd backend && export PYTHONPATH=src:.. && python -m alembic upgrade head && "
     "exec python -m uvicorn asa.asgi:create_application --factory "

@@ -4,7 +4,7 @@
     "builder": "RAILPACK"
   },
   "deploy": {
-    "preDeployCommand": "cd backend && python -m alembic upgrade head",
+    "preDeployCommand": "cd backend && python -c \"print('OPS-RAILWAY-ROOT-001 predeploy bisection: container init ok')\"",
     "startCommand": "cd backend && export PYTHONPATH=src:.. && python -m alembic upgrade head && exec python -m uvicorn asa.asgi:create_application --factory --host 0.0.0.0 --port \"${PORT}\"",
     "healthcheckPath": "/api/v1/health",
     "healthcheckTimeout": 300,
