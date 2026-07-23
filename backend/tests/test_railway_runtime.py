@@ -30,13 +30,9 @@ class BrokerMustNotBeCalled:
         raise AssertionError("health endpoint called broker provider")
 
 
-EXPECTED_PRE_DEPLOY_COMMAND = "true"
+EXPECTED_PRE_DEPLOY_COMMAND = "cd backend && python -m alembic upgrade head"
 EXPECTED_START_COMMAND = (
-    'cd backend && export PATH="/app/.venv/bin:$PATH" && export PYTHONPATH=src:.. && '
-    "echo DIAG_PATH=$PATH && echo DIAG_WHICH=$(which python) && python -m site && "
-    "find /app /root /mise/installs/python/3.12.13 -maxdepth 6 -iname 'alembic*' "
-    "2>/dev/null; "
-    "python -m alembic upgrade head && "
+    "cd backend && export PYTHONPATH=src:.. && python -m alembic upgrade head && "
     "exec python -m uvicorn asa.asgi:create_application --factory "
     '--host 0.0.0.0 --port "${PORT}"'
 )
@@ -50,24 +46,19 @@ def test_railway_backend_runtime_contract() -> None:
     # strategies/, market_data/, and domain/ (the shared execution-graph
     # modules asa now imports) are importable, not just backend/src.
     #
-    # OPS-RAILWAY-ROOT-001: an earlier attempt guarded "cd backend" with an
-    # "if [ -d backend ]; then ... ; fi" conditional, defending against an
-    # unconfirmed cwd-ambiguity hypothesis. Reverted: Railway's own
-    # startCommand/preDeployCommand parser rejects bash conditional syntax
-    # outright ("Failed to parse start command"), and the unconditional form
-    # is confirmed correct anyway -- Railpack's own default install step
-    # (see railpack.json) builds successfully against the repo root without
-    # any cwd tricks, so the deploy container starts there too.
-    #
-    # A diagnostic bisection (temporary, since reverted) proved container
-    # init itself was fine; the real failure was the running container's
-    # bare "python" resolving to Railpack's raw mise-managed interpreter
-    # (/mise/installs/python/.../bin/python, no site-packages) rather than
-    # the venv pip actually installed backend's dependencies into --
-    # confirmed by comparing against an earlier, differently-broken
-    # deployment whose error correctly showed /app/.venv/bin/python.
-    # Prepending "/app/.venv/bin" to PATH makes the venv's own python (and
-    # therefore alembic) resolve first.
+    # OPS-RAILWAY-ROOT-001: these are the plain, intended production
+    # commands. A live blocker remains unresolved as of this ticket's
+    # report (project/reports/OPS-RAILWAY-ROOT-001.md): Railpack's
+    # pip-mode install for this service appears to install backend's
+    # dependencies to a user-site directory that isn't present in the
+    # runtime image, so the deployed container's python cannot import
+    # them ("No module named alembic") even though this command is
+    # otherwise correct and this exact form is confirmed to run correctly
+    # end-to-end locally (see the subprocess tests below). Several
+    # mitigations were tried live (PATH prepends, a PIP_USER=0 env var)
+    # without success; this file intentionally reverts to the plain
+    # command rather than keep disproven workarounds. See the report for
+    # the full diagnostic chain and remaining options.
     backend_root = Path(__file__).parents[1]
     config = json.loads((backend_root / "railway.json").read_text())
 
