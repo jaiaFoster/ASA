@@ -90,6 +90,7 @@ from strategy_runtime.result import (
     compute_observation_id,
 )
 from strategy_runtime.validation import validate_result
+from strategy_runtime.values import TypedValue, ValueType
 
 __all__ = [
     "NO_LIFECYCLE",
@@ -114,8 +115,10 @@ __all__ = [
     "StrategyRegistry",
     "StructureKind",
     "SubjectMarketDataAccess",
+    "TypedValue",
     "UniversalScreeningResult",
     "UnknownStrategyIdError",
+    "ValueType",
     "build_shared_market_data_access",
     "compute_observation_id",
     "run_strategies",

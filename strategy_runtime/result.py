@@ -25,6 +25,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 
+from strategy_runtime.values import TypedValue
+
 
 def compute_observation_id(run_id: str, strategy_id: str, symbol: str) -> str:
     """Deterministic identity for one (run, strategy, symbol) observation
@@ -93,8 +95,8 @@ class UniversalScreeningResult:
     lifecycle_stage: str | None
     recommendation_state: str | None
     data_quality: str | None
-    metrics: dict[str, str]
-    economics: dict[str, str]
+    metrics: dict[str, TypedValue]
+    economics: dict[str, TypedValue]
     blockers: tuple[str, ...]
     warnings: tuple[str, ...]
     provenance: tuple[str, ...]

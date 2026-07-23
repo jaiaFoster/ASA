@@ -54,6 +54,7 @@ from typing import Protocol
 
 from strategy_runtime.lifecycle import OpportunityHistory, OpportunityObservation
 from strategy_runtime.result import EvaluationState, RowType, UniversalScreeningResult
+from strategy_runtime.values import TypedValue
 
 
 @dataclass(frozen=True, slots=True)
@@ -77,8 +78,8 @@ class UniversalSignalRow:
     lifecycle_stage: str | None
     recommendation_state: str | None
     data_quality: str | None
-    metrics: dict[str, str]
-    economics: dict[str, str]
+    metrics: dict[str, TypedValue]
+    economics: dict[str, TypedValue]
     blockers: tuple[str, ...]
     warnings: tuple[str, ...]
     provenance: tuple[str, ...]
