@@ -28,8 +28,10 @@ from strategy_runtime.lifecycle import (
     OpportunityObservation,
     RecommendedAction,
     compute_opportunity_id,
+    observe_transition,
     validate_lifecycle_stage,
 )
+from strategy_runtime.result import EvaluationState, RowType, UniversalScreeningResult
 
 NOW = datetime(2026, 1, 1, tzinfo=UTC)
 
@@ -183,3 +185,75 @@ class TestEndToEndFakeLifecycleStrategy:
             "closed",
         ]
         assert history.current.recommended_action is RecommendedAction.EXIT
+
+
+def _universal_result(**overrides: object) -> UniversalScreeningResult:
+    defaults: dict[str, object] = {
+        "strategy_id": "watched_event",
+        "strategy_version": "1.0.0",
+        "symbol": "AAPL",
+        "observation_id": "obs-1",
+        "opportunity_id": compute_opportunity_id("watched_event", "AAPL", "event-1"),
+        "row_type": RowType.RESULT,
+        "verdict": "pass",
+        "evaluation_state": EvaluationState.PASS,
+        "lifecycle_stage": "watching",
+        "recommendation_state": None,
+        "data_quality": None,
+        "metrics": {},
+        "economics": {},
+        "blockers": (),
+        "warnings": (),
+        "provenance": (),
+        "observed_at": NOW,
+    }
+    defaults.update(overrides)
+    return UniversalScreeningResult(**defaults)  # type: ignore[arg-type]
+
+
+class TestObserveTransition:
+    """SPRINT-009R/EPIC-R3: the lifecycle transition engine -- turning one
+    execution's own result into a durable OpportunityObservation, with
+    recommended_action always supplied by the caller (never derived here --
+    a recommendation engine is this sprint's own explicit non_goal).
+    """
+
+    def test_a_lifecycle_carrying_result_produces_a_matching_observation(self) -> None:
+        contract = _lifecycle_contract()
+        result = _universal_result()
+
+        observation = observe_transition(
+            contract, result, recommended_action=RecommendedAction.MONITOR
+        )
+
+        assert observation.opportunity_id == result.opportunity_id
+        assert observation.strategy_id == result.strategy_id
+        assert observation.symbol == result.symbol
+        assert observation.lifecycle_stage == result.lifecycle_stage
+        assert observation.verdict == result.verdict
+        assert observation.recommended_action is RecommendedAction.MONITOR
+        assert observation.observed_at == result.observed_at
+
+    def test_a_result_with_no_opportunity_id_is_rejected(self) -> None:
+        contract = _lifecycle_contract()
+        result = _universal_result(opportunity_id=None, lifecycle_stage=None)
+
+        with pytest.raises(StrategyContractError, match="no opportunity transition"):
+            observe_transition(contract, result, recommended_action=RecommendedAction.MONITOR)
+
+    def test_an_undeclared_lifecycle_stage_is_rejected(self) -> None:
+        contract = _lifecycle_contract()
+        result = _universal_result(lifecycle_stage="not_a_declared_stage")
+
+        with pytest.raises(StrategyContractError, match="not a lifecycle_stage"):
+            observe_transition(contract, result, recommended_action=RecommendedAction.MONITOR)
+
+    def test_recommended_action_is_never_derived_only_ever_passed_through(self) -> None:
+        contract = _lifecycle_contract()
+        result = _universal_result(lifecycle_stage="confirmed")
+
+        observation = observe_transition(
+            contract, result, recommended_action=RecommendedAction.EXIT
+        )
+
+        assert observation.recommended_action is RecommendedAction.EXIT

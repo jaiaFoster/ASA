@@ -167,3 +167,16 @@ class ObservationHistoryRepository(Protocol):
     def append(self, observation: OpportunityObservation) -> None: ...
 
     def history_for(self, opportunity_id: str) -> OpportunityHistory | None: ...
+
+
+def replay_opportunity_history(
+    repository: ObservationHistoryRepository, opportunity_id: str
+) -> OpportunityHistory | None:
+    """The one named "lifecycle replay" entrypoint (SPRINT-009R/EPIC-R3):
+    every observation ever appended for ``opportunity_id``, oldest first,
+    reconstructed from whatever repository a caller injects -- exactly
+    ObservationHistoryRepository's own history_for() contract, given its
+    own top-level name here so a caller reads "replay an opportunity's
+    history" rather than reaching into the repository protocol directly.
+    """
+    return repository.history_for(opportunity_id)

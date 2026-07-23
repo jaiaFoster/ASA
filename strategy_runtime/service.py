@@ -15,6 +15,13 @@ UniversalSignalRow (LatestResultRepository's own storage-boundary shape,
 see strategy_runtime/persistence.py's own docstring for why) right here
 at the repository call site -- callers of get_state()/refresh() never see
 UniversalSignalRow at all.
+
+record_opportunity_observation() (SPRINT-009R/EPIC-R3) is a separate,
+explicitly opt-in extension: refresh() itself stays unchanged and usable by
+every strategy, lifecycle-tracked or not, so this persists an opportunity's
+evolution only for a caller that actually wants it (and can supply the
+recommended_action a real recommendation engine would compute -- this
+sprint's own explicit non_goal, deliberately never invented here).
 """
 
 from __future__ import annotations
@@ -24,7 +31,16 @@ from collections.abc import Mapping
 from market_data import CapabilityFulfillmentService
 from strategy_runtime.clock import Clock
 from strategy_runtime.execution import ExecutionStatus, run_strategies
-from strategy_runtime.persistence import LatestResultRepository, UniversalSignalRow
+from strategy_runtime.lifecycle import (
+    OpportunityObservation,
+    RecommendedAction,
+    observe_transition,
+)
+from strategy_runtime.persistence import (
+    LatestResultRepository,
+    ObservationHistoryRepository,
+    UniversalSignalRow,
+)
 from strategy_runtime.registry import StrategyRegistry
 from strategy_runtime.result import UniversalScreeningResult
 
@@ -73,3 +89,24 @@ def refresh(
         )
     repository.upsert(UniversalSignalRow.from_result(execution_result.result))
     return execution_result.result
+
+
+def record_opportunity_observation(
+    registry: StrategyRegistry[UniversalScreeningResult],
+    history_repository: ObservationHistoryRepository,
+    result: UniversalScreeningResult,
+    *,
+    recommended_action: RecommendedAction,
+) -> OpportunityObservation:
+    """Persistent opportunity evolution (SPRINT-009R/EPIC-R3): given a
+    result already produced by run_strategies()/refresh() (this function
+    never executes a strategy itself), record one more durable observation
+    of that result's own opportunity. Call this after refresh() for any
+    strategy whose contract declares StrategyCapability.LIFECYCLE -- refresh()
+    itself never calls this, so a caller with no interest in history pays
+    nothing for it.
+    """
+    contract = registry.contract_for(result.strategy_id)
+    observation = observe_transition(contract, result, recommended_action=recommended_action)
+    history_repository.append(observation)
+    return observation
