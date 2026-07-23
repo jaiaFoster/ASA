@@ -9,6 +9,7 @@ from sqlalchemy import Engine
 
 from asa.api.agent_auth import build_agent_authorizer
 from asa.api.routes import build_router
+from asa.api.screening_routes import build_screening_router
 from asa.application.portfolio_use_cases import (
     PublishedPortfolioQuery,
     RunPortfolioIntelligence,
@@ -31,6 +32,7 @@ from asa.integrations.screening_postgres import PostgresScreeningStateRepository
 from asa.logging import configure_logging, request_id_context
 from asa.market_data_ops.routes import build_operations_router
 from market_data.live_transport import build_live_transport as build_transport_for_provider
+from screening import SIGNAL_REGISTRY
 from screening.state import ScreeningStateRepository
 
 
@@ -101,6 +103,9 @@ def build_application(
             selected.market_data_transport_factory or build_transport_for_provider,
             max_runs_per_hour=None if settings.environment == "development" else 50,
         )
+    )
+    app.include_router(
+        build_screening_router(screening_state_repository, SIGNAL_REGISTRY, agent_authorize)
     )
 
     @app.middleware("http")
