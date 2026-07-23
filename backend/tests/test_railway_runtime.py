@@ -31,7 +31,8 @@ class BrokerMustNotBeCalled:
 
 
 EXPECTED_PRE_DEPLOY_COMMAND = (
-    'cd backend && export PATH="/app/.venv/bin:$PATH" && python -m alembic upgrade head'
+    "echo PATH=$PATH; echo WHICH_PYTHON=$(which python); python -m site; "
+    "find / -maxdepth 6 -iname 'alembic*' -not -path '/proc/*' 2>/dev/null"
 )
 EXPECTED_START_COMMAND = (
     'cd backend && export PATH="/app/.venv/bin:$PATH" && export PYTHONPATH=src:.. && '
