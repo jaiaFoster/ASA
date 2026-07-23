@@ -172,10 +172,65 @@ nature, since it is a real deployment's own environment configuration, not appli
 behavior) was the actual absence of the variable on the live service; that required the live
 evidence in Section 4.
 
-## 9. Conclusion
+## 9. Conclusion (ACT-001)
 
 No code defect was found or needed anywhere in the authentication or empty-state-handling
 logic — every case behaves exactly as designed and documented. The reported usability issue was
 a genuine, real, external-facing production outage of the entire new API surface, caused by a
 missing service variable. Fixed by configuration, not by code change, consistent with
 ACT-001's own exclusion against changing the established fail-closed-to-404 convention.
+
+---
+
+# ACT-002: Bootstrap Guide & First-Run Validation
+
+## 10. Objective
+
+Document, end to end, exactly what a brand-new deployment operator or an external AI agent must
+do to reach a usable state with zero prior knowledge of this codebase, and prove that
+documentation correct by actually following it against a genuinely empty deployment.
+
+## 11. Deliverables
+
+- `docs/api/agent-api-bootstrap.md` — the bootstrap guide: what "empty" means and why it's not
+  an error, then four concrete steps (discover capabilities, confirm the empty state, produce a
+  first result, confirm it's visible), each with the exact request and exact expected response,
+  cross-referenced to `docs/api/agent-api-examples.md` for every error case.
+- `tests/asa/test_bootstrap_first_run.py` — a permanent, CI-enforced test that follows the
+  bootstrap guide's own four steps in order, against a repository seeded with nothing at all
+  (not the handful of pre-existing records `tests/asa/test_ai_agent_workflow.py`, SPRINT-008/
+  API-005, seeds). This is deliberately a different scenario than that test validates: API-005
+  proves an agent can work with an *established* deployment; this proves the very first session
+  a *brand-new* deployment can support, matching this ticket's own `validation_flow`.
+
+## 12. End-to-end validation run and results
+
+All five of ACT-002's own `validation_flow` steps, executed in order against a genuinely empty
+`InMemoryScreeningStateRepository` through the real composition root
+(`asa.bootstrap.build_application()`), exactly as `tests/asa/test_bootstrap_first_run.py`
+encodes permanently:
+
+| Step | Result |
+|---|---|
+| `fresh_migrated_database_with_zero_screening_state_rows` | Repository constructed with zero records — no seeding of any kind. |
+| `discover_capabilities_with_a_correctly_configured_token` | `GET /api/v1/capabilities` → `200`, all 3 registered signals, independent of data state. |
+| `confirm_empty_screening_list_returns_200_with_an_empty_results_array_not_404` | `GET /api/v1/screening` → `200`, `{"results": [], "total": 0, "limit": 100, "offset": 0}`. A specific never-refreshed pair (`GET /api/v1/screening/skew_momentum/AAPL`) still correctly `404`s with `NO_SCREENING_RESULT` — the distinction the bootstrap guide calls out explicitly. |
+| `perform_a_first_ever_refresh_for_one_approved_pair` | `POST /api/v1/screening/skew_momentum/AAPL/refresh` → `200`, exercising the real 3-step live acquisition chain (scripted transport) with `request_count >= 1`. |
+| `confirm_the_refreshed_result_is_then_retrievable` | `GET /api/v1/screening/skew_momentum/AAPL` → `200` with the new result; `GET /api/v1/screening` now reports `total: 1`. |
+
+Test run: `PYTHONPATH=. python -m pytest tests/asa/test_bootstrap_first_run.py -q` — 1 passed.
+`ruff check` and `mypy` clean.
+
+Live-production note: as of this report, the actual production deployment is itself in exactly
+this "zero `screening_state` rows" state (nothing has ever populated it — see Section 4 above
+and PROD-002 below), so this scenario is not merely theoretical; it is the deployment's real
+current condition. Once Founder verification of ACT-001's token fix (Section 6) is confirmed,
+this same four-step sequence is directly runnable against production as a live confirmation, not
+only against the test fixture — left as an optional Founder action rather than performed by this
+agent, since it requires the live token this agent deliberately never saw.
+
+## 13. Conclusion (ACT-002)
+
+The bootstrap guide is accurate and validated: every claim it makes about response shape and
+status code is directly enforced by a passing, permanent test. No code changes were required —
+this ticket is documentation plus test coverage only.
