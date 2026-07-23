@@ -14,6 +14,7 @@ from __future__ import annotations
 
 from screening.results import ScreeningOutcomeStatus, ScreeningResult
 from strategy_runtime.result import EvaluationState, RowType, UniversalScreeningResult
+from strategy_runtime.values import TypedValue
 
 _EVALUATION_STATE_BY_OUTCOME: dict[ScreeningOutcomeStatus, EvaluationState] = {
     ScreeningOutcomeStatus.PASS: EvaluationState.PASS,
@@ -53,7 +54,7 @@ def translate_screening_result(
     """
     is_success = result.outcome_status in _SUCCESS_OUTCOMES
     metrics = (
-        {"strategy_native_score": str(result.strategy_native_score)}
+        {"strategy_native_score": TypedValue.of_decimal(result.strategy_native_score)}
         if result.strategy_native_score is not None
         else {}
     )

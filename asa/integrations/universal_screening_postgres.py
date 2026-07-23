@@ -27,6 +27,7 @@ from sqlalchemy import Engine, text
 from sqlalchemy.engine import RowMapping
 
 from strategy_runtime.persistence import UniversalSignalRow
+from strategy_runtime.values import TypedValue
 
 
 class PostgresLatestResultRepository:
@@ -120,8 +121,8 @@ def _to_params(row: UniversalSignalRow) -> dict[str, object]:
         "lifecycle_stage": row.lifecycle_stage,
         "recommendation_state": row.recommendation_state,
         "data_quality": row.data_quality,
-        "metrics": json.dumps(row.metrics),
-        "economics": json.dumps(row.economics),
+        "metrics": json.dumps({key: value.to_json() for key, value in row.metrics.items()}),
+        "economics": json.dumps({key: value.to_json() for key, value in row.economics.items()}),
         "blockers": json.dumps(list(row.blockers)),
         "warnings": json.dumps(list(row.warnings)),
         "provenance": json.dumps(list(row.provenance)),
@@ -142,8 +143,10 @@ def _to_row(mapping: RowMapping) -> UniversalSignalRow:
         lifecycle_stage=mapping["lifecycle_stage"],
         recommendation_state=mapping["recommendation_state"],
         data_quality=mapping["data_quality"],
-        metrics=dict(mapping["metrics"]),
-        economics=dict(mapping["economics"]),
+        metrics={key: TypedValue.from_json(value) for key, value in mapping["metrics"].items()},
+        economics={
+            key: TypedValue.from_json(value) for key, value in mapping["economics"].items()
+        },
         blockers=tuple(mapping["blockers"]),
         warnings=tuple(mapping["warnings"]),
         provenance=tuple(mapping["provenance"]),
