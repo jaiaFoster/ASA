@@ -21,7 +21,13 @@ strategy's adapter returns. EPIC-3 (Shared Data Planning) lives in
 strategy_runtime.market_data_planning: one market_data.
 CapabilityFulfillmentService per subject, shared by every strategy that
 evaluates it within a run, threaded through RuntimeContext.fulfillment by
-run_strategies()'s own optional fulfillment_by_subject parameter.
+run_strategies()'s own optional fulfillment_by_subject parameter. EPIC-4
+(Universal Options Framework) lives in strategy_runtime.options: domain's
+own already-validated OptionLeg/OptionStructure adopted directly as the
+canonical option package representation, analytics.expiration_selection's
+own already-generalized expiration-pairing re-exported for discoverability,
+and liquidity/debit calculations ported from strategies/
+stonk_components.py's own graph components to plain functions.
 """
 
 from __future__ import annotations
