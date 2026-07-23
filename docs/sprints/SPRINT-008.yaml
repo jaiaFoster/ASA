@@ -63,24 +63,40 @@ prerequisites:
     - GOV-008
   architecture: []
   research_findings_informing_this_activation: >
-    Investigated before drafting, not assumed. backend/src/asa/api/routes.py
+    Investigated before drafting, not assumed. asa/api/routes.py
     already defines an APIRouter(prefix="/api/v1") serving health,
     readiness, quotes, runs, and portfolio endpoints -- API-001's "/api/v1
     namespace" deliverable already exists in part; the new work is adding
     screening-specific routes to it, not creating a fresh namespace. The
     only existing authentication precedent anywhere in this repository is a
     static bearer token compared with hmac.compare_digest
-    (backend/src/asa/market_data_ops/auth.py), sourced from one
+    (asa/market_data_ops/auth.py), sourced from one
     SecretStr setting -- no JWT, OAuth, or API-key-header mechanism exists
-    to draw from instead. backend/ persists state via Postgres, raw SQL
+    to draw from instead. asa/ persists state via Postgres, raw SQL
     through sqlalchemy.Engine/text() (no ORM), and hand-written Alembic
-    migrations (backend/migrations/versions/) -- API-002's state
+    migrations (migrations/versions/) -- API-002's state
     repository should follow this exact established shape, not introduce a
-    new persistence pattern. backend/ is not covered by the root
+    new persistence pattern. asa/ is not covered by the root
     tests/architecture/ boundary suite; it has its own local suite
-    (backend/tests/test_boundaries.py) enforcing a single composition root
-    (backend/src/asa/bootstrap.py::build_application()), provider-SDK
+    (tests/asa/test_boundaries.py) enforcing a single composition root
+    (asa/bootstrap.py::build_application()), provider-SDK
     confinement, and a forbidden-legacy-tech scan.
+
+    UPDATED (API-SPRINT-CONTINUATION): all of the above paths were
+    "backend/src/asa/...", "backend/migrations/...", "backend/tests/..."
+    when this activation was first written. ARCH-MONOREPO-001 (GOV-009 /
+    GOV-009-PHASE-2, completed 2026-07-23) consolidated the repository to a
+    single root-level Python project per its own ADR -- backend/ no longer
+    exists at all; asa/, migrations/, and tests/asa/ are now plain
+    repository-root siblings of screening/, market_data/, etc., and
+    railway.json now runs the plain, unprefixed startCommand/
+    preDeployCommand form (no cd, no PYTHONPATH). Paths above are updated to
+    match. No API-002 through API-006 business logic, contract, or
+    persistence-pattern decision changes as a result -- this is a packaging
+    location update only, confirmed by ARCH-MONOREPO-001's own dependency-
+    direction boundary test (tests/architecture/test_asa_dependency_
+    direction.py) showing asa/ still imports root-level packages the same
+    way this activation always assumed.
   backend_screening_connection_decision: >
     RESOLVED by explicit Founder direction, superseding this activation's
     original "unresolved" framing: backend must NOT be treated as a system
@@ -182,9 +198,9 @@ architecture_principles:
   - provider_implementations_remain_completely_internal
   - every_resource_is_independently_timestamped
   - responses_are_deterministic_and_versioned
-  - backend_single_composition_root_preserved_bootstrap_build_application
-  - backend_existing_raw_sql_no_orm_persistence_pattern_followed
-  - backend_existing_bearer_token_auth_pattern_reused_or_explicitly_extended_not_replaced
+  - asa_single_composition_root_preserved_bootstrap_build_application
+  - asa_existing_raw_sql_no_orm_persistence_pattern_followed
+  - asa_existing_bearer_token_auth_pattern_reused_or_explicitly_extended_not_replaced
   - single_shared_execution_graph_cli_and_api_call_the_same_service_functions
   - screening_state_repository_is_dependency_injected_never_imported_concretely_by_screening_itself
 
@@ -355,13 +371,13 @@ tickets:
 validation:
   required_before_every_delegated_merge:
     - all_required_CI_checks_pass
-    - pytest_tests_backend
+    - pytest_tests_asa
     - pytest_tests_screening
     - pytest_tests_architecture
-    - ruff_passes_backend_and_root
-    - mypy_passes_backend_and_affected_root_source
+    - ruff_passes_asa_and_root
+    - mypy_passes_asa_and_affected_root_source
     - alembic_upgrade_and_downgrade_round_trip_where_migrations_change
-    - backend_local_boundary_suite_passes
+    - asa_local_boundary_suite_passes
     - governance_integrity_validation_passes
     - lean_pos_validation_passes
     - pre_push_check_passes
@@ -451,3 +467,131 @@ definition_of_done: >
   is enabled on every new endpoint; the full test, lint, type, governance,
   and secret-scan gates pass; the final sprint report is committed; and the
   Founder is asked to verify completion before SPRINT-009 begins.
+
+# =============================================================================
+# CONTINUATION: API-SPRINT-CONTINUATION
+# =============================================================================
+# API-001 completed and merged (PR #166); API-002 through API-006 remained
+# approved but not started while OPS-RAILWAY-ROOT-001 and ARCH-MONOREPO-001
+# (Phases 1-2, GOV-009 / GOV-009-PHASE-2) took priority as genuine production
+# blockers. Both are now complete: the repository builds and deploys
+# successfully from a single root-level Python project, confirmed via a real
+# live deployment (project/reports/ARCH-MONOREPO-001-PHASE-2.md). The Founder
+# has directed resumption of this sprint via the "API-SPRINT-CONTINUATION:
+# Complete API Sprint" handoff, explicitly superseding both completed
+# infrastructure efforts and redirecting all further effort to finishing the
+# API surface -- no further infrastructure/packaging work unless a critical
+# production issue emerges.
+
+continuation_activation:
+  id: AMD-013-SPRINT-008-CONTINUATION
+  governance_amendment: GOV-AMD-001-013
+  founder_authorized: true
+  founder_direction: API-SPRINT-CONTINUATION handoff (pasted directly by Founder)
+  effective_when: this rescope is Founder-merged to the default branch
+  scope_note: >
+    API-002 through API-006 were already present in this activation's own
+    approved_tickets list from GOV-008/GOV-008A and remain approved without
+    change -- no new delegation is required to resume implementing them.
+    This continuation activation exists specifically to authorize the one
+    genuinely new deliverable the handoff introduces beyond the sprint's
+    original ticket list: a GitHub issue review and reconciliation report
+    (API-SPRINT-ISSUES below), which was not part of any prior activation.
+  delegate:
+    role: ROLE-WORKER
+    instance: implementation-worker
+  limited_to_sprint: SPRINT-008
+  approved_tickets:
+    - API-002
+    - API-003
+    - API-004
+    - API-005
+    - API-006
+    - API-SPRINT-ISSUES
+  excludes:
+    - additional_repository_restructuring
+    - infrastructure_rewrites
+    - deployment_experimentation
+    - governance_redesign
+    - speculative_optimization
+    - reopening_or_relitigating_ARCH_MONOREPO_001_or_OPS_RAILWAY_ROOT_001_decisions
+    - execution_graph_redesign
+    - screening_engine_redesign
+    - strategy_engine_redesign
+    - database_schema_redesign
+  expires:
+    - sprint_complete
+    - sprint_stopped
+    - Founder_revokes_delegation
+
+continuation_design_principles:
+  api_first:
+    - stable_contracts
+    - predictable_responses
+    - explicit_schemas
+    - minimal_surprises
+  token_efficiency:
+    rationale: >
+      Favor solutions that reduce future implementation context. Every
+      endpoint should have one obvious implementation path, one canonical
+      schema, one source of truth. Avoid duplicate DTOs, duplicate
+      validation logic, duplicate routing, or endpoint-specific business
+      rules -- consistent with the same principle ARCH-MONOREPO-001 applied
+      to packaging, now applied to the API surface itself.
+
+api_sprint_issues_ticket:
+  id: API-SPRINT-ISSUES
+  title: GitHub Issue Review & Reconciliation
+  owner: Worker
+  objective: >
+    Review all currently-open GitHub issues: identify which belong to the
+    API Sprint (actionable within API-002 through API-006's own scope),
+    which were resolved indirectly by ARCH-MONOREPO-001 (beyond #178,
+    already closed with evidence), which are duplicates, and which are
+    stale. Recommend closures where appropriate. Open implementation PRs
+    only for issues genuinely within this sprint's own approved scope --
+    this ticket produces a report and recommendations, not a blank check to
+    implement every open issue.
+  deliverables:
+    - API-SPRINT-ISSUE-RECONCILIATION.md
+  requirements:
+    - every_currently_open_issue_reviewed_and_categorized
+    - recommended_closures_include_evidence_not_just_an_opinion
+    - issues_recommended_for_closure_are_not_closed_without_the_categorization_being_reported_first
+  excludes:
+    - closing_issues_without_recorded_justification
+    - implementing_non_api_sprint_issues_under_this_ticket
+
+continuation_technical_constraints:
+  preserve:
+    - execution_graph
+    - screening_pipeline
+    - domain_model
+    - contracts
+    - database_schema
+    - migrations
+    - packaging_architecture_completed_in_ARCH_MONOREPO_001
+  avoid:
+    - additional_repository_restructuring
+    - infrastructure_rewrites
+    - deployment_experimentation
+    - governance_redesign
+    - speculative_optimization
+
+continuation_completion_gate:
+  before_closing_the_sprint:
+    - verify_every_planned_API_Sprint_objective_API_002_through_API_006
+    - verify_related_GitHub_issues_dispositioned_per_API_SPRINT_ISSUES
+    - verify_documentation_updated
+    - verify_production_deployment_healthy
+
+next_expected_program:
+  title: Product Features Sprint
+  focus:
+    - additional_screening_capabilities
+    - portfolio_analytics
+    - strategy_expansion
+    - user_facing_functionality
+  note: >
+    Unless a critical production issue emerges, no further architectural
+    refactoring should occur before returning to feature development.
