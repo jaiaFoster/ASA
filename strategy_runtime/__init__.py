@@ -27,7 +27,14 @@ own already-validated OptionLeg/OptionStructure adopted directly as the
 canonical option package representation, analytics.expiration_selection's
 own already-generalized expiration-pairing re-exported for discoverability,
 and liquidity/debit calculations ported from strategies/
-stonk_components.py's own graph components to plain functions.
+stonk_components.py's own graph components to plain functions. EPIC-5
+(Universal Opportunity Model) lives in strategy_runtime.lifecycle:
+compute_opportunity_id() for stable cross-observation identity,
+OpportunityObservation/OpportunityHistory for an opportunity's evolution,
+RecommendedAction as the vocabulary UniversalScreeningResult.
+recommendation_state holds, and validate_lifecycle_stage() as the one
+guardrail keeping the engine strategy-agnostic (a reported stage must be
+one the strategy's own contract actually declared).
 """
 
 from __future__ import annotations
