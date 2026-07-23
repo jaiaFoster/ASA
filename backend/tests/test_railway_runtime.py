@@ -31,11 +31,13 @@ class BrokerMustNotBeCalled:
 
 
 EXPECTED_PRE_DEPLOY_COMMAND = (
-    "echo PATH=$PATH; echo WHICH_PYTHON=$(which python); python -m site; "
-    "find / -maxdepth 6 -iname 'alembic*' -not -path '/proc/*' 2>/dev/null"
+    'cd backend && export PATH="/app/.venv/bin:$PATH" && python -m alembic upgrade head'
 )
 EXPECTED_START_COMMAND = (
     'cd backend && export PATH="/app/.venv/bin:$PATH" && export PYTHONPATH=src:.. && '
+    "echo DIAG_PATH=$PATH && echo DIAG_WHICH=$(which python) && python -m site && "
+    "find /app /root /mise/installs/python/3.12.13 -maxdepth 6 -iname 'alembic*' "
+    "2>/dev/null; "
     "python -m alembic upgrade head && "
     "exec python -m uvicorn asa.asgi:create_application --factory "
     '--host 0.0.0.0 --port "${PORT}"'
