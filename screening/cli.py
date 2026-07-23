@@ -26,15 +26,20 @@ import argparse
 import json
 import sys
 from collections.abc import Sequence
+from dataclasses import dataclass
 from datetime import UTC, datetime
-from dataclasses import dataclass, replace
 
-from market_data import MarketDataConfig, load_market_data_config_from_environment
+from market_data import load_market_data_config_from_environment
 from market_data.live_transport import build_live_transport
 from screening.adapters import TARGET_STRATEGY_ADAPTERS, TARGET_STRATEGY_REGISTRY
 from screening.errors import UnknownScreeningStrategyIdError
 from screening.fixtures import SAFE_SYMBOL
-from screening.live_acquisition import build_fulfillment_service, enabled_provider_configs
+from screening.live_acquisition import (
+    APPROVED_LIVE_UNIVERSE,
+    build_fulfillment_service,
+    enabled_provider_configs,
+    live_only_config,
+)
 from screening.live_adapters import build_live_adapters
 from screening.registry import ScreeningStrategyDefinition
 from screening.results import ScreeningResult
@@ -42,26 +47,8 @@ from screening.runner import run_screening
 from screening.serialization import results_to_json_payload
 
 APPROVED_FIXTURE_UNIVERSE = (SAFE_SYMBOL,)
-APPROVED_LIVE_UNIVERSE = ("AAPL", "MSFT", "NVDA", "AMD", "SPY", "QQQ")
 
 _ORCHESTRATION_FAILURE_EXIT_CODE = 2
-_FIXTURE_PROVIDER_ID = "deterministic_fixture"
-
-
-def _live_only_config(config: MarketDataConfig) -> MarketDataConfig:
-    """deterministic_fixture defaults to enabled (market_data/config.py's own
-    safety default) and, being alphabetically first among enabled providers,
-    would otherwise be tried before any real provider by
-    CapabilityRegistry's deterministic priority order -- silently serving
-    every --live request from offline fixture data instead of a real
-    provider. --live must mean live, so the fixture provider is always
-    force-disabled here, regardless of environment configuration.
-    """
-    providers = tuple(
-        replace(item, enabled=False) if item.provider_id == _FIXTURE_PROVIDER_ID else item
-        for item in config.providers
-    )
-    return replace(config, providers=providers)
 
 
 @dataclass(frozen=True)
@@ -218,7 +205,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     try:
         if args.live:
-            config = _live_only_config(load_market_data_config_from_environment())
+            config = live_only_config(load_market_data_config_from_environment())
             if not enabled_provider_configs(config):
                 print(
                     "error: --live requires at least one enabled live provider "
