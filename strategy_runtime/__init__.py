@@ -34,7 +34,12 @@ OpportunityObservation/OpportunityHistory for an opportunity's evolution,
 RecommendedAction as the vocabulary UniversalScreeningResult.
 recommendation_state holds, and validate_lifecycle_stage() as the one
 guardrail keeping the engine strategy-agnostic (a reported stage must be
-one the strategy's own contract actually declared).
+one the strategy's own contract actually declared). EPIC-8 (Persistence &
+History) lives in strategy_runtime.persistence: two pure Protocols
+(LatestResultRepository, ObservationHistoryRepository), no infrastructure
+imports -- a concrete implementation is EPIC-7's own job, matching
+screening/state.py's own established convention that this package never
+imports a database driver itself.
 """
 
 from __future__ import annotations
