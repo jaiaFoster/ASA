@@ -1,0 +1,627 @@
+---
+id: SPRINT-009
+name: Universal Strategy Runtime & Strategy Migration
+version: 1.0
+status: SCOPED
+type: IMPLEMENTATION_SPRINT
+priority: P0
+
+activation:
+  id: AMD-013-SPRINT-009
+  governance_amendment: GOV-AMD-001-013
+  founder_authorized: true
+  founder_direction: >
+    "SPRINT-009: Universal Strategy Runtime & Strategy Migration" proposal
+    (pasted directly by Founder), activated as a single full sprint per
+    explicit Founder direction -- no separate research/ADR gate ahead of
+    implementation (unlike ARCH-MONOREPO-001's own two-phase precedent,
+    considered and explicitly declined for this sprint). Founder also
+    confirmed SPRINT-008D's three outstanding actions (agent API token
+    verification, the Finnhub diagnostic, the first production screening
+    run) completed outside this session, with explicit direction to
+    proceed to this sprint.
+  effective_when: this sprint definition is Founder-merged to the default branch
+  delegate:
+    role: ROLE-WORKER
+    instance: implementation-worker
+  limited_to_sprint: SPRINT-009
+  approved_tickets:
+    - EPIC-2
+    - EPIC-1
+    - EPIC-6
+    - EPIC-3
+    - EPIC-4
+    - EPIC-5
+    - EPIC-8
+    - EPIC-7
+    - EPIC-9
+  excludes:
+    - architecture_changes_not_separately_approved_beyond_this_activations_own_scope
+    - domain_contract_redefinition_outside_the_declared_strategy_contract_and_universal_result
+    - governance_changes
+    - constitutional_changes
+    - workflow_changes
+    - deployment_outside_the_existing_railway_service
+    - risk_floor_changes
+    - sprint_scope_expansion
+    - breaking_the_existing_public_api_v1_screening_contract
+    - recommendation_ranking
+    - portfolio_optimization
+    - position_sizing
+    - trade_execution
+    - kelly_sizing
+    - dashboard_ui_migration
+    - universal_numeric_scoring
+    - cross_strategy_ranking_algorithms
+    - new_strategies_beyond_the_three_named_migrations
+    - successor_sprint_work
+  expires:
+    - sprint_complete
+    - sprint_stopped
+    - Founder_revokes_delegation
+
+objective: >
+  Generalize ASA's strategy runtime by extracting reusable architectural
+  capabilities from the mature Stonk strategy implementations
+  (/Users/jaiafoster/Claude/stonk, this repository's own migration
+  predecessor) and migrating Earnings Calendar, Skew Momentum Vertical, and
+  Forward Factor into a universal runtime. The objective is not simply to
+  port three strategies -- it is to ensure every reusable capability
+  discovered while doing so becomes permanent platform infrastructure, so a
+  fourth strategy can be added later by declaration alone, without modifying
+  the runtime.
+
+vision: >
+  After this sprint, adding a new strategy should consist primarily of
+  declaring its requirements, lifecycle, structures, and outputs, and
+  implementing its evaluation logic. Runtime orchestration, shared data
+  acquisition, persistence, APIs, history, and the response contract
+  external consumers already depend on should already exist and require no
+  change.
+
+prerequisites:
+  governance:
+    - GOV-AMD-001-013
+    - GOV-010
+  architecture: []
+  research_findings_informing_this_activation: >
+    Investigated before drafting, not assumed.
+
+    (1) THREE runtimes for these strategies already exist in this
+    repository today, at different maturity levels, and this sprint must
+    reconcile them, not simply add a fourth: (a) screening/adapters.py's
+    TARGET_STRATEGY_ADAPTERS (fixture-driven, manifest-compiled, via
+    strategies/manifest.py's StrategyManifest/compile_strategy_graph
+    machinery -- strategies/stonk_manifests.py, strategies/
+    stonk_components.py, 902 lines of reusable component logic already
+    extracted from Stonk), (b) screening/live_adapters.py (383 lines,
+    live-provider-driven versions of the same three strategies, each its
+    own hand-written function -- build_live_forward_factor_adapter,
+    build_live_earnings_calendar_adapter, build_live_skew_momentum_adapter
+    -- sharing acquire_expirations()/_acquire_combined_chain() helpers but
+    otherwise independent), and (c) the mature Stonk implementations
+    themselves under /Users/jaiafoster/Claude/stonk/app/services/, one
+    directory per strategy with 6-9 dedicated service files each (Forward
+    Factor alone: forward_factor_service, _verdict_service,
+    _signal_gate_service, _lifecycle_service, _candidate_selection_service,
+    _data_eligibility_service, _ranking_service, _backtest_service) --
+    this is where "lifecycle," "opportunity_id," and "verdict" as
+    first-class, already-implemented concepts actually live; ASA's own
+    screening/ has never migrated them, only the strategy graph/component
+    logic (SCREEN-002 through SCREEN-006). EPIC-5's "lifecycle concepts
+    discovered in Calendar" refers to this Stonk-side implementation, not
+    anything already in ASA.
+
+    (2) EPIC-9's endpoint list ("GET /screening", "GET /screening/
+    {strategy}", "GET /screening/{strategy}/{symbol}") already exists,
+    shipped and validated, as "GET /api/v1/screening", "GET /api/v1/
+    screening/{signal}", "GET /api/v1/screening/{signal}/{symbol}"
+    (SPRINT-008/API-003, asa/api/screening_routes.py) plus an already-
+    shipped explicit refresh endpoint (API-004) neither this proposal nor
+    its non_goals mentions. EPIC-9 must be scoped as adapting these
+    existing, already-externally-documented endpoints to read from the new
+    universal runtime's output, never as a parallel or duplicate surface --
+    matching this sprint's own runtime_owns_infrastructure principle
+    applied to the API layer itself, and this repository's own established
+    no_duplicate_execution_path convention (SPRINT-008D). The public
+    contract, response envelope (TimestampedResource/AgentApiError), and
+    bearer-token authentication model are unchanged and out of this
+    sprint's own scope to redesign.
+
+    (3) The word "strategy" is banned, literally, anywhere under asa/
+    (tests/asa/test_boundaries.py::test_forbidden_legacy_technologies_are_
+    absent, a case-insensitive substring scan). EPIC-9's own path parameter
+    name "{strategy}" cannot be used verbatim at the HTTP boundary; the
+    existing "signal" vocabulary (signal_id, /screening/{signal}) already
+    solved this problem and must be reused, not reinvented, for whatever
+    part of this sprint's work touches asa/. Root-level packages
+    (screening/, and any new universal-runtime package this sprint
+    introduces) are unaffected by that ban and may use "strategy"
+    terminology freely, matching this repository's own established
+    convention (SPRINT-008's own backend_screening_connection_decision).
+
+    (4) EPIC-3's "fetch data once, share across strategies" already exists
+    as market_data/fulfillment.py's CapabilityFulfillmentService plus
+    market_data/registry.py's CapabilityRegistry/ProviderRegistry --
+    deterministic, priority-ordered, fallback-on-any-failure provider
+    selection, already thoroughly tested (tests/market_data/
+    test_fulfillment.py). What does NOT yet exist, and what EPIC-3 is
+    therefore actually asking for, is aggregating requirements ACROSS
+    strategies within one execution so, e.g., a shared spot quote or
+    option chain acquired for one strategy's evaluation is reused by
+    another strategy's evaluation in the same run rather than re-acquired.
+    This exact question was already raised and deliberately declined at
+    small scale in SPRINT-008D (docs/screening/cache-lifecycle.md --
+    ruled out sharing an option chain between forward_factor and
+    skew_momentum, calling it not worth a new coordination layer for ~2
+    requests saved per run). This sprint
+    revisits that same tradeoff deliberately, at a different scale and
+    priority (P0, platform infrastructure, anticipating N future
+    strategies rather than 2 current ones) -- a considered reversal, not a
+    contradiction, and EPIC-3's own ticket should reference this precedent
+    explicitly when it reopens the question.
+
+    (5) screening/'s existing "no infrastructure imports" architecture
+    boundary (screening/state.py's own docstring, SPRINT-008) and asa/'s
+    one-directional dependency on root packages (tests/architecture/
+    test_asa_dependency_direction.py, ARCH-MONOREPO-001) both remain in
+    force and unmodified by this activation -- the universal runtime this
+    sprint builds is root-level infrastructure (like screening/ itself),
+    not asa/-level, and must keep the same dependency-injected repository
+    pattern screening/service.py already established.
+
+bounded_scope:
+  in:
+    - a_declarative_strategy_contract_schema_metadata_requirements_lifecycle_structures_outputs
+    - a_universal_strategy_runtime_registration_discovery_execution_error_isolation
+    - a_universal_screening_result_envelope_replacing_strategy_specific_shapes_internally
+    - cross_strategy_shared_data_acquisition_planning
+    - a_reusable_options_structure_framework_extracted_from_the_three_migrated_strategies
+    - a_generic_opportunity_lifecycle_engine_extracted_from_the_mature_stonk_calendar_implementation
+    - observation_history_alongside_the_existing_latest_state_only_screening_state_table
+    - migrating_earnings_calendar_skew_momentum_vertical_and_forward_factor_onto_the_new_runtime
+    - adapting_the_existing_api_v1_screening_endpoints_to_serve_the_new_runtime_never_a_parallel_surface
+  out:
+    - recommendation_ranking
+    - portfolio_optimization
+    - position_sizing
+    - trade_execution
+    - kelly_sizing
+    - dashboard_ui_migration
+    - universal_numeric_scoring_across_strategies
+    - cross_strategy_ranking_algorithms
+    - any_fourth_strategy_or_new_signal_beyond_the_three_named_migrations
+    - changing_the_public_http_contract_authentication_model_or_response_envelope_established_in_SPRINT_008
+    - renaming_or_relocating_the_existing_api_v1_screening_namespace
+    - relitigating_ARCH_MONOREPO_001_or_OPS_RAILWAY_ROOT_001_packaging_decisions
+    - relitigating_SPRINT_008Ds_own_universe_provider_or_scheduling_decisions_except_where_EPIC_3_explicitly_revisits_shared_acquisition
+
+architecture_principles:
+  - generalize_before_specialize_every_capability_discovered_during_migration_is_evaluated_as_platform_infrastructure_before_being_written_as_strategy_specific_code
+  - declarative_strategies_describe_themselves_through_contracts_not_runtime_conditionals
+  - runtime_owns_infrastructure_orchestration_persistence_planning_caching_history_lifecycle_apis_recommendation_interfaces
+  - strategies_own_thesis_only_investment_specific_logic_lives_in_a_strategy_adapter
+  - one_strategy_failure_never_prevents_others_from_executing_unchanged_from_screening_runner_pys_own_existing_isolation
+  - the_runtime_contains_no_strategy_specific_conditionals_forward_factor_earnings_calendar_or_skew_momentum_named_checks_live_only_inside_that_strategys_own_adapter
+  - screening_state_repository_pattern_is_dependency_injected_never_imported_concretely_by_the_runtime_itself_unchanged_from_SPRINT_008
+  - the_existing_public_api_v1_screening_contract_and_signal_vocabulary_are_preserved_the_runtime_underneath_may_be_rebuilt_the_surface_a_caller_already_depends_on_may_not_break
+  - single_composition_root_preserved_asa_bootstrap_build_application_unchanged
+
+execution:
+  mode: founder_authorized_autonomous_sprint
+  branch_strategy: feature_per_ticket
+  branch_pattern: agent/<ticket-id>-<short-description>
+  ticket_order:
+    - EPIC-2
+    - EPIC-1
+    - EPIC-6
+    - EPIC-3
+    - EPIC-4
+    - EPIC-5
+    - EPIC-8
+    - EPIC-7
+    - EPIC-9
+  order_rationale: >
+    The declarative contract (EPIC-2) must exist before a runtime can read
+    it (EPIC-1). The universal result envelope (EPIC-6) is defined next,
+    before the epics that must produce or consume it, so EPIC-3/4/5/7/9 all
+    have one fixed target shape rather than each guessing at it
+    independently. Shared data planning (EPIC-3) and the options framework
+    (EPIC-4) are runtime-adjacent infrastructure the migrated strategies
+    will depend on, built before migration begins. The opportunity
+    lifecycle engine (EPIC-5) is ordered before persistence (EPIC-8)
+    because history/observation semantics depend on lifecycle concepts
+    (opportunity identity, evolution) being defined first. Persistence
+    (EPIC-8) is built before migration (EPIC-7) so the three strategies
+    have somewhere real to write when they move onto the new runtime.
+    Migration (EPIC-7) is the sprint's own centerpiece and comes only once
+    every piece of infrastructure it depends on already exists -- exactly
+    this sprint's own generalize_before_specialize principle applied to
+    its own execution order. The API (EPIC-9) is last, since it adapts
+    existing endpoints to the new runtime's output and has nothing to
+    adapt to until EPIC-6 through EPIC-8 exist and EPIC-7 has produced
+    real results to serve.
+
+    EPIC-7 (Strategy Migration) is unusually large (three independent
+    strategies) and may be delivered as three sequential PRs under this
+    one ticket ID (branch pattern agent/EPIC-7-earnings-calendar,
+    agent/EPIC-7-skew-momentum-vertical, agent/EPIC-7-forward-factor) in
+    that order -- earnings_calendar first because it is the lifecycle-
+    heavy strategy EPIC-5 is built to serve and therefore the strongest
+    test of whether EPIC-5's generalization actually generalizes; skew_
+    momentum_vertical second as the simplest options structure (a single
+    expiration, no calendar pairing); forward_factor last as the most
+    complex (calendar pairing plus forward-volatility-specific
+    calculations). This is an execution detail, not a rescope -- no new
+    governance action is required to sequence EPIC-7 this way, since all
+    three strategies were already named and approved together in this
+    same ticket.
+  workflow:
+    - review_relevant_open_and_recent_closed_issues_and_prs_for_the_subsystem
+    - implement_one_approved_ticket
+    - run_all_required_validation
+    - perform_and_record_self_review
+    - open_pull_request
+    - verify_pull_request_contains_only_approved_ticket_scope
+    - verify_every_required_gate_is_present_and_green
+    - check_for_an_unresolved_architecture_or_founder_gate
+    - merge_under_GOV_AMD_001_013_only_if_no_gate_is_unresolved
+    - verify_default_branch_contains_merge_commit
+    - run_post_merge_validation
+    - begin_next_ticket
+
+tickets:
+  - id: EPIC-2
+    title: Declarative Strategy Contract
+    owner: Architect
+    objective: >
+      Replace implicit strategy behavior with an explicit, declared
+      contract every strategy states about itself, so the runtime (EPIC-1)
+      and every downstream epic can derive behavior from declarations
+      rather than strategy-specific conditionals.
+    deliverables:
+      - metadata_declaration_strategy_id_version_category_description
+      - requirements_declaration_market_data_option_data_earnings_fundamentals_technicals_macro_custom
+      - lifecycle_declaration_lifecycle_model_supported_states_observation_type
+      - structures_declaration_none_vertical_calendar_custom
+      - outputs_declaration_metrics_economics_lifecycle_recommendation_support
+    acceptance:
+      - runtime_can_read_every_declaration_field_without_a_strategy_specific_branch
+      - all_three_migration_target_strategies_declaration_drafted_even_though_migration_itself_is_EPIC_7s_job
+    excludes:
+      - runtime_execution_itself
+      - any_strategys_actual_evaluation_logic
+
+  - id: EPIC-1
+    title: Universal Strategy Runtime
+    owner: Architect
+    objective: >
+      Build the runtime that executes every registered strategy
+      identically, driven entirely by EPIC-2's contract.
+    deliverables:
+      - strategy_registration
+      - strategy_discovery
+      - strategy_execution_pipeline
+      - strategy_context
+      - runtime_diagnostics
+      - runtime_error_isolation
+      - runtime_metrics
+    acceptance:
+      - runtime_executes_arbitrary_registered_strategies
+      - one_strategy_failure_never_prevents_others_from_executing
+      - runtime_contains_no_forward_factor_calendar_or_skew_conditionals
+    excludes:
+      - shared_data_acquisition_thats_EPIC_3
+      - the_universal_result_shape_itself_thats_EPIC_6
+      - strategy_migration_itself_thats_EPIC_7
+
+  - id: EPIC-6
+    title: Universal Screening Result
+    owner: Architect
+    objective: >
+      Define the one canonical screening artifact every strategy emits
+      regardless of strategy, so every other epic has a fixed target
+      shape rather than inventing its own.
+    core_fields:
+      - strategy_id
+      - strategy_version
+      - symbol
+      - observation_id
+      - opportunity_id
+      - row_type
+      - verdict
+      - evaluation_state
+      - lifecycle_stage
+      - recommendation_state
+      - data_quality
+      - metrics
+      - economics
+      - blockers
+      - warnings
+      - provenance
+      - observed_at
+    acceptance:
+      - all_three_migration_target_strategies_can_populate_this_envelope_without_a_field_that_only_makes_sense_for_one_of_them
+      - strategy_specific_data_lives_only_inside_the_metrics_and_economics_namespaces_never_as_a_top_level_field
+      - field_names_match_screening_results_own_existing_strategy_id_convention_root_level_screening_may_use_strategy_id_directly_asa_facing_translations_continue_to_use_signal_id_matching_SPRINT_008s_own_precedent
+    excludes:
+      - the_asa_facing_http_response_model_thats_EPIC_9s_own_job_to_adapt
+
+  - id: EPIC-3
+    title: Shared Data Planning
+    owner: Worker
+    objective: >
+      Aggregate data requirements across strategies within one execution
+      so shared inputs are fetched once and reused, building on top of
+      the existing market_data.fulfillment.CapabilityFulfillmentService
+      rather than replacing it.
+    deliverables:
+      - requirement_aggregation_across_registered_strategies
+      - a_request_planner_that_deduplicates_identical_capability_subject_requests_within_one_run
+      - provider_batching_where_the_existing_fulfillment_service_already_supports_it
+      - cache_reuse_within_one_runs_shared_execution_context
+      - provider_fallback_preserved_unchanged_from_the_existing_CapabilityFulfillmentService
+      - a_shared_execution_context_object_strategies_read_acquired_data_from_rather_than_calling_providers_themselves
+    acceptance:
+      - duplicate_provider_requests_for_the_same_capability_and_subject_within_one_run_are_eliminated
+      - strategies_never_call_a_provider_or_transport_directly_only_through_the_shared_context
+      - existing_CapabilityFulfillmentService_and_CapabilityRegistry_behavior_and_their_own_passing_tests_are_unmodified
+    excludes:
+      - changing_provider_priority_or_fallback_ordering_semantics
+      - a_second_caching_layer_duplicating_what_the_existing_fulfillment_service_already_does
+
+  - id: EPIC-4
+    title: Universal Options Framework
+    owner: Worker
+    objective: >
+      Extract reusable options infrastructure from the Calendar, Skew, and
+      Forward Factor implementations (both ASA's screening/live_adapters.py
+      and the mature Stonk services) into one shared framework.
+    migrate:
+      - options_structure_builder
+      - expiration_pairing_generalizing_select_expiration_pair_and_select_earnings_relative_expiration_pair
+      - structure_validation
+      - liquidity_validation
+      - pricing_helpers
+      - payoff_helpers
+      - option_package_representation
+    acceptance:
+      - runtime_supports_arbitrary_option_structures_none_vertical_calendar_custom_per_EPIC_2s_own_structures_declaration
+      - a_future_option_strategy_requires_no_framework_modification_only_a_new_structure_declaration_and_evaluation_logic
+      - the_three_migration_target_strategies_existing_passing_option_selection_tests_still_pass_once_ported_onto_this_framework
+    excludes:
+      - pricing_models_beyond_what_the_three_migration_target_strategies_already_require
+      - new_option_structure_types_beyond_none_vertical_calendar_custom
+
+  - id: EPIC-5
+    title: Universal Opportunity Model
+    owner: Worker
+    objective: >
+      Generalize the lifecycle, verdict, and opportunity-identity concepts
+      already implemented in the mature Stonk Calendar strategy
+      (/Users/jaiafoster/Claude/stonk/app/services/, calendar_lifecycle.py)
+      into strategy-agnostic infrastructure.
+    migrate:
+      - lifecycle_stages
+      - evaluation_states
+      - verdicts
+      - recommended_actions
+      - opportunity_identity_stable_ids_across_repeated_observations_of_the_same_underlying_opportunity
+      - evolution_history_how_an_opportunitys_state_changed_across_observations
+    acceptance:
+      - lifecycle_is_strategy_agnostic_no_calendar_specific_field_or_conditional_in_the_shared_engine
+      - earnings_calendar_EPIC_7_is_implemented_using_this_generic_lifecycle_engine_not_a_bespoke_one
+      - skew_momentum_vertical_and_forward_factor_may_opt_into_lifecycle_support_without_being_required_to_use_every_field
+    excludes:
+      - recommendation_ranking_or_scoring_across_opportunities_explicitly_a_non_goal
+
+  - id: EPIC-8
+    title: Persistence & History
+    owner: Worker
+    objective: >
+      Preserve both current screening state (the existing screening_state
+      table's own latest-only semantics, unchanged) and historical
+      evolution (new, append-only), so a caller can see both what is true
+      now and how an opportunity got there.
+    migrate:
+      - observation_history_append_only_never_overwritten
+      - stable_opportunity_ids_from_EPIC_5
+      - run_isolation_one_strategys_run_never_corrupts_anothers_history
+      - latest_results_the_existing_screening_state_upsert_semantics_API_002_unchanged
+    acceptance:
+      - history_replay_is_supported_a_caller_can_reconstruct_an_opportunitys_evolution_from_persisted_observations
+      - an_empty_or_failed_run_never_overwrites_or_hides_previously_persisted_state_matching_screening_states_own_existing_guarantee
+      - any_new_migration_is_reversible_alembic_upgrade_and_downgrade_round_trip_clean
+    excludes:
+      - deleting_or_migrating_away_from_the_existing_screening_state_table_history_is_additive
+
+  - id: EPIC-7
+    title: Strategy Migration
+    owner: Worker
+    objective: >
+      Migrate the three mature, currently-live strategies onto the
+      universal runtime built by EPIC-1 through EPIC-6 and EPIC-8, in the
+      order recorded in execution.order_rationale above.
+    strategies:
+      earnings_calendar:
+        migrate:
+          - discovery
+          - lifecycle_via_EPIC_5s_generic_engine
+          - structure_building_via_EPIC_4s_framework
+          - event_timing
+          - verdict_service
+          - opportunity_persistence_via_EPIC_8
+      skew_momentum_vertical:
+        migrate:
+          - momentum_validation
+          - skew_calculations
+          - vertical_construction_via_EPIC_4s_framework
+          - liquidity
+          - payoff_calculations
+          - verdict_service
+      forward_factor:
+        migrate:
+          - forward_variance
+          - forward_iv
+          - candidate_selection
+          - eligibility
+          - source_qualification
+          - signal_gate
+    acceptance:
+      - all_three_strategies_execute_through_the_identical_runtime_no_strategy_specific_orchestration_path
+      - no_strategy_bypasses_the_runtime_or_calls_a_provider_directly
+      - every_strategy_specific_regression_test_that_passed_before_migration_still_passes_after
+      - every_strategy_emits_EPIC_6s_universal_result_envelope
+    excludes:
+      - a_fourth_strategy
+      - changing_any_strategys_own_investment_logic_thesis_during_migration_only_its_runtime_integration_changes
+
+  - id: EPIC-9
+    title: Screening API
+    owner: Worker
+    objective: >
+      Adapt the existing, already-shipped /api/v1/screening* endpoints
+      (SPRINT-008/API-003, API-004) to read from the new universal
+      runtime's persisted output, rather than building a parallel surface.
+    endpoints:
+      - GET /api/v1/screening
+      - GET /api/v1/screening/{signal}
+      - GET /api/v1/screening/{signal}/{symbol}
+      - POST /api/v1/screening/{signal}/{symbol}/refresh
+    acceptance:
+      - every_endpoint_above_continues_to_return_the_existing_response_envelope_and_error_model_unchanged
+      - endpoint_implementations_now_read_from_the_universal_runtimes_output_not_from_any_strategy_specific_serialization
+      - no_endpoint_specific_strategy_transformation_logic_remains_the_translation_from_EPIC_6s_envelope_to_the_http_response_model_is_one_shared_mapping
+      - existing_tests_asa_test_screening_routes_py_and_tests_asa_test_ai_agent_workflow_py_pass_unmodified_against_the_new_backing_runtime
+    excludes:
+      - new_endpoints_beyond_the_four_already_listed
+      - changing_authentication_or_the_signal_vocabulary_at_the_http_boundary
+
+validation:
+  required_before_every_delegated_merge:
+    - all_required_CI_checks_pass
+    - pytest_tests_asa
+    - pytest_tests_screening
+    - pytest_tests_architecture
+    - pytest_tests_market_data
+    - ruff_passes_asa_and_root
+    - mypy_passes_asa_and_affected_root_source
+    - alembic_upgrade_and_downgrade_round_trip_where_migrations_change
+    - asa_local_boundary_suite_passes
+    - governance_integrity_validation_passes
+    - lean_pos_validation_passes
+    - pre_push_check_passes
+    - secret_scan_passes
+    - git_diff_check_passes
+    - self_review_passes
+    - no_governance_violation
+    - no_unresolved_blocking_issue
+    - no_unresolved_architecture_gate
+    - no_unresolved_founder_gate
+    - no_security_sensitive_scope_expansion
+    - pull_request_contains_only_the_approved_ticket_scope
+    - relevant_open_and_recent_closed_issues_and_prs_reviewed
+    - every_pre_migration_strategy_specific_regression_test_for_the_ticket_in_progress_still_passes
+  sprint_level:
+    - three_production_strategies_execute_through_one_shared_runtime
+    - no_strategy_specific_orchestration_exists_outside_a_strategys_own_adapter
+    - shared_market_data_is_fetched_once_and_reused_across_strategies_within_a_run
+    - every_strategy_emits_the_universal_screening_contract
+    - every_strategy_persists_both_observations_and_latest_state
+    - calendar_lifecycle_is_represented_generically_not_calendar_specific_code_in_the_shared_engine
+    - option_structures_are_built_through_one_reusable_framework
+    - apis_expose_strategy_results_without_strategy_specific_serialization
+    - a_new_strategy_skeleton_can_be_created_without_modifying_any_runtime_service
+  post_merge:
+    - verify_default_branch_contains_merge_commit
+    - rerun_ticket_validation_from_default_branch
+    - verify_worktree_clean
+
+self_review:
+  required: true
+  checklist:
+    architecture:
+      - single_composition_root_preserved
+      - no_new_frozen_public_contract_introduced_without_a_gate
+      - the_existing_api_v1_screening_public_contract_is_unbroken_verified_by_the_existing_test_suite_not_just_by_inspection
+      - the_runtime_contains_no_strategy_named_conditional
+      - screening_state_repository_pattern_is_dependency_injected_never_imported_concretely_by_the_runtime
+      - screening_no_infrastructure_imports_boundary_unchanged
+      - asa_one_directional_dependency_on_root_packages_unchanged
+    governance:
+      - Constitution_unchanged
+      - frozen_governance_unchanged
+      - delegated_scope_and_ticket_match
+      - all_Amendment_013_gates_evidenced
+    implementation:
+      - ticket_acceptance_satisfied
+      - deterministic_outputs_for_identical_repository_state
+      - no_unresolved_TODO_or_skipped_sprint_test
+      - no_credential_or_secret_value_ever_logged_or_returned_in_a_response
+      - every_pre_migration_regression_test_relevant_to_this_ticket_still_passes
+
+stop_conditions:
+  - frozen_governance_change_required
+  - architecture_change_or_new_public_contract_required_beyond_this_activations_own_scope
+  - missing_or_ambiguous_upstream_contract
+  - new_immutable_domain_contract_required
+  - breaking_public_contract_required
+  - sprint_scope_change_required
+  - deterministic_execution_or_replay_cannot_be_preserved
+  - multiple_materially_different_architectural_solutions
+  - validation_failure_cannot_be_resolved_within_ticket_scope
+  - required_gate_missing_unavailable_skipped_or_failing
+  - a_pre_migration_strategy_specific_regression_test_cannot_be_made_to_pass_on_the_new_runtime_without_changing_the_strategys_own_investment_logic
+  - the_existing_api_v1_screening_contract_would_need_to_break_to_complete_EPIC_9
+  - Founder_revokes_delegation
+
+on_stop:
+  - do_not_merge
+  - open_GitHub_issue_with_evidence
+  - report_architectural_governance_or_founder_blocker
+  - return_merge_authority_to_Founder
+  - halt_remaining_sprint_pending_gate_resolution
+
+report:
+  required: true
+  destination: project/reports/SPRINT-009.md
+  contents:
+    - sprint_summary
+    - completed_tickets
+    - delegated_merged_pull_requests
+    - declarative_strategy_contract_summary
+    - universal_runtime_architecture_summary
+    - universal_screening_result_summary
+    - shared_data_planning_results
+    - universal_options_framework_summary
+    - universal_opportunity_lifecycle_summary
+    - persistence_and_history_summary
+    - strategy_migration_results_per_strategy
+    - screening_api_adaptation_summary
+    - validation_results
+    - discovered_and_resolved_defects
+    - remaining_non_blocking_issues
+    - recommendations_for_SPRINT_010
+
+definition_of_done: >
+  SPRINT-009 is complete when every enumerated epic is merged after every
+  Amendment 013 gate passes and no stop condition remains unresolved; three
+  production strategies (earnings_calendar, skew_momentum_vertical,
+  forward_factor) execute through one shared runtime with no strategy-
+  specific orchestration outside their own adapters; shared market data is
+  fetched once per run and reused; every strategy emits the universal
+  screening result contract and persists both observations and latest
+  state; Calendar's lifecycle is represented generically and the other two
+  strategies may opt into it; option structures are built through one
+  reusable framework; the existing /api/v1/screening* endpoints serve the
+  new runtime's output with their public contract unbroken; every pre-
+  migration strategy-specific regression test still passes; a new strategy
+  skeleton can be created without modifying any runtime service; the final
+  sprint report is committed; and the Founder is asked to verify completion
+  before SPRINT-010 begins.
+
+next_program:
+  note: >
+    Not yet named by the Founder. This sprint's own future_enablement
+    (new-strategy checklist requiring no runtime changes) is the intended
+    foundation for whatever product-capability work follows.
