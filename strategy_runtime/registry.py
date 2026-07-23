@@ -13,12 +13,21 @@ established convention exactly.
 from __future__ import annotations
 
 from collections.abc import Callable
+from typing import Generic, TypeVar
 
 from strategy_runtime.context import RuntimeContext
 from strategy_runtime.contract import StrategyContract
 from strategy_runtime.errors import DuplicateStrategyRegistrationError, UnknownStrategyIdError
 
-type StrategyAdapter[TResult] = Callable[[RuntimeContext], TResult]
+# Python 3.11-compatible TypeVar/Generic, not PEP 695 syntax: this
+# package's tests are collected by validate-architecture.yml under
+# Python 3.11 (that workflow's own setup-python step, unrelated to this
+# project's own >=3.12 requirement), which does not support "class
+# Foo[T]:". Confirmed the hard way -- an earlier version of this file
+# used PEP 695 syntax and broke that workflow with a SyntaxError.
+TResult = TypeVar("TResult")
+
+StrategyAdapter = Callable[[RuntimeContext], TResult]
 """A strategy's own evaluation logic and nothing else (this sprint's own
 strategies_own_thesis principle) -- takes the context the runtime built
 for one (strategy, subject) pair and returns that strategy's own result.
@@ -27,7 +36,7 @@ Orchestration, retries, and error isolation are the runtime's job
 """
 
 
-class StrategyRegistry[TResult]:
+class StrategyRegistry(Generic[TResult]):
     __slots__ = ("_entries",)
 
     def __init__(

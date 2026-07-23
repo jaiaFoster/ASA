@@ -19,10 +19,15 @@ import json
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
+from typing import Generic, TypeVar
 
 from strategy_runtime.clock import Clock
 from strategy_runtime.context import RuntimeContext
 from strategy_runtime.registry import StrategyRegistry
+
+# Python 3.11-compatible TypeVar/Generic -- see strategy_runtime/registry.py's
+# own comment on TResult for why PEP 695 syntax is not used here.
+TResult = TypeVar("TResult")
 
 
 class ExecutionStatus(str, Enum):
@@ -31,7 +36,7 @@ class ExecutionStatus(str, Enum):
 
 
 @dataclass(frozen=True, slots=True)
-class StrategyExecutionResult[TResult]:
+class StrategyExecutionResult(Generic[TResult]):
     strategy_id: str
     subject: str
     run_id: str
@@ -90,7 +95,7 @@ def _compute_run_id(
     return hashlib.sha256(encoded).hexdigest()
 
 
-def _run_one[TResult](
+def _run_one(
     registry: StrategyRegistry[TResult],
     strategy_id: str,
     subject: str,
@@ -126,7 +131,7 @@ def _run_one[TResult](
     )
 
 
-def run_strategies[TResult](
+def run_strategies(
     registry: StrategyRegistry[TResult],
     clock: Clock,
     *,
