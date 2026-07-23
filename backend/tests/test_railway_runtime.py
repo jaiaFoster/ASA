@@ -30,12 +30,9 @@ class BrokerMustNotBeCalled:
         raise AssertionError("health endpoint called broker provider")
 
 
-EXPECTED_PRE_DEPLOY_COMMAND = (
-    "(if [ -d backend ]; then cd backend; fi) && python -m alembic upgrade head"
-)
+EXPECTED_PRE_DEPLOY_COMMAND = "cd backend && python -m alembic upgrade head"
 EXPECTED_START_COMMAND = (
-    '(if [ -d backend ]; then cd backend; fi) && export PYTHONPATH=src:.. && '
-    "python -m alembic upgrade head && "
+    "cd backend && export PYTHONPATH=src:.. && python -m alembic upgrade head && "
     "exec python -m uvicorn asa.asgi:create_application --factory "
     '--host 0.0.0.0 --port "${PORT}"'
 )
@@ -49,14 +46,14 @@ def test_railway_backend_runtime_contract() -> None:
     # strategies/, market_data/, and domain/ (the shared execution-graph
     # modules asa now imports) are importable, not just backend/src.
     #
-    # OPS-RAILWAY-ROOT-001: the "cd backend" is guarded by "if [ -d backend
-    # ]" rather than assumed unconditionally -- Railpack's actual build-step
-    # working directory when rootDirectory is the repo root is undocumented
-    # and could plausibly already be backend/ (where it found the FastAPI/
-    # pip signals it detected), in which case an unconditional "cd backend"
-    # fails immediately ("No such file or directory"). The guarded form
-    # reaches backend/ correctly whether it starts at the repo root or is
-    # already there.
+    # OPS-RAILWAY-ROOT-001: an earlier attempt guarded "cd backend" with an
+    # "if [ -d backend ]; then ... ; fi" conditional, defending against an
+    # unconfirmed cwd-ambiguity hypothesis. Reverted: Railway's own
+    # startCommand/preDeployCommand parser rejects bash conditional syntax
+    # outright ("Failed to parse start command"), and the unconditional form
+    # is confirmed correct anyway -- Railpack's own default install step
+    # (see railpack.json) builds successfully against the repo root without
+    # any cwd tricks, so the deploy container starts there too.
     backend_root = Path(__file__).parents[1]
     config = json.loads((backend_root / "railway.json").read_text())
 
@@ -117,53 +114,6 @@ def test_exact_production_command_runs_migration_then_serves_health(tmp_path: Pa
     process = subprocess.Popen(
         EXPECTED_START_COMMAND,
         cwd=backend_root.parent,
-        env=environment,
-        executable="/bin/sh",
-        shell=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
-    )
-    response_body = None
-    try:
-        deadline = time.monotonic() + 10
-        while time.monotonic() < deadline:
-            if process.poll() is not None:
-                output = "" if process.stdout is None else process.stdout.read()
-                raise AssertionError(f"production server exited before healthcheck: {output}")
-            try:
-                with urlopen(f"http://127.0.0.1:{port}/api/v1/health", timeout=1) as response:
-                    assert response.status == 200
-                    response_body = json.loads(response.read())
-                    break
-            except URLError:
-                time.sleep(0.05)
-    finally:
-        process.terminate()
-        try:
-            process.wait(timeout=5)
-        except subprocess.TimeoutExpired:
-            process.kill()
-            process.wait(timeout=5)
-
-    assert response_body == {"status": "ok"}
-    assert time.monotonic() - started_at < 5
-
-
-def test_exact_production_command_also_works_when_cwd_is_already_backend(
-    tmp_path: Path,
-) -> None:
-    # OPS-RAILWAY-ROOT-001: the sibling test above proves the command works
-    # when Railway's build/runtime starts at the repo root. This proves it
-    # also works if Railway instead starts already inside backend/ -- the
-    # scenario the "if [ -d backend ]" guard exists for. Both must pass
-    # since which cwd Railpack actually uses is undocumented.
-    backend_root = Path(__file__).parents[1]
-    environment, port = _production_environment(tmp_path, migration_exit_code=0)
-    started_at = time.monotonic()
-    process = subprocess.Popen(
-        EXPECTED_START_COMMAND,
-        cwd=backend_root,
         env=environment,
         executable="/bin/sh",
         shell=True,
