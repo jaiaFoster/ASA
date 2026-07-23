@@ -9,13 +9,18 @@ by asa/, but must never import asa/ itself
 automatically for every root-level package, this one included).
 
 EPIC-2 (Declarative Strategy Contract) lives in strategy_runtime.contract:
-the one shape every strategy declares itself through, and the one thing
-the runtime (EPIC-1, added on top of this package as later tickets land)
-reads to execute a strategy without a strategy-specific conditional.
+the one shape every strategy declares itself through. EPIC-1 (Universal
+Strategy Runtime) builds on it: strategy_runtime.registry (registration and
+discovery), strategy_runtime.context (what an adapter receives), and
+strategy_runtime.execution (the one execution pipeline every registered
+strategy runs through, with error isolation, diagnostics, and metrics) --
+together, the one place a strategy executes without a strategy-specific
+conditional anywhere in this package.
 """
 
 from __future__ import annotations
 
+from strategy_runtime.context import RuntimeContext
 from strategy_runtime.contract import (
     NO_LIFECYCLE,
     DataRequirement,
@@ -26,16 +31,36 @@ from strategy_runtime.contract import (
     StrategyContract,
     StructureKind,
 )
-from strategy_runtime.errors import StrategyContractError
+from strategy_runtime.errors import (
+    DuplicateStrategyRegistrationError,
+    StrategyContractError,
+    UnknownStrategyIdError,
+)
+from strategy_runtime.execution import (
+    ExecutionStatus,
+    RuntimeExecutionSummary,
+    StrategyExecutionResult,
+    run_strategies,
+)
+from strategy_runtime.registry import StrategyAdapter, StrategyRegistry
 
 __all__ = [
     "NO_LIFECYCLE",
     "DataRequirement",
+    "DuplicateStrategyRegistrationError",
+    "ExecutionStatus",
     "LifecycleDeclaration",
     "LifecycleModel",
     "OutputKind",
     "RequirementCategory",
+    "RuntimeContext",
+    "RuntimeExecutionSummary",
+    "StrategyAdapter",
     "StrategyContract",
     "StrategyContractError",
+    "StrategyExecutionResult",
+    "StrategyRegistry",
     "StructureKind",
+    "UnknownStrategyIdError",
+    "run_strategies",
 ]
