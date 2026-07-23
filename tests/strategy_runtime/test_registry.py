@@ -11,10 +11,14 @@ from strategy_runtime import (
     OutputKind,
     RequirementCategory,
     RuntimeContext,
+    StrategyCapability,
     StrategyContract,
     StrategyRegistry,
     StructureKind,
     UnknownStrategyIdError,
+    describe_contract,
+    describe_registry,
+    register,
 )
 
 
@@ -69,3 +73,60 @@ class TestStrategyRegistry:
     def test_contracts_returns_every_registered_contract_sorted(self) -> None:
         registry = StrategyRegistry(((_contract("beta"), _adapter), (_contract("alpha"), _adapter)))
         assert [item.strategy_id for item in registry.contracts()] == ["alpha", "beta"]
+
+
+class TestRegisterHelper:
+    """SPRINT-009R/EPIC-R4: register() -- the ergonomic wrapper a new
+    strategy's own registration site uses.
+    """
+
+    def test_register_builds_an_equivalent_registry(self) -> None:
+        contract = _contract("alpha")
+        registry = register((contract, _adapter))
+        assert registry.strategy_ids() == ("alpha",)
+        assert registry.contract_for("alpha") is contract
+
+    def test_register_still_rejects_duplicate_strategy_ids(self) -> None:
+        with pytest.raises(DuplicateStrategyRegistrationError, match="alpha"):
+            register((_contract("alpha"), _adapter), (_contract("alpha"), _adapter))
+
+
+class TestDescribeContractAndRegistry:
+    """SPRINT-009R/EPIC-R4: runtime diagnostics for a developer registering
+    a new strategy.
+    """
+
+    def test_describe_contract_names_every_dimension(self) -> None:
+        contract = StrategyContract(
+            strategy_id="alpha",
+            version="2.0.0",
+            category="options_volatility",
+            description="A test contract.",
+            requirements=(DataRequirement(RequirementCategory.CUSTOM, identifier="none"),),
+            lifecycle=NO_LIFECYCLE,
+            structure=StructureKind.NONE,
+            outputs=(OutputKind.METRICS, OutputKind.ECONOMICS),
+            capabilities=(StrategyCapability.ECONOMICS,),
+        )
+
+        description = describe_contract(contract)
+
+        assert "alpha" in description
+        assert "2.0.0" in description
+        assert "options_volatility" in description
+        assert "custom" in description
+        assert "economics" in description
+
+    def test_describe_registry_lists_every_strategy_in_order(self) -> None:
+        registry = register((_contract("beta"), _adapter), (_contract("alpha"), _adapter))
+
+        description = describe_registry(registry)
+
+        lines = description.splitlines()
+        assert len(lines) == 2
+        assert lines[0].startswith("alpha ")
+        assert lines[1].startswith("beta ")
+
+    def test_describe_registry_of_an_empty_registry_is_empty(self) -> None:
+        registry: StrategyRegistry[str] = StrategyRegistry()
+        assert describe_registry(registry) == ""
