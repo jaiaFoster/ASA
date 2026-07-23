@@ -37,9 +37,18 @@ guardrail keeping the engine strategy-agnostic (a reported stage must be
 one the strategy's own contract actually declared). EPIC-8 (Persistence &
 History) lives in strategy_runtime.persistence: two pure Protocols
 (LatestResultRepository, ObservationHistoryRepository), no infrastructure
-imports -- a concrete implementation is EPIC-7's own job, matching
+imports -- a concrete implementation is deferred to whichever ticket
+first wires a live repository into a live adapter, matching
 screening/state.py's own established convention that this package never
-imports a database driver itself.
+imports a database driver itself. EPIC-7 (Strategy Migration) lives in
+strategy_runtime.adapters: one module per migrated strategy
+(forward_factor, skew_momentum_vertical, earnings_calendar), each
+declaring its own StrategyContract and a StrategyAdapter that reuses the
+existing, unmodified execution graph (screening.live_adapters,
+strategies/stonk_manifests.py) and translates its output into
+UniversalScreeningResult via the shared _screening_bridge module. Not
+re-exported here -- imported directly from strategy_runtime.adapters.*,
+since registering them with a live registry is EPIC-9's own job.
 """
 
 from __future__ import annotations
