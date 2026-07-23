@@ -35,7 +35,7 @@ from asa.integrations.postgres import create_postgres_engine
 from asa.integrations.screening_postgres import PostgresScreeningStateRepository
 from market_data import load_market_data_config_from_environment
 from market_data.live_transport import build_live_transport
-from screening import SIGNAL_REGISTRY
+from screening import APPROVED_LIVE_UNIVERSE, SIGNAL_REGISTRY
 from screening.live_acquisition import (
     build_fulfillment_service_with_accounting,
     enabled_provider_configs,
@@ -47,14 +47,15 @@ from screening.state import ScreeningStateRepository
 # The initial production screening universe
 # (project/reports/SPRINT-008D-SCREENING-UNIVERSE.md, PROD-001): the two
 # signals whose data requirements are met entirely by Tradier, across the
-# full APPROVED_LIVE_UNIVERSE. earnings_calendar is deliberately excluded
-# pending PROD-004's own provider validation. This tuple is the one place
-# the scheduled universe is declared -- change it only alongside a
-# rescoped universe definition, never silently.
+# full APPROVED_LIVE_UNIVERSE -- referenced directly, not copied, so this
+# tuple can never silently drift out of sync with the one bound
+# asa/api/screening_routes.py and screening/cli.py's own --live flag both
+# already enforce (PROD-005 confirmed this explicitly). earnings_calendar
+# is deliberately excluded pending PROD-004's own provider validation.
 PRODUCTION_SCREENING_UNIVERSE: tuple[tuple[str, str], ...] = tuple(
     (signal_id, symbol)
     for signal_id in ("forward_factor", "skew_momentum")
-    for symbol in ("AAPL", "MSFT", "NVDA", "AMD", "SPY", "QQQ")
+    for symbol in APPROVED_LIVE_UNIVERSE
 )
 
 
