@@ -17,7 +17,11 @@ strategy runs through, with error isolation, diagnostics, and metrics) --
 together, the one place a strategy executes without a strategy-specific
 conditional anywhere in this package. EPIC-6 (Universal Screening Result)
 lives in strategy_runtime.result: the one canonical result envelope every
-strategy's adapter returns.
+strategy's adapter returns. EPIC-3 (Shared Data Planning) lives in
+strategy_runtime.market_data_planning: one market_data.
+CapabilityFulfillmentService per subject, shared by every strategy that
+evaluates it within a run, threaded through RuntimeContext.fulfillment by
+run_strategies()'s own optional fulfillment_by_subject parameter.
 """
 
 from __future__ import annotations
@@ -43,6 +47,10 @@ from strategy_runtime.execution import (
     RuntimeExecutionSummary,
     StrategyExecutionResult,
     run_strategies,
+)
+from strategy_runtime.market_data_planning import (
+    SubjectMarketDataAccess,
+    build_shared_market_data_access,
 )
 from strategy_runtime.registry import StrategyAdapter, StrategyRegistry
 from strategy_runtime.result import (
@@ -73,8 +81,10 @@ __all__ = [
     "StrategyExecutionResult",
     "StrategyRegistry",
     "StructureKind",
+    "SubjectMarketDataAccess",
     "UniversalScreeningResult",
     "UnknownStrategyIdError",
+    "build_shared_market_data_access",
     "compute_observation_id",
     "run_strategies",
 ]
