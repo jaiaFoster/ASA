@@ -1,14 +1,20 @@
 # Agent Data API — Operational Notes
 
-## No background refresh, no scheduling
+## No in-process background refresh; scheduling is external (SPRINT-008D)
 
-There is no daemon, cron, or scheduled job that refreshes screening state on its own. State only
-changes two ways: whatever process writes it directly (a batch/CLI run, outside this API's own
-scope), or a caller explicitly invoking `POST /api/v1/screening/{signal}/{symbol}/refresh`. This
-is intentional — `docs/sprints/SPRINT-008.yaml` explicitly excludes
-`automatic_scheduling`/`background_refresh_daemon` from this sprint's scope. An agent (or any
-caller) is responsible for deciding when data is stale enough to refresh; the API only ever
-reports `age_seconds`, never an opinion on staleness.
+Nothing inside the `asa` application process refreshes screening state on its own — no daemon,
+no in-process timer, no background thread. This was an explicit exclusion in SPRINT-008
+(`docs/sprints/SPRINT-008.yaml`: `automatic_scheduling`/`background_refresh_daemon`) and remains
+true after SPRINT-008D: `asa/scheduled_screening.py` (PROD-002) is a standalone script that runs
+once and exits, not a daemon added to this process.
+
+State changes three ways: an external scheduler invoking `python -m asa.scheduled_screening`
+(intended cadence and rationale: `docs/screening/cache-lifecycle.md`), any other direct batch/CLI
+run, or a caller explicitly invoking `POST /api/v1/screening/{signal}/{symbol}/refresh`. An agent
+(or any caller) is still responsible for deciding when a *specific* result is stale enough to
+warrant its own explicit refresh — the API only ever reports `age_seconds`, never an opinion on
+staleness — but a scheduled baseline now exists so results are not exclusively dependent on a
+caller ever refreshing them at all.
 
 ## The refresh endpoint is narrow by construction
 
