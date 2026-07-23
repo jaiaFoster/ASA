@@ -15,7 +15,9 @@ discovery), strategy_runtime.context (what an adapter receives), and
 strategy_runtime.execution (the one execution pipeline every registered
 strategy runs through, with error isolation, diagnostics, and metrics) --
 together, the one place a strategy executes without a strategy-specific
-conditional anywhere in this package.
+conditional anywhere in this package. EPIC-6 (Universal Screening Result)
+lives in strategy_runtime.result: the one canonical result envelope every
+strategy's adapter returns.
 """
 
 from __future__ import annotations
@@ -43,16 +45,26 @@ from strategy_runtime.execution import (
     run_strategies,
 )
 from strategy_runtime.registry import StrategyAdapter, StrategyRegistry
+from strategy_runtime.result import (
+    SUCCESS_EVALUATION_STATES,
+    EvaluationState,
+    RowType,
+    UniversalScreeningResult,
+    compute_observation_id,
+)
 
 __all__ = [
     "NO_LIFECYCLE",
+    "SUCCESS_EVALUATION_STATES",
     "DataRequirement",
     "DuplicateStrategyRegistrationError",
+    "EvaluationState",
     "ExecutionStatus",
     "LifecycleDeclaration",
     "LifecycleModel",
     "OutputKind",
     "RequirementCategory",
+    "RowType",
     "RuntimeContext",
     "RuntimeExecutionSummary",
     "StrategyAdapter",
@@ -61,6 +73,8 @@ __all__ = [
     "StrategyExecutionResult",
     "StrategyRegistry",
     "StructureKind",
+    "UniversalScreeningResult",
     "UnknownStrategyIdError",
+    "compute_observation_id",
     "run_strategies",
 ]
