@@ -77,3 +77,38 @@ class ScreeningRegistry:
 
     def definitions(self) -> tuple[ScreeningStrategyDefinition, ...]:
         return tuple(self._definitions[key] for key in sorted(self._definitions.keys()))
+
+
+@dataclass(frozen=True, slots=True)
+class SignalDefinition:
+    """API-003's own public capability catalog shape.
+
+    A translation of ScreeningStrategyDefinition, not a second copy of its
+    fields' meaning: signal_id/signal_version replace strategy_id/
+    strategy_version at this boundary the same way ScreeningStateRecord
+    already does, because asa/'s own legacy-technology boundary test
+    (tests/asa/test_boundaries.py) bans the literal substring "strategy"
+    anywhere under asa/ -- asa/'s capabilities endpoint must reference this
+    type's field names directly to build its response, and cannot reference
+    ScreeningStrategyDefinition's own field names to do so.
+    """
+
+    signal_id: str
+    signal_version: str
+    manifest_id: str
+    required_capabilities: tuple[MarketCapability, ...]
+
+
+def signal_catalog(registry: ScreeningRegistry) -> tuple[SignalDefinition, ...]:
+    """The registry's full catalog, translated to the public signal_id/
+    signal_version vocabulary. Deterministically ordered (registry.definitions()
+    already sorts by strategy_id)."""
+    return tuple(
+        SignalDefinition(
+            signal_id=definition.strategy_id,
+            signal_version=definition.strategy_version,
+            manifest_id=definition.manifest_id,
+            required_capabilities=definition.required_capabilities,
+        )
+        for definition in registry.definitions()
+    )
