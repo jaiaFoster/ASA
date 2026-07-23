@@ -31,11 +31,11 @@ class BrokerMustNotBeCalled:
 
 
 EXPECTED_PRE_DEPLOY_COMMAND = (
-    'cd backend && python -c "print(\'OPS-RAILWAY-ROOT-001 predeploy bisection: '
-    "container init ok')\""
+    'cd backend && export PATH="/app/.venv/bin:$PATH" && python -m alembic upgrade head'
 )
 EXPECTED_START_COMMAND = (
-    "cd backend && export PYTHONPATH=src:.. && python -m alembic upgrade head && "
+    'cd backend && export PATH="/app/.venv/bin:$PATH" && export PYTHONPATH=src:.. && '
+    "python -m alembic upgrade head && "
     "exec python -m uvicorn asa.asgi:create_application --factory "
     '--host 0.0.0.0 --port "${PORT}"'
 )
@@ -57,6 +57,16 @@ def test_railway_backend_runtime_contract() -> None:
     # is confirmed correct anyway -- Railpack's own default install step
     # (see railpack.json) builds successfully against the repo root without
     # any cwd tricks, so the deploy container starts there too.
+    #
+    # A diagnostic bisection (temporary, since reverted) proved container
+    # init itself was fine; the real failure was the running container's
+    # bare "python" resolving to Railpack's raw mise-managed interpreter
+    # (/mise/installs/python/.../bin/python, no site-packages) rather than
+    # the venv pip actually installed backend's dependencies into --
+    # confirmed by comparing against an earlier, differently-broken
+    # deployment whose error correctly showed /app/.venv/bin/python.
+    # Prepending "/app/.venv/bin" to PATH makes the venv's own python (and
+    # therefore alembic) resolve first.
     backend_root = Path(__file__).parents[1]
     config = json.loads((backend_root / "railway.json").read_text())
 
