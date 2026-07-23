@@ -112,7 +112,7 @@ def test_robinhood_provider_is_selected_from_railway_variables(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     from asa.bootstrap import DependencyOverrides, build_application
-    from tests.fakes import InMemoryObservationRepository
+    from tests.asa.fakes import InMemoryObservationRepository
 
     monkeypatch.setenv("ASA_BROKER_PORTFOLIO_PROVIDER", "robinhood")
     monkeypatch.setenv("ASA_ROBINHOOD_USERNAME", "railway-user")
@@ -127,7 +127,7 @@ def test_robinhood_provider_is_selected_from_railway_variables(
 
 def test_openapi_has_no_robinhood_secret_fields() -> None:
     from asa.bootstrap import DependencyOverrides, build_application
-    from tests.fakes import InMemoryObservationRepository
+    from tests.asa.fakes import InMemoryObservationRepository
 
     schema = json.dumps(
         build_application(

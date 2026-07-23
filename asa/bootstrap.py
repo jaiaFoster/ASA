@@ -5,8 +5,6 @@ from uuid import uuid4
 
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
-from market_data.live_transport import build_live_transport as build_transport_for_provider
-from screening.state import ScreeningStateRepository
 from sqlalchemy import Engine
 
 from asa.api.agent_auth import build_agent_authorizer
@@ -32,6 +30,8 @@ from asa.integrations.runs_postgres import PostgresRunPublicationRepository
 from asa.integrations.screening_postgres import PostgresScreeningStateRepository
 from asa.logging import configure_logging, request_id_context
 from asa.market_data_ops.routes import build_operations_router
+from market_data.live_transport import build_live_transport as build_transport_for_provider
+from screening.state import ScreeningStateRepository
 
 
 @dataclass(frozen=True)

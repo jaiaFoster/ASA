@@ -4,10 +4,10 @@ from datetime import UTC, datetime
 import pytest
 from alembic import command
 from alembic.config import Config
-from screening.state import ScreeningStateRecord
 from sqlalchemy import create_engine, text
 
 from asa.integrations.screening_postgres import PostgresScreeningStateRepository
+from screening.state import ScreeningStateRecord
 
 pytestmark = [
     pytest.mark.postgres,

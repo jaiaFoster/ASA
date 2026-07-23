@@ -3,7 +3,7 @@ from pathlib import Path
 
 from asa.bootstrap import DependencyOverrides, build_application
 from asa.config import Settings
-from tests.fakes import InMemoryObservationRepository
+from tests.asa.fakes import InMemoryObservationRepository
 
 
 def test_frontend_openapi_contract_matches_backend_quote_shape() -> None:

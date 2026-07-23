@@ -14,7 +14,7 @@ from asa.integrations.providers.deterministic_fake_broker import (
     DeterministicFakeBrokerPortfolioProvider,
 )
 from asa.integrations.runs_postgres import PostgresRunPublicationRepository
-from tests.fakes import InMemoryObservationRepository
+from tests.asa.fakes import InMemoryObservationRepository
 
 pytestmark = [
     pytest.mark.postgres,

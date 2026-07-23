@@ -5,7 +5,7 @@ from fastapi.testclient import TestClient
 from asa.bootstrap import DependencyOverrides, build_application
 from asa.config import Settings
 from asa.integrations.providers.deterministic_fake import DeterministicFakeQuoteProvider
-from tests.fakes import InMemoryObservationRepository
+from tests.asa.fakes import InMemoryObservationRepository
 
 
 def build_test_client(
