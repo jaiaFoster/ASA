@@ -6,7 +6,7 @@ from alembic import command
 from alembic.config import Config
 from sqlalchemy import create_engine, text
 
-from asa.domain.runs import RunStatus, RunStepName, RunStepStatus
+from asa.contracts.runs import RunStatus, RunStepName, RunStepStatus
 from asa.integrations.runs_postgres import PostgresRunPublicationRepository
 
 

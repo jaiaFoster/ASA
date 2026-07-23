@@ -1,6 +1,6 @@
 from typing import Protocol
 
-from asa.domain.market import MarketObservation
+from asa.contracts.market import MarketObservation
 
 
 class MarketObservationRepository(Protocol):

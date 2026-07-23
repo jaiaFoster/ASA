@@ -6,7 +6,7 @@ from uuid import UUID, uuid4
 from sqlalchemy import Engine, text
 from sqlalchemy.engine import Connection, RowMapping
 
-from asa.domain.portfolio import (
+from asa.contracts.portfolio import (
     BrokerAccount,
     EquityPosition,
     OptionPositionLeg,
@@ -15,7 +15,7 @@ from asa.domain.portfolio import (
     PositionSide,
     PublishedPortfolio,
 )
-from asa.domain.runs import (
+from asa.contracts.runs import (
     PublicationRecord,
     RunRecord,
     RunStatus,

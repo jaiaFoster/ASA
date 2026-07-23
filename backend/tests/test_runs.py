@@ -2,7 +2,7 @@ from datetime import UTC, datetime
 
 import pytest
 
-from asa.domain.runs import RunStatus, validate_status_transition
+from asa.contracts.runs import RunStatus, validate_status_transition
 
 
 def test_run_status_transitions_are_explicit() -> None:

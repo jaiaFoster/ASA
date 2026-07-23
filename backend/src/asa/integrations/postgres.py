@@ -5,7 +5,7 @@ from typing import Any
 from sqlalchemy import Engine, create_engine, text
 from sqlalchemy.engine import RowMapping
 
-from asa.domain.market import CacheStatus, FreshnessStatus, MarketObservation, QuoteProvenance
+from asa.contracts.market import CacheStatus, FreshnessStatus, MarketObservation, QuoteProvenance
 
 
 class PostgresMarketObservationRepository:

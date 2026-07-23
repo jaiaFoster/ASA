@@ -8,7 +8,7 @@ import pytest
 
 from asa.application.portfolio_use_cases import RunPortfolioIntelligence
 from asa.application.ports.runs import RunPublicationRepository
-from asa.domain.runs import RunStepName
+from asa.contracts.runs import RunStepName
 from asa.integrations.providers.deterministic_fake_broker import (
     DeterministicFakeBrokerPortfolioProvider,
 )

@@ -5,11 +5,11 @@ from __future__ import annotations
 from collections.abc import Callable
 
 from fastapi import APIRouter, HTTPException, Request, status
+from market_data.live_transport import build_live_transport as build_transport_for_provider
 from pydantic import BaseModel, Field, SecretStr
 
 from asa.market_data_ops.auth import OperationsRunLimiter, token_matches
 from asa.market_data_ops.service import ALLOWED_PROVIDER_IDS, run_bounded_validation
-from asa.market_data_ops.transport import build_transport_for_provider
 
 _NOT_FOUND = HTTPException(status_code=status.HTTP_404_NOT_FOUND)
 
