@@ -22,7 +22,11 @@ from strategy_runtime.lifecycle import (
     RecommendedAction,
     compute_opportunity_id,
 )
-from strategy_runtime.persistence import LatestResultRepository, ObservationHistoryRepository
+from strategy_runtime.persistence import (
+    LatestResultRepository,
+    ObservationHistoryRepository,
+    UniversalSignalRow,
+)
 from strategy_runtime.result import EvaluationState, RowType, UniversalScreeningResult
 
 NOW = datetime(2026, 1, 1, tzinfo=UTC)
@@ -30,26 +34,24 @@ NOW = datetime(2026, 1, 1, tzinfo=UTC)
 
 class InMemoryLatestResultRepository:
     def __init__(self) -> None:
-        self._results: dict[tuple[str, str], UniversalScreeningResult] = {}
+        self._rows: dict[tuple[str, str], UniversalSignalRow] = {}
 
-    def upsert(self, result: UniversalScreeningResult) -> None:
-        self._results[(result.strategy_id, result.symbol)] = result
+    def upsert(self, row: UniversalSignalRow) -> None:
+        self._rows[(row.signal_id, row.symbol)] = row
 
-    def get_all(self) -> tuple[UniversalScreeningResult, ...]:
-        return tuple(
-            sorted(self._results.values(), key=lambda item: (item.strategy_id, item.symbol))
-        )
+    def get_all(self) -> tuple[UniversalSignalRow, ...]:
+        return tuple(sorted(self._rows.values(), key=lambda item: (item.signal_id, item.symbol)))
 
-    def get_for_strategy(self, strategy_id: str) -> tuple[UniversalScreeningResult, ...]:
+    def get_for_signal(self, signal_id: str) -> tuple[UniversalSignalRow, ...]:
         return tuple(
             sorted(
-                (item for item in self._results.values() if item.strategy_id == strategy_id),
+                (item for item in self._rows.values() if item.signal_id == signal_id),
                 key=lambda item: item.symbol,
             )
         )
 
-    def get_one(self, strategy_id: str, symbol: str) -> UniversalScreeningResult | None:
-        return self._results.get((strategy_id, symbol))
+    def get_one(self, signal_id: str, symbol: str) -> UniversalSignalRow | None:
+        return self._rows.get((signal_id, symbol))
 
 
 class InMemoryObservationHistoryRepository:
@@ -68,25 +70,27 @@ class InMemoryObservationHistoryRepository:
         return self._histories.get(opportunity_id)
 
 
-def _result(strategy_id: str, symbol: str, verdict: str = "pass") -> UniversalScreeningResult:
-    return UniversalScreeningResult(
-        strategy_id=strategy_id,
-        strategy_version="1.0.0",
-        symbol=symbol,
-        observation_id=f"{strategy_id}-{symbol}-obs",
-        opportunity_id=None,
-        row_type=RowType.RESULT,
-        verdict=verdict,
-        evaluation_state=EvaluationState.PASS,
-        lifecycle_stage=None,
-        recommendation_state=None,
-        data_quality="fresh",
-        metrics={},
-        economics={},
-        blockers=(),
-        warnings=(),
-        provenance=(),
-        observed_at=NOW,
+def _row(signal_id: str, symbol: str, verdict: str = "pass") -> UniversalSignalRow:
+    return UniversalSignalRow.from_result(
+        UniversalScreeningResult(
+            strategy_id=signal_id,
+            strategy_version="1.0.0",
+            symbol=symbol,
+            observation_id=f"{signal_id}-{symbol}-obs",
+            opportunity_id=None,
+            row_type=RowType.RESULT,
+            verdict=verdict,
+            evaluation_state=EvaluationState.PASS,
+            lifecycle_stage=None,
+            recommendation_state=None,
+            data_quality="fresh",
+            metrics={},
+            economics={},
+            blockers=(),
+            warnings=(),
+            provenance=(),
+            observed_at=NOW,
+        )
     )
 
 
@@ -109,34 +113,34 @@ class TestLatestResultRepositoryProtocolContract:
         repository: LatestResultRepository = InMemoryLatestResultRepository()
         assert repository.get_all() == ()
 
-    def test_upsert_overwrites_the_same_strategy_symbol_pair(self) -> None:
+    def test_upsert_overwrites_the_same_signal_symbol_pair(self) -> None:
         repository = InMemoryLatestResultRepository()
-        repository.upsert(_result("alpha", "AAPL", verdict="pass"))
-        repository.upsert(_result("alpha", "AAPL", verdict="no_signal"))
+        repository.upsert(_row("alpha", "AAPL", verdict="pass"))
+        repository.upsert(_row("alpha", "AAPL", verdict="no_signal"))
 
         assert repository.get_one("alpha", "AAPL").verdict == "no_signal"
         assert len(repository.get_all()) == 1  # never accumulates history
 
-    def test_a_run_that_never_touches_a_symbol_leaves_its_stored_result_untouched(self) -> None:
+    def test_a_run_that_never_touches_a_symbol_leaves_its_stored_row_untouched(self) -> None:
         repository = InMemoryLatestResultRepository()
-        repository.upsert(_result("alpha", "AAPL"))
-        repository.upsert(_result("alpha", "MSFT"))
+        repository.upsert(_row("alpha", "AAPL"))
+        repository.upsert(_row("alpha", "MSFT"))
 
         # Simulates a later run that only refreshes AAPL -- MSFT's own
-        # previously-stored result must remain exactly as it was, not be
+        # previously-stored row must remain exactly as it was, not be
         # cleared just because this run never mentioned it.
-        repository.upsert(_result("alpha", "AAPL", verdict="no_signal"))
+        repository.upsert(_row("alpha", "AAPL", verdict="no_signal"))
 
-        msft_result = repository.get_one("alpha", "MSFT")
-        assert msft_result is not None
-        assert msft_result.verdict == "pass"
+        msft_row = repository.get_one("alpha", "MSFT")
+        assert msft_row is not None
+        assert msft_row.verdict == "pass"
 
-    def test_get_for_strategy_isolates_strategies(self) -> None:
+    def test_get_for_signal_isolates_signals(self) -> None:
         repository = InMemoryLatestResultRepository()
-        repository.upsert(_result("alpha", "AAPL"))
-        repository.upsert(_result("beta", "AAPL"))
+        repository.upsert(_row("alpha", "AAPL"))
+        repository.upsert(_row("beta", "AAPL"))
 
-        assert {item.strategy_id for item in repository.get_for_strategy("alpha")} == {"alpha"}
+        assert {item.signal_id for item in repository.get_for_signal("alpha")} == {"alpha"}
 
 
 class TestObservationHistoryRepositoryProtocolContract:

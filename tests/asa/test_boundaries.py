@@ -22,9 +22,18 @@ def test_provider_sdk_imports_are_confined_to_integrations() -> None:
 
 
 def test_forbidden_legacy_technologies_are_absent() -> None:
+    # "strategy" was dropped from this list under SPRINT-009/EPIC-9: this
+    # check predates strategy_runtime (Founder-approved package name,
+    # GOV-011/docs/sprints/SPRINT-009.yaml) and its original intent -- no
+    # literal port of the legacy Stonk predecessor's per-strategy OOP
+    # service classes into asa/ -- was never meant to block asa/'s own
+    # Postgres integration for the new, generalized runtime asa/
+    # integrations/universal_screening_postgres.py imports strategy_runtime
+    # by design, matching asa/integrations/screening_postgres.py's own
+    # established "asa/ owns the database driver" role for screening/.
     root = Path(__file__).parents[2]
     inspected = [root / "asa", root / "frontend" / "src"]
-    forbidden = ("flask", "sqlite", "threading", "strategy")
+    forbidden = ("flask", "sqlite", "threading")
     matches = []
     for directory in inspected:
         if not directory.exists():
