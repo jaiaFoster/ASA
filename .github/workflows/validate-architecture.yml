@@ -19,6 +19,7 @@ on:
       - 'presentation/**'
       - 'domain/**'
       - 'market_data/**'
+      - 'asa/**'
       - 'docs/providers/**'
       - 'architecture/**'
       - 'tests/architecture/**'
