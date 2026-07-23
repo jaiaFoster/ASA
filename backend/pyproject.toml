@@ -54,6 +54,22 @@ packages = ["asa"]
 mypy_path = "src:.."
 plugins = ["pydantic.mypy"]
 
+# strategies/ and indicators/ carry 22 pre-existing mypy findings (tracked
+# as issue #147 in the root project, unrelated to and predating this
+# sprint) that were never previously reachable by backend's own mypy run
+# (mypy_path was just "src"). Extending mypy_path to reach screening/'s own
+# imports transitively surfaces them here too -- product-ci.yml's backend
+# job hard-fails on any mypy error, so they must be silenced for THIS run
+# without masking new errors in files this sprint actually touches.
+# follow_imports = "skip" makes these modules resolve (no "module not
+# found" for screening/'s own imports of them) without type-checking their
+# contents -- narrower than ignoring the whole strategies/indicators
+# packages, and fixes nothing in them, matching this ticket's own
+# exclusions.
+[[tool.mypy.overrides]]
+module = ["strategies.*", "indicators.*"]
+follow_imports = "skip"
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "--strict-markers"
