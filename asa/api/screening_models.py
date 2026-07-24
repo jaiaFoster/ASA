@@ -14,6 +14,35 @@ from pydantic import BaseModel
 from asa.api.agent_models import TimestampedResource
 from screening.registry import SignalDefinition
 from screening.state import ScreeningStateRecord
+from strategy_runtime.result import EvaluationState, UniversalScreeningResult
+
+# SPRINT-009R/EPIC-R5: the public wire vocabulary predates strategy_runtime and must not
+# change under callers -- EvaluationState.ADAPTER_EXCEPTION is the same execution-level
+# outcome screening.results.ScreeningOutcomeStatus.STRATEGY_EXCEPTION already named, just
+# renamed internally (strategy_runtime.execution's own vocabulary, see execution.py's own
+# ExecutionStatus.ADAPTER_EXCEPTION). Translate it back at this one boundary so the response
+# body a caller already parses never changes.
+_OUTCOME_WIRE_VALUES = {
+    EvaluationState.PASS: "pass",
+    EvaluationState.NO_SIGNAL: "no_signal",
+    EvaluationState.MISSING_DATA: "missing_data",
+    EvaluationState.MALFORMED_OUTPUT: "malformed_output",
+    EvaluationState.ADAPTER_EXCEPTION: "strategy_exception",
+}
+
+
+def _wire_metrics(result: UniversalScreeningResult) -> dict[str, str]:
+    """TypedValue -> str, reproducing exactly the plain-string wire format
+    every caller of this API already parses. A Decimal's str() form
+    round-trips exactly through TypedValue.of_decimal()/.native() (Python's
+    own Decimal.__str__ is stable under that round trip), so this is
+    byte-identical to the pre-EPIC-R2 str(strategy_native_score) wire value.
+    """
+    return {key: str(value.native()) for key, value in result.metrics.items()}
+
+
+def _wire_explanation(result: UniversalScreeningResult) -> str | None:
+    return result.verdict or (result.blockers[0] if result.blockers else None)
 
 
 class SignalCapabilityResponse(BaseModel):
@@ -57,6 +86,23 @@ class ScreeningResultResponse(TimestampedResource):
             age_seconds=TimestampedResource.age_seconds_since(record.updated_at),
         )
 
+    @classmethod
+    def from_universal_result(cls, result: UniversalScreeningResult) -> ScreeningResultResponse:
+        """SPRINT-009R/EPIC-R5: the strategy_runtime-backed equivalent of
+        from_record() -- same public response shape, sourced from
+        UniversalScreeningResult instead of the legacy ScreeningStateRecord.
+        """
+        return cls(
+            signal_id=result.strategy_id,
+            signal_version=result.strategy_version,
+            symbol=result.symbol,
+            outcome=_OUTCOME_WIRE_VALUES[result.evaluation_state],
+            explanation=_wire_explanation(result),
+            metrics=_wire_metrics(result),
+            updated_at=result.observed_at,
+            age_seconds=TimestampedResource.age_seconds_since(result.observed_at),
+        )
+
 
 class ScreeningResultsEnvelope(BaseModel):
     results: list[ScreeningResultResponse]
@@ -82,4 +128,11 @@ class RefreshResultResponse(ScreeningResultResponse):
         cls, record: ScreeningStateRecord, *, request_count: int
     ) -> RefreshResultResponse:
         base = ScreeningResultResponse.from_record(record)
+        return cls(request_count=request_count, **base.model_dump())
+
+    @classmethod
+    def from_universal_result(  # type: ignore[override]
+        cls, result: UniversalScreeningResult, *, request_count: int
+    ) -> RefreshResultResponse:
+        base = ScreeningResultResponse.from_universal_result(result)
         return cls(request_count=request_count, **base.model_dump())

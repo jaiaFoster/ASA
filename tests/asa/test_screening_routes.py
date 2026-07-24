@@ -1,42 +1,56 @@
-"""API-003: GET /api/v1/capabilities, GET /api/v1/screening[/{signal}[/{symbol}]]."""
+"""API-003: GET /api/v1/capabilities, GET /api/v1/screening[/{signal}[/{symbol}]]
+(SPRINT-009R/EPIC-R5: exercised through the strategy_runtime-backed
+LatestResultRepository, proving the public response shape is unchanged)."""
 
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from decimal import Decimal
 
 from fastapi.testclient import TestClient
 from pydantic import SecretStr
 
 from asa.bootstrap import DependencyOverrides, build_application
 from asa.config import Settings
-from screening.state import ScreeningStateRecord
-from tests.asa.fakes import InMemoryScreeningStateRepository
+from strategy_runtime.persistence import UniversalSignalRow
+from strategy_runtime.result import EvaluationState, RowType
+from strategy_runtime.values import TypedValue
+from tests.asa.fakes import InMemoryLatestResultRepository
 
 NOW = datetime(2026, 7, 23, 16, 0, tzinfo=UTC)
 
 
-def _record(signal_id: str, symbol: str, outcome: str = "pass") -> ScreeningStateRecord:
-    return ScreeningStateRecord(
+def _record(signal_id: str, symbol: str, outcome: str = "pass") -> UniversalSignalRow:
+    return UniversalSignalRow(
         signal_id=signal_id,
         signal_version="1.0.0",
         symbol=symbol,
-        outcome=outcome,
-        explanation="PASS",
-        metrics={"strategy_native_score": "75"},
-        updated_at=NOW,
-        dependency_timestamps={"as_of": NOW},
+        observation_id=f"{signal_id}-{symbol}-obs",
+        opportunity_id=None,
+        row_type=RowType.RESULT.value,
+        verdict="PASS",
+        evaluation_state=EvaluationState(outcome).value,
+        lifecycle_stage=None,
+        recommendation_state=None,
+        data_quality=None,
+        metrics={"strategy_native_score": TypedValue.of_decimal(Decimal("75"))},
+        economics={},
+        blockers=(),
+        warnings=(),
+        provenance=(),
+        observed_at=NOW,
     )
 
 
 def _client(
-    repository: InMemoryScreeningStateRepository | None = None,
+    repository: InMemoryLatestResultRepository | None = None,
     token: str | None = "correct-token",
 ) -> TestClient:
     return TestClient(
         build_application(
             Settings(agent_api_token=SecretStr(token) if token else None, _env_file=None),
             DependencyOverrides(
-                screening_state_repository=repository or InMemoryScreeningStateRepository()
+                screening_state_repository=repository or InMemoryLatestResultRepository()
             ),
         )
     )
@@ -93,7 +107,7 @@ class TestListScreening:
         assert body == {"results": [], "total": 0, "limit": 100, "offset": 0}
 
     def test_returns_every_result_deterministically_ordered(self) -> None:
-        repository = InMemoryScreeningStateRepository()
+        repository = InMemoryLatestResultRepository()
         repository.upsert(_record("skew_momentum", "MSFT"))
         repository.upsert(_record("forward_factor", "AAPL"))
         response = _client(repository).get("/api/v1/screening", headers=_auth())
@@ -105,7 +119,7 @@ class TestListScreening:
         assert body["total"] == 2
 
     def test_every_result_exposes_updated_at_and_age_seconds(self) -> None:
-        repository = InMemoryScreeningStateRepository()
+        repository = InMemoryLatestResultRepository()
         repository.upsert(_record("forward_factor", "AAPL"))
         response = _client(repository).get("/api/v1/screening", headers=_auth())
         (result,) = response.json()["results"]
@@ -113,7 +127,7 @@ class TestListScreening:
         assert result["age_seconds"] >= 0
 
     def test_pagination_limit_and_offset(self) -> None:
-        repository = InMemoryScreeningStateRepository()
+        repository = InMemoryLatestResultRepository()
         for symbol in ["AAPL", "MSFT", "NVDA"]:
             repository.upsert(_record("forward_factor", symbol))
         response = _client(repository).get(
@@ -134,7 +148,7 @@ class TestListScreening:
 
 class TestListScreeningForSignal:
     def test_filters_to_the_requested_signal_only(self) -> None:
-        repository = InMemoryScreeningStateRepository()
+        repository = InMemoryLatestResultRepository()
         repository.upsert(_record("forward_factor", "AAPL"))
         repository.upsert(_record("skew_momentum", "AAPL"))
         response = _client(repository).get("/api/v1/screening/forward_factor", headers=_auth())
@@ -154,7 +168,7 @@ class TestListScreeningForSignal:
 
 class TestGetScreeningResult:
     def test_returns_the_single_result(self) -> None:
-        repository = InMemoryScreeningStateRepository()
+        repository = InMemoryLatestResultRepository()
         repository.upsert(_record("forward_factor", "AAPL"))
         response = _client(repository).get(
             "/api/v1/screening/forward_factor/AAPL", headers=_auth()
@@ -177,11 +191,11 @@ class TestGetScreeningResult:
         assert response.json()["detail"]["error_code"] == "NO_SCREENING_RESULT"
 
 
-class _RepositoryThatFailsOnUpsert(InMemoryScreeningStateRepository):
+class _RepositoryThatFailsOnUpsert(InMemoryLatestResultRepository):
     """Reads must never write -- any call to upsert() means a read endpoint
     tried to trigger computation instead of only reading persisted state."""
 
-    def upsert(self, record: ScreeningStateRecord) -> None:
+    def upsert(self, row: UniversalSignalRow) -> None:
         raise AssertionError("read endpoint attempted to persist a new result")
 
 

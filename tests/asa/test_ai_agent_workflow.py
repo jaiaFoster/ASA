@@ -21,6 +21,7 @@ API-005 adds no production code.
 from __future__ import annotations
 
 from datetime import UTC, date, datetime, timedelta
+from decimal import Decimal
 
 import pytest
 from fastapi.testclient import TestClient
@@ -30,8 +31,10 @@ from pydantic import SecretStr
 from asa.bootstrap import DependencyOverrides, build_application
 from asa.config import Settings
 from market_data.transport import ReadOnlyHttpResponse
-from screening.state import ScreeningStateRecord
-from tests.asa.fakes import InMemoryScreeningStateRepository
+from strategy_runtime.persistence import UniversalSignalRow
+from strategy_runtime.result import EvaluationState, RowType
+from strategy_runtime.values import TypedValue
+from tests.asa.fakes import InMemoryLatestResultRepository
 from tests.asa.market_data_ops.fakes import ScriptedTransport, tradier_quote_response
 
 # An agent-side freshness policy, not part of the API contract itself --
@@ -41,34 +44,52 @@ STALE_THRESHOLD_SECONDS = 4 * 3600
 FAKE_PROVIDER_CREDENTIAL = "sandbox-secret-token"
 
 
-def _seed_repository() -> InMemoryScreeningStateRepository:
+def _seed_repository() -> InMemoryLatestResultRepository:
     """Represents state already produced by a prior batch run: one fresh
     result an agent should leave alone, one stale result an agent should
     decide to refresh."""
-    repository = InMemoryScreeningStateRepository()
+    repository = InMemoryLatestResultRepository()
     now = datetime.now(UTC)
     repository.upsert(
-        ScreeningStateRecord(
+        UniversalSignalRow(
             signal_id="forward_factor",
             signal_version="1.0.0",
             symbol="NVDA",
-            outcome="pass",
-            explanation="calendar richness within bounds",
-            metrics={"strategy_native_score": "0.42"},
-            updated_at=now - timedelta(minutes=2),
-            dependency_timestamps={"as_of": now - timedelta(minutes=2)},
+            observation_id="forward_factor-NVDA-seed",
+            opportunity_id=None,
+            row_type=RowType.RESULT.value,
+            verdict="calendar richness within bounds",
+            evaluation_state=EvaluationState.PASS.value,
+            lifecycle_stage=None,
+            recommendation_state=None,
+            data_quality=None,
+            metrics={"strategy_native_score": TypedValue.of_decimal(Decimal("0.42"))},
+            economics={},
+            blockers=(),
+            warnings=(),
+            provenance=(),
+            observed_at=now - timedelta(minutes=2),
         )
     )
     repository.upsert(
-        ScreeningStateRecord(
+        UniversalSignalRow(
             signal_id="skew_momentum",
             signal_version="1.0.0",
             symbol="AAPL",
-            outcome="no_signal",
-            explanation="prior overnight batch result",
+            observation_id="skew_momentum-AAPL-seed",
+            opportunity_id=None,
+            row_type=RowType.RESULT.value,
+            verdict="prior overnight batch result",
+            evaluation_state=EvaluationState.NO_SIGNAL.value,
+            lifecycle_stage=None,
+            recommendation_state=None,
+            data_quality=None,
             metrics={},
-            updated_at=now - timedelta(hours=20),
-            dependency_timestamps={"as_of": now - timedelta(hours=20)},
+            economics={},
+            blockers=(),
+            warnings=(),
+            provenance=(),
+            observed_at=now - timedelta(hours=20),
         )
     )
     return repository
@@ -114,7 +135,7 @@ def _tradier_refresh_responses(expiration: str) -> list[ReadOnlyHttpResponse]:
     ]
 
 
-def _client(repository: InMemoryScreeningStateRepository) -> TestClient:
+def _client(repository: InMemoryLatestResultRepository) -> TestClient:
     expiration = (date.today() + timedelta(days=7)).isoformat()
     responses = _tradier_refresh_responses(expiration)
     return TestClient(

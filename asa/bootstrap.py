@@ -28,12 +28,13 @@ from asa.integrations.providers.deterministic_fake_broker import (
 )
 from asa.integrations.providers.robinhood import RobinhoodPortfolioProvider
 from asa.integrations.runs_postgres import PostgresRunPublicationRepository
-from asa.integrations.screening_postgres import PostgresScreeningStateRepository
+from asa.integrations.universal_screening_postgres import PostgresLatestResultRepository
 from asa.logging import configure_logging, request_id_context
 from asa.market_data_ops.routes import build_operations_router
 from market_data.live_transport import build_live_transport as build_transport_for_provider
 from screening import SIGNAL_REGISTRY
-from screening.state import ScreeningStateRepository
+from strategy_runtime.adapters import build_migrated_strategy_registry
+from strategy_runtime.persistence import LatestResultRepository
 
 
 @dataclass(frozen=True)
@@ -44,7 +45,7 @@ class DependencyOverrides:
     broker_provider: BrokerPortfolioProvider | None = None
     engine_factory: Callable[[str], Engine] | None = None
     market_data_transport_factory: Callable[[str], object] | None = None
-    screening_state_repository: ScreeningStateRepository | None = None
+    screening_state_repository: LatestResultRepository | None = None
 
 
 def build_application(
@@ -65,8 +66,9 @@ def build_application(
     broker_provider = selected.broker_provider or _build_broker_provider(settings)
     screening_state_repository = (
         selected.screening_state_repository
-        or PostgresScreeningStateRepository(engine_factory(settings.database_url))
+        or PostgresLatestResultRepository(engine_factory(settings.database_url))
     )
+    screening_registry = build_migrated_strategy_registry()
     agent_authorize = build_agent_authorizer(settings.agent_api_token)
     quote_service = MarketQuoteService(
         provider=provider,
@@ -107,9 +109,10 @@ def build_application(
     app.include_router(
         build_screening_router(
             screening_state_repository,
-            SIGNAL_REGISTRY,
+            screening_registry,
             agent_authorize,
             selected.market_data_transport_factory or build_transport_for_provider,
+            capabilities_registry=SIGNAL_REGISTRY,
         )
     )
 
