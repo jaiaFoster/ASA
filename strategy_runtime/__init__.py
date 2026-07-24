@@ -81,7 +81,13 @@ from strategy_runtime.market_data_planning import (
     SubjectMarketDataAccess,
     build_shared_market_data_access,
 )
-from strategy_runtime.registry import StrategyAdapter, StrategyRegistry
+from strategy_runtime.registry import (
+    StrategyAdapter,
+    StrategyRegistry,
+    describe_contract,
+    describe_registry,
+    register,
+)
 from strategy_runtime.result import (
     SUCCESS_EVALUATION_STATES,
     EvaluationState,
@@ -121,6 +127,9 @@ __all__ = [
     "ValueType",
     "build_shared_market_data_access",
     "compute_observation_id",
+    "describe_contract",
+    "describe_registry",
+    "register",
     "run_strategies",
     "validate_result",
 ]
