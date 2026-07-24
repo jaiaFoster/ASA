@@ -11,7 +11,7 @@ from asa.scheduled_screening import (
     run_scheduled_refresh,
 )
 from market_data.transport import ReadOnlyHttpResponse
-from tests.asa.fakes import InMemoryScreeningStateRepository
+from tests.asa.fakes import InMemoryLatestResultRepository
 from tests.asa.market_data_ops.fakes import ScriptedTransport, tradier_quote_response
 
 
@@ -66,13 +66,13 @@ def test_no_enabled_provider_raises(monkeypatch: pytest.MonkeyPatch) -> None:
     for name in ("ASA_TRADIER_ENABLED", "ASA_FINNHUB_ENABLED", "ASA_ALPHA_VANTAGE_ENABLED"):
         monkeypatch.delenv(name, raising=False)
     with pytest.raises(RuntimeError, match="at least one enabled live market data provider"):
-        run_scheduled_refresh(repository=InMemoryScreeningStateRepository())
+        run_scheduled_refresh(repository=InMemoryLatestResultRepository())
 
 
 def test_runs_every_pair_and_persists_results(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("ASA_TRADIER_ENABLED", "true")
     monkeypatch.setenv("ASA_TRADIER_ACCESS_TOKEN", "sandbox-secret-token")
-    repository = InMemoryScreeningStateRepository()
+    repository = InMemoryLatestResultRepository()
     expiration = (date.today() + timedelta(days=7)).isoformat()
     # One universe pair, scripted with enough responses for one full acquisition.
     universe = (("skew_momentum", "AAPL"),)
@@ -95,7 +95,7 @@ def test_runs_every_pair_and_persists_results(monkeypatch: pytest.MonkeyPatch) -
 
 
 class _RepositoryThatFailsForOneSymbol:
-    """Wraps a real InMemoryScreeningStateRepository, raising only for one
+    """Wraps a real InMemoryLatestResultRepository, raising only for one
     chosen symbol's upsert -- isolates the *runner's own* failure boundary
     (a genuinely unexpected infrastructure error) from screening's already
     thoroughly-tested per-signal acquisition isolation (any acquisition
@@ -104,7 +104,7 @@ class _RepositoryThatFailsForOneSymbol:
     screening/runner.py::_run_one -- so it cannot be used to exercise this
     module's own outer boundary)."""
 
-    def __init__(self, delegate: InMemoryScreeningStateRepository, failing_symbol: str) -> None:
+    def __init__(self, delegate: InMemoryLatestResultRepository, failing_symbol: str) -> None:
         self._delegate = delegate
         self._failing_symbol = failing_symbol
 
@@ -128,7 +128,7 @@ def test_one_pairs_infrastructure_failure_does_not_abort_the_batch(
 ) -> None:
     monkeypatch.setenv("ASA_TRADIER_ENABLED", "true")
     monkeypatch.setenv("ASA_TRADIER_ACCESS_TOKEN", "sandbox-secret-token")
-    delegate = InMemoryScreeningStateRepository()
+    delegate = InMemoryLatestResultRepository()
     repository = _RepositoryThatFailsForOneSymbol(delegate, failing_symbol="AAPL")
     expiration = (date.today() + timedelta(days=7)).isoformat()
     universe = (("skew_momentum", "AAPL"), ("skew_momentum", "MSFT"))

@@ -7,14 +7,14 @@ from asa.integrations.providers.deterministic_fake import DeterministicFakeQuote
 from asa.integrations.providers.deterministic_fake_broker import (
     DeterministicFakeBrokerPortfolioProvider,
 )
-from tests.asa.fakes import InMemoryObservationRepository, InMemoryScreeningStateRepository
+from tests.asa.fakes import InMemoryLatestResultRepository, InMemoryObservationRepository
 
 
 def test_build_application_activates_injected_dependencies() -> None:
     provider = DeterministicFakeQuoteProvider()
     broker_provider = DeterministicFakeBrokerPortfolioProvider()
     repository = InMemoryObservationRepository()
-    screening_state_repository = InMemoryScreeningStateRepository()
+    screening_state_repository = InMemoryLatestResultRepository()
     app = build_application(
         Settings(),
         DependencyOverrides(
@@ -39,11 +39,11 @@ def test_default_screening_state_repository_is_postgres_backed_but_lazy() -> Non
     # without a real database connection (SQLAlchemy engines connect
     # lazily), matching how run_repository/repository already behave with
     # no override in the existing test above's sibling tests.
-    from asa.integrations.screening_postgres import PostgresScreeningStateRepository
+    from asa.integrations.universal_screening_postgres import PostgresLatestResultRepository
 
     app = build_application(Settings())
     repository = app.state.dependencies["screening_state_repository"]
-    assert isinstance(repository, PostgresScreeningStateRepository)
+    assert isinstance(repository, PostgresLatestResultRepository)
 
 
 def test_api_version_header_is_present_on_every_response() -> None:

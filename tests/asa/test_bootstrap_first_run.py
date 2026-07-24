@@ -18,7 +18,7 @@ from pydantic import SecretStr
 from asa.bootstrap import DependencyOverrides, build_application
 from asa.config import Settings
 from market_data.transport import ReadOnlyHttpResponse
-from tests.asa.fakes import InMemoryScreeningStateRepository
+from tests.asa.fakes import InMemoryLatestResultRepository
 from tests.asa.market_data_ops.fakes import ScriptedTransport, tradier_quote_response
 
 
@@ -72,7 +72,7 @@ def _fresh_deployment_client() -> TestClient:
         build_application(
             Settings(agent_api_token=SecretStr("correct-token"), _env_file=None),
             DependencyOverrides(
-                screening_state_repository=InMemoryScreeningStateRepository(),
+                screening_state_repository=InMemoryLatestResultRepository(),
                 market_data_transport_factory=lambda _provider_id: ScriptedTransport(responses),
             ),
         )

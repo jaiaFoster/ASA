@@ -1,12 +1,18 @@
-"""SPRINT-008D/PROD-002: scheduled production screening execution.
+"""SPRINT-008D/PROD-002: scheduled production screening execution
+(cut over to strategy_runtime in SPRINT-009R/EPIC-R5).
 
-Calls screening.service.refresh() -- the same shared execution graph
-POST /api/v1/screening/{signal}/{symbol}/refresh already calls, and that
-screening/cli.py's own machinery underlies -- once per (signal, symbol)
-pair in the production screening universe
+Calls strategy_runtime.service.refresh() -- the same shared execution graph
+POST /api/v1/screening/{signal}/{symbol}/refresh already calls (both, in
+turn, run the exact same unmodified screening execution graph internally
+via strategy_runtime.adapters._screening_bridge) -- once per (signal,
+symbol) pair in the production screening universe
 (project/reports/SPRINT-008D-SCREENING-UNIVERSE.md), persisting through
-the real PostgresScreeningStateRepository. No signal-selection or
-acquisition logic is reimplemented here.
+the real PostgresLatestResultRepository (universal_screening_state). No
+signal-selection or acquisition logic is reimplemented here.
+
+This must write to the same table asa/api/screening_routes.py now reads
+from -- writing anywhere else would silently starve the API of fresh data
+after this cutover.
 
 Not a background daemon: this module has no loop, no in-process scheduler,
 no timer. It runs the full universe once per invocation and exits.
@@ -32,17 +38,18 @@ from datetime import UTC, datetime
 
 from asa.config import Settings
 from asa.integrations.postgres import create_postgres_engine
-from asa.integrations.screening_postgres import PostgresScreeningStateRepository
+from asa.integrations.universal_screening_postgres import PostgresLatestResultRepository
 from market_data import load_market_data_config_from_environment
 from market_data.live_transport import build_live_transport
-from screening import APPROVED_LIVE_UNIVERSE, SIGNAL_REGISTRY
-from screening.live_acquisition import (
-    build_fulfillment_service_with_accounting,
+from screening import APPROVED_LIVE_UNIVERSE
+from screening.live_acquisition import live_only_config
+from strategy_runtime.adapters import build_migrated_strategy_registry
+from strategy_runtime.market_data_planning import (
+    build_shared_market_data_access,
     enabled_provider_configs,
-    live_only_config,
 )
-from screening.service import refresh
-from screening.state import ScreeningStateRepository
+from strategy_runtime.persistence import LatestResultRepository
+from strategy_runtime.service import refresh
 
 # The initial production screening universe
 # (project/reports/SPRINT-008D-SCREENING-UNIVERSE.md, PROD-001): the two
@@ -77,7 +84,7 @@ class PairOutcome:
 def run_scheduled_refresh(
     universe: tuple[tuple[str, str], ...] = PRODUCTION_SCREENING_UNIVERSE,
     *,
-    repository: ScreeningStateRepository | None = None,
+    repository: LatestResultRepository | None = None,
     transport_factory: Callable[[str], object] = build_live_transport,
 ) -> tuple[PairOutcome, ...]:
     """Run one bounded refresh per pair in ``universe``, in order,
@@ -93,9 +100,10 @@ def run_scheduled_refresh(
     the same DependencyOverrides-style pattern asa/bootstrap.py already
     uses.
     """
-    resolved_repository = repository or PostgresScreeningStateRepository(
+    resolved_repository = repository or PostgresLatestResultRepository(
         create_postgres_engine(Settings().database_url)
     )
+    registry = build_migrated_strategy_registry()
     config = live_only_config(load_market_data_config_from_environment())
     if not enabled_provider_configs(config):
         raise RuntimeError(
@@ -105,21 +113,24 @@ def run_scheduled_refresh(
     clock = _SystemClock()
     outcomes: list[PairOutcome] = []
     for signal_id, symbol in universe:
-        fulfillment, budget_manager = build_fulfillment_service_with_accounting(
-            config, transport_factory, clock
-        )
+        access = build_shared_market_data_access(config, transport_factory, clock, (symbol,))
+        subject_access = access[symbol]
         try:
-            record = refresh(
+            result = refresh(
+                registry,
                 resolved_repository,
-                SIGNAL_REGISTRY,
-                fulfillment,
                 clock,
-                signal_id=signal_id,
+                strategy_id=signal_id,
                 symbol=symbol,
+                fulfillment_by_subject={symbol: subject_access.fulfillment},
             )
             outcomes.append(
                 PairOutcome(
-                    signal_id, symbol, record.outcome, len(budget_manager.accounting), None
+                    signal_id,
+                    symbol,
+                    result.evaluation_state.value,
+                    len(subject_access.budget_manager.accounting),
+                    None,
                 )
             )
         except Exception as exc:
