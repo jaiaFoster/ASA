@@ -10,8 +10,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from domain import MarketCapability
 from analytics.errors import DuplicateFeatureRegistrationError, UnknownFeatureIdError
+from domain import MarketCapability
 
 
 def _normalized_text(value: str, owner: str, field_name: str) -> None:

@@ -31,6 +31,12 @@ from analytics.forward_factor import (
     compute_days_to_expiration,
     compute_option_implied_volatility,
 )
+from analytics.realized_volatility import (
+    InsufficientPriceHistoryError,
+    compute_log_returns,
+    compute_realized_volatility,
+    compute_trailing_return,
+)
 from analytics.registry import AnalyticsFeatureDefinition, AnalyticsRegistry
 
 __all__ = [
@@ -44,12 +50,16 @@ __all__ = [
     "DuplicateFeatureRegistrationError",
     "ExpirationCandidate",
     "FeatureComputation",
+    "InsufficientPriceHistoryError",
     "MissingImpliedVolatilityError",
     "NoMatchingContractError",
     "UnknownFeatureIdError",
     "compute_days_to_expiration",
     "compute_feature",
+    "compute_log_returns",
     "compute_option_implied_volatility",
+    "compute_realized_volatility",
+    "compute_trailing_return",
     "select_atm_strike",
     "select_earnings_relative_expiration_pair",
     "select_expiration_pair",

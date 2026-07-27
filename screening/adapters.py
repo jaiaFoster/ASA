@@ -112,7 +112,17 @@ def run_earnings_calendar(
     event = fixtures.earnings_calendar_event()
     chain = fixtures.earnings_calendar_chain()
     context = build_earnings_calendar_context(
-        chain, event, front, back, fixtures.AS_OF_DATE, target_strike=Decimal("100")
+        chain,
+        event,
+        front,
+        back,
+        fixtures.AS_OF_DATE,
+        target_strike=Decimal("100"),
+        # Deterministic, offline-only fixture values -- this dry-run path
+        # never touches live market data, so there is no real richness
+        # signal to compute. Unrelated to the live adapter's own real,
+        # symbol-specific score_values (screening/live_adapters.py).
+        score_values=(Decimal("80"), Decimal("60")),
     )
     graph = compile_strategy_graph(EARNINGS_CALENDAR_MANIFEST, _COMPONENT_REGISTRY)
     result = execute_strategy_graph(graph, context)
@@ -130,7 +140,13 @@ def run_skew_momentum(
 ) -> ScreeningResult:
     chain = fixtures.skew_momentum_chain()
     context = build_skew_momentum_context(
-        chain, fixtures.SKEW_EXPIRATION, strike=Decimal("100"), option_type=OptionType.CALL
+        chain,
+        fixtures.SKEW_EXPIRATION,
+        strike=Decimal("100"),
+        option_type=OptionType.CALL,
+        # Deterministic, offline-only fixture values -- see
+        # run_earnings_calendar's own identical note above.
+        score_values=(Decimal("80"), Decimal("70")),
     )
     graph = compile_strategy_graph(SKEW_MOMENTUM_VERTICAL_MANIFEST, _COMPONENT_REGISTRY)
     result = execute_strategy_graph(graph, context)

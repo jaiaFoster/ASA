@@ -116,6 +116,82 @@ _EXPIRATIONS_DAYS_OUT_AND_IV = (
 )
 
 
+def _synthetic_daily_bars_fetch_result(provider, request):  # noqa: ANN001
+    """SPRINT-011-CLOSEOUT/CLOSE-002: a HISTORICAL_BARS_V1 request fulfils
+    as one MarketObservation per day (matching market_data/tradier.py's
+    own real shape) -- DeterministicFixtureProvider.fetch() returns
+    exactly one observation per request regardless of capability, not
+    enough for realized-volatility/momentum computation. Shared by every
+    fixture provider in this module that needs to serve a real,
+    non-constant close series instead of the base provider's single fixed
+    bar.
+    """
+    received_at = provider._dependencies.clock.now().astimezone(UTC)  # noqa: SLF001
+    reference = provider._request_reference(request)  # noqa: SLF001
+    response = ProviderResponseMetadata(
+        provider.provider_id,
+        reference,
+        received_at,
+        "fixture",
+        provider._scenario.latency_milliseconds,  # noqa: SLF001
+        0,
+        (("network_requests", "0"),),
+    )
+    attempt = ProviderAttemptMetadata(provider.provider_id, request.capability, 1, 1, response)
+    (subject,) = request.subjects
+    instrument = subject.canonical_instrument
+    observations = []
+    for day_offset in range(29, -1, -1):
+        observed_at = received_at - timedelta(days=day_offset)
+        # Deterministic drift + oscillation, never a flat series, so
+        # realized volatility and trailing momentum are both genuinely
+        # non-zero.
+        close = Decimal("200") + Decimal(day_offset % 5) + Decimal(str((29 - day_offset) * 0.15))
+        bar = OHLCVBar(
+            instrument,
+            86400,
+            observed_at - timedelta(days=1),
+            observed_at,
+            close - Decimal("2"),
+            close + Decimal("2"),
+            close - Decimal("3"),
+            close,
+            Decimal("50000000"),
+        )
+        evidence = (EvidenceReference(EvidenceKind.OBSERVATION, f"fixture-bars-{day_offset}"),)
+        identity = market_observation_identity(
+            provider.provider_id, request.capability, subject, observed_at, bar, "v1"
+        )
+        age_seconds = day_offset * 86400
+        observations.append(
+            MarketObservation(
+                identity,
+                request.capability,
+                subject,
+                observed_at,
+                received_at,
+                bar,
+                "v1",
+                ProviderProvenance(provider.provider_id, reference, evidence),
+                FreshnessMetadata(
+                    received_at,
+                    observed_at,
+                    request.maximum_age_seconds,
+                    age_seconds,
+                    FreshnessStatus.FRESH
+                    if age_seconds <= request.maximum_age_seconds
+                    else FreshnessStatus.STALE,
+                ),
+                CompletenessMetadata(
+                    subject.request_context.required_fields,
+                    subject.request_context.required_fields,
+                    (),
+                ),
+            )
+        )
+    return ProviderFetchResult(tuple(observations), None, (attempt,))
+
+
 class MultiExpirationFixtureProvider(DeterministicFixtureProvider):
     """deterministic_fixture with a four-expiration, multi-strike option
     chain -- still zero network, still fully deterministic, only the
@@ -196,6 +272,14 @@ class MultiExpirationFixtureProvider(DeterministicFixtureProvider):
         return OptionChain(
             f"fixture:{address}:multi-expiration", security, observed_at, contracts, evidence
         )
+
+    def fetch(self, request, budget):  # noqa: ANN001
+        # SPRINT-011-CLOSEOUT/CLOSE-002: see _synthetic_daily_bars_fetch_result's
+        # own docstring. Every other capability still goes through the
+        # real base implementation.
+        if request.capability is not MarketCapability.HISTORICAL_BARS_V1:
+            return super().fetch(request, budget)
+        return _synthetic_daily_bars_fetch_result(self, request)
 
 
 class CapturingMultiExpirationFixtureProvider(MultiExpirationFixtureProvider):
@@ -398,6 +482,8 @@ class TradierShapedMultiExpirationProvider(DeterministicFixtureProvider):
                 return self._expirations_response(request)
             if "contracts" in request.required_fields:
                 return self._chain_response_for_one_expiration(request)
+        if request.capability is MarketCapability.HISTORICAL_BARS_V1:
+            return _synthetic_daily_bars_fetch_result(self, request)
         return super().fetch(request, budget)
 
     def _attempt(self, request, reference, received_at):  # noqa: ANN001

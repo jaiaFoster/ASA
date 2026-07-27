@@ -22,10 +22,10 @@ from datetime import date
 from decimal import Decimal
 from typing import cast
 
-from domain import MarketCapability, OptionChain, OptionType
 from analytics.engine import FeatureComputation
 from analytics.errors import MissingImpliedVolatilityError, NoMatchingContractError
 from analytics.registry import AnalyticsFeatureDefinition, AnalyticsRegistry
+from domain import MarketCapability, OptionChain, OptionType
 
 DAYS_TO_EXPIRATION_FEATURE_ID = "days_to_expiration"
 OPTION_IMPLIED_VOLATILITY_FEATURE_ID = "option_implied_volatility"
