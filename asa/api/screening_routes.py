@@ -36,6 +36,7 @@ from asa.api.screening_models import (
 )
 from market_data import load_market_data_config_from_environment
 from market_data.live_transport import build_live_transport
+from market_data.session_schedule import ON_DEMAND_COOLDOWN
 from screening.live_acquisition import APPROVED_LIVE_UNIVERSE, live_only_config
 from strategy_runtime.catalog import SignalCatalogEntry
 from strategy_runtime.lifecycle import RecommendedAction
@@ -95,10 +96,19 @@ def _filter_and_sort(
         and (
             freshness is None
             or (
-                "fresh"
-                if max(0, int((now - item.observed_at).total_seconds()))
-                <= FRESHNESS_THRESHOLD_SECONDS
-                else "stale"
+                (
+                    "fresh"
+                    if item.temporal.usability_status
+                    in {"usable", "usable_with_warning"}
+                    else "stale"
+                )
+                if item.temporal is not None
+                else (
+                    "fresh"
+                    if max(0, int((now - item.observed_at).total_seconds()))
+                    <= FRESHNESS_THRESHOLD_SECONDS
+                    else "stale"
+                )
             )
             == freshness
         )
@@ -299,6 +309,21 @@ def build_screening_router(
                 f"Refresh is bounded to the approved live universe {APPROVED_LIVE_UNIVERSE}, "
                 f"not {symbol!r}",
             )
+        clock = _SystemClock()
+        prior = repository.get_one(signal, symbol)
+        if (
+            prior is not None
+            and prior.temporal is not None
+            and clock.now() - prior.temporal.last_refresh_attempt_at
+            < ON_DEMAND_COOLDOWN
+        ):
+            return RefreshResultResponse.from_universal_result(
+                prior.to_result(),
+                request_count=0,
+                provider_contacted=False,
+                result_changed=False,
+                refresh_failed=False,
+            )
         config = live_only_config(load_market_data_config_from_environment())
         if not enabled_provider_configs(config):
             raise agent_api_error(
@@ -306,10 +331,8 @@ def build_screening_router(
                 "NO_LIVE_PROVIDER_CONFIGURED",
                 "No live market data provider is enabled for this deployment",
             )
-        clock = _SystemClock()
         access = build_shared_market_data_access(config, transport_factory, clock, (symbol,))
         subject_access = access[symbol]
-        prior = repository.get_one(signal, symbol)
         try:
             result = refresh(
                 registry,

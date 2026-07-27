@@ -27,3 +27,12 @@ Latest-state writes are monotonic by source `observed_at`. A late older
 observation cannot replace newer data. Equal source times use observation
 identity as a stable tie-breaker; append-only lifecycle history remains
 independent and replayable.
+
+The external scheduler invokes one-shot `python -m asa.scheduled_screening`
+deliveries. ASA admits only the latest slot within a 20-minute catch-up window
+and stores one PostgreSQL claim per slot, so duplicate cron delivery executes
+once and restart never replays every missed slot. Normal sessions run at
+open+10m, 11:00, 13:00, 15:00, and close-10m New York time. Early-close slots
+are open+10m, one-third, two-thirds, and close-10m. Weekends and full holidays
+have no provider cycle. On-demand refresh has a persisted 10-minute cooldown;
+failure retry delays are bounded at 5, 15, then 30 minutes.
