@@ -48,7 +48,7 @@ from asa.integrations.universal_screening_postgres import PostgresLatestResultRe
 from market_data import load_market_data_config_from_environment
 from market_data.live_transport import build_live_transport
 from market_data.session_schedule import SessionRefreshSchedule
-from screening import APPROVED_LIVE_UNIVERSE
+from screening import APPROVED_LIVE_UNIVERSE, EARNINGS_CALENDAR_UNIVERSE
 from screening.live_acquisition import live_only_config
 from strategy_runtime.adapters import build_migrated_strategy_registry
 from strategy_runtime.lifecycle import RecommendedAction
@@ -59,19 +59,23 @@ from strategy_runtime.market_data_planning import (
 from strategy_runtime.persistence import LatestResultRepository, ObservationHistoryRepository
 from strategy_runtime.service import record_opportunity_observation, refresh
 
-# The initial production screening universe
-# (project/reports/SPRINT-008D-SCREENING-UNIVERSE.md, PROD-001): the two
-# signals whose data requirements are met entirely by Tradier, across the
-# full APPROVED_LIVE_UNIVERSE -- referenced directly, not copied, so this
-# tuple can never silently drift out of sync with the one bound
-# asa/api/screening_routes.py and screening/cli.py's own --live flag both
-# already enforce (PROD-005 confirmed this explicitly). earnings_calendar
-# is deliberately excluded pending PROD-004's own provider validation.
+# The production screening universe (project/reports/SPRINT-008D-SCREENING-
+# UNIVERSE.md, PROD-001; expanded SPRINT-011/UNI-001-UNI-002): all three
+# migrated strategies now run in scheduled production. forward_factor and
+# skew_momentum, whose data requirements are met entirely by Tradier, run
+# across the full APPROVED_LIVE_UNIVERSE; earnings_calendar, which needs an
+# earnings event, runs only across EARNINGS_CALENDAR_UNIVERSE (the
+# single-name subset -- ETFs have no earnings). Both source tuples are
+# referenced directly, never copied, so this can't silently drift out of
+# sync with the same bound asa/api/screening_routes.py and screening/cli.py's
+# own --live flag already enforce (PROD-005 confirmed this pattern
+# explicitly; SPRINT-010's REL-001 fixed earnings_calendar's own live
+# acquisition, the reason it was excluded here before).
 PRODUCTION_SCREENING_UNIVERSE: tuple[tuple[str, str], ...] = tuple(
     (signal_id, symbol)
     for signal_id in ("forward_factor", "skew_momentum")
     for symbol in APPROVED_LIVE_UNIVERSE
-)
+) + tuple(("earnings_calendar", symbol) for symbol in EARNINGS_CALENDAR_UNIVERSE)
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -198,6 +202,10 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     outcomes = run_scheduled_refresh(enforce_schedule=True)
     failures = [item for item in outcomes if item.error is not None]
+    outcome_counts: dict[str, int] = {}
+    for item in outcomes:
+        key = "infrastructure_failure" if item.error is not None else (item.outcome or "unknown")
+        outcome_counts[key] = outcome_counts.get(key, 0) + 1
 
     if not args.json:
         print(f"SCHEDULED SCREENING RUN -- {len(outcomes)} pairs")
@@ -209,12 +217,19 @@ def main(argv: Sequence[str] | None = None) -> int:
                     f"  {item.signal_id:<18} {item.symbol:<6} {item.outcome} "
                     f"(requests={item.request_count})"
                 )
+        print(f"  outcome counts: {outcome_counts}")
 
     print(
         json.dumps(
             {
                 "total": len(outcomes),
                 "failed": len(failures),
+                # Sanitized outcome-distribution counts only (no symbols, no
+                # request bodies) -- SPRINT-011/UNI-002's own safe
+                # operational diagnostic, distinguishing legitimate
+                # no_signal/pass outcomes from real infrastructure failures
+                # at a glance, without exposing anything secret.
+                "outcome_counts": outcome_counts,
                 "results": [
                     {
                         "signal_id": item.signal_id,

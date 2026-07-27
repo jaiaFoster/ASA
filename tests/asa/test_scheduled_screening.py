@@ -11,7 +11,7 @@ from asa.scheduled_screening import (
     run_scheduled_refresh,
 )
 from market_data.transport import ReadOnlyHttpResponse
-from screening import APPROVED_LIVE_UNIVERSE
+from screening import APPROVED_LIVE_UNIVERSE, EARNINGS_CALENDAR_UNIVERSE
 from tests.asa.fakes import InMemoryLatestResultRepository
 from tests.asa.market_data_ops.fakes import ScriptedTransport, tradier_quote_response
 
@@ -56,17 +56,28 @@ def _tradier_refresh_responses(expiration: str) -> list[ReadOnlyHttpResponse]:
     ]
 
 
-def test_production_universe_is_forward_factor_and_skew_momentum_only() -> None:
-    # SPRINT-011/UNI-001 expanded APPROVED_LIVE_UNIVERSE; the pair count here
-    # derives from it rather than a hardcoded literal so this assertion
-    # doesn't silently drift out of sync (matching PROD-005's own established
-    # single-source-of-truth rationale). earnings_calendar's own addition to
-    # the scheduler is UNI-002's job, not this one.
+def test_production_universe_covers_all_three_migrated_strategies() -> None:
+    # SPRINT-011/UNI-002: earnings_calendar joins forward_factor/skew_momentum
+    # in the scheduled universe now that REL-001 (SPRINT-010) fixed its live
+    # acquisition. Counts derive from the source tuples, not a hardcoded
+    # literal, so this can't silently drift (PROD-005's own established
+    # single-source-of-truth rationale).
     signal_ids = {signal_id for signal_id, _symbol in PRODUCTION_SCREENING_UNIVERSE}
-    assert signal_ids == {"forward_factor", "skew_momentum"}
-    expected = 2 * len(APPROVED_LIVE_UNIVERSE)
+    assert signal_ids == {"forward_factor", "skew_momentum", "earnings_calendar"}
+    expected = 2 * len(APPROVED_LIVE_UNIVERSE) + len(EARNINGS_CALENDAR_UNIVERSE)
     assert len(PRODUCTION_SCREENING_UNIVERSE) == expected
     assert len(set(PRODUCTION_SCREENING_UNIVERSE)) == expected  # no duplicate pairs
+
+
+def test_earnings_calendar_pairs_use_the_single_name_subset_only() -> None:
+    etfs = {"SPY", "QQQ", "IWM", "DIA", "XLF", "XLE", "XLK", "GLD"}
+    earnings_symbols = {
+        symbol
+        for signal_id, symbol in PRODUCTION_SCREENING_UNIVERSE
+        if signal_id == "earnings_calendar"
+    }
+    assert earnings_symbols == set(EARNINGS_CALENDAR_UNIVERSE)
+    assert earnings_symbols.isdisjoint(etfs)
 
 
 def test_no_enabled_provider_raises(monkeypatch: pytest.MonkeyPatch) -> None:
