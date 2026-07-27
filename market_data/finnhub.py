@@ -50,6 +50,7 @@ from market_data.providers import (
     ValidationCheckStatus,
     normalized_provider_error,
 )
+from market_data.session_calendar import classify_quote_freshness
 from market_data.transport import (
     ReadOnlyHttpRequest,
     ReadOnlyHttpResponse,
@@ -373,14 +374,20 @@ class FinnhubProvider:
             value,
             "v1",
             provenance,
-            FreshnessMetadata(
-                received,
-                effective,
-                request.maximum_age_seconds,
-                age,
-                FreshnessStatus.FRESH
-                if age <= request.maximum_age_seconds
-                else FreshnessStatus.STALE,
+            (
+                classify_quote_freshness(
+                    received, effective, request.maximum_age_seconds
+                )
+                if isinstance(value, Quote)
+                else FreshnessMetadata(
+                    received,
+                    effective,
+                    request.maximum_age_seconds,
+                    age,
+                    FreshnessStatus.FRESH
+                    if age <= request.maximum_age_seconds
+                    else FreshnessStatus.STALE,
+                )
             ),
             CompletenessMetadata(request.required_fields, present, missing),
         )

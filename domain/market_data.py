@@ -80,6 +80,7 @@ class MarketDataSubjectType(str, Enum):
 
 class FreshnessStatus(str, Enum):
     FRESH = "fresh"
+    PRIOR_SESSION = "prior_session"
     STALE = "stale"
     UNKNOWN = "unknown"
 
@@ -357,6 +358,11 @@ class FreshnessMetadata:
             raise DomainInvariantError("stale evidence cannot report freshness status fresh")
         if self.status is FreshnessStatus.STALE and self.age_seconds <= self.threshold_seconds:
             raise DomainInvariantError("fresh evidence cannot report freshness status stale")
+        if (
+            self.status is FreshnessStatus.PRIOR_SESSION
+            and self.age_seconds <= self.threshold_seconds
+        ):
+            raise DomainInvariantError("recent evidence cannot report prior-session freshness")
 
 
 @dataclass(frozen=True, slots=True)

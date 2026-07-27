@@ -170,7 +170,8 @@ class CapabilityFulfillmentService:
         request: CapabilityRequest,
         observations: tuple[MarketObservation, ...],
     ) -> NormalizedProviderError | None:
-        if any(value.freshness.status is not FreshnessStatus.FRESH for value in observations):
+        usable_freshness = {FreshnessStatus.FRESH, FreshnessStatus.PRIOR_SESSION}
+        if any(value.freshness.status not in usable_freshness for value in observations):
             return normalized_provider_error(
                 ProviderErrorCode.STALE_DATA,
                 "provider observations do not satisfy the requested freshness requirement",

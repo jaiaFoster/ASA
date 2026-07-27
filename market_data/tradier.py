@@ -53,6 +53,7 @@ from market_data.providers import (
     ValidationCheckStatus,
     normalized_provider_error,
 )
+from market_data.session_calendar import classify_quote_freshness
 from market_data.transport import (
     ReadOnlyHttpRequest,
     ReadOnlyHttpResponse,
@@ -310,18 +311,26 @@ class TradierProvider:
             effective = value.end_at
         elif isinstance(value, OptionChain):
             effective = value.observed_at
+        elif isinstance(value, Quote):
+            effective = _required_observed_at(row)
         else:
             effective = _observed_at(row, received)
         evidence = _evidence(response)
         present = tuple(field for field in request.required_fields if _field_present(field, value))
         missing = tuple(field for field in request.required_fields if field not in present)
         age = max(0, int((received - effective).total_seconds()))
-        freshness = FreshnessMetadata(
-            received,
-            effective,
-            request.maximum_age_seconds,
-            age,
-            FreshnessStatus.FRESH if age <= request.maximum_age_seconds else FreshnessStatus.STALE,
+        freshness = (
+            classify_quote_freshness(received, effective, request.maximum_age_seconds)
+            if isinstance(value, Quote)
+            else FreshnessMetadata(
+                received,
+                effective,
+                request.maximum_age_seconds,
+                age,
+                FreshnessStatus.FRESH
+                if age <= request.maximum_age_seconds
+                else FreshnessStatus.STALE,
+            )
         )
         provenance = ProviderProvenance("tradier", response.request_reference, evidence)
         identity = market_observation_identity(
@@ -425,6 +434,13 @@ def _observed_at(row: Mapping[str, object], fallback: datetime) -> datetime:
     if isinstance(raw, str):
         return datetime.fromisoformat(raw.replace("Z", "+00:00")).astimezone(UTC)
     return fallback
+
+
+def _required_observed_at(row: Mapping[str, object]) -> datetime:
+    raw = row.get("trade_date") or row.get("timestamp")
+    if raw is None:
+        raise ValueError("quote timestamp is required")
+    return _observed_at(row, datetime.min.replace(tzinfo=UTC))
 
 
 def _evidence(response: ReadOnlyHttpResponse) -> tuple[EvidenceReference, ...]:
