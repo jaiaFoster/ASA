@@ -46,6 +46,13 @@ from domain import (
     Quote,
 )
 from market_data import CapabilityFulfillmentService, FulfillmentStatus
+from market_data.session_calendar import MarketSessionStatus, UsEquitySessionCalendar
+from market_data.temporal import (
+    DEFAULT_FRESHNESS_REQUIREMENT,
+    FreshnessRequirement,
+    UsabilityStatus,
+    evaluate_temporal_usability,
+)
 from screening.clock import Clock
 from screening.context_builders import (
     FORWARD_FACTOR_DTE_POLICY,
@@ -137,6 +144,7 @@ def _acquire_or_raise(
     expiration: date | None = None,
     effective_start: datetime | None = None,
     effective_end: datetime | None = None,
+    freshness_requirement: FreshnessRequirement = DEFAULT_FRESHNESS_REQUIREMENT,
 ) -> object:
     request_start = effective_start or now
     request_end = effective_end or now
@@ -179,7 +187,21 @@ def _acquire_or_raise(
         if expiration is not None:
             detail += f" at expiration {expiration.isoformat()}"
         raise StrategyAdapterError(ScreeningOutcomeStatus.MISSING_DATA, detail)
-    return result.observations[0].value
+    observation = result.observations[0]
+    market_is_open = (
+        UsEquitySessionCalendar().status_at(now) is MarketSessionStatus.OPEN
+    )
+    usability = evaluate_temporal_usability(
+        observation.freshness,
+        freshness_requirement,
+        market_is_open=market_is_open,
+    )
+    if usability.status is UsabilityStatus.REJECTED:
+        raise StrategyAdapterError(
+            ScreeningOutcomeStatus.MISSING_DATA,
+            f"{capability.value} for {symbol} is not usable: {usability.reason}",
+        )
+    return observation.value
 
 
 def _acquire_combined_chain(
@@ -215,7 +237,10 @@ def _spot_price(quote: Quote) -> Decimal:
 
 
 def build_live_forward_factor_adapter(
-    symbol: str, fulfillment: CapabilityFulfillmentService
+    symbol: str,
+    fulfillment: CapabilityFulfillmentService,
+    *,
+    freshness_requirement: FreshnessRequirement = DEFAULT_FRESHNESS_REQUIREMENT,
 ) -> StrategyAdapter:
     def _run(
         definition: ScreeningStrategyDefinition, clock: Clock, run_id: str
@@ -223,7 +248,12 @@ def build_live_forward_factor_adapter(
         now = clock.now()
         as_of = now.date()
         quote = _acquire_or_raise(
-            fulfillment, symbol, MarketCapability.REAL_TIME_QUOTE_V1, now, ("last",)
+            fulfillment,
+            symbol,
+            MarketCapability.REAL_TIME_QUOTE_V1,
+            now,
+            ("last",),
+            freshness_requirement=freshness_requirement,
         )
         spot_price = _spot_price(quote)  # type: ignore[arg-type]
         available_expirations = acquire_expirations(fulfillment, symbol, now)
@@ -286,7 +316,10 @@ def build_live_forward_factor_adapter(
 
 
 def build_live_earnings_calendar_adapter(
-    symbol: str, fulfillment: CapabilityFulfillmentService
+    symbol: str,
+    fulfillment: CapabilityFulfillmentService,
+    *,
+    freshness_requirement: FreshnessRequirement = DEFAULT_FRESHNESS_REQUIREMENT,
 ) -> StrategyAdapter:
     def _run(
         definition: ScreeningStrategyDefinition, clock: Clock, run_id: str
@@ -302,7 +335,12 @@ def build_live_earnings_calendar_adapter(
             effective_end=now + timedelta(days=EARNINGS_CALENDAR_LOOKAHEAD_DAYS),
         )
         quote = _acquire_or_raise(
-            fulfillment, symbol, MarketCapability.REAL_TIME_QUOTE_V1, now, ("last",)
+            fulfillment,
+            symbol,
+            MarketCapability.REAL_TIME_QUOTE_V1,
+            now,
+            ("last",),
+            freshness_requirement=freshness_requirement,
         )
         spot_price = _spot_price(quote)  # type: ignore[arg-type]
         available_expirations = acquire_expirations(fulfillment, symbol, now)
@@ -363,7 +401,10 @@ def build_live_earnings_calendar_adapter(
 
 
 def build_live_skew_momentum_adapter(
-    symbol: str, fulfillment: CapabilityFulfillmentService
+    symbol: str,
+    fulfillment: CapabilityFulfillmentService,
+    *,
+    freshness_requirement: FreshnessRequirement = DEFAULT_FRESHNESS_REQUIREMENT,
 ) -> StrategyAdapter:
     def _run(
         definition: ScreeningStrategyDefinition, clock: Clock, run_id: str
@@ -371,7 +412,12 @@ def build_live_skew_momentum_adapter(
         now = clock.now()
         as_of = now.date()
         quote = _acquire_or_raise(
-            fulfillment, symbol, MarketCapability.REAL_TIME_QUOTE_V1, now, ("last",)
+            fulfillment,
+            symbol,
+            MarketCapability.REAL_TIME_QUOTE_V1,
+            now,
+            ("last",),
+            freshness_requirement=freshness_requirement,
         )
         spot_price = _spot_price(quote)  # type: ignore[arg-type]
         available_expirations = acquire_expirations(fulfillment, symbol, now)

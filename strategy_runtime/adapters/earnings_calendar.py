@@ -107,7 +107,11 @@ def earnings_calendar_adapter(context: RuntimeContext) -> UniversalScreeningResu
             "earnings_calendar requires shared market data access "
             "(strategy_runtime.market_data_planning, EPIC-3) -- RuntimeContext.fulfillment is None"
         )
-    live_adapter = build_live_earnings_calendar_adapter(context.subject, context.fulfillment)
+    live_adapter = build_live_earnings_calendar_adapter(
+        context.subject,
+        context.fulfillment,
+        freshness_requirement=context.contract.freshness_requirement,
+    )
     (result,) = run_screening(
         TARGET_STRATEGY_REGISTRY,
         {"earnings_calendar": live_adapter},

@@ -14,5 +14,10 @@ or strategy name participates in this policy. Session semantics use
 `America/New_York`, including weekends, modern exchange holidays, DST, and
 early closes.
 
-Rollback: revert the TEMP-001 commit. Existing latest results remain intact;
-there is no schema migration or destructive data action.
+Strategy contracts carry a `FreshnessRequirement`. The default accepts
+prior-session data. An intraday strategy can require an open session, reject
+prior-session evidence, or declare a tighter maximum age. Shared runtime policy
+evaluates these fields; it never branches on a strategy name.
+
+Rollback: revert the TEMP-001/TEMP-002 commits. Existing latest results remain
+intact; there is no schema migration or destructive data action.
