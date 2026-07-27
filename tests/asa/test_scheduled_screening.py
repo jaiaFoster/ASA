@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 import pytest
 
@@ -150,3 +150,42 @@ def test_one_pairs_infrastructure_failure_does_not_abort_the_batch(
     # The failing pair never persisted; the succeeding one did.
     assert delegate.get_one("skew_momentum", "AAPL") is None
     assert delegate.get_one("skew_momentum", "MSFT") is not None
+
+
+class _SingleUseClaimRepository:
+    def __init__(self) -> None:
+        self.claimed: set[str] = set()
+
+    def claim(self, slot_id: str, claimed_at: datetime) -> bool:
+        del claimed_at
+        if slot_id in self.claimed:
+            return False
+        self.claimed.add(slot_id)
+        return True
+
+
+def test_duplicate_cron_delivery_executes_slot_once(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("ASA_TRADIER_ENABLED", "true")
+    monkeypatch.setenv("ASA_TRADIER_ACCESS_TOKEN", "sandbox-secret-token")
+    repository = InMemoryLatestResultRepository()
+    claims = _SingleUseClaimRepository()
+    expiration = date(2026, 8, 7).isoformat()
+    run_at = datetime(2026, 7, 27, 13, 45, tzinfo=UTC)
+    arguments = {
+        "repository": repository,
+        "claim_repository": claims,
+        "enforce_schedule": True,
+        "now": run_at,
+        "transport_factory": lambda _provider_id: ScriptedTransport(
+            _tradier_refresh_responses(expiration)
+        ),
+    }
+
+    first = run_scheduled_refresh((("skew_momentum", "AAPL"),), **arguments)
+    duplicate = run_scheduled_refresh((("skew_momentum", "AAPL"),), **arguments)
+
+    assert len(first) == 1
+    assert duplicate == ()
+    assert len(claims.claimed) == 1

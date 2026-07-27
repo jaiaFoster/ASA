@@ -36,13 +36,18 @@ import sys
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from typing import Protocol
 
 from asa.config import Settings
 from asa.integrations.observation_history_postgres import PostgresObservationHistoryRepository
 from asa.integrations.postgres import create_postgres_engine
+from asa.integrations.refresh_schedule_postgres import (
+    PostgresRefreshScheduleClaimRepository,
+)
 from asa.integrations.universal_screening_postgres import PostgresLatestResultRepository
 from market_data import load_market_data_config_from_environment
 from market_data.live_transport import build_live_transport
+from market_data.session_schedule import SessionRefreshSchedule
 from screening import APPROVED_LIVE_UNIVERSE
 from screening.live_acquisition import live_only_config
 from strategy_runtime.adapters import build_migrated_strategy_registry
@@ -85,12 +90,19 @@ class PairOutcome:
     error: str | None
 
 
+class RefreshScheduleClaimRepository(Protocol):
+    def claim(self, slot_id: str, claimed_at: datetime) -> bool: ...
+
+
 def run_scheduled_refresh(
     universe: tuple[tuple[str, str], ...] = PRODUCTION_SCREENING_UNIVERSE,
     *,
     repository: LatestResultRepository | None = None,
     history_repository: ObservationHistoryRepository | None = None,
     transport_factory: Callable[[str], object] = build_live_transport,
+    claim_repository: RefreshScheduleClaimRepository | None = None,
+    enforce_schedule: bool = False,
+    now: datetime | None = None,
 ) -> tuple[PairOutcome, ...]:
     """Run one bounded refresh per pair in ``universe``, in order,
     persisting every result. One pair's failure never stops the others --
@@ -105,6 +117,19 @@ def run_scheduled_refresh(
     the same DependencyOverrides-style pattern asa/bootstrap.py already
     uses.
     """
+    run_at = now or datetime.now(UTC)
+    if enforce_schedule:
+        slot = SessionRefreshSchedule().due_slot(run_at)
+        if slot is None:
+            return ()
+        resolved_claim_repository = claim_repository or (
+            PostgresRefreshScheduleClaimRepository(
+                create_postgres_engine(Settings().database_url)
+            )
+        )
+        if not resolved_claim_repository.claim(slot.slot_id, run_at):
+            return ()
+
     resolved_repository = repository or PostgresLatestResultRepository(
         create_postgres_engine(Settings().database_url)
     )
@@ -171,7 +196,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--json", action="store_true", help="Emit only machine-readable JSON.")
     args = parser.parse_args(argv)
 
-    outcomes = run_scheduled_refresh()
+    outcomes = run_scheduled_refresh(enforce_schedule=True)
     failures = [item for item in outcomes if item.error is not None]
 
     if not args.json:

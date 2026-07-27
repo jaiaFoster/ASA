@@ -31,6 +31,7 @@ from datetime import UTC, datetime
 from domain import FreshnessStatus, MarketObservation
 from market_data import CapabilityFulfillmentService
 from market_data.session_calendar import NEW_YORK, UsEquitySessionCalendar
+from market_data.session_schedule import SessionRefreshSchedule
 from market_data.temporal import (
     TemporalUsabilityDecision,
     UsabilityStatus,
@@ -122,7 +123,7 @@ def _temporal_metadata(
         age_seconds=max(0, int((evaluated - min(effective_times)).total_seconds())),
         last_refresh_attempt_at=evaluated,
         last_successful_refresh_at=evaluated,
-        next_refresh_at=None,
+        next_refresh_at=SessionRefreshSchedule(calendar).next_slot(evaluated).scheduled_at,
         data_advanced_on_last_refresh=(
             previous_observed is None or observed > previous_observed
         ),

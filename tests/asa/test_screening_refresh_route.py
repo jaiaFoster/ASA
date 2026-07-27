@@ -16,12 +16,16 @@ from tests.asa.fakes import InMemoryLatestResultRepository
 from tests.asa.market_data_ops.fakes import ScriptedTransport, tradier_quote_response
 
 
-def _client(transport_factory: Callable[[str], object] | None = None) -> TestClient:
+def _client(
+    transport_factory: Callable[[str], object] | None = None,
+    repository: InMemoryLatestResultRepository | None = None,
+) -> TestClient:
     return TestClient(
         build_application(
             Settings(agent_api_token=SecretStr("correct-token"), _env_file=None),
             DependencyOverrides(
-                latest_result_repository=InMemoryLatestResultRepository(),
+                latest_result_repository=repository
+                or InMemoryLatestResultRepository(),
                 market_data_transport_factory=transport_factory,
             ),
         )
@@ -166,3 +170,30 @@ class TestSuccessfulRefresh:
             "usable",
             "usable_with_warning",
         }
+
+    def test_on_demand_refresh_inside_cooldown_does_not_contact_provider(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("ASA_TRADIER_ENABLED", "true")
+        monkeypatch.setenv("ASA_TRADIER_ACCESS_TOKEN", "sandbox-secret-token")
+        expiration = (date.today() + timedelta(days=7)).isoformat()
+        constructions = 0
+
+        def transport_factory(_provider_id: str) -> object:
+            nonlocal constructions
+            constructions += 1
+            return ScriptedTransport(_tradier_refresh_responses(expiration))
+
+        client = _client(transport_factory=transport_factory)
+        first = client.post(
+            "/api/v1/screening/skew_momentum/AAPL/refresh", headers=_auth()
+        )
+        second = client.post(
+            "/api/v1/screening/skew_momentum/AAPL/refresh", headers=_auth()
+        )
+
+        assert first.status_code == second.status_code == 200
+        assert second.json()["provider_contacted"] is False
+        assert second.json()["request_count"] == 0
+        assert second.json()["result_changed"] is False
+        assert constructions == 1
