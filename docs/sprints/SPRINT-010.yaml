@@ -1,0 +1,464 @@
+---
+id: SPRINT-010
+name: Screening Reliability & Product Surface
+version: 1.0
+status: SCOPED
+type: IMPLEMENTATION_SPRINT
+priority: P0
+
+activation:
+  id: AMD-014-SPRINT-010
+  founder_authorized: true
+  founder_direction: >
+    Deliver a reliable, modular screening product surface on top of the
+    universal strategy runtime. Fix root causes rather than symptoms. Retire
+    legacy screening state without backfill; fresh live runs repopulate the
+    universal cache. Preserve the ability to add custom strategies without
+    adding runtime, API, persistence, or scheduling bulk. Auto-merge is enabled
+    for all in-scope tickets once required validation passes.
+  effective_when: this sprint definition is Founder-merged to the default branch
+  delegate:
+    role: ROLE-WORKER
+    instance: implementation-worker
+  authority: FULL_SPRINT_DELEGATION
+  limited_to_sprint: SPRINT-010
+  auto_merge: true
+  approved_tickets:
+    - REL-001
+    - REL-002
+    - OPS-001
+    - LIFE-001
+    - SURFACE-001
+    - LEGACY-001
+    - VERIFY-001
+  stop_only_for:
+    - sprint_complete
+    - blocker_requiring_founder_action
+  excludes:
+    - governance_changes
+    - constitutional_changes
+    - sprint_scope_expansion
+    - public_API_v1_breaking_changes
+    - trade_execution
+    - position_sizing
+    - portfolio_optimization
+    - cross_strategy_universal_ranking
+    - UI_or_dashboard_implementation
+    - new_broker_implementation
+    - new_market_data_provider_implementation
+    - unrelated_technical_debt
+  expires:
+    - sprint_complete
+    - sprint_stopped_by_founder
+    - founder_revokes_delegation
+
+objective: >
+  Convert the production universal strategy runtime from architecture-complete
+  into a dependable, useful screening system. Repair current live-data defects,
+  activate opportunity history, enrich the strategy-agnostic screening surface,
+  harden authenticated operations, retire the legacy screening path without
+  backfill, and prove all changes in production.
+
+business_goal: >
+  Surface reliable, differentiated, actionable opportunities that can support
+  real cashflow. The screening surface must become useful and extensible before
+  UI work begins.
+
+vision: >
+  A new custom strategy should add mostly financial thesis and evaluation logic.
+  It must not require strategy-specific changes to runtime orchestration,
+  persistence, scheduling, API routing, or infrastructure. The same modular
+  philosophy should later extend to brokers and data providers.
+
+operating_directives:
+  token_efficiency:
+    mandatory: true
+    rules:
+      - inspect_before_explaining
+      - avoid_repeating_repository_history_already_available
+      - keep_ticket_reports_concise_and_evidence_based
+      - use_targeted_tests_during_iteration_then_required_full_validation
+      - do_not_generate_duplicate_docs_or_parallel_abstractions
+      - reuse_existing_helpers_contracts_and_test_patterns_before_adding_code
+  root_cause_policy:
+    mandatory: true
+    rules:
+      - identify_and_fix_the_earliest_faulty_boundary
+      - do_not_mask_provider_normalization_or_selection_failures_with_generic_fallbacks
+      - do_not_special_case_symbols_strategies_or_providers_in_shared_runtime_code
+      - add_regression_tests_using_realistic_provider_shaped_fixtures
+      - document_any_unfixed_external_dependency_as_a_precise_blocker
+  continuity:
+    mandatory: true
+    rules:
+      - continue_ticket_to_completion_without_requesting_routine_founder_review
+      - continue_to_next_ticket_when_dependencies_and_validation_allow
+      - only_stop_for_sprint_completion_or_a_blocker_requiring_founder_action
+      - never_pause_for_preference_questions_that_are_resolvable_from_scope_governance_or_existing_patterns
+  merge_policy:
+    auto_merge: true
+    merge_when:
+      - ticket_acceptance_criteria_met
+      - required_tests_pass
+      - architecture_boundaries_pass
+      - no_unresolved_high_risk_review_findings
+      - migration_and_rollback_notes_exist_for_destructive_changes
+    founder_review_required_only_for:
+      - scope_expansion
+      - governance_or_constitutional_change
+      - public_contract_break
+      - production_secret_or_external_account_action_only_the_founder_can_perform
+      - destructive_change_outside_approved_legacy_retirement
+      - blocker_with_no_authorized_technical_resolution
+
+architecture_principles:
+  - generalize_before_specialize
+  - strategies_own_thesis_runtime_owns_infrastructure
+  - capability_driven_not_provider_named
+  - one_generic_execution_path
+  - one_generic_persistence_path
+  - one_strategy_failure_never_blocks_other_strategies
+  - no_strategy_named_conditionals_in_runtime_API_or_repository_code
+  - strategy_specific_outputs_live_only_in_typed_metrics_and_economics
+  - fresh_live_truth_replaces_legacy_backfill
+  - public_screening_surface_remains_strategy_agnostic
+  - API_and_scheduled_writer_share_the_same_universal_repository
+  - dependency_inversion_and_existing_package_boundaries_remain_in_force
+  - usefulness_before_UI
+
+known_production_evidence:
+  authentication: PASS
+  universal_runtime_dispatch: PASS
+  universal_persistence: PASS
+  aggregate_multi_strategy_listing: PASS
+  strategies:
+    skew_momentum:
+      symbol: SPY
+      outcome: pass
+      metrics_present: true
+    earnings_calendar:
+      symbols:
+        - NVDA
+        - AAPL
+      outcome: missing_data
+    forward_factor:
+      symbol: SPY
+      outcome: missing_data
+      failing_capability: option_chain_v1
+      observed_expiration: 2026-10-16
+
+known_open_items:
+  must_be_deduplicated_and_filed_if_missing:
+    - earnings_calendar_v1_missing_data_for_AAPL_and_NVDA
+    - forward_factor_expiration_resolution_for_SPY
+    - Authorization_header_missing_from_CORS_allow_headers
+  related_existing_issue:
+    - issue_162_after_hours_Tradier_freshness_may_reject_usable_quote_or_chain_data
+  issue_hygiene:
+    - search_open_and_closed_issues_before_creating_any_issue
+    - file_every_newly_discovered_defect_not_already_tracked
+    - link_each_ticket_PR_to_relevant_issue
+    - do_not_block_implementation_on_issue_write_permissions_if_a_founder_action_is_not_required
+    - if_issue_creation_is_impossible_with_available_access_record_exact_commands_or_bodies_for_founder
+
+bounded_scope:
+  in:
+    - repair_earnings_calendar_v1_live_acquisition_and_normalization
+    - repair_forward_factor_expiration_resolution
+    - preserve_skew_momentum_production_success
+    - add_Authorization_to_CORS_allowed_headers
+    - add_authenticated_production_smoke_verification
+    - wire_lifecycle_observation_history_into_production_refresh
+    - define_duplicate_observation_semantics
+    - expose_generic_opportunity_history
+    - enrich_screening_with_generic_filters_sorting_freshness_quality_lifecycle_blockers_warnings_and_provenance
+    - retire_legacy_screening_state_repository_service_table_and_production_paths
+    - no_backfill_fresh_live_runs_repopulate_universal_state
+    - audit_and_file_all_untracked_defects
+  out:
+    - UI_or_dashboard
+    - trade_execution
+    - position_sizing
+    - portfolio_optimization
+    - recommendation_engine
+    - cross_strategy_ranking_or_universal_numeric_score
+    - new_broker
+    - new_data_provider
+    - large_universe_expansion_before_reliability_evidence
+    - strategy_specific_HTTP_routes_or_fields
+    - breaking_existing_API_v1_authentication_or_namespace
+
+execution:
+  mode: founder_authorized_autonomous_sprint
+  token_optimized: true
+  branch_strategy: feature_per_ticket
+  branch_pattern: agent/<ticket-id>-<short-description>
+  PR_policy:
+    one_ticket_per_PR: true
+    concise_evidence_based_body: true
+    auto_merge: true
+    stacked_PRs_allowed: true
+    merge_order_follows_dependencies: true
+  ticket_order:
+    - REL-001
+    - REL-002
+    - OPS-001
+    - LIFE-001
+    - SURFACE-001
+    - LEGACY-001
+    - VERIFY-001
+  parallelism:
+    allowed:
+      - REL-001_and_REL-002
+      - OPS-001_with_REL_work
+    blocked:
+      - LIFE-001_before_reliability_baseline
+      - SURFACE-001_before_lifecycle_contract_is_stable
+      - LEGACY-001_before_universal_read_write_verification
+      - VERIFY-001_before_all_implementation_tickets
+
+tickets:
+  REL-001:
+    title: Repair earnings calendar capability
+    priority: P0
+    depends_on: []
+    objective: >
+      Make earnings_calendar_v1 reliably acquire and normalize real upcoming
+      earnings events for symbols with confirmed events.
+    root_cause_questions:
+      - is_the_request_window_wrong
+      - is_provider_routing_or_entitlement_the_actual_failure
+      - is_response_shape_normalization_incomplete
+      - is_event_date_filtering_discarding_valid_rows
+      - is_after_hours_freshness_policy_involved
+    required_work:
+      - trace_request_construction_provider_selection_raw_response_and_normalization
+      - reproduce_with_provider_shaped_AAPL_and_NVDA_fixtures
+      - distinguish_no_event_from_provider_error_entitlement_error_and_schema_error
+      - fix_the_earliest_faulty_boundary
+      - preserve_generic_capability_interfaces
+      - add_specific_non_secret_diagnostics
+    acceptance:
+      - AAPL_or_NVDA_returns_non_missing_data_in_production
+      - success_no_event_entitlement_failure_and_malformed_response_are_tested
+      - missing_data_explanation_identifies_the_real_failure_boundary
+      - no_strategy_specific_runtime_API_or_repository_change
+
+  REL-002:
+    title: Repair forward factor expiration resolution
+    priority: P0
+    depends_on: []
+    objective: >
+      Select a valid option-chain expiration deterministically without assuming
+      an internally chosen exact date is listed by the provider.
+    root_cause_questions:
+      - how_is_2026_10_16_selected
+      - does_selected_expiration_exist_in_the_available_chain
+      - is_expiration_parsing_or_timezone_normalization_wrong
+      - should_selection_use_nearest_valid_expiration_under_existing_strategy_rules
+      - is_after_hours_chain_freshness_contributing
+    required_work:
+      - trace_expiration_selection_inputs_and_available_expiration_set
+      - validate_selected_expiration_before_chain_request
+      - implement_deterministic_nearest_valid_selection_or_precise_blocker
+      - add_realistic_SPY_regression_fixtures
+      - preserve_shared_option_capability_and_strategy_semantics
+    acceptance:
+      - SPY_forward_factor_returns_non_missing_data_in_production
+      - unavailable_exact_expiration_is_handled_deterministically
+      - expiration_choice_is_explained_and_tested
+      - skew_momentum_option_chain_behavior_is_unchanged
+      - no_provider_or_symbol_special_case_in_shared_code
+
+  OPS-001:
+    title: Harden authenticated screening operations
+    priority: P1
+    depends_on: []
+    objective: >
+      Make browser and automated authenticated production verification reliable
+      without exposing credentials.
+    required_work:
+      - add_Authorization_to_CORS_allowed_headers
+      - verify_preflight_for_the_deployed_screening_routes
+      - add_a_reusable_authenticated_smoke_script_or_test_harness
+      - ensure_the_harness_never_prints_persists_or_commits_the_token
+      - test_health_capabilities_list_refresh_and_read_after_write
+      - add_only_safe_configuration_diagnostics
+    acceptance:
+      - cross_origin_preflight_accepts_Authorization
+      - smoke_harness_never_outputs_the_token
+      - authenticated_production_smoke_passes
+      - unauthenticated_and_wrong_token_requests_still_fail_closed
+
+  LIFE-001:
+    title: Activate opportunity observation history
+    priority: P1
+    depends_on:
+      - REL-001
+      - REL-002
+    objective: >
+      Persist lifecycle-capable production observations and expose replay through
+      a bounded, generic interface.
+    required_work:
+      - compose_PostgresObservationHistoryRepository_in_the_production_root
+      - append_after_successful_lifecycle_capable_refresh
+      - define_idempotency_and_duplicate_observation_policy
+      - expose_generic_opportunity_history_retrieval
+      - keep_non_lifecycle_strategies_unaffected
+      - isolate_history_failure_from_latest_state_corruption
+    acceptance:
+      - repeated_earnings_calendar_refreshes_create_replayable_history
+      - history_is_oldest_first_and_opportunity_scoped
+      - duplicate_behavior_is_deterministic_documented_and_tested
+      - non_lifecycle_strategies_require_no_extra_branching
+      - one_history_failure_does_not_corrupt_latest_state
+
+  SURFACE-001:
+    title: Make the screening surface actionable and generic
+    priority: P1
+    depends_on:
+      - LIFE-001
+    objective: >
+      Expose enough universal information and query controls for an agent or
+      future UI to find, understand, and monitor useful opportunities.
+    required_work:
+      - expose_freshness_data_quality_blockers_warnings_lifecycle_provenance_metrics_and_economics
+      - add_generic_filters_for_signal_symbol_outcome_lifecycle_stage_freshness_and_status
+      - add_generic_sorting_for_observed_at_age_and_declared_numeric_metrics
+      - preserve_pagination_and_core_existing_fields
+      - expose_opportunity_history_linkage
+      - document_the_UI_ready_public_contract
+    constraints:
+      - no_strategy_specific_response_fields
+      - no_cross_strategy_investment_ranking
+      - no_untyped_strategy_payload_escape_hatch
+    acceptance:
+      - aggregate_and_signal_views_support_generic_filters_sorting_and_pagination
+      - complete_universal_result_semantics_are_preserved
+      - existing_API_v1_callers_keep_compatible_core_fields
+      - no_named_strategy_conditionals_in_API_repository_or_runtime
+
+  LEGACY-001:
+    title: Retire legacy screening state without backfill
+    priority: P1
+    depends_on:
+      - LIFE-001
+      - SURFACE-001
+    objective: >
+      Remove obsolete legacy screening storage and service paths. Do not backfill;
+      fresh universal runtime executions rebuild latest state naturally.
+    required_work:
+      - remove_legacy_repository_service_registry_dependencies_and_production_callers
+      - remove_or_retire_the_legacy_table_via_a_safe_migration
+      - remove_backfill_plans_and_do_not_add_backfill_code
+      - document_fresh_run_repopulation_and_rollback
+      - prove_API_and_scheduled_writer_share_universal_state
+      - preserve_capabilities_catalog_without_reintroducing_a_parallel_runtime
+    acceptance:
+      - no_production_reference_to_legacy_screening_state_path
+      - database_upgrade_downgrade_upgrade_validation_passes
+      - empty_universal_cache_recovers_from_a_fresh_live_run
+      - rollback_notes_are_complete
+      - no_second_source_of_truth_remains
+
+  VERIFY-001:
+    title: Production acceptance and sprint report
+    priority: P0
+    depends_on:
+      - REL-001
+      - REL-002
+      - OPS-001
+      - LIFE-001
+      - SURFACE-001
+      - LEGACY-001
+    objective: >
+      Independently verify the sprint's reliability, modularity, lifecycle,
+      screening usefulness, operational safety, and legacy retirement.
+    required_work:
+      - run_authenticated_production_matrix_for_all_three_strategies
+      - verify_non_missing_results_metrics_and_persistence
+      - verify_history_append_and_replay
+      - verify_filters_sorting_pagination_CORS_and_fail_closed_auth
+      - verify_fresh_run_repopulation_from_empty_universal_state
+      - run_architecture_search_for_strategy_named_shared_branching
+      - audit_and_file_all_remaining_issues
+      - update_current_state_roadmap_and_final_sprint_report
+    acceptance:
+      - every_sprint_success_metric_has_direct_evidence
+      - all_three_migrated_strategies_have_non_missing_live_evidence
+      - unresolved_items_are_linked_to_GitHub_issues_or_reported_as_founder_access_blockers
+      - final_verdict_is_PASS_or_explicit_FOUNDER_BLOCKER
+
+success_metrics:
+  reliability:
+    - each_migrated_strategy_produces_at_least_one_non_missing_data_production_result
+    - skew_momentum_SPY_success_path_does_not_regress
+    - missing_data_explanations_are_specific_and_actionable
+  modularity:
+    - no_new_strategy_named_conditionals_outside_strategy_packages
+    - screening_query_features_use_universal_fields_only
+    - adding_a_fixture_strategy_requires_no_runtime_API_persistence_or_scheduler_change
+  lifecycle:
+    - successful_lifecycle_capable_refresh_appends_a_replayable_observation
+    - duplicate_policy_is_tested_and_documented
+  operations:
+    - authenticated_smoke_suite_passes_in_production
+    - CORS_preflight_accepts_Authorization
+    - secrets_are_not_logged_or_stored
+  legacy_retirement:
+    - legacy_screening_state_has_no_production_path
+    - no_backfill_is_present
+    - new_live_runs_repopulate_the_universal_cache
+
+validation:
+  required:
+    - targeted_tests_during_iteration
+    - full_test_suite_before_each_merge_or_documented_equivalent_split
+    - architecture_tests
+    - lint
+    - type_check
+    - real_Postgres_integration_tests
+    - migration_upgrade_downgrade_upgrade_for_schema_changes
+    - authenticated_production_smoke
+  reporting:
+    format: concise
+    required_fields:
+      - root_cause
+      - changed_behavior
+      - tests_and_evidence
+      - production_result
+      - risks_and_rollback
+      - remaining_issues
+    forbidden:
+      - repeated_repository_history
+      - speculative_claims_without_evidence
+      - token_or_secret_output
+      - unnecessary_long_form_narrative
+
+stop_conditions:
+  continue_until_one_of:
+    - sprint_complete
+    - blocker_requiring_founder_action
+  sprint_complete_when:
+    - all_ticket_acceptance_criteria_pass
+    - all_success_metrics_have_evidence
+    - production_smoke_suite_passes
+    - all_three_migrated_strategies_have_non_missing_live_results
+    - lifecycle_history_is_live_and_replayable
+    - actionable_generic_screening_surface_is_live
+    - legacy_production_path_is_retired_without_backfill
+    - current_state_roadmap_and_final_report_are_updated
+  founder_blocker_report_must_include:
+    - exact_blocked_action
+    - why_existing_authority_or_tools_cannot_resolve_it
+    - evidence_already_collected
+    - smallest_founder_action_required
+    - exact_command_UI_step_or_decision_needed
+    - work_that_continues_in_parallel_if_any
+
+future_direction_not_in_scope:
+  - measured_incremental_universe_expansion
+  - additional_custom_strategies
+  - broker_plugin_contract_and_additional_brokers
+  - data_provider_plugin_contract_and_fallback_sources
+  - UI_over_the_same_public_screening_API
