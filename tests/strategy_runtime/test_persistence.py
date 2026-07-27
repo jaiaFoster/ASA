@@ -14,6 +14,7 @@ screening.state.ScreeningStateRepository.
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 
 from strategy_runtime.lifecycle import (
@@ -26,6 +27,7 @@ from strategy_runtime.persistence import (
     LatestResultRepository,
     ObservationHistoryRepository,
     UniversalSignalRow,
+    should_replace_latest,
 )
 from strategy_runtime.result import EvaluationState, RowType, UniversalScreeningResult
 
@@ -141,6 +143,27 @@ class TestLatestResultRepositoryProtocolContract:
         repository.upsert(_row("beta", "AAPL"))
 
         assert {item.signal_id for item in repository.get_for_signal("alpha")} == {"alpha"}
+
+    def test_older_late_arrival_cannot_replace_newer_latest_state(self) -> None:
+        base = _row("alpha", "AAPL")
+        newer = replace(
+            base,
+            observation_id="newer",
+            observed_at=NOW + timedelta(minutes=1),
+        )
+        older = replace(base, observation_id="older", observed_at=NOW)
+
+        assert should_replace_latest(newer, older) is False
+        assert should_replace_latest(older, newer) is True
+
+    def test_same_timestamp_uses_stable_identity_tie_breaker(self) -> None:
+        base = _row("alpha", "AAPL")
+        lower = replace(base, observation_id="aaa")
+        higher = replace(base, observation_id="bbb")
+
+        assert should_replace_latest(lower, higher) is True
+        assert should_replace_latest(higher, lower) is False
+        assert should_replace_latest(higher, higher) is True
 
 
 class TestObservationHistoryRepositoryProtocolContract:

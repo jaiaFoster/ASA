@@ -22,3 +22,8 @@ last-known-good result with `refresh_failed: true`; the failure never erases it.
 
 `next_refresh_at` is nullable until the session-relative scheduling policy has
 selected the next eligible run.
+
+Latest-state writes are monotonic by source `observed_at`. A late older
+observation cannot replace newer data. Equal source times use observation
+identity as a stable tie-breaker; append-only lifecycle history remains
+independent and replayable.

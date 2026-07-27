@@ -1,6 +1,6 @@
 from asa.contracts.market import MarketObservation
 from strategy_runtime.lifecycle import OpportunityHistory, OpportunityObservation
-from strategy_runtime.persistence import UniversalSignalRow
+from strategy_runtime.persistence import UniversalSignalRow, should_replace_latest
 
 
 class InMemoryObservationRepository:
@@ -26,7 +26,9 @@ class InMemoryLatestResultRepository:
         self._rows: dict[tuple[str, str], UniversalSignalRow] = {}
 
     def upsert(self, row: UniversalSignalRow) -> None:
-        self._rows[(row.signal_id, row.symbol)] = row
+        key = (row.signal_id, row.symbol)
+        if should_replace_latest(self._rows.get(key), row):
+            self._rows[key] = row
 
     def get_all(self) -> tuple[UniversalSignalRow, ...]:
         return tuple(sorted(self._rows.values(), key=lambda item: (item.signal_id, item.symbol)))
