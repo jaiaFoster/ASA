@@ -35,8 +35,13 @@ class PostgresObservationHistoryRepository:
                         opportunity_id, signal_id, symbol, lifecycle_stage,
                         verdict, recommended_action, observed_at
                     ) SELECT
-                        :opportunity_id, :signal_id, :symbol, :lifecycle_stage,
-                        :verdict, :recommended_action, :observed_at
+                        CAST(:opportunity_id AS VARCHAR(128)),
+                        CAST(:signal_id AS VARCHAR(64)),
+                        CAST(:symbol AS VARCHAR(32)),
+                        CAST(:lifecycle_stage AS VARCHAR(64)),
+                        CAST(:verdict AS TEXT),
+                        CAST(:recommended_action AS VARCHAR(32)),
+                        CAST(:observed_at AS TIMESTAMP WITH TIME ZONE)
                     WHERE NOT EXISTS (
                         SELECT 1 FROM opportunity_observation_history
                         WHERE opportunity_id = :opportunity_id
