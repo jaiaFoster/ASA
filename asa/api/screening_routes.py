@@ -30,6 +30,8 @@ import logging
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from decimal import Decimal
+from typing import Literal
 
 from fastapi import APIRouter, Depends, Query, Request
 
@@ -57,11 +59,12 @@ from strategy_runtime.persistence import (
     replay_opportunity_history,
 )
 from strategy_runtime.registry import StrategyRegistry
-from strategy_runtime.result import UniversalScreeningResult
+from strategy_runtime.result import EvaluationState, UniversalScreeningResult
 from strategy_runtime.service import get_state, record_opportunity_observation, refresh
 
 DEFAULT_LIMIT = 100
 MAX_LIMIT = 500
+FRESHNESS_THRESHOLD_SECONDS = 86_400
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -76,6 +79,102 @@ def _paginate(
 ) -> tuple[tuple[UniversalScreeningResult, ...], int]:
     total = len(records)
     return records[offset : offset + limit], total
+
+
+def _filter_and_sort(
+    records: tuple[UniversalScreeningResult, ...],
+    *,
+    signal: str | None,
+    symbol: str | None,
+    outcome: str | None,
+    lifecycle_stage: str | None,
+    freshness: Literal["fresh", "stale"] | None,
+    status: str | None,
+    sort_by: str | None,
+    sort_order: Literal["asc", "desc"],
+) -> tuple[UniversalScreeningResult, ...]:
+    now = datetime.now(UTC)
+    selected = tuple(
+        item
+        for item in records
+        if (signal is None or item.strategy_id == signal)
+        and (symbol is None or item.symbol == symbol)
+        and (outcome is None or _OUTCOME_FILTER_VALUES[item.evaluation_state] == outcome)
+        and (lifecycle_stage is None or item.lifecycle_stage == lifecycle_stage)
+        and (status is None or item.recommendation_state == status)
+        and (
+            freshness is None
+            or (
+                "fresh"
+                if max(0, int((now - item.observed_at).total_seconds()))
+                <= FRESHNESS_THRESHOLD_SECONDS
+                else "stale"
+            )
+            == freshness
+        )
+    )
+    reverse = sort_order == "desc"
+    if sort_by is None:
+        return selected
+    if sort_by == "observed_at":
+        return tuple(
+            sorted(
+                selected,
+                key=lambda item: (item.observed_at, item.strategy_id, item.symbol),
+                reverse=reverse,
+            )
+        )
+    if sort_by == "age_seconds":
+        return tuple(
+            sorted(
+                selected,
+                key=lambda item: (
+                    max(0, int((now - item.observed_at).total_seconds())),
+                    item.strategy_id,
+                    item.symbol,
+                ),
+                reverse=reverse,
+            )
+        )
+    if sort_by.startswith("metrics."):
+        metric_name = sort_by.removeprefix("metrics.")
+        if not metric_name:
+            raise agent_api_error(422, "INVALID_SORT", "Metric sort requires a metric name")
+        numeric: list[tuple[Decimal, UniversalScreeningResult]] = []
+        missing: list[UniversalScreeningResult] = []
+        for item in selected:
+            value = item.metrics.get(metric_name)
+            if value is None:
+                missing.append(item)
+                continue
+            native = value.native()
+            if isinstance(native, bool) or not isinstance(native, (int, Decimal)):
+                raise agent_api_error(
+                    422,
+                    "NON_NUMERIC_SORT_METRIC",
+                    f"Metric {metric_name!r} is not numeric",
+                )
+            numeric.append((Decimal(native), item))
+        numeric.sort(
+            key=lambda pair: (pair[0], pair[1].strategy_id, pair[1].symbol),
+            reverse=reverse,
+        )
+        missing.sort(key=lambda item: (item.strategy_id, item.symbol))
+        return tuple(item for _, item in numeric) + tuple(missing)
+    raise agent_api_error(
+        422,
+        "INVALID_SORT",
+        "sort_by must be observed_at, age_seconds, or metrics.<name>",
+    )
+
+
+_OUTCOME_FILTER_VALUES = {
+    EvaluationState.PASS: "pass",
+    EvaluationState.NO_SIGNAL: "no_signal",
+    EvaluationState.MISSING_DATA: "missing_data",
+    EvaluationState.MALFORMED_OUTPUT: "malformed_output",
+    EvaluationState.ADAPTER_EXCEPTION: "strategy_exception",
+}
 
 
 def build_screening_router(
@@ -106,8 +205,26 @@ def build_screening_router(
     def list_screening(
         limit: int = Query(default=DEFAULT_LIMIT, ge=1, le=MAX_LIMIT),
         offset: int = Query(default=0, ge=0),
+        signal: str | None = None,
+        symbol: str | None = None,
+        outcome: str | None = None,
+        lifecycle_stage: str | None = None,
+        freshness: Literal["fresh", "stale"] | None = None,
+        status: str | None = None,
+        sort_by: str | None = None,
+        sort_order: Literal["asc", "desc"] = "desc",
     ) -> ScreeningResultsEnvelope:
-        records = get_state(repository)
+        records = _filter_and_sort(
+            get_state(repository),
+            signal=signal,
+            symbol=symbol,
+            outcome=outcome,
+            lifecycle_stage=lifecycle_stage,
+            freshness=freshness,
+            status=status,
+            sort_by=sort_by,
+            sort_order=sort_order,
+        )
         page, total = _paginate(records, limit, offset)
         return ScreeningResultsEnvelope(
             results=[ScreeningResultResponse.from_universal_result(item) for item in page],
@@ -141,9 +258,26 @@ def build_screening_router(
         signal: str,
         limit: int = Query(default=DEFAULT_LIMIT, ge=1, le=MAX_LIMIT),
         offset: int = Query(default=0, ge=0),
+        symbol: str | None = None,
+        outcome: str | None = None,
+        lifecycle_stage: str | None = None,
+        freshness: Literal["fresh", "stale"] | None = None,
+        status: str | None = None,
+        sort_by: str | None = None,
+        sort_order: Literal["asc", "desc"] = "desc",
     ) -> ScreeningResultsEnvelope:
         _require_registered_signal(signal)
-        records = get_state(repository, strategy_id=signal)
+        records = _filter_and_sort(
+            get_state(repository, strategy_id=signal),
+            signal=None,
+            symbol=symbol,
+            outcome=outcome,
+            lifecycle_stage=lifecycle_stage,
+            freshness=freshness,
+            status=status,
+            sort_by=sort_by,
+            sort_order=sort_order,
+        )
         page, total = _paginate(records, limit, offset)
         return ScreeningResultsEnvelope(
             results=[ScreeningResultResponse.from_universal_result(item) for item in page],

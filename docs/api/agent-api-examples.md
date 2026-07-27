@@ -46,10 +46,17 @@ curl -sS https://<host>/api/v1/capabilities \
 
 ## `GET /api/v1/screening` — all current results, paginated
 
-`?limit=` (default 100, max 500) and `?offset=` (default 0) are both optional. This route (and
-the two below) only ever reads through the injected repository — it never triggers a provider
-request, verified by test (`tests/asa/test_screening_routes.py::TestReadsNeverComputeOrPersist`),
-not merely by inspection.
+This UI-ready surface supports pagination plus strategy-neutral query controls:
+
+- `limit` (default 100, max 500) and `offset`;
+- exact filters `signal`, `symbol`, `outcome`, `lifecycle_stage`, and `status`
+  (`status` is the universal recommendation state);
+- `freshness=fresh|stale`, using the public 86,400-second display threshold;
+- `sort_by=observed_at|age_seconds|metrics.<name>` and `sort_order=asc|desc`.
+
+Metric sorting accepts only declared decimal or integer metrics. Missing values sort last. These
+controls order observations; they do not rank investments across strategies. This route (and the
+two below) only reads through the injected repository and never triggers a provider request.
 
 ```bash
 curl -sS "https://<host>/api/v1/screening?limit=50" \
@@ -67,7 +74,21 @@ curl -sS "https://<host>/api/v1/screening?limit=50" \
       "symbol": "AAPL",
       "outcome": "pass",
       "explanation": "calendar richness within bounds",
-      "metrics": { "strategy_native_score": "0.42" }
+      "metrics": { "strategy_native_score": "0.42" },
+      "observation_id": "d9bc...",
+      "opportunity_id": null,
+      "opportunity_history_url": null,
+      "row_type": "result",
+      "lifecycle_stage": null,
+      "status": null,
+      "data_quality": "complete",
+      "freshness": "fresh",
+      "economics": {},
+      "metric_types": { "strategy_native_score": "decimal" },
+      "economics_types": {},
+      "blockers": [],
+      "warnings": [],
+      "provenance": ["tradier:quote"]
     }
   ],
   "total": 1,
@@ -76,10 +97,14 @@ curl -sS "https://<host>/api/v1/screening?limit=50" \
 }
 ```
 
-`updated_at` and `age_seconds` (computed server-side at request time) appear on every screening
-result — this API deliberately exposes only the raw ingredient for a freshness decision, never an
-opinion about what counts as "stale." `GET /api/v1/screening/{signal}` narrows the same envelope to
-one signal across all symbols.
+`updated_at` and `age_seconds` remain the exact raw freshness inputs. `freshness` is a generic
+display/query classification using the documented 24-hour threshold, not a strategy signal.
+`metrics` keeps its original string-valued shape for v1 callers; `metric_types` preserves the
+declared universal type. `economics` follows the same paired value/type convention. A tracked
+opportunity links directly to its paginated history endpoint.
+
+`GET /api/v1/screening/{signal}` supports the same filters, sorting, and pagination except that the
+signal is fixed by the path.
 
 ## `GET /api/v1/screening/{signal}/{symbol}` — one result
 

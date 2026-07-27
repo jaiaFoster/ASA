@@ -4,7 +4,7 @@ LatestResultRepository, proving the public response shape is unchanged)."""
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 from fastapi.testclient import TestClient
@@ -20,25 +20,35 @@ from tests.asa.fakes import InMemoryLatestResultRepository
 NOW = datetime(2026, 7, 23, 16, 0, tzinfo=UTC)
 
 
-def _record(signal_id: str, symbol: str, outcome: str = "pass") -> UniversalSignalRow:
+def _record(
+    signal_id: str,
+    symbol: str,
+    outcome: str = "pass",
+    *,
+    observed_at: datetime = NOW,
+    opportunity_id: str | None = None,
+    lifecycle_stage: str | None = None,
+    recommendation_state: str | None = None,
+    score: Decimal = Decimal("75"),
+) -> UniversalSignalRow:
     return UniversalSignalRow(
         signal_id=signal_id,
         signal_version="1.0.0",
         symbol=symbol,
         observation_id=f"{signal_id}-{symbol}-obs",
-        opportunity_id=None,
+        opportunity_id=opportunity_id,
         row_type=RowType.RESULT.value,
         verdict="PASS",
         evaluation_state=EvaluationState(outcome).value,
-        lifecycle_stage=None,
-        recommendation_state=None,
-        data_quality=None,
-        metrics={"strategy_native_score": TypedValue.of_decimal(Decimal("75"))},
-        economics={},
-        blockers=(),
-        warnings=(),
-        provenance=(),
-        observed_at=NOW,
+        lifecycle_stage=lifecycle_stage,
+        recommendation_state=recommendation_state,
+        data_quality="complete",
+        metrics={"strategy_native_score": TypedValue.of_decimal(score)},
+        economics={"estimated_return": TypedValue.of_decimal(Decimal("0.12"))},
+        blockers=("capital unavailable",),
+        warnings=("monitor liquidity",),
+        provenance=("fixture:screening",),
+        observed_at=observed_at,
     )
 
 
@@ -144,6 +154,114 @@ class TestListScreening:
             "/api/v1/screening", headers=_auth(), params={"limit": 501}
         )
         assert response.status_code == 422
+
+    def test_exposes_complete_generic_result_semantics_and_history_link(self) -> None:
+        repository = InMemoryLatestResultRepository()
+        repository.upsert(
+            _record(
+                "earnings_calendar",
+                "AAPL",
+                opportunity_id="opportunity-1",
+                lifecycle_stage="watching",
+                recommendation_state="monitor",
+            )
+        )
+        result = _client(repository).get("/api/v1/screening", headers=_auth()).json()[
+            "results"
+        ][0]
+        assert result["observation_id"] == "earnings_calendar-AAPL-obs"
+        assert result["opportunity_id"] == "opportunity-1"
+        assert result["opportunity_history_url"].endswith(
+            "/opportunities/opportunity-1/history"
+        )
+        assert result["lifecycle_stage"] == "watching"
+        assert result["status"] == "monitor"
+        assert result["data_quality"] == "complete"
+        assert result["freshness"] in {"fresh", "stale"}
+        assert result["metrics"]["strategy_native_score"] == "75"
+        assert result["metric_types"]["strategy_native_score"] == "decimal"
+        assert result["economics"]["estimated_return"] == "0.12"
+        assert result["economics_types"]["estimated_return"] == "decimal"
+        assert result["blockers"] == ["capital unavailable"]
+        assert result["warnings"] == ["monitor liquidity"]
+        assert result["provenance"] == ["fixture:screening"]
+
+    def test_generic_filters_compose_before_pagination(self) -> None:
+        repository = InMemoryLatestResultRepository()
+        repository.upsert(
+            _record(
+                "earnings_calendar",
+                "AAPL",
+                opportunity_id="opportunity-1",
+                lifecycle_stage="watching",
+                recommendation_state="monitor",
+            )
+        )
+        repository.upsert(_record("forward_factor", "MSFT"))
+        response = _client(repository).get(
+            "/api/v1/screening",
+            headers=_auth(),
+            params={
+                "signal": "earnings_calendar",
+                "symbol": "AAPL",
+                "outcome": "pass",
+                "lifecycle_stage": "watching",
+                "status": "monitor",
+                "limit": 1,
+            },
+        )
+        body = response.json()
+        assert body["total"] == 1
+        assert body["results"][0]["opportunity_id"] == "opportunity-1"
+
+    def test_freshness_filter_uses_documented_display_threshold(self) -> None:
+        repository = InMemoryLatestResultRepository()
+        repository.upsert(
+            _record(
+                "forward_factor",
+                "AAPL",
+                observed_at=datetime.now(UTC) - timedelta(minutes=5),
+            )
+        )
+        repository.upsert(
+            _record(
+                "forward_factor",
+                "MSFT",
+                observed_at=datetime.now(UTC) - timedelta(days=2),
+            )
+        )
+        fresh = _client(repository).get(
+            "/api/v1/screening",
+            headers=_auth(),
+            params={"freshness": "fresh"},
+        )
+        stale = _client(repository).get(
+            "/api/v1/screening",
+            headers=_auth(),
+            params={"freshness": "stale"},
+        )
+        assert [item["symbol"] for item in fresh.json()["results"]] == ["AAPL"]
+        assert [item["symbol"] for item in stale.json()["results"]] == ["MSFT"]
+
+    def test_numeric_metric_sort_is_deterministic_and_missing_values_are_last(self) -> None:
+        repository = InMemoryLatestResultRepository()
+        repository.upsert(_record("forward_factor", "AAPL", score=Decimal("20")))
+        repository.upsert(_record("forward_factor", "MSFT", score=Decimal("90")))
+        response = _client(repository).get(
+            "/api/v1/screening/forward_factor",
+            headers=_auth(),
+            params={"sort_by": "metrics.strategy_native_score", "sort_order": "desc"},
+        )
+        assert [item["symbol"] for item in response.json()["results"]] == ["MSFT", "AAPL"]
+
+    def test_invalid_sort_is_actionable(self) -> None:
+        response = _client().get(
+            "/api/v1/screening",
+            headers=_auth(),
+            params={"sort_by": "verdict"},
+        )
+        assert response.status_code == 422
+        assert response.json()["detail"]["error_code"] == "INVALID_SORT"
 
 
 class TestListScreeningForSignal:
