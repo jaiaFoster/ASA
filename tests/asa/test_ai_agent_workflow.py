@@ -142,7 +142,7 @@ def _client(repository: InMemoryLatestResultRepository) -> TestClient:
         build_application(
             Settings(agent_api_token=SecretStr("correct-token"), _env_file=None),
             DependencyOverrides(
-                screening_state_repository=repository,
+                latest_result_repository=repository,
                 market_data_transport_factory=lambda _provider_id: ScriptedTransport(responses),
             ),
         )

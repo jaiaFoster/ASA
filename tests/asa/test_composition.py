@@ -14,14 +14,14 @@ def test_build_application_activates_injected_dependencies() -> None:
     provider = DeterministicFakeQuoteProvider()
     broker_provider = DeterministicFakeBrokerPortfolioProvider()
     repository = InMemoryObservationRepository()
-    screening_state_repository = InMemoryLatestResultRepository()
+    latest_result_repository = InMemoryLatestResultRepository()
     app = build_application(
         Settings(),
         DependencyOverrides(
             quote_provider=provider,
             repository=repository,
             broker_provider=broker_provider,
-            screening_state_repository=screening_state_repository,
+            latest_result_repository=latest_result_repository,
         ),
     )
 
@@ -29,12 +29,12 @@ def test_build_application_activates_injected_dependencies() -> None:
     assert app.state.dependencies["repository"] is repository
     assert app.state.dependencies["broker_provider"] is broker_provider
     assert app.state.dependencies["portfolio_runner"]._provider is broker_provider
-    assert app.state.dependencies["screening_state_repository"] is screening_state_repository
+    assert app.state.dependencies["latest_result_repository"] is latest_result_repository
     assert callable(app.state.dependencies["agent_authorize"])
     assert TestClient(app).get("/api/v1/health").json() == {"status": "ok"}
 
 
-def test_default_screening_state_repository_is_postgres_backed_but_lazy() -> None:
+def test_default_latest_result_repository_is_postgres_backed_but_lazy() -> None:
     # No override supplied -- build_application() must still succeed
     # without a real database connection (SQLAlchemy engines connect
     # lazily), matching how run_repository/repository already behave with
@@ -42,7 +42,7 @@ def test_default_screening_state_repository_is_postgres_backed_but_lazy() -> Non
     from asa.integrations.universal_screening_postgres import PostgresLatestResultRepository
 
     app = build_application(Settings())
-    repository = app.state.dependencies["screening_state_repository"]
+    repository = app.state.dependencies["latest_result_repository"]
     assert isinstance(repository, PostgresLatestResultRepository)
 
 

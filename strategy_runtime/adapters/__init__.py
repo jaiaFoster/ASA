@@ -19,6 +19,11 @@ subpackage has no side effect on the currently-shipped
 
 from __future__ import annotations
 
+from strategies import (
+    EARNINGS_CALENDAR_MANIFEST,
+    FORWARD_FACTOR_CALENDAR_MANIFEST,
+    SKEW_MOMENTUM_VERTICAL_MANIFEST,
+)
 from strategy_runtime.adapters.earnings_calendar import (
     EARNINGS_CALENDAR_CONTRACT,
     earnings_calendar_adapter,
@@ -31,10 +36,11 @@ from strategy_runtime.adapters.skew_momentum_vertical import (
     SKEW_MOMENTUM_VERTICAL_CONTRACT,
     skew_momentum_adapter,
 )
+from strategy_runtime.catalog import SignalCatalogEntry
 from strategy_runtime.registry import StrategyRegistry
 from strategy_runtime.result import UniversalScreeningResult
 
-__all__ = ["build_migrated_strategy_registry"]
+__all__ = ["build_migrated_signal_catalog", "build_migrated_strategy_registry"]
 
 
 def build_migrated_strategy_registry() -> StrategyRegistry[UniversalScreeningResult]:
@@ -50,3 +56,22 @@ def build_migrated_strategy_registry() -> StrategyRegistry[UniversalScreeningRes
             (EARNINGS_CALENDAR_CONTRACT, earnings_calendar_adapter),
         )
     )
+
+
+def build_migrated_signal_catalog() -> tuple[SignalCatalogEntry, ...]:
+    """Public capability metadata projected from the universal contracts."""
+    entries = (
+        SignalCatalogEntry.from_contract(
+            EARNINGS_CALENDAR_CONTRACT,
+            manifest_id=EARNINGS_CALENDAR_MANIFEST.manifest_id,
+        ),
+        SignalCatalogEntry.from_contract(
+            FORWARD_FACTOR_CONTRACT,
+            manifest_id=FORWARD_FACTOR_CALENDAR_MANIFEST.manifest_id,
+        ),
+        SignalCatalogEntry.from_contract(
+            SKEW_MOMENTUM_VERTICAL_CONTRACT,
+            manifest_id=SKEW_MOMENTUM_VERTICAL_MANIFEST.manifest_id,
+        ),
+    )
+    return tuple(sorted(entries, key=lambda item: item.signal_id))

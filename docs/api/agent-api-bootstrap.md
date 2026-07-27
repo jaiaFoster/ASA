@@ -10,7 +10,7 @@ below in sequence against a genuinely empty repository — not retrofitted after
 ## Before you start: what "empty" looks like
 
 A freshly migrated deployment has run every Alembic migration but has **zero rows** in
-`screening_state` — nothing has ever been screened yet. This is the normal, expected starting
+`universal_screening_state` — nothing has ever been screened yet. This is the normal, expected starting
 state, not an error condition and not a sign anything is broken. The single most common source of
 confusion here: **an empty result set is not a 404.** `GET /api/v1/screening` and
 `GET /api/v1/screening/{signal}` both return `200` with `{"results": [], "total": 0, ...}` on a
@@ -46,7 +46,8 @@ report yet.
 
 ## Step 3 — produce your first real result
 
-Nothing populates `screening_state` on its own (no scheduled job exists yet — see
+Nothing populates `universal_screening_state` during application startup. The external scheduled
+screening entrypoint or an explicit bounded refresh populates it (see
 `docs/api/agent-api-operations.md`). To get real data, explicitly refresh one signal/symbol pair
 that both (a) the deployment has a live provider configured for, and (b) is within the approved
 live-refresh universe (`AAPL`, `MSFT`, `NVDA`, `AMD`, `SPY`, `QQQ` as of this writing):

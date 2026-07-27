@@ -60,7 +60,7 @@ def _client(
         build_application(
             Settings(agent_api_token=SecretStr(token) if token else None, _env_file=None),
             DependencyOverrides(
-                screening_state_repository=repository or InMemoryLatestResultRepository()
+                latest_result_repository=repository or InMemoryLatestResultRepository()
             ),
         )
     )

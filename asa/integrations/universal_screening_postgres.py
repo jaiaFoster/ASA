@@ -1,8 +1,7 @@
 """Postgres-backed LatestResultRepository (SPRINT-009/EPIC-9).
 
 Implements strategy_runtime.persistence.LatestResultRepository -- raw SQL
-through sqlalchemy.Engine/text(), no ORM, matching this codebase's
-existing PostgresScreeningStateRepository pattern exactly. Stores only
+through sqlalchemy.Engine/text(), no ORM. Stores only
 the latest UniversalSignalRow per (signal_id, symbol): upsert()
 always overwrites via ON CONFLICT DO UPDATE, never accumulates historical
 rows -- observation history (strategy_runtime.persistence.
