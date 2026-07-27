@@ -9,7 +9,7 @@ timestamped").
 
 from __future__ import annotations
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from asa.api.agent_models import TimestampedResource
 from screening.registry import SignalDefinition
@@ -40,6 +40,10 @@ def _wire_metrics(result: UniversalScreeningResult) -> dict[str, str]:
     byte-identical to the pre-EPIC-R2 str(strategy_native_score) wire value.
     """
     return {key: str(value.native()) for key, value in result.metrics.items()}
+
+
+def _wire_values(result: dict[str, object]) -> dict[str, str]:
+    return {key: str(value) for key, value in result.items()}
 
 
 def _wire_explanation(result: UniversalScreeningResult) -> str | None:
@@ -73,6 +77,20 @@ class ScreeningResultResponse(TimestampedResource):
     outcome: str
     explanation: str | None
     metrics: dict[str, str]
+    observation_id: str | None = None
+    opportunity_id: str | None = None
+    opportunity_history_url: str | None = None
+    row_type: str | None = None
+    lifecycle_stage: str | None = None
+    status: str | None = None
+    data_quality: str | None = None
+    freshness: str | None = None
+    economics: dict[str, str] = Field(default_factory=dict)
+    metric_types: dict[str, str] = Field(default_factory=dict)
+    economics_types: dict[str, str] = Field(default_factory=dict)
+    blockers: list[str] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+    provenance: list[str] = Field(default_factory=list)
 
     @classmethod
     def from_record(cls, record: ScreeningStateRecord) -> ScreeningResultResponse:
@@ -93,6 +111,7 @@ class ScreeningResultResponse(TimestampedResource):
         from_record() -- same public response shape, sourced from
         UniversalScreeningResult instead of the legacy ScreeningStateRecord.
         """
+        age_seconds = TimestampedResource.age_seconds_since(result.observed_at)
         return cls(
             signal_id=result.strategy_id,
             signal_version=result.strategy_version,
@@ -100,8 +119,32 @@ class ScreeningResultResponse(TimestampedResource):
             outcome=_OUTCOME_WIRE_VALUES[result.evaluation_state],
             explanation=_wire_explanation(result),
             metrics=_wire_metrics(result),
+            observation_id=result.observation_id,
+            opportunity_id=result.opportunity_id,
+            opportunity_history_url=(
+                f"/api/v1/screening/opportunities/{result.opportunity_id}/history"
+                if result.opportunity_id is not None
+                else None
+            ),
+            row_type=result.row_type.value,
+            lifecycle_stage=result.lifecycle_stage,
+            status=result.recommendation_state,
+            data_quality=result.data_quality,
+            freshness="fresh" if age_seconds <= 86_400 else "stale",
+            economics=_wire_values(
+                {key: value.native() for key, value in result.economics.items()}
+            ),
+            metric_types={
+                key: value.value_type.value for key, value in result.metrics.items()
+            },
+            economics_types={
+                key: value.value_type.value for key, value in result.economics.items()
+            },
+            blockers=list(result.blockers),
+            warnings=list(result.warnings),
+            provenance=list(result.provenance),
             updated_at=result.observed_at,
-            age_seconds=TimestampedResource.age_seconds_since(result.observed_at),
+            age_seconds=age_seconds,
         )
 
 

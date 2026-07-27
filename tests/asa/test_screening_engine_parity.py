@@ -130,4 +130,35 @@ def test_legacy_and_strategy_runtime_refresh_produce_the_identical_wire_response
         universal_result, request_count=len(subject_access.budget_manager.accounting)
     )
 
-    assert universal_response.model_dump() == legacy_response.model_dump()
+    # SURFACE-001 adds universal-only fields while preserving every legacy
+    # core field. Compatibility is therefore a projection, not full-model
+    # equality.
+    legacy_payload = legacy_response.model_dump()
+    universal_payload = universal_response.model_dump()
+    assert {
+        key: universal_payload[key]
+        for key in (
+            "updated_at",
+            "age_seconds",
+            "signal_id",
+            "signal_version",
+            "symbol",
+            "outcome",
+            "explanation",
+            "metrics",
+            "request_count",
+        )
+    } == {
+        key: legacy_payload[key]
+        for key in (
+            "updated_at",
+            "age_seconds",
+            "signal_id",
+            "signal_version",
+            "symbol",
+            "outcome",
+            "explanation",
+            "metrics",
+            "request_count",
+        )
+    }
