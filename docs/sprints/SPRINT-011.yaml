@@ -1,0 +1,325 @@
+---
+id: SPRINT-011
+name: Live Universe Expansion & Market-Day Validation
+version: 1.0
+status: SCOPED
+type: IMPLEMENTATION_SPRINT
+priority: P0
+
+activation:
+  id: AMD-013-SPRINT-011
+  governance_amendment: GOV-AMD-001-013
+  founder_authorized: true
+  founder_direction: >
+    "SPRINT-011: Live Universe Expansion & Market-Day Validation" (pasted
+    directly by Founder as SPRINT-011-official.yaml), activated as a single
+    full sprint under the existing Amendment 013 Founder Sprint Delegation
+    mechanism. No new governance amendment is created: Amendment 013 already
+    grants the delegate self-verify-and-merge authority for tickets within an
+    activated sprint's bounded scope, which is what this sprint's own
+    "auto_merge: true" / "continue_ticket_to_completion_without_routine_
+    founder_review" language calls for. A prior SPRINT-010 draft assumed a
+    new "AMD-014" was required for this and collided with the existing,
+    unrelated, already-merged GOV-AMD-014 (Analytical Execution Boundary,
+    PR #104) -- Founder confirmed SPRINT-010 is dropped; only SPRINT-011
+    proceeds.
+  effective_when: this sprint definition is Founder-merged to the default branch
+  delegate:
+    role: ROLE-WORKER
+    instance: implementation-worker
+  limited_to_sprint: SPRINT-011
+  approved_tickets:
+    - UNI-001
+    - UNI-002
+    - UNI-003
+    - UNI-004
+  excludes:
+    - new_strategies
+    - UI_or_dashboard
+    - broker_expansion
+    - new_data_provider
+    - ranking_redesign
+    - portfolio_optimization
+    - trade_execution
+    - broad_platform_refactor
+    - unrelated_technical_debt
+    - governance_or_constitutional_changes
+    - breaking_the_existing_public_api_v1_screening_contract
+    - sprint_scope_expansion
+  expires:
+    - sprint_complete
+    - sprint_stopped
+    - Founder_revokes_delegation
+
+business_priority: >
+  Highest current roadmap priority. The immediate goal is a working, populated
+  screening surface that can surface useful opportunities across a broader
+  universe. New architecture, strategies, brokers, providers, and UI remain
+  secondary until this operating loop is proven.
+
+philosophy:
+  - velocity_over_surface_level_change
+  - root_cause_over_workaround
+  - operate_the_product_not_the_architecture
+  - one_generic_execution_API_and_persistence_path
+  - strategies_own_thesis_runtime_owns_infrastructure
+  - capability_driven_not_provider_named
+  - no_strategy_symbol_or_provider_special_cases_in_shared_code
+  - distinguish_no_signal_policy_rejection_and_data_failure
+  - usefulness_before_UI
+  - evidence_over_assumption
+
+operating_directives:
+  token_efficiency:
+    mandatory: true
+    rules:
+      - inspect_before_explaining
+      - reuse_existing_universe_scheduler_runtime_and_reporting_paths
+      - keep_PR_bodies_and_reports_concise_and_evidence_based
+      - use_targeted_tests_during_iteration_then_required_full_validation
+      - avoid_duplicate_docs_abstractions_and_parallel_paths
+      - do_not_repeat_repository_history_already_available
+  root_cause_policy:
+    mandatory: true
+    rules:
+      - fix_the_earliest_failing_boundary
+      - do_not_mask_provider_strategy_or_persistence_failures
+      - do_not_special_case_symbols_in_shared_code
+      - classify_legitimate_no_opportunity_separately_from_missing_data
+      - file_or_update_an_issue_for_every_new_real_defect
+  continuity:
+    mandatory: true
+    rules:
+      - continue_ticket_to_completion_without_routine_founder_review
+      - continue_to_next_ticket_when_dependencies_allow
+      - auto_merge_when_acceptance_and_CI_pass
+      - only_stop_for_sprint_completion_or_a_founder_required_blocker
+  merge_policy:
+    auto_merge: true
+    merge_when:
+      - ticket_acceptance_criteria_met
+      - required_tests_pass
+      - architecture_boundaries_pass
+      - no_unresolved_high_risk_findings
+      - production_sensitive_changes_have_rollback_notes
+    founder_review_required_only_for:
+      - scope_expansion
+      - governance_or_public_contract_break
+      - production_secret_or_external_account_action_only_founder_can_perform
+      - destructive_change_outside_scope
+      - blocker_with_no_authorized_technical_resolution
+
+scope:
+  in:
+    - expand_the_approved_live_screening_universe
+    - select_liquid_optionable_symbols_and_ETFs
+    - include_symbols_with_near_term_earnings_for_earnings_calendar
+    - preserve_all_three_existing_strategies
+    - run_five_market_day_refresh_cycles
+    - persist_all_results_through_the_universal_runtime
+    - verify_API_read_after_write
+    - classify_pass_no_signal_policy_rejection_and_data_failure
+    - produce_end_of_day_coverage_signal_and_provider_health_summary
+    - fix_only_root_cause_blockers_that_prevent_the_expanded_screen_from_running
+  out:
+    - new_strategies
+    - UI
+    - broker_expansion
+    - new_data_provider
+    - ranking_redesign
+    - portfolio_optimization
+    - trade_execution
+    - broad_platform_refactor
+    - unrelated_technical_debt
+
+universe_policy:
+  target_size:
+    minimum_symbols: 25
+    preferred_symbols: 50
+  selection_criteria:
+    - highly_liquid
+    - optionable
+    - reliable_quote_and_chain_coverage
+    - diversified_across_large_cap_equities_and_major_ETFs
+    - include_upcoming_earnings_candidates
+  constraints:
+    - incremental_not_wholesale_expansion
+    - preserve_provider_request_budgets
+    - no_symbol_specific_runtime_logic
+    - document_exclusions_with_reason
+  deliverables:
+    - versioned_approved_live_universe
+    - rationale_for_each_selection_group
+    - expected_request_volume
+    - rollback_to_previous_universe
+
+market_day_plan:
+  refresh_cycles:
+    - open_plus_10m
+    - "11:00 America/New_York"
+    - "13:00 America/New_York"
+    - "15:00 America/New_York"
+    - close_minus_10m
+  behavior:
+    - use_exchange_calendar_and_actual_session_times
+    - coalesce_duplicate_runs
+    - preserve_per_pair_failure_isolation
+    - persist_latest_result_for_every_attempted_pair
+    - retain_temporal_quality_metadata
+  end_of_day_outputs:
+    - total_pairs_attempted
+    - successful_evaluations
+    - pass_count
+    - no_signal_count
+    - policy_rejection_count
+    - missing_data_count
+    - provider_failures_by_capability
+    - symbols_with_actionable_results
+    - stale_or_prior_session_usage
+    - request_budget_usage
+
+tickets:
+  UNI-001:
+    title: Define expanded production universe
+    priority: P0
+    objective: >
+      Select and version a bounded liquid optionable universe that gives all
+      three existing strategies enough valid subjects to operate meaningfully.
+    required_work:
+      - inspect_current_universe_and_provider_constraints
+      - select_25_to_50_symbols_and_ETFs
+      - include_upcoming_earnings_candidates
+      - estimate_request_volume_for_five_daily_cycles
+      - document_exclusions_and_rollback
+    acceptance:
+      - expanded_universe_is_versioned_and_tested
+      - provider_budget_estimate_remains_within_configured_limits
+      - universe_contains_valid_subjects_for_all_three_strategies
+      - no_symbol_specific_shared_runtime_change
+
+  UNI-002:
+    title: Activate expanded scheduled screening
+    priority: P0
+    depends_on: [UNI-001]
+    objective: >
+      Run the existing universal scheduler across the expanded universe at the
+      five approved market-day windows.
+    required_work:
+      - wire_expanded_universe_into_existing_scheduler
+      - verify_five_session_relative_cycles
+      - preserve_duplicate_coalescing_and_failure_isolation
+      - verify_API_and_scheduler_share_universal_state
+      - add_safe_operational_diagnostics
+    acceptance:
+      - scheduler_attempts_all_expected_pairs
+      - one_pair_failure_does_not_stop_the_run
+      - results_are_visible_through_the_public_API
+      - no_parallel_execution_or_persistence_path_is_added
+
+  UNI-003:
+    title: Full market-day production validation
+    priority: P0
+    depends_on: [UNI-002]
+    objective: >
+      Observe a complete market day and verify the expanded screening product
+      operates reliably across all five cycles.
+    required_work:
+      - run_or_observe_all_five_cycles
+      - capture_sanitized_per_cycle_counts_and_failures
+      - verify_all_three_strategies_execute_on_eligible_subjects
+      - verify_read_after_write_for_representative_results
+      - distinguish_legitimate_no_opportunity_from_infrastructure_failure
+      - update_or_file_issues_for_real_defects
+    acceptance:
+      - all_five_cycles_complete
+      - all_three_strategies_have_successful_non_missing_evaluations
+      - expanded_universe_results_are_present_in_API
+      - failure_rate_and_provider_health_are_reported
+      - no_untracked_P0_or_P1_blocker_remains
+
+  UNI-004:
+    title: End-of-day product readiness report
+    priority: P0
+    depends_on: [UNI-003]
+    objective: >
+      Produce a concise evidence-based report showing whether ASA now has a
+      working screening product and what the next highest-value product step is.
+    required_work:
+      - summarize_coverage_and_result_distribution
+      - list_actionable_or_highest_value_signals
+      - summarize_provider_and_capability_failures
+      - record_request_budget_and_refresh_reliability
+      - update_current_state_and_roadmap
+    acceptance:
+      - report_contains_direct_production_evidence
+      - report_separates_product_gaps_from_valid_no_signal_outcomes
+      - final_verdict_is_PASS_or_FOUNDER_BLOCKER
+      - sprint_is_closed_or_smallest_next_patch_is_defined
+
+validation:
+  required:
+    - targeted_tests_for_universe_and_scheduler_changes
+    - full_test_suite
+    - architecture_tests
+    - lint
+    - type_check
+    - real_Postgres_integration_tests
+    - authenticated_production_smoke
+    - five_cycle_market_day_evidence
+  reporting:
+    format: concise
+    required_fields:
+      - changed_behavior
+      - tests_and_evidence
+      - production_coverage
+      - result_distribution
+      - provider_health
+      - risks_and_rollback
+      - remaining_issues
+    forbidden:
+      - repeated_repository_history
+      - speculative_claims_without_evidence
+      - token_or_secret_output
+      - unnecessary_long_form_narrative
+
+success_metrics:
+  - approved_universe_expanded_to_at_least_25_symbols
+  - all_three_strategies_execute_successfully_on_eligible_subjects
+  - five_market_day_cycles_complete
+  - screening_API_contains_populated_results_across_the_expanded_universe
+  - legitimate_no_signal_and_policy_rejection_are_not_misclassified_as_data_failure
+  - provider_and_capability_failure_rates_are_visible
+  - at_least_one_useful_signal_is_surfaced_or_the_absence_is_explained_by_real_strategy_outputs
+  - no_new_strategy_specific_runtime_API_or_persistence_branching
+
+stop_conditions:
+  continue_until_one_of:
+    - sprint_complete
+    - blocker_requiring_founder_action
+  sprint_complete_when:
+    - all_ticket_acceptance_criteria_pass
+    - all_five_market_day_cycles_have_evidence
+    - expanded_universe_results_are_visible_in_production
+    - all_three_strategies_have_successful_non_missing_evaluations
+    - end_of_day_report_is_merged
+  founder_blocker_report_must_include:
+    - exact_blocked_action
+    - sanitized_evidence
+    - why_worker_authority_or_tools_cannot_resolve_it
+    - smallest_founder_action_required
+    - exact_command_UI_step_or_decision_needed
+    - work_that_continues_in_parallel_if_any
+
+report:
+  required: true
+  destination: project/reports/SPRINT-011.md
+  contents:
+    - sprint_summary
+    - completed_tickets
+    - delegated_merged_pull_requests
+    - universe_definition_and_rationale
+    - market_day_evidence_all_five_cycles
+    - result_distribution_and_provider_health
+    - discovered_and_resolved_defects
+    - remaining_non_blocking_issues
+    - recommendations_for_next_sprint
