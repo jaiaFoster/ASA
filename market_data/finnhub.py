@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hashlib
 from collections.abc import Mapping, Sequence
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 from typing import cast
 
@@ -316,24 +316,33 @@ class FinnhubProvider:
             SecurityAssetType.EQUITY,
             "US",
         )
-        earnings_values = tuple(
-            EarningsEvent(
-                f"finnhub:{row['symbol']}:{row['date']}",
-                security,
-                datetime.fromisoformat(str(row["date"])).date(),
-                {
-                    "bmo": AnnouncementTime.BEFORE_OPEN,
-                    "amc": AnnouncementTime.AFTER_CLOSE,
-                    "dmh": AnnouncementTime.DURING_MARKET,
-                }.get(str(row.get("hour")), AnnouncementTime.UNKNOWN),
-                None,
-                True,
-                (),
-                self._dependencies.clock.now(),
-                _evidence(response),
+        earnings_values: list[EarningsEvent] = []
+        for row in rows:
+            provider_symbol = str(row["symbol"]).upper()
+            event_date = datetime.fromisoformat(str(row["date"])).date()
+            if provider_symbol != security.symbol.upper():
+                continue
+            if not request.effective_start.date() <= event_date <= request.effective_end.date():
+                continue
+            earnings_values.append(
+                EarningsEvent(
+                    f"finnhub:{provider_symbol}:{event_date.isoformat()}",
+                    security,
+                    event_date,
+                    {
+                        "bmo": AnnouncementTime.BEFORE_OPEN,
+                        "amc": AnnouncementTime.AFTER_CLOSE,
+                        "dmh": AnnouncementTime.DURING_MARKET,
+                    }.get(str(row.get("hour")), AnnouncementTime.UNKNOWN),
+                    None,
+                    True,
+                    (),
+                    self._dependencies.clock.now(),
+                    _evidence(response),
+                )
             )
-            for row in rows
-        )
+        if not earnings_values:
+            raise _NoData
         return tuple(
             self._observation(request, subject, value, value.observed_at, response)
             for value in earnings_values
@@ -347,7 +356,7 @@ class FinnhubProvider:
         effective: datetime,
         response: ReadOnlyHttpResponse,
     ) -> MarketObservation:
-        received = self._dependencies.clock.now().astimezone(timezone.utc)
+        received = self._dependencies.clock.now().astimezone(UTC)
         age = max(0, int((received - effective).total_seconds()))
         present = tuple(field for field in request.required_fields if _present(field, value))
         missing = tuple(field for field in request.required_fields if field not in present)
@@ -453,7 +462,7 @@ def _decimal(value: object) -> Decimal:
 def _timestamp(value: object) -> datetime:
     if not isinstance(value, (int, float)):
         raise TypeError("timestamp must be numeric")
-    return datetime.fromtimestamp(value, tz=timezone.utc)
+    return datetime.fromtimestamp(value, tz=UTC)
 
 
 def _array(body: Mapping[str, object], key: str) -> Sequence[object]:

@@ -174,6 +174,8 @@ def build_capability_subject(
     capability: MarketCapability,
     as_of: datetime,
     *,
+    effective_start: datetime | None = None,
+    effective_end: datetime | None = None,
     provider_symbol_window_days: int = 2,
     required_fields: tuple[str, ...] | None = None,
     expiration: date | None = None,
@@ -211,7 +213,11 @@ def build_capability_subject(
         MarketCapability.EARNINGS_CALENDAR_V1: MarketDataSubjectType.EARNINGS_SECURITY,
     }.get(capability, MarketDataSubjectType.INSTRUMENT)
     evidence = (EvidenceReference(EvidenceKind.OBSERVATION, f"screening:live:{symbol}"),)
-    window_start = as_of - timedelta(days=provider_symbol_window_days)
+    semantic_start = effective_start or as_of
+    semantic_end = effective_end or as_of
+    if semantic_start > semantic_end:
+        raise ValueError("capability subject time window is inverted")
+    window_start = min(semantic_start, as_of - timedelta(days=provider_symbol_window_days))
     projections = tuple(
         ProviderAddressProjection(provider_id, "v1", "symbol", symbol, window_start, None, evidence)
         for provider_id in KNOWN_PROVIDER_IDS
@@ -242,7 +248,9 @@ def build_capability_subject(
         instrument,
         subject_type,
         capability,
-        MarketDataRequestContext(as_of, as_of, required_fields, projections, evidence),
+        MarketDataRequestContext(
+            semantic_start, semantic_end, required_fields, projections, evidence
+        ),
     )
 
 

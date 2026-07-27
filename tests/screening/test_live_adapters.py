@@ -198,6 +198,14 @@ class MultiExpirationFixtureProvider(DeterministicFixtureProvider):
         )
 
 
+class CapturingMultiExpirationFixtureProvider(MultiExpirationFixtureProvider):
+    requests: list[object] = []
+
+    def fetch(self, request, budget):  # noqa: ANN001
+        type(self).requests.append(request)
+        return super().fetch(request, budget)
+
+
 def _no_transport(_provider_id: str) -> object:
     return object()
 
@@ -293,6 +301,24 @@ class TestForwardFactorAndEarningsCalendarNeedTwoExpirations:
         )
         assert result.outcome_status in (ScreeningOutcomeStatus.PASS, ScreeningOutcomeStatus.NO_SIGNAL)
         assert result.subject_identity == f"symbol:{SYMBOL}"
+
+    def test_earnings_calendar_requests_the_complete_upcoming_policy_window(self) -> None:
+        CapturingMultiExpirationFixtureProvider.requests.clear()
+        fulfillment, clock = _fulfillment(CapturingMultiExpirationFixtureProvider)
+        adapters = build_live_adapters(SYMBOL, fulfillment)
+        run_screening(
+            TARGET_STRATEGY_REGISTRY,
+            adapters,
+            clock,
+            strategy_ids=("earnings_calendar",),
+        )
+        request = next(
+            item
+            for item in CapturingMultiExpirationFixtureProvider.requests
+            if item.capability is MarketCapability.EARNINGS_CALENDAR_V1  # type: ignore[attr-defined]
+        )
+        assert request.effective_end - request.effective_start == timedelta(days=75)  # type: ignore[attr-defined]
+        assert request.subjects[0].request_context.semantic_end == request.effective_end  # type: ignore[attr-defined]
 
 
 class TestCapabilityNotOfferedByAnyEnabledProvider:
