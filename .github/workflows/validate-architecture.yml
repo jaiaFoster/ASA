@@ -20,6 +20,8 @@ on:
       - 'domain/**'
       - 'market_data/**'
       - 'strategy_runtime/**'
+      - 'screening/**'
+      - 'analytics/**'
       - 'asa/**'
       - 'docs/providers/**'
       - 'architecture/**'
@@ -38,6 +40,8 @@ on:
       - 'tests/portfolio/**'
       - 'tests/execution_planning/**'
       - 'tests/strategy_runtime/**'
+      - 'tests/screening/**'
+      - 'tests/analytics/**'
   workflow_dispatch:
 
 jobs:
@@ -74,6 +78,8 @@ jobs:
           tests/portfolio
           tests/execution_planning
           tests/strategy_runtime
+          tests/screening
+          tests/analytics
           -v
 
       - name: Check generated provider documentation drift
