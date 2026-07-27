@@ -26,6 +26,7 @@ data source -- see docs/strategy_runtime/legacy-runtime-deprecation-plan.md.
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -35,6 +36,7 @@ from fastapi import APIRouter, Depends, Query, Request
 from asa.api.agent_models import agent_api_error
 from asa.api.screening_models import (
     CapabilitiesResponse,
+    OpportunityHistoryResponse,
     RefreshResultResponse,
     ScreeningResultResponse,
     ScreeningResultsEnvelope,
@@ -44,17 +46,23 @@ from market_data import load_market_data_config_from_environment
 from market_data.live_transport import build_live_transport
 from screening.live_acquisition import APPROVED_LIVE_UNIVERSE, live_only_config
 from screening.registry import ScreeningRegistry, signal_catalog
+from strategy_runtime.lifecycle import RecommendedAction
 from strategy_runtime.market_data_planning import (
     build_shared_market_data_access,
     enabled_provider_configs,
 )
-from strategy_runtime.persistence import LatestResultRepository
+from strategy_runtime.persistence import (
+    LatestResultRepository,
+    ObservationHistoryRepository,
+    replay_opportunity_history,
+)
 from strategy_runtime.registry import StrategyRegistry
 from strategy_runtime.result import UniversalScreeningResult
-from strategy_runtime.service import get_state, refresh
+from strategy_runtime.service import get_state, record_opportunity_observation, refresh
 
 DEFAULT_LIMIT = 100
 MAX_LIMIT = 500
+_LOGGER = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
@@ -77,6 +85,7 @@ def build_screening_router(
     transport_factory: Callable[[str], object] = build_live_transport,
     *,
     capabilities_registry: ScreeningRegistry,
+    history_repository: ObservationHistoryRepository,
 ) -> APIRouter:
     router = APIRouter(prefix="/api/v1", dependencies=[Depends(authorize)])
 
@@ -105,6 +114,26 @@ def build_screening_router(
             total=total,
             limit=limit,
             offset=offset,
+        )
+
+    @router.get(
+        "/screening/opportunities/{opportunity_id}/history",
+        response_model=OpportunityHistoryResponse,
+    )
+    def opportunity_history(
+        opportunity_id: str,
+        limit: int = Query(default=DEFAULT_LIMIT, ge=1, le=MAX_LIMIT),
+        offset: int = Query(default=0, ge=0),
+    ) -> OpportunityHistoryResponse:
+        history = replay_opportunity_history(history_repository, opportunity_id)
+        if history is None:
+            raise agent_api_error(
+                404,
+                "NO_OPPORTUNITY_HISTORY",
+                f"No opportunity history for {opportunity_id!r}",
+            )
+        return OpportunityHistoryResponse.from_history(
+            history, limit=limit, offset=offset
         )
 
     @router.get("/screening/{signal}", response_model=ScreeningResultsEnvelope)
@@ -164,6 +193,25 @@ def build_screening_router(
             symbol=symbol,
             fulfillment_by_subject={symbol: subject_access.fulfillment},
         )
+        if result.opportunity_id is not None:
+            try:
+                record_opportunity_observation(
+                    registry,
+                    history_repository,
+                    result,
+                    recommended_action=RecommendedAction.NO_ACTION,
+                )
+            except Exception:
+                # Latest state is already committed. History is additive and
+                # must never corrupt or roll back the canonical latest result.
+                _LOGGER.warning(
+                    "opportunity history append failed",
+                    extra={
+                        "signal_id": result.strategy_id,
+                        "symbol": result.symbol,
+                        "opportunity_id": result.opportunity_id,
+                    },
+                )
         return RefreshResultResponse.from_universal_result(
             result, request_count=len(subject_access.budget_manager.accounting)
         )

@@ -21,6 +21,7 @@ from asa.application.ports.repositories import MarketObservationRepository
 from asa.application.ports.runs import RunPublicationRepository
 from asa.application.use_cases import MarketQuoteService
 from asa.config import Settings
+from asa.integrations.observation_history_postgres import PostgresObservationHistoryRepository
 from asa.integrations.postgres import PostgresMarketObservationRepository, create_postgres_engine
 from asa.integrations.providers.deterministic_fake import DeterministicFakeQuoteProvider
 from asa.integrations.providers.deterministic_fake_broker import (
@@ -34,7 +35,7 @@ from asa.market_data_ops.routes import build_operations_router
 from market_data.live_transport import build_live_transport as build_transport_for_provider
 from screening import SIGNAL_REGISTRY
 from strategy_runtime.adapters import build_migrated_strategy_registry
-from strategy_runtime.persistence import LatestResultRepository
+from strategy_runtime.persistence import LatestResultRepository, ObservationHistoryRepository
 
 
 @dataclass(frozen=True)
@@ -46,6 +47,7 @@ class DependencyOverrides:
     engine_factory: Callable[[str], Engine] | None = None
     market_data_transport_factory: Callable[[str], object] | None = None
     screening_state_repository: LatestResultRepository | None = None
+    observation_history_repository: ObservationHistoryRepository | None = None
 
 
 def build_application(
@@ -69,6 +71,10 @@ def build_application(
         or PostgresLatestResultRepository(engine_factory(settings.database_url))
     )
     screening_registry = build_migrated_strategy_registry()
+    observation_history_repository = (
+        selected.observation_history_repository
+        or PostgresObservationHistoryRepository(engine_factory(settings.database_url))
+    )
     agent_authorize = build_agent_authorizer(settings.agent_api_token)
     quote_service = MarketQuoteService(
         provider=provider,
@@ -113,6 +119,7 @@ def build_application(
             agent_authorize,
             selected.market_data_transport_factory or build_transport_for_provider,
             capabilities_registry=SIGNAL_REGISTRY,
+            history_repository=observation_history_repository,
         )
     )
 
@@ -145,6 +152,7 @@ def build_application(
         "portfolio_runner": portfolio_runner,
         "portfolio_query": portfolio_query,
         "screening_state_repository": screening_state_repository,
+        "observation_history_repository": observation_history_repository,
         "agent_authorize": agent_authorize,
     }
     return app

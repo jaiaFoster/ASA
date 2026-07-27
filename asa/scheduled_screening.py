@@ -31,12 +31,14 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import sys
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
 from asa.config import Settings
+from asa.integrations.observation_history_postgres import PostgresObservationHistoryRepository
 from asa.integrations.postgres import create_postgres_engine
 from asa.integrations.universal_screening_postgres import PostgresLatestResultRepository
 from market_data import load_market_data_config_from_environment
@@ -44,12 +46,13 @@ from market_data.live_transport import build_live_transport
 from screening import APPROVED_LIVE_UNIVERSE
 from screening.live_acquisition import live_only_config
 from strategy_runtime.adapters import build_migrated_strategy_registry
+from strategy_runtime.lifecycle import RecommendedAction
 from strategy_runtime.market_data_planning import (
     build_shared_market_data_access,
     enabled_provider_configs,
 )
-from strategy_runtime.persistence import LatestResultRepository
-from strategy_runtime.service import refresh
+from strategy_runtime.persistence import LatestResultRepository, ObservationHistoryRepository
+from strategy_runtime.service import record_opportunity_observation, refresh
 
 # The initial production screening universe
 # (project/reports/SPRINT-008D-SCREENING-UNIVERSE.md, PROD-001): the two
@@ -64,6 +67,7 @@ PRODUCTION_SCREENING_UNIVERSE: tuple[tuple[str, str], ...] = tuple(
     for signal_id in ("forward_factor", "skew_momentum")
     for symbol in APPROVED_LIVE_UNIVERSE
 )
+_LOGGER = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
@@ -85,6 +89,7 @@ def run_scheduled_refresh(
     universe: tuple[tuple[str, str], ...] = PRODUCTION_SCREENING_UNIVERSE,
     *,
     repository: LatestResultRepository | None = None,
+    history_repository: ObservationHistoryRepository | None = None,
     transport_factory: Callable[[str], object] = build_live_transport,
 ) -> tuple[PairOutcome, ...]:
     """Run one bounded refresh per pair in ``universe``, in order,
@@ -101,6 +106,9 @@ def run_scheduled_refresh(
     uses.
     """
     resolved_repository = repository or PostgresLatestResultRepository(
+        create_postgres_engine(Settings().database_url)
+    )
+    resolved_history_repository = history_repository or PostgresObservationHistoryRepository(
         create_postgres_engine(Settings().database_url)
     )
     registry = build_migrated_strategy_registry()
@@ -124,6 +132,23 @@ def run_scheduled_refresh(
                 symbol=symbol,
                 fulfillment_by_subject={symbol: subject_access.fulfillment},
             )
+            if result.opportunity_id is not None:
+                try:
+                    record_opportunity_observation(
+                        registry,
+                        resolved_history_repository,
+                        result,
+                        recommended_action=RecommendedAction.NO_ACTION,
+                    )
+                except Exception:
+                    _LOGGER.warning(
+                        "scheduled opportunity history append failed",
+                        extra={
+                            "signal_id": result.strategy_id,
+                            "symbol": result.symbol,
+                            "opportunity_id": result.opportunity_id,
+                        },
+                    )
             outcomes.append(
                 PairOutcome(
                     signal_id,
