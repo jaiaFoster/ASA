@@ -141,10 +141,10 @@ class LatestResultRepository(Protocol):
     """Stores only the latest UniversalSignalRow per (signal_id,
     symbol). upsert() advances that row only when the candidate's source
     observation ordering key is not older; late arrivals never regress
-    latest state. Same-time candidates use observation identity as the
-    deterministic tie-breaker. It never accumulates history
-    (ObservationHistoryRepository's own job). A symbol a given run never
-    touches is never removed by that run.
+    latest state. Same-source candidates are ordered by evaluation time,
+    then observation identity as the final deterministic tie-breaker. It
+    never accumulates history (ObservationHistoryRepository's own job). A
+    symbol a given run never touches is never removed by that run.
     """
 
     def upsert(self, row: UniversalSignalRow) -> None: ...
@@ -156,12 +156,20 @@ class LatestResultRepository(Protocol):
     def get_one(self, signal_id: str, symbol: str) -> UniversalSignalRow | None: ...
 
 
-def latest_ordering_key(row: UniversalSignalRow) -> tuple[datetime, str]:
-    """Canonical monotonic order: source time, then stable observation identity."""
+def latest_ordering_key(row: UniversalSignalRow) -> tuple[datetime, datetime, str]:
+    """Canonical monotonic order: source time, evaluation time, stable identity.
+
+    The former two-part key used a SHA-derived observation identity as the
+    second element. SHA lexical order is deterministic but not chronological,
+    so a later scheduled evaluation using unchanged source data could be
+    rejected and leave its refresh metadata stuck on an older slot. Evaluation
+    time is the truthful same-source ordering dimension; identity remains only
+    the final idempotent tie-breaker.
+    """
     source_time = (
         row.temporal.observed_at if row.temporal is not None else row.observed_at
     )
-    return source_time, row.observation_id
+    return source_time, row.observed_at, row.observation_id
 
 
 def should_replace_latest(

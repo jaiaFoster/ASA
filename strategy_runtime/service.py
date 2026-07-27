@@ -28,7 +28,7 @@ from collections.abc import Mapping
 from dataclasses import replace
 from datetime import UTC, datetime
 
-from domain import FreshnessStatus, MarketObservation
+from domain import FreshnessStatus, MarketCapability, MarketObservation
 from market_data import CapabilityFulfillmentService
 from market_data.session_calendar import NEW_YORK, UsEquitySessionCalendar
 from market_data.session_schedule import SessionRefreshSchedule
@@ -67,6 +67,43 @@ _USABILITY_PRIORITY = {
 }
 
 
+def _current_temporal_observations(
+    observations: tuple[MarketObservation, ...],
+) -> tuple[MarketObservation, ...]:
+    """Return the current effective evidence for temporal classification.
+
+    A historical-bars capability intentionally contributes a time series. Its
+    oldest bar defines analytical coverage, not the freshness of the current
+    result. Treating every bar as a peer current input made a 45-day lookback
+    appear as roughly 45 days of age and cross-input skew. Keep the latest bar
+    per subject/provider as the current evidence point while retaining every
+    observation for acquisition timing and strategy computation elsewhere.
+    Point-in-time capabilities remain unchanged.
+    """
+    point_in_time: list[MarketObservation] = []
+    latest_historical: dict[tuple[str, str], MarketObservation] = {}
+    for observation in observations:
+        if observation.capability is not MarketCapability.HISTORICAL_BARS_V1:
+            point_in_time.append(observation)
+            continue
+        key = (
+            observation.subject.subject_identity,
+            observation.provenance.provider_id,
+        )
+        existing = latest_historical.get(key)
+        if existing is None or (
+            observation.effective_time,
+            observation.observation_id,
+        ) > (
+            existing.effective_time,
+            existing.observation_id,
+        ):
+            latest_historical[key] = observation
+    return tuple(point_in_time) + tuple(
+        latest_historical[key] for key in sorted(latest_historical)
+    )
+
+
 def _temporal_metadata(
     registry: StrategyRegistry[UniversalScreeningResult],
     strategy_id: str,
@@ -82,7 +119,10 @@ def _temporal_metadata(
     )
     if not observations:
         return None
-    effective_times = tuple(item.effective_time.astimezone(UTC) for item in observations)
+    current_observations = _current_temporal_observations(observations)
+    effective_times = tuple(
+        item.effective_time.astimezone(UTC) for item in current_observations
+    )
     recorded_times = tuple(item.recorded_time.astimezone(UTC) for item in observations)
     observed = max(effective_times)
     received = max(recorded_times)
@@ -101,11 +141,11 @@ def _temporal_metadata(
             requirement,
             market_is_open=session_status.value == "open",
         )
-        for item in observations
+        for item in current_observations
     )
     usability = max(decisions, key=lambda item: _USABILITY_PRIORITY[item.status])
     freshness = max(
-        (item.freshness.status for item in observations),
+        (item.freshness.status for item in current_observations),
         key=lambda item: _FRESHNESS_PRIORITY[item],
     )
     previous_observed = (
