@@ -44,13 +44,13 @@ class PostgresLatestResultRepository:
                         opportunity_id, row_type, verdict, evaluation_state,
                         lifecycle_stage, recommendation_state, data_quality,
                         metrics, economics, blockers, warnings, provenance, observed_at,
-                        temporal
+                        temporal, source_observed_at
                     ) VALUES (
                         :signal_id, :symbol, :signal_version, :observation_id,
                         :opportunity_id, :row_type, :verdict, :evaluation_state,
                         :lifecycle_stage, :recommendation_state, :data_quality,
                         :metrics, :economics, :blockers, :warnings, :provenance, :observed_at,
-                        :temporal
+                        :temporal, :source_observed_at
                     )
                     ON CONFLICT (signal_id, symbol) DO UPDATE SET
                         signal_version = EXCLUDED.signal_version,
@@ -68,7 +68,22 @@ class PostgresLatestResultRepository:
                         warnings = EXCLUDED.warnings,
                         provenance = EXCLUDED.provenance,
                         observed_at = EXCLUDED.observed_at,
-                        temporal = EXCLUDED.temporal
+                        temporal = EXCLUDED.temporal,
+                        source_observed_at = EXCLUDED.source_observed_at
+                    WHERE
+                        (
+                            COALESCE(
+                                EXCLUDED.source_observed_at,
+                                EXCLUDED.observed_at
+                            ),
+                            EXCLUDED.observation_id
+                        ) >= (
+                            COALESCE(
+                                universal_screening_state.source_observed_at,
+                                universal_screening_state.observed_at
+                            ),
+                            universal_screening_state.observation_id
+                        )
                 """),
                 _to_params(row),
             )
@@ -168,6 +183,9 @@ def _to_params(row: UniversalSignalRow) -> dict[str, object]:
                     "input_time_skew_seconds": row.temporal.input_time_skew_seconds,
                 }
             )
+        ),
+        "source_observed_at": (
+            row.temporal.observed_at if row.temporal is not None else row.observed_at
         ),
     }
 

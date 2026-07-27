@@ -139,12 +139,12 @@ class UniversalSignalRow:
 
 class LatestResultRepository(Protocol):
     """Stores only the latest UniversalSignalRow per (signal_id,
-    symbol) -- upsert() always overwrites any existing row for the
-    same pair, never accumulates history (ObservationHistoryRepository's
-    own job). A symbol a given run never touches is never removed by that
-    run -- "empty run never exposes stale data" means a caller sees
-    exactly what was last actually computed, not nothing, and never a
-    silently fabricated absence.
+    symbol). upsert() advances that row only when the candidate's source
+    observation ordering key is not older; late arrivals never regress
+    latest state. Same-time candidates use observation identity as the
+    deterministic tie-breaker. It never accumulates history
+    (ObservationHistoryRepository's own job). A symbol a given run never
+    touches is never removed by that run.
     """
 
     def upsert(self, row: UniversalSignalRow) -> None: ...
@@ -154,6 +154,23 @@ class LatestResultRepository(Protocol):
     def get_for_signal(self, signal_id: str) -> tuple[UniversalSignalRow, ...]: ...
 
     def get_one(self, signal_id: str, symbol: str) -> UniversalSignalRow | None: ...
+
+
+def latest_ordering_key(row: UniversalSignalRow) -> tuple[datetime, str]:
+    """Canonical monotonic order: source time, then stable observation identity."""
+    source_time = (
+        row.temporal.observed_at if row.temporal is not None else row.observed_at
+    )
+    return source_time, row.observation_id
+
+
+def should_replace_latest(
+    existing: UniversalSignalRow | None, candidate: UniversalSignalRow
+) -> bool:
+    """Late older arrivals may be retained elsewhere, but never regress latest."""
+    return existing is None or latest_ordering_key(candidate) >= latest_ordering_key(
+        existing
+    )
 
 
 class ObservationHistoryRepository(Protocol):
