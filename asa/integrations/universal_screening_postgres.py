@@ -76,12 +76,14 @@ class PostgresLatestResultRepository:
                                 EXCLUDED.source_observed_at,
                                 EXCLUDED.observed_at
                             ),
+                            EXCLUDED.observed_at,
                             EXCLUDED.observation_id
                         ) >= (
                             COALESCE(
                                 universal_screening_state.source_observed_at,
                                 universal_screening_state.observed_at
                             ),
+                            universal_screening_state.observed_at,
                             universal_screening_state.observation_id
                         )
                 """),
