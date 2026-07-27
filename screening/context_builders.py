@@ -3,10 +3,17 @@
 Constructs each target strategy's frozen manifest execution context from
 canonical market data. Forward Factor's builder uses analytics/ for the
 implied-forward-volatility inputs SPRINT-006 found missing (ANALYTICS-002)
-instead of any hardcoded external constant; Earnings Calendar and Skew
-Momentum need no derived analytics, so their builders just isolate the
-context-construction logic previously inline in screening/adapters.py into
-separately testable functions.
+instead of any hardcoded external constant.
+
+Earnings Calendar and Skew Momentum's own score.values inputs were
+hardcoded constants from this ticket's original authorship until
+SPRINT-011-CLOSEOUT/CLOSE-002 found them: identical for every symbol,
+completely disconnected from vertical/calendar/debit's own real computed
+outputs, silently making every live PASS/WATCH verdict from either
+strategy meaningless. Both builders now take score_values as a required
+keyword argument -- real, symbol-specific, live-data-derived signals the
+caller (screening/live_adapters.py) computes, never invented here. See
+project/reports/SPRINT-011.md for the full defect writeup.
 
 Adapters only: no strategy modification, no provider import. Every builder
 here takes already-canonical domain objects and produces a ComponentValues
@@ -24,7 +31,6 @@ from analytics.expiration_selection import ExpirationCandidate, select_expiratio
 from analytics.forward_factor import compute_days_to_expiration, compute_option_implied_volatility
 from domain import EarningsEvent, ExpirationCollection, ExpirationCycle, OptionChain, OptionType
 from strategies.stonk_components import (
-    D,
     DATE,
     DECIMAL_LIST,
     EARNINGS_EVENT,
@@ -32,6 +38,7 @@ from strategies.stonk_components import (
     EXPIRATION_CYCLE,
     OPTION_CHAIN,
     OPTION_CONTRACT,
+    D,
 )
 from strategies.type_system import ComponentValues, StrategyTypeReference, TypedValue
 
@@ -132,7 +139,17 @@ def build_earnings_calendar_context(
     as_of: date,
     *,
     target_strike: Decimal,
+    score_values: tuple[Decimal, Decimal],
 ) -> ComponentValues:
+    """score_values -- SPRINT-011-CLOSEOUT/CLOSE-002: (term_structure_richness,
+    iv_realized_vol_richness), both real, symbol-specific, live-data-derived
+    signals the caller computes inline (screening/live_adapters.py's
+    build_live_earnings_calendar_adapter, using _richness_score()) -- this
+    function no longer hardcodes (80, 60) regardless of symbol. Weights
+    (3, 1) remain a genuine strategy parameter, same status as
+    verdict_classifier's own pass_threshold/watch_threshold literals, not
+    market data -- unchanged by this fix.
+    """
     return _context(
         **{
             "event_window.event": (EARNINGS_EVENT, event),
@@ -145,7 +162,7 @@ def build_earnings_calendar_context(
             "expiration_select.event": (EARNINGS_EVENT, event),
             "calendar.chain": (OPTION_CHAIN, chain),
             "calendar.target_strike": (D, target_strike),
-            "score.values": (DECIMAL_LIST, (Decimal("80"), Decimal("60"))),
+            "score.values": (DECIMAL_LIST, score_values),
             "score.weights": (DECIMAL_LIST, (Decimal("3"), Decimal("1"))),
         }
     )
@@ -157,14 +174,24 @@ def build_skew_momentum_context(
     *,
     strike: Decimal,
     option_type: OptionType = OptionType.CALL,
+    score_values: tuple[Decimal, Decimal],
 ) -> ComponentValues:
+    """score_values -- SPRINT-011-CLOSEOUT/CLOSE-002: (skew_richness,
+    momentum_richness), both real, symbol-specific, live-data-derived
+    signals the caller computes inline (screening/live_adapters.py's
+    build_live_skew_momentum_adapter, using _richness_score()) -- this
+    function no longer hardcodes (80, 70) regardless of symbol. Weights
+    (2, 1) remain a genuine strategy parameter (skew is the primary edge,
+    momentum an enhancer, per Volatility Vibes' own framing), not market
+    data -- unchanged by this fix.
+    """
     (contract,) = chain.find(expiration=expiration, strike=strike, option_type=option_type)
     return _context(
         **{
             "vertical.chain": (OPTION_CHAIN, chain),
             "vertical.expiration": (DATE, expiration),
             "liquidity.contract": (OPTION_CONTRACT, contract),
-            "score.values": (DECIMAL_LIST, (Decimal("80"), Decimal("70"))),
+            "score.values": (DECIMAL_LIST, score_values),
             "score.weights": (DECIMAL_LIST, (Decimal("2"), Decimal("1"))),
         }
     )

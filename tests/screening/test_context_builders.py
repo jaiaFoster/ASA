@@ -45,19 +45,31 @@ class TestBuildEarningsCalendarContext:
         event = fixtures.earnings_calendar_event()
         chain = fixtures.earnings_calendar_chain()
         context = build_earnings_calendar_context(
-            chain, event, front, back, fixtures.AS_OF_DATE, target_strike=Decimal("100")
+            chain,
+            event,
+            front,
+            back,
+            fixtures.AS_OF_DATE,
+            target_strike=Decimal("100"),
+            score_values=(Decimal("80"), Decimal("60")),
         )
         values = dict(context.entries)
         assert values["calendar.target_strike"].value == Decimal("100")
         assert values["event_window.event"].value is event
+        assert values["score.values"].value == (Decimal("80"), Decimal("60"))
 
 
 class TestBuildSkewMomentumContext:
     def test_builds_a_context(self) -> None:
         chain = fixtures.skew_momentum_chain()
         context = build_skew_momentum_context(
-            chain, fixtures.SKEW_EXPIRATION, strike=Decimal("100"), option_type=OptionType.CALL
+            chain,
+            fixtures.SKEW_EXPIRATION,
+            strike=Decimal("100"),
+            option_type=OptionType.CALL,
+            score_values=(Decimal("80"), Decimal("70")),
         )
         values = dict(context.entries)
         assert values["vertical.expiration"].value == fixtures.SKEW_EXPIRATION
         assert values["liquidity.contract"].value.strike == Decimal("100")
+        assert values["score.values"].value == (Decimal("80"), Decimal("70"))

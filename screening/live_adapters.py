@@ -31,16 +31,19 @@ from __future__ import annotations
 
 from datetime import date, datetime, timedelta
 from decimal import Decimal
+from typing import cast
 
 from analytics.expiration_selection import (
     ExpirationCandidate,
     rank_expiration_pairs,
     select_earnings_relative_expiration_pair,
 )
+from analytics.realized_volatility import compute_realized_volatility, compute_trailing_return
 from domain import (
     DomainInvariantError,
     EarningsEvent,
     MarketCapability,
+    OHLCVBar,
     OptionChain,
     OptionType,
     Quote,
@@ -67,6 +70,7 @@ from screening.live_context import (
     classify_domain_invariant_error,
     combine_option_chains,
     select_atm_strike_at_expiration,
+    select_nearest_delta_contract,
 )
 from screening.registry import ScreeningStrategyDefinition
 from screening.results import ScreeningOutcomeStatus, ScreeningResult
@@ -236,6 +240,78 @@ def _spot_price(quote: Quote) -> Decimal:
     )
 
 
+# SPRINT-011-CLOSEOUT/CLOSE-002: real, live-data-derived score inputs for
+# Earnings Calendar and Skew Momentum, replacing what were unconditional
+# hardcoded constants (identical for every symbol) since this ticket's
+# original authorship. See project/reports/SPRINT-011.md for the full
+# defect writeup and cited sources for each strategy's own thesis.
+_HISTORICAL_LOOKBACK_DAYS = 45  # calendar days -- ~30 trading days
+# Centers a richness score at 50 (neutral); a 1/3 (0.33) vol-point or
+# return gap saturates it to 0 or 100. A deliberate, documented, linear
+# approximation -- not the exact z-score-against-own-history system either
+# cited video describes (that needs a persisted historical skew/IV-term
+# time series this codebase does not have yet); reusing IV-vs-realized-
+# volatility and price momentum instead, both computable from data this
+# system already acquires live.
+_RICHNESS_SCALE = Decimal("300")
+
+
+def _richness_score(raw_gap: Decimal) -> Decimal:
+    return max(Decimal(0), min(Decimal(100), Decimal(50) + raw_gap * _RICHNESS_SCALE))
+
+
+def _acquire_daily_closes(
+    fulfillment: CapabilityFulfillmentService, symbol: str, now: datetime
+) -> tuple[Decimal, ...]:
+    """Oldest-first daily close series over a fixed lookback window, for
+    realized-volatility and momentum computation. Unlike every other
+    capability this module acquires, a historical-bars request fulfils as
+    *one MarketObservation per day* (market_data/tradier.py's own
+    _normalize()) -- this reads every observation, not just the first, and
+    skips the single-observation freshness/usability gate _acquire_or_raise
+    applies elsewhere: "freshness" for a completed prior trading day's
+    close is not the same concept as for a live quote or chain.
+    """
+    lookback_start = now - timedelta(days=_HISTORICAL_LOOKBACK_DAYS)
+    subject = build_capability_subject(
+        symbol,
+        MarketCapability.HISTORICAL_BARS_V1,
+        now,
+        effective_start=lookback_start,
+        effective_end=now,
+        required_fields=("close",),
+    )
+    try:
+        result = acquire_capability(
+            fulfillment,
+            MarketCapability.HISTORICAL_BARS_V1,
+            subject,
+            effective_start=lookback_start,
+            effective_end=now,
+            required_fields=("close",),
+            maximum_age_seconds=int(timedelta(days=_HISTORICAL_LOOKBACK_DAYS + 1).total_seconds()),
+        )
+    except DomainInvariantError as exc:
+        raise StrategyAdapterError(
+            ScreeningOutcomeStatus.MISSING_DATA,
+            classify_domain_invariant_error(exc, MarketCapability.HISTORICAL_BARS_V1, symbol),
+        ) from exc
+    if result.status is FulfillmentStatus.FAILED or not result.observations:
+        raise StrategyAdapterError(
+            ScreeningOutcomeStatus.MISSING_DATA,
+            f"a valid request for live {MarketCapability.HISTORICAL_BARS_V1.value} for "
+            f"{symbol} could not be completed or normalized",
+        )
+    ordered = sorted(result.observations, key=lambda item: item.effective_time)
+    closes = tuple(cast(OHLCVBar, item.value).close for item in ordered)
+    if len(closes) < 2:
+        raise StrategyAdapterError(
+            ScreeningOutcomeStatus.MISSING_DATA,
+            f"fewer than two historical daily closes available for {symbol}",
+        )
+    return closes
+
+
 def build_live_forward_factor_adapter(
     symbol: str,
     fulfillment: CapabilityFulfillmentService,
@@ -382,8 +458,44 @@ def build_live_earnings_calendar_adapter(
         target_strike = select_atm_strike_at_expiration(
             chain, front_cycle.expiration_date, spot_price, OptionType.CALL
         )
+        back_strike = select_atm_strike_at_expiration(
+            chain, back_cycle.expiration_date, spot_price, OptionType.CALL
+        )
+        (front_contract,) = chain.find(
+            expiration=front_cycle.expiration_date, strike=target_strike, option_type=OptionType.CALL
+        )
+        (back_contract,) = chain.find(
+            expiration=back_cycle.expiration_date, strike=back_strike, option_type=OptionType.CALL
+        )
+        if front_contract.implied_volatility is None or back_contract.implied_volatility is None:
+            raise StrategyAdapterError(
+                ScreeningOutcomeStatus.MISSING_DATA,
+                f"front or back at-the-money contract for {symbol} has no implied_volatility",
+            )
+        # Term-structure richness (Karl Domm, "This Option Strategy Turned
+        # $10k Into $1 Million In One Year", ~06:45): the single strongest
+        # predictor in that video's own 72,500-event study was a steep
+        # negative term-structure slope, i.e. front-month IV meaningfully
+        # richer than the ~45-day-out expiration -- approximated here as
+        # this strategy's own already-selected front/back ATM IVs, not a
+        # separately-fetched fixed 45-day point (this system selects
+        # front/back via its own earnings-relative DTE policy, not a fixed
+        # calendar pin).
+        term_richness = _richness_score(front_contract.implied_volatility - back_contract.implied_volatility)
+        closes = _acquire_daily_closes(fulfillment, symbol, now)
+        realized_vol = compute_realized_volatility(closes)
+        # iv30/rv30-style richness (same source, ~09:40): front-month IV
+        # priced above what has actually realized -- the second predictor
+        # that video's own decile analysis found correlated with returns.
+        iv_rv_richness = _richness_score(front_contract.implied_volatility - realized_vol)
         context = build_earnings_calendar_context(
-            chain, event, front_cycle, back_cycle, as_of, target_strike=target_strike  # type: ignore[arg-type]
+            chain,
+            event,  # type: ignore[arg-type]
+            front_cycle,
+            back_cycle,
+            as_of,
+            target_strike=target_strike,
+            score_values=(term_richness, iv_rv_richness),
         )
         graph = compile_strategy_graph(EARNINGS_CALENDAR_MANIFEST, _COMPONENT_REGISTRY)
         result = execute_strategy_graph(graph, context)
@@ -444,8 +556,39 @@ def build_live_skew_momentum_adapter(
         strike = select_atm_strike_at_expiration(
             chain, nearest.expiration_date, spot_price, OptionType.CALL  # type: ignore[arg-type]
         )
+        (atm_contract,) = chain.find(  # type: ignore[attr-defined]
+            expiration=nearest.expiration_date, strike=strike, option_type=OptionType.CALL
+        )
+        wing_contract = select_nearest_delta_contract(
+            chain,  # type: ignore[arg-type]
+            nearest.expiration_date,
+            OptionType.CALL,
+            Decimal("0.25"),
+            exclude_strike=strike,
+        )
+        if atm_contract.implied_volatility is None or wing_contract.implied_volatility is None:
+            raise StrategyAdapterError(
+                ScreeningOutcomeStatus.MISSING_DATA,
+                f"at-the-money or 25-delta wing contract for {symbol} has no implied_volatility",
+            )
+        # Skew richness (Volatility Vibes, "How to Spot 10x Vertical
+        # Spreads BEFORE They Take Off", ~05:53): call skew = (ATM_IV -
+        # 25-delta_IV) / ATM_IV; a more negative value means the wing
+        # trades richer than the near-the-money leg. Inverted here (wing
+        # minus ATM, not normalized) so a positive richness score means
+        # "the wing we'd sell is rich" -- the sign the vertical's own
+        # long-ATM/short-wing structure (strategies/stonk_manifests.py's
+        # own frozen 0.50/0.25 delta targets, unchanged by this fix) is
+        # built to exploit.
+        skew_richness = _richness_score(wing_contract.implied_volatility - atm_contract.implied_volatility)
+        closes = _acquire_daily_closes(fulfillment, symbol, now)
+        momentum_richness = _richness_score(compute_trailing_return(closes))
         context = build_skew_momentum_context(
-            chain, nearest.expiration_date, strike=strike, option_type=OptionType.CALL  # type: ignore[arg-type]
+            chain,  # type: ignore[arg-type]
+            nearest.expiration_date,
+            strike=strike,
+            option_type=OptionType.CALL,
+            score_values=(skew_richness, momentum_richness),
         )
         graph = compile_strategy_graph(SKEW_MOMENTUM_VERTICAL_MANIFEST, _COMPONENT_REGISTRY)
         result = execute_strategy_graph(graph, context)

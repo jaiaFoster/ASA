@@ -12,10 +12,10 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping
 from decimal import Decimal
 
-from domain import EvidenceReference
 from analytics.clock import Clock
 from analytics.features import DerivedFeatureResult
 from analytics.registry import AnalyticsFeatureDefinition
+from domain import EvidenceReference
 
 # A feature computation is a pure function of its named inputs to one
 # Decimal value. Different features take wildly different inputs (implied

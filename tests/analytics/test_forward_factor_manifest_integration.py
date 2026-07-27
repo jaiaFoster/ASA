@@ -42,7 +42,7 @@ from strategies import (
     execute_strategy_graph,
 )
 from strategies.plugins import build_plugin_registry
-from strategies.stonk_components import D, EXPIRATION_COLLECTION, OPTION_CHAIN
+from strategies.stonk_components import EXPIRATION_COLLECTION, OPTION_CHAIN, D
 from strategies.type_system import ComponentValues, StrategyTypeReference, TypedValue
 
 AS_OF = date(2026, 7, 22)

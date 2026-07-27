@@ -87,6 +87,42 @@ def select_atm_strike_at_expiration(
     return select_atm_strike(strikes, spot_price)
 
 
+class NoContractNearDeltaError(ValueError):
+    """No contract with a populated delta exists at the given expiration."""
+
+
+def select_nearest_delta_contract(
+    chain: OptionChain,
+    expiration: date,
+    option_type: OptionType,
+    target_delta: Decimal,
+    *,
+    exclude_strike: Decimal | None = None,
+) -> OptionContract:
+    """SPRINT-011-CLOSEOUT/CLOSE-002: a screening-layer-owned delta lookup,
+    used only to measure a real, live skew/richness signal for scoring --
+    a fresh, small, public implementation, not a reach into
+    strategies/stonk_components.py's own private _nearest_delta (this
+    module's own docstring already established why screening/ cannot do
+    that: no queryable API, would reach into private internals). The
+    execution graph's own leg selection (strategies/stonk_manifests.py's
+    frozen VerticalStructure node) is completely unmodified by this --
+    this function only informs the score context supplied alongside it,
+    never the structure itself.
+    """
+    candidates = tuple(
+        contract
+        for contract in chain.find(expiration=expiration, option_type=option_type)
+        if contract.delta is not None and contract.strike != exclude_strike
+    )
+    if not candidates:
+        raise NoContractNearDeltaError(
+            f"no {option_type.value} contract with a populated delta at expiration "
+            f"{expiration.isoformat()}"
+        )
+    return min(candidates, key=lambda item: abs(abs(item.delta) - abs(target_delta)))  # type: ignore[arg-type]
+
+
 def _is_monthly_expiration(expiration: date) -> bool:
     """Third Friday of the month -- the standard monthly options cycle."""
     return expiration.weekday() == 4 and 15 <= expiration.day <= 21
