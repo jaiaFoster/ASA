@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from dataclasses import dataclass, replace
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -38,7 +38,7 @@ from market_data.transport import (
     ReadOnlyTransportTimeout,
 )
 
-NOW = datetime(2026, 7, 21, 16, 0, tzinfo=timezone.utc)
+NOW = datetime(2026, 7, 21, 16, 0, tzinfo=UTC)
 EVIDENCE = (EvidenceReference(EvidenceKind.OBSERVATION, "instrument-reference:AAPL"),)
 INSTRUMENT = Instrument(
     CanonicalInstrumentIdentity("figi", "BBG000B9XRY4"), InstrumentKind.EQUITY, "AAPL", "USD"
@@ -47,8 +47,10 @@ INSTRUMENT = Instrument(
 
 @dataclass(frozen=True)
 class Clock:
+    value: datetime = NOW
+
     def now(self) -> datetime:
-        return NOW
+        return self.value
 
 
 class Budget:
@@ -90,7 +92,11 @@ def subject(
     projection = ProviderAddressProjection(
         "finnhub", "v1", "symbol", symbol, NOW - timedelta(days=30), None, EVIDENCE
     )
-    semantic_start = NOW if capability is MarketCapability.EARNINGS_CALENDAR_V1 else NOW - timedelta(days=5)
+    semantic_start = (
+        NOW
+        if capability is MarketCapability.EARNINGS_CALENDAR_V1
+        else NOW - timedelta(days=5)
+    )
     semantic_end = (
         NOW + timedelta(days=75)
         if capability is MarketCapability.EARNINGS_CALENDAR_V1
@@ -127,14 +133,20 @@ def request(
     )
 
 
-def provider(transport: Transport, budget: Budget | None = None) -> tuple[FinnhubProvider, Budget]:
+def provider(
+    transport: Transport,
+    budget: Budget | None = None,
+    clock: Clock | None = None,
+) -> tuple[FinnhubProvider, Budget]:
     config = load_market_data_config(
         {"ASA_FINNHUB_ENABLED": "true", "ASA_FINNHUB_API_KEY": "test-key"}
     )
     selected = next(item for item in config.providers if item.provider_id == "finnhub")
     authorizer = budget or Budget()
     return (
-        FinnhubProvider(selected, ProviderDependencies(transport, Clock(), authorizer)),
+        FinnhubProvider(
+            selected, ProviderDependencies(transport, clock or Clock(), authorizer)
+        ),
         authorizer,
     )
 
@@ -151,6 +163,22 @@ def test_quote_success_requires_semantic_price_and_timestamp() -> None:
     assert transport.requests[0].path == "/api/v1/quote"
     assert transport.requests[0].query == (("symbol", "AAPL"),)
     assert "test-key" not in repr(transport.requests[0])
+
+
+def test_weekend_quote_from_friday_session_is_prior_session() -> None:
+    friday_close = datetime(2026, 7, 24, 20, tzinfo=UTC)
+    saturday = datetime(2026, 7, 25, 16, tzinfo=UTC)
+    transport = Transport(
+        (response({"c": 620.5, "t": int(friday_close.timestamp())}),)
+    )
+    adapter, _ = provider(transport, clock=Clock(saturday))
+    requested = replace(
+        request(MarketCapability.REAL_TIME_QUOTE_V1, ("last",)),
+        maximum_age_seconds=3600,
+    )
+    result = adapter.fetch(requested, authorization())
+    assert result.error is None
+    assert result.observations[0].freshness.status.value == "prior_session"
 
 
 def test_candle_success_validates_status_arrays_and_utc_timestamps() -> None:
@@ -171,7 +199,7 @@ def test_candle_success_validates_status_arrays_and_utc_timestamps() -> None:
         authorization(),
     )
     assert result.error is None and isinstance(result.observations[0].value, OHLCVBar)
-    assert result.observations[0].value.start_at.tzinfo is timezone.utc
+    assert result.observations[0].value.start_at.tzinfo is UTC
     assert dict(transport.requests[0].query)["resolution"] == "D"
 
 

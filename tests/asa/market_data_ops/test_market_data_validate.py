@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -156,8 +158,9 @@ def test_tradier_option_chain_live_run_completes_instead_of_crashing(
                         "ask": "189.20",
                         "last": "189.15",
                         "bidsize": 1,
-                        "asksize": 1,
-                        "volume": 100,
+                            "asksize": 1,
+                            "volume": 100,
+                            "trade_date": int(datetime.now(UTC).timestamp() * 1000),
                     }
                 }
             },

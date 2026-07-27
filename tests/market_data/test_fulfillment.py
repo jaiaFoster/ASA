@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import dataclasses
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from domain import (
     CanonicalInstrumentIdentity,
     EvidenceKind,
     EvidenceReference,
+    FreshnessMetadata,
+    FreshnessStatus,
     Instrument,
     InstrumentKind,
     MarketCapability,
@@ -237,6 +239,49 @@ def test_stale_primary_uses_fresh_secondary_without_silent_fallback() -> None:
     assert result.selected_provider == "secondary"
     assert result.attempts[0].error is not None
     assert result.attempts[0].error.code is ProviderErrorCode.STALE_DATA
+
+
+def test_prior_session_quote_is_usable_without_fallback() -> None:
+    primary = provider("primary")
+    original_fetch = primary.fetch
+
+    def prior_session_fetch(
+        capability_request: CapabilityRequest, budget: RequestBudgetAuthorization
+    ) -> ProviderFetchResult:
+        fetched = original_fetch(capability_request, budget)
+        observation = fetched.observations[0]
+        effective = observation.effective_time - timedelta(days=3)
+        freshness = FreshnessMetadata(
+            observation.recorded_time,
+            effective,
+            60,
+            int((observation.recorded_time - effective).total_seconds()),
+            FreshnessStatus.PRIOR_SESSION,
+        )
+        return dataclasses.replace(
+            fetched,
+            observations=(
+                dataclasses.replace(
+                    observation,
+                    effective_time=effective,
+                    freshness=freshness,
+                    observation_id=market_observation_identity(
+                        observation.provenance.provider_id,
+                        observation.capability,
+                        observation.subject,
+                        effective,
+                        observation.value,
+                        observation.schema_version,
+                    ),
+                ),
+            ),
+        )
+
+    primary.fetch = prior_session_fetch  # type: ignore[method-assign]
+    fulfillment, _ = service(primary, provider("secondary"))
+    result = fulfillment.fulfill(request())
+    assert result.status is FulfillmentStatus.FULFILLED
+    assert result.selected_provider == "primary"
 
 
 def test_exhausted_budget_is_recorded_and_duplicate_request_is_not_reissued() -> None:

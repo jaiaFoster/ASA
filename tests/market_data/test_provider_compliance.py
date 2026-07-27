@@ -20,7 +20,17 @@ def test_tradier_passes_shared_supported_capability_suite() -> None:
         tradier.Transport(
             (
                 tradier.response(
-                    {"quotes": {"quote": {"symbol": "AAPL", "last": 210, "bid": 209, "ask": 211}}}
+                    {
+                        "quotes": {
+                            "quote": {
+                                "symbol": "AAPL",
+                                "last": 210,
+                                "bid": 209,
+                                "ask": 211,
+                                "trade_date": int(tradier.NOW.timestamp() * 1000),
+                            }
+                        }
+                    }
                 ),
             )
         )

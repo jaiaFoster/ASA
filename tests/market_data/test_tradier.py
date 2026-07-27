@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from dataclasses import dataclass, replace
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -30,7 +30,7 @@ from market_data.providers import ProviderErrorCode
 from market_data.tradier import TradierProvider
 from market_data.transport import ReadOnlyHttpRequest, ReadOnlyHttpResponse
 
-NOW = datetime(2026, 7, 21, 16, 0, tzinfo=timezone.utc)
+NOW = datetime(2026, 7, 21, 16, 0, tzinfo=UTC)
 EVIDENCE = (EvidenceReference(EvidenceKind.OBSERVATION, "instrument-reference:AAPL"),)
 INSTRUMENT = Instrument(
     CanonicalInstrumentIdentity("figi", "BBG000B9XRY4"), InstrumentKind.EQUITY, "AAPL", "USD"
@@ -39,8 +39,10 @@ INSTRUMENT = Instrument(
 
 @dataclass(frozen=True)
 class Clock:
+    value: datetime = NOW
+
     def now(self) -> datetime:
-        return NOW
+        return self.value
 
 
 class Budget:
@@ -113,12 +115,14 @@ def request(
     )
 
 
-def provider(transport: Transport) -> TradierProvider:
+def provider(transport: Transport, clock: Clock | None = None) -> TradierProvider:
     config = load_market_data_config(
         {"ASA_TRADIER_ENABLED": "true", "ASA_TRADIER_ACCESS_TOKEN": "test-token"}
     )
     tradier = next(item for item in config.providers if item.provider_id == "tradier")
-    return TradierProvider(tradier, ProviderDependencies(transport, Clock(), Budget()))
+    return TradierProvider(
+        tradier, ProviderDependencies(transport, clock or Clock(), Budget())
+    )
 
 
 def authorization() -> RequestBudgetAuthorization:
@@ -139,6 +143,7 @@ def test_quote_normalization_uses_only_read_market_endpoint_and_redacts_repr() -
                             "bidsize": 100,
                             "asksize": 120,
                             "volume": 1000000,
+                            "trade_date": int(NOW.timestamp() * 1000),
                         }
                     }
                 }
@@ -152,6 +157,35 @@ def test_quote_normalization_uses_only_read_market_endpoint_and_redacts_repr() -
     assert transport.requests[0].path == "/v1/markets/quotes"
     assert transport.requests[0].query == (("greeks", "false"), ("symbols", "AAPL"))
     assert "test-token" not in repr(transport.requests[0])
+
+
+def test_weekend_quote_from_friday_session_is_prior_session() -> None:
+    friday_close = datetime(2026, 7, 24, 20, tzinfo=UTC)
+    saturday = datetime(2026, 7, 25, 16, tzinfo=UTC)
+    transport = Transport(
+        (
+            response(
+                {
+                    "quotes": {
+                        "quote": {
+                            "symbol": "SPY",
+                            "bid": 620,
+                            "ask": 621,
+                            "last": 620.5,
+                            "trade_date": int(friday_close.timestamp() * 1000),
+                        }
+                    }
+                }
+            ),
+        )
+    )
+    requested = replace(
+        request(MarketCapability.REAL_TIME_QUOTE_V1, ("bid", "ask", "last")),
+        maximum_age_seconds=3600,
+    )
+    result = provider(transport, Clock(saturday)).fetch(requested, authorization())
+    assert result.error is None
+    assert result.observations[0].freshness.status.value == "prior_session"
 
 
 def test_daily_history_normalizes_decimal_ohlcv() -> None:
@@ -285,6 +319,7 @@ def test_empty_valued_ratelimit_header_is_dropped_instead_of_crashing() -> None:
                             "bidsize": 100,
                             "asksize": 120,
                             "volume": 1000000,
+                            "trade_date": int(NOW.timestamp() * 1000),
                         }
                     }
                 },
