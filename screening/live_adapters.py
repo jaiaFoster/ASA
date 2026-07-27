@@ -34,8 +34,8 @@ from decimal import Decimal
 
 from analytics.expiration_selection import (
     ExpirationCandidate,
+    rank_expiration_pairs,
     select_earnings_relative_expiration_pair,
-    select_expiration_pair,
 )
 from domain import (
     DomainInvariantError,
@@ -90,6 +90,7 @@ EARNINGS_CALENDAR_DTE_POLICY = {
     "back_max_dte": 75,
 }
 EARNINGS_CALENDAR_LOOKAHEAD_DAYS = EARNINGS_CALENDAR_DTE_POLICY["back_max_dte"]
+MAX_FORWARD_FACTOR_PAIR_ATTEMPTS = 5
 
 
 def _outcome_status_for_verdict(verdict: str) -> ScreeningOutcomeStatus:
@@ -230,21 +231,44 @@ def build_live_forward_factor_adapter(
             ExpirationCandidate(cycle.expiration_date, cycle.days_to_expiration)
             for cycle in available_expirations
         )
-        selected = select_expiration_pair(candidates, **FORWARD_FACTOR_DTE_POLICY)
-        if selected is None:
+        ranked_pairs = rank_expiration_pairs(candidates, **FORWARD_FACTOR_DTE_POLICY)
+        if not ranked_pairs:
             raise StrategyAdapterError(
                 ScreeningOutcomeStatus.MISSING_DATA,
                 f"no expiration pair for {symbol} satisfies Forward Factor's DTE policy",
             )
+        attempted: list[str] = []
+        chain = None
+        selected = None
+        for front, back in ranked_pairs[:MAX_FORWARD_FACTOR_PAIR_ATTEMPTS]:
+            attempted.append(
+                f"{front.expiration_date.isoformat()}/{back.expiration_date.isoformat()}"
+            )
+            try:
+                chain = _acquire_combined_chain(
+                    fulfillment, symbol, now, (front.expiration_date, back.expiration_date)
+                )
+            except StrategyAdapterError:
+                continue
+            selected = (front, back)
+            break
+        if chain is None or selected is None:
+            raise StrategyAdapterError(
+                ScreeningOutcomeStatus.MISSING_DATA,
+                f"no listed Forward Factor expiration pair for {symbol} returned usable chains; "
+                f"attempted {', '.join(attempted)}",
+            )
         front, back = selected
-        chain = _acquire_combined_chain(
-            fulfillment, symbol, now, (front.expiration_date, back.expiration_date)
-        )
         strike = select_atm_strike_at_expiration(
             chain, front.expiration_date, spot_price, OptionType.CALL
         )
+        selected_expirations = tuple(
+            cycle
+            for cycle in available_expirations
+            if cycle.expiration_date in {front.expiration_date, back.expiration_date}
+        )
         context = build_forward_factor_context(
-            chain, available_expirations, as_of, strike=strike, option_type=OptionType.CALL
+            chain, selected_expirations, as_of, strike=strike, option_type=OptionType.CALL
         )
         graph = compile_strategy_graph(FORWARD_FACTOR_CALENDAR_MANIFEST, _COMPONENT_REGISTRY)
         result = execute_strategy_graph(graph, context)

@@ -6,6 +6,7 @@ import pytest
 
 from analytics.expiration_selection import (
     ExpirationCandidate,
+    rank_expiration_pairs,
     select_earnings_relative_expiration_pair,
     select_expiration_pair,
 )
@@ -63,6 +64,18 @@ class TestSelectExpirationPair:
         first = select_expiration_pair(candidates, **_POLICY)
         second = select_expiration_pair(candidates, **_POLICY)
         assert first == second
+
+    def test_ranks_nearest_provider_listed_alternatives_deterministically(self) -> None:
+        candidates = (
+            _candidate(61, date(2026, 9, 21)),
+            _candidate(91, date(2026, 10, 21)),
+            _candidate(68, date(2026, 9, 28)),
+            _candidate(98, date(2026, 10, 28)),
+        )
+        ranked = rank_expiration_pairs(candidates, **_POLICY)
+        assert ranked[0] == (candidates[0], candidates[1])
+        assert (candidates[2], candidates[3]) in ranked
+        assert rank_expiration_pairs(tuple(reversed(candidates)), **_POLICY) == ranked
 
     @pytest.mark.parametrize(
         "overrides",
