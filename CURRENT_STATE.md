@@ -21,7 +21,7 @@ Replace the dual legacy/Lean POS operation with Lean POS as the sole active proj
 
 ## Next Action
 
-project=ASA-II repository=jaiaFoster/ASA migration_status=complete completed_phase=CUTOVER-06 active_operating_system=Lean_POS sprint=SPRINT-005B sprint_status=founder_verification_pending milestone=Market_Data_Platform merged_through=MD-019 completion_ticket=MD-020 live_validation=externally_blocked_missing_credentials next_action=Founder_verification
+project=ASA-II repository=jaiaFoster/ASA migration_status=complete completed_phase=CUTOVER-06 active_operating_system=Lean_POS sprint=SPRINT-010 sprint_status=founder_verification_pending milestone=Screening_Reliability_Product_Surface merged_through=LEGACY-001 completion_ticket=VERIFY-001 implementation_status=complete production_deployment=c5ac259 deployment_health=healthy live_validation=founder_blocked_missing_authenticated_context next_action=Founder_authenticated_production_matrix
 
 ## Sources
 
