@@ -215,6 +215,31 @@ def test_option_chain_preserves_greeks_iv_and_liquidity() -> None:
     assert transport.requests[0].path == "/v1/markets/options/chains"
 
 
+def test_option_chain_freshness_uses_newest_contract_not_first_response_row() -> None:
+    old = {
+        "symbol": "AAPL260821C00210000",
+        "underlying": "AAPL",
+        "expiration_date": "2026-08-21",
+        "strike": "210",
+        "option_type": "call",
+        "last": "5",
+        "trade_date": int((NOW - timedelta(days=3)).timestamp() * 1000),
+    }
+    recent = {
+        **old,
+        "symbol": "AAPL260821C00215000",
+        "strike": "215",
+        "trade_date": int((NOW - timedelta(minutes=5)).timestamp() * 1000),
+    }
+    transport = Transport((response({"options": {"option": [old, recent]}}),))
+    result = provider(transport).fetch(
+        request(MarketCapability.OPTION_CHAIN_V1, ("contracts",), expiration=True),
+        authorization(),
+    )
+    assert result.error is None
+    assert result.observations[0].effective_time == NOW - timedelta(minutes=5)
+
+
 @pytest.mark.parametrize(
     ("status", "code"),
     (

@@ -107,6 +107,39 @@ def select_expiration_pair(
     when no candidate pair satisfies the policy -- an expected, non-
     exceptional outcome the caller must handle explicitly, not a defect.
     """
+    ranked = rank_expiration_pairs(
+        candidates,
+        front_min_dte=front_min_dte,
+        front_max_dte=front_max_dte,
+        back_min_dte=back_min_dte,
+        back_max_dte=back_max_dte,
+        minimum_gap_days=minimum_gap_days,
+        maximum_gap_days=maximum_gap_days,
+        target_front_dte=target_front_dte,
+        target_gap_days=target_gap_days,
+    )
+    return ranked[0] if ranked else None
+
+
+def rank_expiration_pairs(
+    candidates: tuple[ExpirationCandidate, ...],
+    *,
+    front_min_dte: int,
+    front_max_dte: int,
+    back_min_dte: int,
+    back_max_dte: int,
+    minimum_gap_days: int,
+    maximum_gap_days: int,
+    target_front_dte: int,
+    target_gap_days: int,
+) -> tuple[tuple[ExpirationCandidate, ExpirationCandidate], ...]:
+    """Return every policy-valid pair in the same deterministic preference
+    order used by ``select_expiration_pair``.
+
+    A provider can list an expiration and then reject its chain request.
+    Callers that acquire data may therefore try the next already-listed,
+    policy-valid pair without inventing a date or changing strategy rules.
+    """
     if (
         min(
             front_min_dte,
@@ -122,7 +155,6 @@ def select_expiration_pair(
         or minimum_gap_days > maximum_gap_days
     ):
         raise ValueError("expiration selection policy is invalid")
-
     pairs = tuple(
         (front, back)
         for front in candidates
@@ -133,13 +165,18 @@ def select_expiration_pair(
         <= back.days_to_expiration - front.days_to_expiration
         <= maximum_gap_days
     )
-    return min(
-        pairs,
-        key=lambda pair: (
-            abs(pair[0].days_to_expiration - target_front_dte)
-            + abs(pair[1].days_to_expiration - pair[0].days_to_expiration - target_gap_days),
-            pair[0].expiration_date,
-            pair[1].expiration_date,
-        ),
-        default=None,
+    return tuple(
+        sorted(
+            pairs,
+            key=lambda pair: (
+                abs(pair[0].days_to_expiration - target_front_dte)
+                + abs(
+                    pair[1].days_to_expiration
+                    - pair[0].days_to_expiration
+                    - target_gap_days
+                ),
+                pair[0].expiration_date,
+                pair[1].expiration_date,
+            ),
+        )
     )

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hashlib
 from collections.abc import Mapping, Sequence
-from datetime import date, datetime, time, timedelta, timezone
+from datetime import UTC, date, datetime, time, timedelta
 from decimal import Decimal, InvalidOperation
 from typing import cast
 
@@ -28,8 +28,8 @@ from domain import (
     SecurityAssetType,
     market_observation_identity,
 )
-from domain.operational import CanonicalInstrumentIdentity
 from domain.market_data import MarketObservationValue
+from domain.operational import CanonicalInstrumentIdentity
 from domain.values import DomainInvariantError
 from market_data.config import ProviderConfig
 from market_data.factory import ProviderDependencies, ProviderRegistration
@@ -305,7 +305,7 @@ class TradierProvider:
         response: ReadOnlyHttpResponse,
         row: Mapping[str, object],
     ) -> MarketObservation:
-        received = self._dependencies.clock.now().astimezone(timezone.utc)
+        received = self._dependencies.clock.now().astimezone(UTC)
         if isinstance(value, OHLCVBar):
             effective = value.end_at
         elif isinstance(value, OptionChain):
@@ -421,9 +421,9 @@ def _observed_at(row: Mapping[str, object], fallback: datetime) -> datetime:
     raw = row.get("trade_date") or row.get("timestamp")
     if isinstance(raw, (int, float)):
         divisor = 1000 if raw > 10_000_000_000 else 1
-        return datetime.fromtimestamp(raw / divisor, tz=timezone.utc)
+        return datetime.fromtimestamp(raw / divisor, tz=UTC)
     if isinstance(raw, str):
-        return datetime.fromisoformat(raw.replace("Z", "+00:00")).astimezone(timezone.utc)
+        return datetime.fromisoformat(raw.replace("Z", "+00:00")).astimezone(UTC)
     return fallback
 
 
@@ -446,7 +446,7 @@ def _quote(subject: MarketDataSubject, row: Mapping[str, object]) -> Quote:
 
 def _bar(subject: MarketDataSubject, row: Mapping[str, object]) -> OHLCVBar:
     day = _date(row["date"])
-    start = datetime.combine(day, time.min, tzinfo=timezone.utc)
+    start = datetime.combine(day, time.min, tzinfo=UTC)
     return OHLCVBar(
         subject.canonical_instrument,
         86400,
@@ -472,7 +472,7 @@ def _chain(
 ) -> OptionChain:
     if not rows:
         raise ValueError("empty option chain")
-    observed = _observed_at(rows[0], received_at)
+    observed = max(_observed_at(row, received_at) for row in rows)
     evidence = _evidence(response)
     symbol = str(rows[0].get("underlying") or subject.canonical_instrument.display_symbol)
     security = _security(subject, symbol)
