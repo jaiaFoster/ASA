@@ -25,6 +25,10 @@ from dataclasses import dataclass
 from enum import Enum
 
 from domain import MarketCapability
+from market_data.temporal import (
+    DEFAULT_FRESHNESS_REQUIREMENT,
+    FreshnessRequirement,
+)
 from strategy_runtime.errors import StrategyContractError
 
 
@@ -165,6 +169,7 @@ class StrategyContract:
     structure: StructureKind
     outputs: tuple[OutputKind, ...]
     capabilities: tuple[StrategyCapability, ...] = ()
+    freshness_requirement: FreshnessRequirement = DEFAULT_FRESHNESS_REQUIREMENT
 
     def __post_init__(self) -> None:
         for name in ("strategy_id", "version", "category", "description"):
@@ -181,6 +186,10 @@ class StrategyContract:
             raise StrategyContractError("StrategyContract.outputs must be unique")
         if len(set(self.capabilities)) != len(self.capabilities):
             raise StrategyContractError("StrategyContract.capabilities must be unique")
+        if not isinstance(self.freshness_requirement, FreshnessRequirement):
+            raise StrategyContractError(
+                "StrategyContract.freshness_requirement must be FreshnessRequirement"
+            )
         if (
             OutputKind.LIFECYCLE in self.outputs
             and self.lifecycle.lifecycle_model is LifecycleModel.NONE
