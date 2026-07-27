@@ -12,8 +12,7 @@ from __future__ import annotations
 from pydantic import BaseModel, Field
 
 from asa.api.agent_models import TimestampedResource
-from screening.registry import SignalDefinition
-from screening.state import ScreeningStateRecord
+from strategy_runtime.catalog import SignalCatalogEntry
 from strategy_runtime.lifecycle import OpportunityHistory, OpportunityObservation
 from strategy_runtime.result import EvaluationState, UniversalScreeningResult
 
@@ -57,7 +56,7 @@ class SignalCapabilityResponse(BaseModel):
     required_capabilities: list[str]
 
     @classmethod
-    def from_definition(cls, definition: SignalDefinition) -> SignalCapabilityResponse:
+    def from_definition(cls, definition: SignalCatalogEntry) -> SignalCapabilityResponse:
         return cls(
             signal_id=definition.signal_id,
             signal_version=definition.signal_version,
@@ -93,24 +92,8 @@ class ScreeningResultResponse(TimestampedResource):
     provenance: list[str] = Field(default_factory=list)
 
     @classmethod
-    def from_record(cls, record: ScreeningStateRecord) -> ScreeningResultResponse:
-        return cls(
-            signal_id=record.signal_id,
-            signal_version=record.signal_version,
-            symbol=record.symbol,
-            outcome=record.outcome,
-            explanation=record.explanation,
-            metrics=record.metrics,
-            updated_at=record.updated_at,
-            age_seconds=TimestampedResource.age_seconds_since(record.updated_at),
-        )
-
-    @classmethod
     def from_universal_result(cls, result: UniversalScreeningResult) -> ScreeningResultResponse:
-        """SPRINT-009R/EPIC-R5: the strategy_runtime-backed equivalent of
-        from_record() -- same public response shape, sourced from
-        UniversalScreeningResult instead of the legacy ScreeningStateRecord.
-        """
+        """Build the public response from the canonical universal result."""
         age_seconds = TimestampedResource.age_seconds_since(result.observed_at)
         return cls(
             signal_id=result.strategy_id,
@@ -166,13 +149,6 @@ class RefreshResultResponse(ScreeningResultResponse):
     """
 
     request_count: int
-
-    @classmethod
-    def from_record(  # type: ignore[override]
-        cls, record: ScreeningStateRecord, *, request_count: int
-    ) -> RefreshResultResponse:
-        base = ScreeningResultResponse.from_record(record)
-        return cls(request_count=request_count, **base.model_dump())
 
     @classmethod
     def from_universal_result(  # type: ignore[override]

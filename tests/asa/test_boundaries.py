@@ -27,10 +27,8 @@ def test_forbidden_legacy_technologies_are_absent() -> None:
     # GOV-011/docs/sprints/SPRINT-009.yaml) and its original intent -- no
     # literal port of the legacy Stonk predecessor's per-strategy OOP
     # service classes into asa/ -- was never meant to block asa/'s own
-    # Postgres integration for the new, generalized runtime asa/
-    # integrations/universal_screening_postgres.py imports strategy_runtime
-    # by design, matching asa/integrations/screening_postgres.py's own
-    # established "asa/ owns the database driver" role for screening/.
+    # Postgres integration for the new, generalized runtime imports
+    # strategy_runtime by design: asa/ owns the database driver.
     root = Path(__file__).parents[2]
     inspected = [root / "asa", root / "frontend" / "src"]
     forbidden = ("flask", "sqlite", "threading")
@@ -57,6 +55,25 @@ def test_exactly_one_build_application_composition_root_exists() -> None:
             and node.name == "build_application"
         )
     assert len(definitions) == 1, definitions
+
+
+def test_retired_screening_state_modules_have_no_production_imports() -> None:
+    root = Path(__file__).parents[2]
+    retired = {
+        "screening.service",
+        "screening.state",
+        "asa.integrations.screening_postgres",
+    }
+    violations: list[str] = []
+    for source_root in (root / "asa", root / "screening", root / "strategy_runtime"):
+        for path in source_root.rglob("*.py"):
+            tree = ast.parse(path.read_text())
+            for node in ast.walk(tree):
+                module = node.module if isinstance(node, ast.ImportFrom) else None
+                names = [alias.name for alias in node.names] if isinstance(node, ast.Import) else []
+                if module in retired or any(name in retired for name in names):
+                    violations.append(str(path.relative_to(root)))
+    assert not violations, violations
 
 
 def test_broker_provider_contract_is_read_only() -> None:

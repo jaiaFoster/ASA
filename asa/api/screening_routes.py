@@ -4,24 +4,14 @@ SPRINT-008, cut over to strategy_runtime in SPRINT-009R/EPIC-R5).
 
 Read endpoints call only strategy_runtime.service.get_state(), which
 itself only ever reads through the injected LatestResultRepository and
-never triggers a provider request (matching screening.service.get_state()'s
-own guarantee before this cutover) -- proven at this layer too by
+never triggers a provider request -- proven at this layer too by
 tests/asa/test_screening_routes.py, not merely inferred. The refresh
 endpoint is the one deliberate exception: it calls
 strategy_runtime.service.refresh() for exactly the one requested
 signal/symbol pair, never a whole universe or a whole signal.
 
-The public response shape (ScreeningResultResponse/RefreshResultResponse/
-CapabilitiesResponse) is byte-for-byte unchanged by this cutover -- see
-asa/api/screening_models.py's own from_universal_result() translation and
-tests/asa/test_screening_engine_parity.py, which proves the legacy
-screening.service-backed path and this strategy_runtime-backed path
-produce an identical wire response for the same deterministic input.
-
-/capabilities is deliberately NOT cut over: it serves static catalog
-metadata (including manifest_id, which StrategyContract has no field for)
-and executes nothing, so screening.registry.signal_catalog() remains its
-data source -- see docs/strategy_runtime/legacy-runtime-deprecation-plan.md.
+The capabilities endpoint is projected from the same universal contracts
+the runtime executes. It has no separate legacy registry authority.
 """
 
 from __future__ import annotations
@@ -47,7 +37,7 @@ from asa.api.screening_models import (
 from market_data import load_market_data_config_from_environment
 from market_data.live_transport import build_live_transport
 from screening.live_acquisition import APPROVED_LIVE_UNIVERSE, live_only_config
-from screening.registry import ScreeningRegistry, signal_catalog
+from strategy_runtime.catalog import SignalCatalogEntry
 from strategy_runtime.lifecycle import RecommendedAction
 from strategy_runtime.market_data_planning import (
     build_shared_market_data_access,
@@ -183,7 +173,7 @@ def build_screening_router(
     authorize: Callable[[Request], None],
     transport_factory: Callable[[str], object] = build_live_transport,
     *,
-    capabilities_registry: ScreeningRegistry,
+    capabilities_catalog: tuple[SignalCatalogEntry, ...],
     history_repository: ObservationHistoryRepository,
 ) -> APIRouter:
     router = APIRouter(prefix="/api/v1", dependencies=[Depends(authorize)])
@@ -197,7 +187,7 @@ def build_screening_router(
         return CapabilitiesResponse(
             signals=[
                 SignalCapabilityResponse.from_definition(definition)
-                for definition in signal_catalog(capabilities_registry)
+                for definition in capabilities_catalog
             ]
         )
 

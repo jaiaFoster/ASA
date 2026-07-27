@@ -1,13 +1,11 @@
 """Universal screening service (SPRINT-009/EPIC-9).
 
-Generalizes screening.service's own get_state()/refresh() shape to the
-universal runtime: get_state() only ever reads through an injected
+The universal runtime's get_state() only ever reads through an injected
 LatestResultRepository (never triggers acquisition, matching this
 sprint's own architecture_principles); refresh() calls run_strategies()
 for exactly one requested strategy against one subject, then persists the
 result through the same injected repository -- bounded, narrow, no
-whole-universe execution, matching screening.service's own exact
-guarantee for the same reason.
+whole-universe execution.
 
 Both functions translate between UniversalScreeningResult (this module's
 own public parameter/return type, same as every adapter's) and

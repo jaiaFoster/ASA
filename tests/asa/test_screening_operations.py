@@ -20,7 +20,7 @@ def test_cors_preflight_allows_authorization_for_screening_routes() -> None:
         ),
         DependencyOverrides(
             repository=InMemoryObservationRepository(),
-            screening_state_repository=InMemoryLatestResultRepository(),
+            latest_result_repository=InMemoryLatestResultRepository(),
         ),
     )
     response = TestClient(app).options(

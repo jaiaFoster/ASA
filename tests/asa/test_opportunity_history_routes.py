@@ -39,7 +39,7 @@ def _client(history_repository) -> TestClient:  # noqa: ANN001
         build_application(
             Settings(agent_api_token=SecretStr("correct-token"), _env_file=None),
             DependencyOverrides(
-                screening_state_repository=InMemoryLatestResultRepository(),
+                latest_result_repository=InMemoryLatestResultRepository(),
                 observation_history_repository=history_repository,
             ),
         )
@@ -128,7 +128,7 @@ def test_history_append_failure_does_not_rollback_latest_state(
     app = build_application(
         Settings(agent_api_token=SecretStr("correct-token"), _env_file=None),
         DependencyOverrides(
-            screening_state_repository=latest,
+            latest_result_repository=latest,
             observation_history_repository=FailingHistory(),
             market_data_transport_factory=lambda provider_id: ScriptedTransport([]),  # noqa: ARG005
         ),

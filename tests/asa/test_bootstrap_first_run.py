@@ -72,7 +72,7 @@ def _fresh_deployment_client() -> TestClient:
         build_application(
             Settings(agent_api_token=SecretStr("correct-token"), _env_file=None),
             DependencyOverrides(
-                screening_state_repository=InMemoryLatestResultRepository(),
+                latest_result_repository=InMemoryLatestResultRepository(),
                 market_data_transport_factory=lambda _provider_id: ScriptedTransport(responses),
             ),
         )
