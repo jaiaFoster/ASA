@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 from collections.abc import Callable, Mapping
 from datetime import datetime
 
@@ -18,6 +19,8 @@ from screening.clock import Clock
 from screening.errors import UnknownScreeningStrategyIdError
 from screening.registry import ScreeningRegistry, ScreeningStrategyDefinition
 from screening.results import ScreeningOutcomeStatus, ScreeningResult, bounded_failure_detail
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class StrategyAdapterError(Exception):
@@ -124,6 +127,16 @@ def _run_one(
     except StrategyAdapterError as error:
         return _adapter_error_result(run_id, definition, as_of, error)
     except Exception as exc:  # noqa: BLE001 -- deliberate per-strategy isolation boundary
+        # Persisted/API-facing detail stays class-name-only (test_runner.py::
+        # test_strategy_exception asserts raw exception text is never
+        # leaked into a publicly-served result) -- full detail goes only to
+        # this operator-only log line, never into the ScreeningResult
+        # itself (SPRINT-011-CLOSEOUT/CLOSE-001).
+        _LOGGER.warning(
+            "strategy adapter raised an unhandled exception",
+            extra={"strategy_id": definition.strategy_id},
+            exc_info=True,
+        )
         return _exception_result(
             run_id, definition, as_of, f"{type(exc).__name__}: unhandled adapter exception"
         )

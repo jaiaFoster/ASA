@@ -23,8 +23,16 @@ FORBIDDEN_INFRASTRUCTURE_MODULES = {
 
 STDLIB_ALLOWED = {
     "__future__", "abc", "argparse", "collections", "dataclasses", "datetime", "decimal", "enum",
-    "hashlib", "json", "re", "sys", "typing",
+    "hashlib", "json", "logging", "re", "sys", "typing",
 }
+# "logging" added (SPRINT-011-CLOSEOUT/CLOSE-001): pure stdlib, no network/
+# disk/process side channel FORBIDDEN_INFRASTRUCTURE_MODULES above already
+# guards against -- this module's own docstring's actual concern is a
+# dependency on providers/market_data internals/infrastructure, not
+# observability. screening/runner.py needs it to log full (operator-only,
+# never persisted or API-exposed) exception detail at its own generic
+# except-Exception boundary, matching asa/scheduled_screening.py's own
+# existing use of the same pattern.
 
 
 def _imported_roots(py_file: Path) -> set[str]:
