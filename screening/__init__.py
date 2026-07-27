@@ -15,6 +15,7 @@ from screening.errors import (
 )
 from screening.live_acquisition import (
     APPROVED_LIVE_UNIVERSE,
+    EARNINGS_CALENDAR_UNIVERSE,
     acquire_capability,
     build_capability_registry,
     build_fulfillment_service,
@@ -33,6 +34,7 @@ from screening.runner import StrategyAdapter, StrategyAdapterError, run_screenin
 
 __all__ = [
     "APPROVED_LIVE_UNIVERSE",
+    "EARNINGS_CALENDAR_UNIVERSE",
     "TARGET_STRATEGY_ADAPTERS",
     "TARGET_STRATEGY_REGISTRY",
     "Clock",
