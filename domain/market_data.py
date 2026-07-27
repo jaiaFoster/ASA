@@ -80,9 +80,11 @@ class MarketDataSubjectType(str, Enum):
 
 class FreshnessStatus(str, Enum):
     FRESH = "fresh"
+    DELAYED = "delayed"
     PRIOR_SESSION = "prior_session"
     STALE = "stale"
     UNKNOWN = "unknown"
+    UNAVAILABLE = "unavailable"
 
 
 class ProviderErrorKind(str, Enum):

@@ -25,8 +25,17 @@ sprint's own explicit non_goal, deliberately never invented here).
 from __future__ import annotations
 
 from collections.abc import Mapping
+from dataclasses import replace
+from datetime import UTC, datetime
 
+from domain import FreshnessStatus, MarketObservation
 from market_data import CapabilityFulfillmentService
+from market_data.session_calendar import NEW_YORK, UsEquitySessionCalendar
+from market_data.temporal import (
+    TemporalUsabilityDecision,
+    UsabilityStatus,
+    evaluate_temporal_usability,
+)
 from strategy_runtime.clock import Clock
 from strategy_runtime.execution import ExecutionStatus, run_strategies
 from strategy_runtime.lifecycle import (
@@ -40,7 +49,97 @@ from strategy_runtime.persistence import (
     UniversalSignalRow,
 )
 from strategy_runtime.registry import StrategyRegistry
-from strategy_runtime.result import UniversalScreeningResult
+from strategy_runtime.result import ResultTemporalMetadata, UniversalScreeningResult
+
+_FRESHNESS_PRIORITY = {
+    FreshnessStatus.FRESH: 0,
+    FreshnessStatus.DELAYED: 1,
+    FreshnessStatus.PRIOR_SESSION: 2,
+    FreshnessStatus.STALE: 3,
+    FreshnessStatus.UNKNOWN: 4,
+    FreshnessStatus.UNAVAILABLE: 5,
+}
+_USABILITY_PRIORITY = {
+    UsabilityStatus.USABLE: 0,
+    UsabilityStatus.USABLE_WITH_WARNING: 1,
+    UsabilityStatus.REJECTED: 2,
+}
+
+
+def _temporal_metadata(
+    registry: StrategyRegistry[UniversalScreeningResult],
+    strategy_id: str,
+    evaluated_at: datetime,
+    fulfillment: CapabilityFulfillmentService,
+    previous: UniversalSignalRow | None,
+) -> ResultTemporalMetadata | None:
+    evaluated = evaluated_at.astimezone(UTC)
+    observations: tuple[MarketObservation, ...] = tuple(
+        observation
+        for completed in fulfillment.completed_results
+        for observation in completed.observations
+    )
+    if not observations:
+        return None
+    effective_times = tuple(item.effective_time.astimezone(UTC) for item in observations)
+    recorded_times = tuple(item.recorded_time.astimezone(UTC) for item in observations)
+    observed = max(effective_times)
+    received = max(recorded_times)
+    calendar = UsEquitySessionCalendar()
+    session_status = calendar.status_at(evaluated)
+    session = calendar.session(evaluated.astimezone(NEW_YORK).date())
+    session_date = (
+        session.trading_date
+        if session is not None and session.opens_at <= evaluated
+        else calendar.latest_completed_session(evaluated).trading_date
+    )
+    requirement = registry.contract_for(strategy_id).freshness_requirement
+    decisions: tuple[TemporalUsabilityDecision, ...] = tuple(
+        evaluate_temporal_usability(
+            item.freshness,
+            requirement,
+            market_is_open=session_status.value == "open",
+        )
+        for item in observations
+    )
+    usability = max(decisions, key=lambda item: _USABILITY_PRIORITY[item.status])
+    freshness = max(
+        (item.freshness.status for item in observations),
+        key=lambda item: _FRESHNESS_PRIORITY[item],
+    )
+    previous_observed = (
+        previous.temporal.observed_at
+        if previous is not None and previous.temporal is not None
+        else None
+    )
+    return ResultTemporalMetadata(
+        observed_at=observed,
+        received_at=received,
+        evaluated_at=evaluated,
+        persisted_at=evaluated,
+        market_session_date=session_date,
+        market_session_status=session_status.value,
+        age_seconds=max(0, int((evaluated - min(effective_times)).total_seconds())),
+        last_refresh_attempt_at=evaluated,
+        last_successful_refresh_at=evaluated,
+        next_refresh_at=None,
+        data_advanced_on_last_refresh=(
+            previous_observed is None or observed > previous_observed
+        ),
+        freshness_status=(
+            "live" if freshness is FreshnessStatus.FRESH else freshness.value
+        ),
+        usability_status=usability.status.value,
+        usability_reason=usability.reason,
+        warning_codes=tuple(
+            sorted({code.value for decision in decisions for code in decision.warning_codes})
+        ),
+        acquisition_started_at=min(recorded_times),
+        acquisition_completed_at=max(recorded_times),
+        input_time_skew_seconds=max(
+            0, int((max(effective_times) - min(effective_times)).total_seconds())
+        ),
+    )
 
 
 def get_state(
@@ -70,6 +169,7 @@ def refresh(
     existing migrated adapters, then persist and return the new state --
     never a whole-universe or whole-strategy-set refresh.
     """
+    previous = repository.get_one(strategy_id, symbol)
     (execution_result,) = run_strategies(
         registry,
         clock,
@@ -85,8 +185,19 @@ def refresh(
             f"refresh({strategy_id!r}, {symbol!r}) failed unexpectedly: "
             f"{execution_result.error_detail}"
         )
-    repository.upsert(UniversalSignalRow.from_result(execution_result.result))
-    return execution_result.result
+    result = execution_result.result
+    fulfillment = fulfillment_by_subject.get(symbol)
+    temporal = (
+        None
+        if fulfillment is None
+        else _temporal_metadata(
+            registry, strategy_id, result.observed_at, fulfillment, previous
+        )
+    )
+    if temporal is not None:
+        result = replace(result, temporal=temporal)
+    repository.upsert(UniversalSignalRow.from_result(result))
+    return result
 
 
 def record_opportunity_observation(

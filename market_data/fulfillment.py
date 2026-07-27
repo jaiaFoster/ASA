@@ -164,13 +164,34 @@ class CapabilityFulfillmentService:
         self._results[key] = result
         return result
 
+    @property
+    def completed_results(self) -> tuple[CapabilityFulfillmentResult, ...]:
+        """Return deterministic, immutable evidence from this acquisition run."""
+        return tuple(
+            self._results[key]
+            for key in sorted(
+                self._results,
+                key=lambda item: (
+                    item[0].capability.value,
+                    tuple(
+                        subject.subject_identity for subject in item[0].subjects
+                    ),
+                    item[1],
+                ),
+            )
+        )
+
     @staticmethod
     def _quality_error(
         provider_id: str,
         request: CapabilityRequest,
         observations: tuple[MarketObservation, ...],
     ) -> NormalizedProviderError | None:
-        usable_freshness = {FreshnessStatus.FRESH, FreshnessStatus.PRIOR_SESSION}
+        usable_freshness = {
+            FreshnessStatus.FRESH,
+            FreshnessStatus.DELAYED,
+            FreshnessStatus.PRIOR_SESSION,
+        }
         if any(value.freshness.status not in usable_freshness for value in observations):
             return normalized_provider_error(
                 ProviderErrorCode.STALE_DATA,

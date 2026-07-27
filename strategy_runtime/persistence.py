@@ -53,7 +53,12 @@ from datetime import datetime
 from typing import Protocol
 
 from strategy_runtime.lifecycle import OpportunityHistory, OpportunityObservation
-from strategy_runtime.result import EvaluationState, RowType, UniversalScreeningResult
+from strategy_runtime.result import (
+    EvaluationState,
+    ResultTemporalMetadata,
+    RowType,
+    UniversalScreeningResult,
+)
 from strategy_runtime.values import TypedValue
 
 
@@ -84,6 +89,7 @@ class UniversalSignalRow:
     warnings: tuple[str, ...]
     provenance: tuple[str, ...]
     observed_at: datetime
+    temporal: ResultTemporalMetadata | None = None
 
     @classmethod
     def from_result(cls, result: UniversalScreeningResult) -> UniversalSignalRow:
@@ -105,6 +111,7 @@ class UniversalSignalRow:
             warnings=result.warnings,
             provenance=result.provenance,
             observed_at=result.observed_at,
+            temporal=result.temporal,
         )
 
     def to_result(self) -> UniversalScreeningResult:
@@ -126,6 +133,7 @@ class UniversalSignalRow:
             warnings=self.warnings,
             provenance=self.provenance,
             observed_at=self.observed_at,
+            temporal=self.temporal,
         )
 
 

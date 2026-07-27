@@ -1,0 +1,24 @@
+# Temporal quality contract
+
+Screening responses preserve existing fields and also expose the timing and
+quality of the evidence used to compute the result.
+
+- `observed_at` is the newest source-effective time in the input snapshot.
+- `received_at` is the latest provider-recorded receipt time.
+- `evaluated_at` is when ASA evaluated the signal.
+- `persisted_at` is when ASA prepared the canonical latest-state write.
+- `market_session_date` and `market_session_status` use
+  `America/New_York` exchange semantics.
+- `freshness_status` is one of `live`, `delayed`, `prior_session`, `stale`,
+  `unknown`, or `unavailable`.
+- `usability_status` is `usable`, `usable_with_warning`, or `rejected`;
+  `usability_reason` and `warning_codes` explain the decision.
+- `input_time_skew_seconds` exposes the material time span among inputs.
+
+Refresh responses additionally distinguish `provider_contacted`,
+`data_advanced_on_last_refresh`, `result_changed`, and `refresh_failed`.
+When a refresh fails after a prior successful write, ASA returns the persisted
+last-known-good result with `refresh_failed: true`; the failure never erases it.
+
+`next_refresh_at` is nullable until the session-relative scheduling policy has
+selected the next eligible run.

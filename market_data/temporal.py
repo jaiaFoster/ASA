@@ -71,6 +71,12 @@ def evaluate_temporal_usability(
             "latest verified observation is from the prior completed session",
             (TemporalWarningCode.PRIOR_SESSION_DATA,),
         )
+    if freshness.status is FreshnessStatus.DELAYED:
+        return TemporalUsabilityDecision(
+            UsabilityStatus.USABLE_WITH_WARNING,
+            "observation is delayed",
+            (TemporalWarningCode.DELAYED_DATA,),
+        )
     if freshness.status is FreshnessStatus.FRESH:
         return TemporalUsabilityDecision(UsabilityStatus.USABLE, "observation is current")
     return TemporalUsabilityDecision(
