@@ -140,6 +140,33 @@ def test_recorded_observations_replay_in_order_through_real_postgres(
     assert history.current == confirmed
 
 
+def test_exact_duplicate_append_is_idempotent_in_real_postgres(
+    repository: PostgresObservationHistoryRepository,
+) -> None:
+    registry = StrategyRegistry(((_contract(), _adapter),))
+    result = _result(
+        "watching",
+        "monitoring",
+        "same-run",
+        datetime(2026, 7, 23, 16, 0, tzinfo=UTC),
+    )
+    first = record_opportunity_observation(
+        registry,
+        repository,
+        result,
+        recommended_action=RecommendedAction.NO_ACTION,
+    )
+    record_opportunity_observation(
+        registry,
+        repository,
+        result,
+        recommended_action=RecommendedAction.NO_ACTION,
+    )
+    history = replay_opportunity_history(repository, first.opportunity_id)
+    assert history is not None
+    assert history.observations == (first,)
+
+
 def test_replay_of_an_unknown_opportunity_returns_none(
     repository: PostgresObservationHistoryRepository,
 ) -> None:

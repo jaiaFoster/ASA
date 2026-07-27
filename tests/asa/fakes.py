@@ -1,5 +1,6 @@
 from asa.contracts.market import MarketObservation
 from screening.state import ScreeningStateRecord
+from strategy_runtime.lifecycle import OpportunityHistory, OpportunityObservation
 from strategy_runtime.persistence import UniversalSignalRow
 
 
@@ -67,3 +68,17 @@ class InMemoryLatestResultRepository:
 
     def get_one(self, signal_id: str, symbol: str) -> UniversalSignalRow | None:
         return self._rows.get((signal_id, symbol))
+
+
+class InMemoryObservationHistoryRepository:
+    def __init__(self) -> None:
+        self._observations: dict[str, list[OpportunityObservation]] = {}
+
+    def append(self, observation: OpportunityObservation) -> None:
+        values = self._observations.setdefault(observation.opportunity_id, [])
+        if observation not in values:
+            values.append(observation)
+
+    def history_for(self, opportunity_id: str) -> OpportunityHistory | None:
+        values = self._observations.get(opportunity_id)
+        return OpportunityHistory(opportunity_id, tuple(values)) if values else None

@@ -34,9 +34,23 @@ class PostgresObservationHistoryRepository:
                     INSERT INTO opportunity_observation_history (
                         opportunity_id, signal_id, symbol, lifecycle_stage,
                         verdict, recommended_action, observed_at
-                    ) VALUES (
-                        :opportunity_id, :signal_id, :symbol, :lifecycle_stage,
-                        :verdict, :recommended_action, :observed_at
+                    ) SELECT
+                        CAST(:opportunity_id AS VARCHAR(128)),
+                        CAST(:signal_id AS VARCHAR(64)),
+                        CAST(:symbol AS VARCHAR(32)),
+                        CAST(:lifecycle_stage AS VARCHAR(64)),
+                        CAST(:verdict AS TEXT),
+                        CAST(:recommended_action AS VARCHAR(32)),
+                        CAST(:observed_at AS TIMESTAMP WITH TIME ZONE)
+                    WHERE NOT EXISTS (
+                        SELECT 1 FROM opportunity_observation_history
+                        WHERE opportunity_id = :opportunity_id
+                          AND signal_id = :signal_id
+                          AND symbol = :symbol
+                          AND lifecycle_stage = :lifecycle_stage
+                          AND verdict = :verdict
+                          AND recommended_action = :recommended_action
+                          AND observed_at = :observed_at
                     )
                 """),
                 {
@@ -55,7 +69,7 @@ class PostgresObservationHistoryRepository:
             rows = connection.execute(
                 text(
                     "SELECT * FROM opportunity_observation_history "
-                    "WHERE opportunity_id = :opportunity_id ORDER BY observed_at"
+                    "WHERE opportunity_id = :opportunity_id ORDER BY observed_at, id"
                 ),
                 {"opportunity_id": opportunity_id},
             ).mappings()

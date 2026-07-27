@@ -14,6 +14,7 @@ from pydantic import BaseModel
 from asa.api.agent_models import TimestampedResource
 from screening.registry import SignalDefinition
 from screening.state import ScreeningStateRecord
+from strategy_runtime.lifecycle import OpportunityHistory, OpportunityObservation
 from strategy_runtime.result import EvaluationState, UniversalScreeningResult
 
 # SPRINT-009R/EPIC-R5: the public wire vocabulary predates strategy_runtime and must not
@@ -136,3 +137,48 @@ class RefreshResultResponse(ScreeningResultResponse):
     ) -> RefreshResultResponse:
         base = ScreeningResultResponse.from_universal_result(result)
         return cls(request_count=request_count, **base.model_dump())
+
+
+class OpportunityObservationResponse(BaseModel):
+    opportunity_id: str
+    signal_id: str
+    symbol: str
+    lifecycle_stage: str
+    verdict: str
+    recommended_action: str
+    observed_at: str
+
+    @classmethod
+    def from_observation(
+        cls, observation: OpportunityObservation
+    ) -> OpportunityObservationResponse:
+        return cls(
+            opportunity_id=observation.opportunity_id,
+            signal_id=observation.strategy_id,
+            symbol=observation.symbol,
+            lifecycle_stage=observation.lifecycle_stage,
+            verdict=observation.verdict,
+            recommended_action=observation.recommended_action.value,
+            observed_at=observation.observed_at.isoformat(),
+        )
+
+
+class OpportunityHistoryResponse(BaseModel):
+    opportunity_id: str
+    observations: list[OpportunityObservationResponse]
+    total: int
+    limit: int
+    offset: int
+
+    @classmethod
+    def from_history(
+        cls, history: OpportunityHistory, *, limit: int, offset: int
+    ) -> OpportunityHistoryResponse:
+        page = history.observations[offset : offset + limit]
+        return cls(
+            opportunity_id=history.opportunity_id,
+            observations=[OpportunityObservationResponse.from_observation(item) for item in page],
+            total=len(history.observations),
+            limit=limit,
+            offset=offset,
+        )
