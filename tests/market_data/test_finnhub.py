@@ -79,25 +79,44 @@ def response(body: dict[str, object], status: int = 200) -> ReadOnlyHttpResponse
     return ReadOnlyHttpResponse(status, body, (), 9, "finnhub-request-1")
 
 
-def subject(capability: MarketCapability, fields: tuple[str, ...]) -> MarketDataSubject:
+def subject(
+    capability: MarketCapability, fields: tuple[str, ...], symbol: str = "AAPL"
+) -> MarketDataSubject:
     kind = (
         MarketDataSubjectType.EARNINGS_SECURITY
         if capability is MarketCapability.EARNINGS_CALENDAR_V1
         else MarketDataSubjectType.INSTRUMENT
     )
     projection = ProviderAddressProjection(
-        "finnhub", "v1", "symbol", "AAPL", NOW - timedelta(days=30), None, EVIDENCE
+        "finnhub", "v1", "symbol", symbol, NOW - timedelta(days=30), None, EVIDENCE
+    )
+    semantic_start = NOW if capability is MarketCapability.EARNINGS_CALENDAR_V1 else NOW - timedelta(days=5)
+    semantic_end = (
+        NOW + timedelta(days=75)
+        if capability is MarketCapability.EARNINGS_CALENDAR_V1
+        else NOW
     )
     return MarketDataSubject(
-        INSTRUMENT,
+        INSTRUMENT
+        if symbol == "AAPL"
+        else Instrument(
+            CanonicalInstrumentIdentity("symbol", symbol),
+            InstrumentKind.EQUITY,
+            symbol,
+            "USD",
+        ),
         kind,
         capability,
-        MarketDataRequestContext(NOW - timedelta(days=5), NOW, fields, (projection,), EVIDENCE),
+        MarketDataRequestContext(
+            semantic_start, semantic_end, fields, (projection,), EVIDENCE
+        ),
     )
 
 
-def request(capability: MarketCapability, fields: tuple[str, ...]) -> CapabilityRequest:
-    item = subject(capability, fields)
+def request(
+    capability: MarketCapability, fields: tuple[str, ...], symbol: str = "AAPL"
+) -> CapabilityRequest:
+    item = subject(capability, fields, symbol)
     return CapabilityRequest(
         capability,
         (item,),
@@ -156,15 +175,54 @@ def test_candle_success_validates_status_arrays_and_utc_timestamps() -> None:
     assert dict(transport.requests[0].query)["resolution"] == "D"
 
 
-def test_earnings_success_normalizes_calendar_event() -> None:
+@pytest.mark.parametrize(
+    ("symbol", "event_date", "hour"),
+    (("AAPL", "2026-08-01", "amc"), ("NVDA", "2026-08-19", "bmo")),
+)
+def test_provider_shaped_upcoming_earnings_normalize_calendar_event(
+    symbol: str, event_date: str, hour: str
+) -> None:
     transport = Transport(
-        (response({"earningsCalendar": [{"symbol": "AAPL", "date": "2026-08-01", "hour": "amc"}]}),)
+        (response({"earningsCalendar": [{"symbol": symbol, "date": event_date, "hour": hour}]}),)
     )
     adapter, _ = provider(transport)
     result = adapter.fetch(
-        request(MarketCapability.EARNINGS_CALENDAR_V1, ("earnings_date",)), authorization()
+        request(MarketCapability.EARNINGS_CALENDAR_V1, ("earnings_date",), symbol),
+        authorization(),
     )
     assert result.error is None and isinstance(result.observations[0].value, EarningsEvent)
+    assert result.observations[0].value.earnings_date.isoformat() == event_date
+
+
+@pytest.mark.parametrize(
+    ("body", "expected"),
+    (
+        ({"earningsCalendar": []}, ProviderErrorCode.EMPTY_PAYLOAD),
+        ({"earningsCalendar": [{"symbol": "AAPL"}]}, ProviderErrorCode.SCHEMA_MISMATCH),
+    ),
+)
+def test_earnings_no_event_and_malformed_payload_are_distinct(
+    body: dict[str, object], expected: ProviderErrorCode
+) -> None:
+    adapter, _ = provider(Transport((response(body),)))
+    result = adapter.fetch(
+        request(MarketCapability.EARNINGS_CALENDAR_V1, ("earnings_date",)), authorization()
+    )
+    assert result.error is not None and result.error.code is expected
+
+
+def test_earnings_wrong_symbol_or_outside_requested_window_is_no_data() -> None:
+    body = {
+        "earningsCalendar": [
+            {"symbol": "MSFT", "date": "2026-08-01", "hour": "amc"},
+            {"symbol": "AAPL", "date": "2027-01-01", "hour": "amc"},
+        ]
+    }
+    adapter, _ = provider(Transport((response(body),)))
+    result = adapter.fetch(
+        request(MarketCapability.EARNINGS_CALENDAR_V1, ("earnings_date",)), authorization()
+    )
+    assert result.error is not None and result.error.code is ProviderErrorCode.NO_DATA
 
 
 @pytest.mark.parametrize(

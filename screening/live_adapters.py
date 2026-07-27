@@ -29,7 +29,7 @@ every expiration.
 
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 
 from analytics.expiration_selection import (
@@ -37,7 +37,14 @@ from analytics.expiration_selection import (
     select_earnings_relative_expiration_pair,
     select_expiration_pair,
 )
-from domain import DomainInvariantError, EarningsEvent, MarketCapability, OptionChain, OptionType, Quote
+from domain import (
+    DomainInvariantError,
+    EarningsEvent,
+    MarketCapability,
+    OptionChain,
+    OptionType,
+    Quote,
+)
 from market_data import CapabilityFulfillmentService, FulfillmentStatus
 from screening.clock import Clock
 from screening.context_builders import (
@@ -82,6 +89,7 @@ EARNINGS_CALENDAR_DTE_POLICY = {
     "back_min_dte": 22,
     "back_max_dte": 75,
 }
+EARNINGS_CALENDAR_LOOKAHEAD_DAYS = EARNINGS_CALENDAR_DTE_POLICY["back_max_dte"]
 
 
 def _outcome_status_for_verdict(verdict: str) -> ScreeningOutcomeStatus:
@@ -126,29 +134,47 @@ def _acquire_or_raise(
     required_fields: tuple[str, ...],
     *,
     expiration: date | None = None,
+    effective_start: datetime | None = None,
+    effective_end: datetime | None = None,
 ) -> object:
+    request_start = effective_start or now
+    request_end = effective_end or now
     subject = build_capability_subject(
-        symbol, capability, now, required_fields=required_fields, expiration=expiration
+        symbol,
+        capability,
+        now,
+        effective_start=request_start,
+        effective_end=request_end,
+        required_fields=required_fields,
+        expiration=expiration,
     )
     try:
         result = acquire_capability(
             fulfillment,
             capability,
             subject,
-            effective_start=now,
-            effective_end=now,
+            effective_start=request_start,
+            effective_end=request_end,
             required_fields=required_fields,
             maximum_age_seconds=3600,
         )
     except DomainInvariantError as exc:
         raise StrategyAdapterError(
-            ScreeningOutcomeStatus.MISSING_DATA, classify_domain_invariant_error(exc, capability, symbol)
+            ScreeningOutcomeStatus.MISSING_DATA,
+            classify_domain_invariant_error(exc, capability, symbol),
         ) from exc
-    if result.status is not FulfillmentStatus.FULFILLED or not result.observations:
+    if result.status is FulfillmentStatus.FAILED or not result.observations:
+        attempt_summary = ", ".join(
+            f"{attempt.provider_id}:{attempt.error.code.value}"
+            for attempt in result.attempts
+            if attempt.error is not None
+        )
         detail = (
             f"a valid request for live {capability.value} for {symbol} "
             "could not be completed or normalized"
         )
+        if attempt_summary:
+            detail += f"; provider outcomes: {attempt_summary}"
         if expiration is not None:
             detail += f" at expiration {expiration.isoformat()}"
         raise StrategyAdapterError(ScreeningOutcomeStatus.MISSING_DATA, detail)
@@ -214,7 +240,9 @@ def build_live_forward_factor_adapter(
         chain = _acquire_combined_chain(
             fulfillment, symbol, now, (front.expiration_date, back.expiration_date)
         )
-        strike = select_atm_strike_at_expiration(chain, front.expiration_date, spot_price, OptionType.CALL)
+        strike = select_atm_strike_at_expiration(
+            chain, front.expiration_date, spot_price, OptionType.CALL
+        )
         context = build_forward_factor_context(
             chain, available_expirations, as_of, strike=strike, option_type=OptionType.CALL
         )
@@ -242,7 +270,12 @@ def build_live_earnings_calendar_adapter(
         now = clock.now()
         as_of = now.date()
         event = _acquire_or_raise(
-            fulfillment, symbol, MarketCapability.EARNINGS_CALENDAR_V1, now, ("earnings_date",)
+            fulfillment,
+            symbol,
+            MarketCapability.EARNINGS_CALENDAR_V1,
+            now,
+            ("earnings_date",),
+            effective_end=now + timedelta(days=EARNINGS_CALENDAR_LOOKAHEAD_DAYS),
         )
         quote = _acquire_or_raise(
             fulfillment, symbol, MarketCapability.REAL_TIME_QUOTE_V1, now, ("last",)
