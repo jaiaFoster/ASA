@@ -87,7 +87,7 @@ def build_application(
         CORSMiddleware,
         allow_origins=[origin.strip() for origin in settings.cors_origins.split(",")],
         allow_methods=["GET", "POST"],
-        allow_headers=["Content-Type", "X-Request-ID"],
+        allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
     )
     app.include_router(
         build_router(

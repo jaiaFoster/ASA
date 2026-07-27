@@ -117,3 +117,14 @@ After deployment:
 6. With `ASA_AGENT_API_TOKEN` set, confirm `GET /api/v1/capabilities` with a correct bearer token returns 200 and lists the registered signals, and that an omitted or incorrect token returns 404.
 
 Robinhood authentication is an unofficial integration and may require interactive approval. ASA remains synchronous and preserves the prior successful publication if authentication or acquisition fails.
+
+Run the bounded authenticated smoke without placing the token on the command line:
+
+```bash
+ASA_AGENT_API_TOKEN='<configured-outside-shell-history>' \
+  python tools/screening_smoke.py https://<host> --signal skew_momentum --symbol AAPL
+```
+
+The harness prints only methods, paths, and status codes. It never prints response bodies,
+request headers, or the token. It checks health, readiness, capabilities, aggregate screening,
+one bounded refresh, and read-after-write.
