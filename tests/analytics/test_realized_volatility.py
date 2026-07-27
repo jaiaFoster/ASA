@@ -56,7 +56,8 @@ class TestComputeTrailingReturn:
         assert compute_trailing_return((Decimal("100"), Decimal("80"))) == Decimal("-0.2")
 
     def test_zero_when_flat(self) -> None:
-        assert compute_trailing_return((Decimal("100"), Decimal("100"), Decimal("100"))) == Decimal(0)
+        flat = (Decimal("100"), Decimal("100"), Decimal("100"))
+        assert compute_trailing_return(flat) == Decimal(0)
 
     def test_only_endpoints_matter_not_the_path(self) -> None:
         volatile_path = (Decimal("100"), Decimal("200"), Decimal("10"), Decimal("110"))

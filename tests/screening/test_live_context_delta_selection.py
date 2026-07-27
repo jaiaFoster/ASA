@@ -11,6 +11,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
+
 from domain import (
     CanonicalInstrumentIdentity,
     EvidenceKind,
@@ -34,7 +35,9 @@ INSTRUMENT = Instrument(
 SECURITY = Security(INSTRUMENT, "AAPL", SecurityAssetType.EQUITY, "XNAS")
 
 
-def _contract(strike: Decimal, delta: Decimal, option_type: OptionType = OptionType.CALL) -> OptionContract:
+def _contract(
+    strike: Decimal, delta: Decimal, option_type: OptionType = OptionType.CALL
+) -> OptionContract:
     return OptionContract(
         CanonicalInstrumentIdentity("fixture-option", f"AAPL-{strike}-{option_type.value}"),
         SECURITY,
@@ -71,7 +74,9 @@ class TestSelectNearestDeltaContract:
                 _contract(Decimal("110"), Decimal("0.10")),
             )
         )
-        selected = select_nearest_delta_contract(chain, EXPIRATION, OptionType.CALL, Decimal("0.25"))
+        selected = select_nearest_delta_contract(
+            chain, EXPIRATION, OptionType.CALL, Decimal("0.25")
+        )
         assert selected.strike == Decimal("105")
 
     def test_excludes_the_given_strike(self) -> None:

@@ -365,8 +365,14 @@ def build_live_forward_factor_adapter(
                 f"attempted {', '.join(attempted)}",
             )
         front, back = selected
-        strike = select_atm_strike_at_expiration(
+        # SPRINT-011-CLOSEOUT/CLOSE-001: selected independently per
+        # expiration, not one shared strike reused at both -- see
+        # build_forward_factor_context's own docstring for why.
+        front_strike = select_atm_strike_at_expiration(
             chain, front.expiration_date, spot_price, OptionType.CALL
+        )
+        back_strike = select_atm_strike_at_expiration(
+            chain, back.expiration_date, spot_price, OptionType.CALL
         )
         selected_expirations = tuple(
             cycle
@@ -374,7 +380,12 @@ def build_live_forward_factor_adapter(
             if cycle.expiration_date in {front.expiration_date, back.expiration_date}
         )
         context = build_forward_factor_context(
-            chain, selected_expirations, as_of, strike=strike, option_type=OptionType.CALL
+            chain,
+            selected_expirations,
+            as_of,
+            front_strike=front_strike,
+            back_strike=back_strike,
+            option_type=OptionType.CALL,
         )
         graph = compile_strategy_graph(FORWARD_FACTOR_CALENDAR_MANIFEST, _COMPONENT_REGISTRY)
         result = execute_strategy_graph(graph, context)
@@ -462,7 +473,9 @@ def build_live_earnings_calendar_adapter(
             chain, back_cycle.expiration_date, spot_price, OptionType.CALL
         )
         (front_contract,) = chain.find(
-            expiration=front_cycle.expiration_date, strike=target_strike, option_type=OptionType.CALL
+            expiration=front_cycle.expiration_date,
+            strike=target_strike,
+            option_type=OptionType.CALL,
         )
         (back_contract,) = chain.find(
             expiration=back_cycle.expiration_date, strike=back_strike, option_type=OptionType.CALL
@@ -481,7 +494,9 @@ def build_live_earnings_calendar_adapter(
         # separately-fetched fixed 45-day point (this system selects
         # front/back via its own earnings-relative DTE policy, not a fixed
         # calendar pin).
-        term_richness = _richness_score(front_contract.implied_volatility - back_contract.implied_volatility)
+        term_richness = _richness_score(
+            front_contract.implied_volatility - back_contract.implied_volatility
+        )
         closes = _acquire_daily_closes(fulfillment, symbol, now)
         realized_vol = compute_realized_volatility(closes)
         # iv30/rv30-style richness (same source, ~09:40): front-month IV
@@ -580,7 +595,9 @@ def build_live_skew_momentum_adapter(
         # long-ATM/short-wing structure (strategies/stonk_manifests.py's
         # own frozen 0.50/0.25 delta targets, unchanged by this fix) is
         # built to exploit.
-        skew_richness = _richness_score(wing_contract.implied_volatility - atm_contract.implied_volatility)
+        skew_richness = _richness_score(
+            wing_contract.implied_volatility - atm_contract.implied_volatility
+        )
         closes = _acquire_daily_closes(fulfillment, symbol, now)
         momentum_richness = _richness_score(compute_trailing_return(closes))
         context = build_skew_momentum_context(

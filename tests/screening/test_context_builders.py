@@ -5,7 +5,7 @@ from decimal import Decimal
 
 import pytest
 
-from domain import ExpirationCycle, OptionType
+from domain import ExpirationCycle, OptionChain, OptionType
 from screening import fixtures
 from screening.context_builders import (
     NoValidExpirationPairError,
@@ -20,7 +20,11 @@ class TestBuildForwardFactorContext:
         chain = fixtures.forward_factor_chain()
         expirations = fixtures.forward_factor_expirations()
         context = build_forward_factor_context(
-            chain, expirations.cycles, fixtures.AS_OF_DATE, strike=Decimal("105")
+            chain,
+            expirations.cycles,
+            fixtures.AS_OF_DATE,
+            front_strike=Decimal("105"),
+            back_strike=Decimal("105"),
         )
         values = dict(context.entries)
         assert values["forward_iv.front_iv"].value == Decimal("0.48")
@@ -36,7 +40,51 @@ class TestBuildForwardFactorContext:
             ExpirationCycle(near_expiration, 5, True, False, fixtures.AS_OF_DATE, fixtures.EVIDENCE),
         )
         with pytest.raises(NoValidExpirationPairError):
-            build_forward_factor_context(chain, too_short, fixtures.AS_OF_DATE, strike=Decimal("105"))
+            build_forward_factor_context(
+                chain,
+                too_short,
+                fixtures.AS_OF_DATE,
+                front_strike=Decimal("105"),
+                back_strike=Decimal("105"),
+            )
+
+    def test_looks_up_front_and_back_iv_at_their_own_distinct_strikes(self) -> None:
+        # SPRINT-011-CLOSEOUT/CLOSE-001 regression: production NoMatchingContractError
+        # for GS/NFLX -- the front expiration's ATM strike was reused verbatim to look
+        # up the back expiration's IV too, and real back-month chains often don't list
+        # the exact same strike as the front month. This chain has strike 105 at the
+        # front expiration only and strike 110 at the back expiration only, proving
+        # front_strike/back_strike are each looked up independently, not conflated.
+        front_only_contract = fixtures.fixture_contract(
+            "ff-front-only", fixtures.FORWARD_FRONT_EXPIRATION, "105", OptionType.CALL, "0.35", "2"
+        )
+        back_only_contract = fixtures.fixture_contract(
+            "ff-back-only",
+            fixtures.FORWARD_BACK_EXPIRATION,
+            "110",
+            OptionType.CALL,
+            "0.38",
+            "3",
+            implied_volatility="0.40",
+        )
+        chain = OptionChain(
+            "mismatched-strike-ladder",
+            fixtures.fixture_security(),
+            fixtures.OBSERVED_AT,
+            (front_only_contract, back_only_contract),
+            fixtures.EVIDENCE,
+        )
+        expirations = fixtures.forward_factor_expirations()
+        context = build_forward_factor_context(
+            chain,
+            expirations.cycles,
+            fixtures.AS_OF_DATE,
+            front_strike=Decimal("105"),
+            back_strike=Decimal("110"),
+        )
+        values = dict(context.entries)
+        assert values["forward_iv.front_iv"].value == Decimal("0.30")  # fixture_contract default
+        assert values["forward_iv.back_iv"].value == Decimal("0.40")
 
 
 class TestBuildEarningsCalendarContext:

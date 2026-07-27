@@ -92,7 +92,11 @@ def run_forward_factor(
     chain = fixtures.forward_factor_chain()
     expirations = fixtures.forward_factor_expirations()
     context = build_forward_factor_context(
-        chain, expirations.cycles, fixtures.AS_OF_DATE, strike=Decimal("105")
+        chain,
+        expirations.cycles,
+        fixtures.AS_OF_DATE,
+        front_strike=Decimal("105"),
+        back_strike=Decimal("105"),
     )
     graph = compile_strategy_graph(FORWARD_FACTOR_CALENDAR_MANIFEST, _COMPONENT_REGISTRY)
     result = execute_strategy_graph(graph, context)
