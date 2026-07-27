@@ -9,6 +9,8 @@ timestamped").
 
 from __future__ import annotations
 
+from datetime import date, datetime
+
 from pydantic import BaseModel, Field
 
 from asa.api.agent_models import TimestampedResource
@@ -90,11 +92,42 @@ class ScreeningResultResponse(TimestampedResource):
     blockers: list[str] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
     provenance: list[str] = Field(default_factory=list)
+    observed_at: datetime
+    received_at: datetime
+    evaluated_at: datetime
+    persisted_at: datetime
+    market_session_date: date | None = None
+    market_session_status: str = "unknown"
+    last_refresh_attempt_at: datetime
+    last_successful_refresh_at: datetime
+    next_refresh_at: datetime | None = None
+    data_advanced_on_last_refresh: bool = False
+    freshness_status: str = "unknown"
+    usability_status: str = "rejected"
+    usability_reason: str = "temporal metadata unavailable"
+    warning_codes: list[str] = Field(default_factory=list)
+    acquisition_started_at: datetime
+    acquisition_completed_at: datetime
+    input_time_skew_seconds: int = Field(ge=0, default=0)
 
     @classmethod
     def from_universal_result(cls, result: UniversalScreeningResult) -> ScreeningResultResponse:
         """Build the public response from the canonical universal result."""
-        age_seconds = TimestampedResource.age_seconds_since(result.observed_at)
+        temporal = result.temporal
+        observed_at = temporal.observed_at if temporal is not None else result.observed_at
+        received_at = temporal.received_at if temporal is not None else result.observed_at
+        evaluated_at = temporal.evaluated_at if temporal is not None else result.observed_at
+        persisted_at = temporal.persisted_at if temporal is not None else result.observed_at
+        canonical_age = (
+            temporal.age_seconds
+            if temporal is not None
+            else TimestampedResource.age_seconds_since(observed_at)
+        )
+        freshness_status = (
+            temporal.freshness_status
+            if temporal is not None
+            else ("live" if canonical_age <= 86_400 else "stale")
+        )
         return cls(
             signal_id=result.strategy_id,
             signal_version=result.strategy_version,
@@ -113,7 +146,11 @@ class ScreeningResultResponse(TimestampedResource):
             lifecycle_stage=result.lifecycle_stage,
             status=result.recommendation_state,
             data_quality=result.data_quality,
-            freshness="fresh" if age_seconds <= 86_400 else "stale",
+            freshness=(
+                "fresh"
+                if freshness_status in {"fresh", "live", "prior_session"}
+                else "stale"
+            ),
             economics=_wire_values(
                 {key: value.native() for key, value in result.economics.items()}
             ),
@@ -127,7 +164,60 @@ class ScreeningResultResponse(TimestampedResource):
             warnings=list(result.warnings),
             provenance=list(result.provenance),
             updated_at=result.observed_at,
-            age_seconds=age_seconds,
+            age_seconds=canonical_age,
+            observed_at=observed_at,
+            received_at=received_at,
+            evaluated_at=evaluated_at,
+            persisted_at=persisted_at,
+            market_session_date=(
+                temporal.market_session_date if temporal is not None else None
+            ),
+            market_session_status=(
+                temporal.market_session_status if temporal is not None else "unknown"
+            ),
+            last_refresh_attempt_at=(
+                temporal.last_refresh_attempt_at
+                if temporal is not None
+                else result.observed_at
+            ),
+            last_successful_refresh_at=(
+                temporal.last_successful_refresh_at
+                if temporal is not None
+                else result.observed_at
+            ),
+            next_refresh_at=(
+                temporal.next_refresh_at if temporal is not None else None
+            ),
+            data_advanced_on_last_refresh=(
+                temporal.data_advanced_on_last_refresh
+                if temporal is not None
+                else False
+            ),
+            freshness_status=freshness_status,
+            usability_status=(
+                temporal.usability_status if temporal is not None else "rejected"
+            ),
+            usability_reason=(
+                temporal.usability_reason
+                if temporal is not None
+                else "temporal metadata unavailable"
+            ),
+            warning_codes=(
+                list(temporal.warning_codes) if temporal is not None else []
+            ),
+            acquisition_started_at=(
+                temporal.acquisition_started_at
+                if temporal is not None
+                else result.observed_at
+            ),
+            acquisition_completed_at=(
+                temporal.acquisition_completed_at
+                if temporal is not None
+                else result.observed_at
+            ),
+            input_time_skew_seconds=(
+                temporal.input_time_skew_seconds if temporal is not None else 0
+            ),
         )
 
 
@@ -149,13 +239,30 @@ class RefreshResultResponse(ScreeningResultResponse):
     """
 
     request_count: int
+    provider_contacted: bool
+    result_changed: bool
+    refresh_failed: bool
 
     @classmethod
     def from_universal_result(  # type: ignore[override]
-        cls, result: UniversalScreeningResult, *, request_count: int
+        cls,
+        result: UniversalScreeningResult,
+        *,
+        request_count: int,
+        provider_contacted: bool | None = None,
+        result_changed: bool = True,
+        refresh_failed: bool = False,
     ) -> RefreshResultResponse:
         base = ScreeningResultResponse.from_universal_result(result)
-        return cls(request_count=request_count, **base.model_dump())
+        return cls(
+            request_count=request_count,
+            provider_contacted=(
+                request_count > 0 if provider_contacted is None else provider_contacted
+            ),
+            result_changed=result_changed,
+            refresh_failed=refresh_failed,
+            **base.model_dump(),
+        )
 
 
 class OpportunityObservationResponse(BaseModel):

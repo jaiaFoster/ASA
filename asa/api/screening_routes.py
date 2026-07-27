@@ -309,14 +309,26 @@ def build_screening_router(
         clock = _SystemClock()
         access = build_shared_market_data_access(config, transport_factory, clock, (symbol,))
         subject_access = access[symbol]
-        result = refresh(
-            registry,
-            repository,
-            clock,
-            strategy_id=signal,
-            symbol=symbol,
-            fulfillment_by_subject={symbol: subject_access.fulfillment},
-        )
+        prior = repository.get_one(signal, symbol)
+        try:
+            result = refresh(
+                registry,
+                repository,
+                clock,
+                strategy_id=signal,
+                symbol=symbol,
+                fulfillment_by_subject={symbol: subject_access.fulfillment},
+            )
+        except RuntimeError:
+            if prior is None:
+                raise
+            prior_result = prior.to_result()
+            return RefreshResultResponse.from_universal_result(
+                prior_result,
+                request_count=len(subject_access.budget_manager.accounting),
+                result_changed=False,
+                refresh_failed=True,
+            )
         if result.opportunity_id is not None:
             try:
                 record_opportunity_observation(
@@ -337,7 +349,10 @@ def build_screening_router(
                     },
                 )
         return RefreshResultResponse.from_universal_result(
-            result, request_count=len(subject_access.budget_manager.accounting)
+            result,
+            request_count=len(subject_access.budget_manager.accounting),
+            result_changed=prior is None or prior.to_result() != result,
+            refresh_failed=False,
         )
 
     return router

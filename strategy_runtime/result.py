@@ -22,7 +22,7 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 from enum import Enum
 
 from strategy_runtime.values import TypedValue
@@ -83,6 +83,57 @@ SUCCESS_EVALUATION_STATES = frozenset({EvaluationState.PASS, EvaluationState.NO_
 
 
 @dataclass(frozen=True, slots=True)
+class ResultTemporalMetadata:
+    """Provider-neutral temporal audit data for one computed result."""
+
+    observed_at: datetime
+    received_at: datetime
+    evaluated_at: datetime
+    persisted_at: datetime
+    market_session_date: date
+    market_session_status: str
+    age_seconds: int
+    last_refresh_attempt_at: datetime
+    last_successful_refresh_at: datetime
+    next_refresh_at: datetime | None
+    data_advanced_on_last_refresh: bool
+    freshness_status: str
+    usability_status: str
+    usability_reason: str
+    warning_codes: tuple[str, ...]
+    acquisition_started_at: datetime
+    acquisition_completed_at: datetime
+    input_time_skew_seconds: int
+
+    def __post_init__(self) -> None:
+        for name in (
+            "observed_at",
+            "received_at",
+            "evaluated_at",
+            "persisted_at",
+            "last_refresh_attempt_at",
+            "last_successful_refresh_at",
+            "acquisition_started_at",
+            "acquisition_completed_at",
+        ):
+            _require_tz_aware(getattr(self, name), "ResultTemporalMetadata", name)
+        if self.next_refresh_at is not None:
+            _require_tz_aware(
+                self.next_refresh_at, "ResultTemporalMetadata", "next_refresh_at"
+            )
+        for name in ("age_seconds", "input_time_skew_seconds"):
+            if type(getattr(self, name)) is not int or getattr(self, name) < 0:
+                raise ValueError(f"ResultTemporalMetadata.{name} must be non-negative")
+        for name in (
+            "market_session_status",
+            "freshness_status",
+            "usability_status",
+            "usability_reason",
+        ):
+            _normalized_text(getattr(self, name), "ResultTemporalMetadata", name)
+
+
+@dataclass(frozen=True, slots=True)
 class UniversalScreeningResult:
     strategy_id: str
     strategy_version: str
@@ -101,11 +152,18 @@ class UniversalScreeningResult:
     warnings: tuple[str, ...]
     provenance: tuple[str, ...]
     observed_at: datetime
+    temporal: ResultTemporalMetadata | None = None
 
     def __post_init__(self) -> None:
         for name in ("strategy_id", "strategy_version", "symbol", "observation_id"):
             _normalized_text(getattr(self, name), "UniversalScreeningResult", name)
         _require_tz_aware(self.observed_at, "UniversalScreeningResult", "observed_at")
+        if self.temporal is not None and not isinstance(
+            self.temporal, ResultTemporalMetadata
+        ):
+            raise ValueError(
+                "UniversalScreeningResult.temporal must be ResultTemporalMetadata"
+            )
 
         is_success = self.evaluation_state in SUCCESS_EVALUATION_STATES
         if is_success:

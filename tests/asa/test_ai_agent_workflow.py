@@ -227,7 +227,8 @@ def test_ai_agent_workflow_discovers_reads_refreshes_and_briefs(
     transcript.append(updated_response)
     assert updated_response.status_code == 200
     updated = updated_response.json()
-    assert updated["age_seconds"] < STALE_THRESHOLD_SECONDS
+    assert updated["freshness_status"] in {"live", "prior_session"}
+    assert updated["usability_status"] in {"usable", "usable_with_warning"}
     assert updated["updated_at"] != target["updated_at"]
 
     # deterministic_responses: an unchanged GET immediately after returns

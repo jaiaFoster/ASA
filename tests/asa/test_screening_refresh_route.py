@@ -124,8 +124,26 @@ class TestSuccessfulRefresh:
         assert body["signal_id"] == "skew_momentum"
         assert body["symbol"] == "AAPL"
         assert body["request_count"] >= 1
+        assert body["provider_contacted"] is True
+        assert body["refresh_failed"] is False
         assert body["updated_at"] is not None
         assert body["age_seconds"] >= 0
+        assert body["observed_at"] is not None
+        assert body["received_at"] is not None
+        assert body["evaluated_at"] is not None
+        assert body["persisted_at"] is not None
+        assert body["market_session_date"] is not None
+        assert body["market_session_status"] in {
+            "premarket",
+            "open",
+            "after_hours",
+            "weekend",
+            "holiday",
+        }
+        assert body["freshness_status"] in {"live", "prior_session"}
+        assert body["usability_status"] in {"usable", "usable_with_warning"}
+        assert isinstance(body["warning_codes"], list)
+        assert body["input_time_skew_seconds"] >= 0
         # "sandbox-secret-token" must never appear in the response.
         assert "sandbox-secret-token" not in response.text
 
@@ -143,3 +161,8 @@ class TestSuccessfulRefresh:
 
         assert follow_up.status_code == 200
         assert follow_up.json()["symbol"] == "AAPL"
+        assert follow_up.json()["observed_at"] is not None
+        assert follow_up.json()["usability_status"] in {
+            "usable",
+            "usable_with_warning",
+        }

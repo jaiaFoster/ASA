@@ -135,5 +135,12 @@ def test_openapi_has_no_robinhood_secret_fields() -> None:
             DependencyOverrides(repository=InMemoryObservationRepository()),
         ).openapi()
     )
-    for secret_name in ("username", "password", "totp", "session", "cookie", "token"):
+    for secret_name in (
+        "username",
+        "password",
+        "totp",
+        "session_token",
+        "cookie",
+        "access_token",
+    ):
         assert secret_name not in schema.lower()

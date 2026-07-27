@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
+from market_data.session_calendar import UsEquitySessionCalendar
 from market_data.transport import ReadOnlyHttpRequest, ReadOnlyHttpResponse
 
 
@@ -16,6 +19,9 @@ class ScriptedTransport:
 
 
 def tradier_quote_response() -> ReadOnlyHttpResponse:
+    latest_close = UsEquitySessionCalendar().latest_completed_session(
+        datetime.now(UTC)
+    ).closes_at
     return ReadOnlyHttpResponse(
         200,
         {
@@ -28,7 +34,7 @@ def tradier_quote_response() -> ReadOnlyHttpResponse:
                     "bidsize": 1,
                     "asksize": 1,
                     "volume": 100,
-                    "trade_date": 1753113600000,
+                    "trade_date": int(latest_close.timestamp() * 1000),
                 }
             }
         },
