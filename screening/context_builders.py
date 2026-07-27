@@ -78,9 +78,23 @@ def build_forward_factor_context(
     available_expirations: tuple[ExpirationCycle, ...],
     as_of: date,
     *,
-    strike: Decimal,
+    front_strike: Decimal,
+    back_strike: Decimal,
     option_type: OptionType = OptionType.CALL,
 ) -> ComponentValues:
+    """front_strike/back_strike -- SPRINT-011-CLOSEOUT/CLOSE-001: previously
+    one shared `strike` was looked up at the front expiration only and
+    reused verbatim for the back expiration's own IV lookup. Real chains
+    frequently list a different strike ladder at the back (longer-dated)
+    expiration than the front, especially for wide-strike-increment names
+    (GS, NFLX confirmed in production) -- reusing the front's strike at
+    the back expiration then raised NoMatchingContractError whenever that
+    exact strike wasn't also listed there. The actual traded structure
+    (double_calendar.chain, below) is unaffected -- it selects its own
+    strikes internally via delta targeting; this only fixes the two IV
+    values compute_option_implied_volatility looks up for the
+    implied-forward-volatility inputs.
+    """
     candidates = tuple(
         ExpirationCandidate(cycle.expiration_date, cycle.days_to_expiration)
         for cycle in available_expirations
@@ -104,7 +118,7 @@ def build_forward_factor_context(
         {
             "chain": chain,
             "expiration": front.expiration_date,
-            "strike": strike,
+            "strike": front_strike,
             "option_type": option_type,
         }
     )
@@ -112,7 +126,7 @@ def build_forward_factor_context(
         {
             "chain": chain,
             "expiration": back.expiration_date,
-            "strike": strike,
+            "strike": back_strike,
             "option_type": option_type,
         }
     )
