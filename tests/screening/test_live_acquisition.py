@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
 import pytest
+
 from domain import (
     CanonicalInstrumentIdentity,
     EvidenceKind,
@@ -26,6 +27,8 @@ from market_data import (
 )
 from market_data.fixture import fixture_provider_registration
 from screening.live_acquisition import (
+    APPROVED_LIVE_UNIVERSE,
+    EARNINGS_CALENDAR_UNIVERSE,
     acquire_capability,
     build_capability_registry,
     build_fulfillment_service,
@@ -211,3 +214,19 @@ class TestBuildFulfillmentServiceAndAcquireCapability:
         )
         assert first.status == second.status
         assert first.selected_provider == second.selected_provider
+
+
+class TestApprovedLiveUniverse:
+    def test_size_is_within_sprint_011_target_range(self) -> None:
+        assert 25 <= len(APPROVED_LIVE_UNIVERSE) <= 50
+
+    def test_no_duplicate_symbols(self) -> None:
+        assert len(set(APPROVED_LIVE_UNIVERSE)) == len(APPROVED_LIVE_UNIVERSE)
+
+    def test_earnings_calendar_universe_is_a_proper_subset(self) -> None:
+        assert set(EARNINGS_CALENDAR_UNIVERSE) <= set(APPROVED_LIVE_UNIVERSE)
+        assert len(EARNINGS_CALENDAR_UNIVERSE) < len(APPROVED_LIVE_UNIVERSE)
+
+    def test_earnings_calendar_universe_excludes_known_ETFs(self) -> None:
+        etfs = {"SPY", "QQQ", "IWM", "DIA", "XLF", "XLE", "XLK", "GLD"}
+        assert set(EARNINGS_CALENDAR_UNIVERSE).isdisjoint(etfs)

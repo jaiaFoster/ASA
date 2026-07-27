@@ -159,7 +159,10 @@ class TestLive:
 
     def test_fixture_only_universe_symbol_rejected_with_live_flag(self, capsys, monkeypatch) -> None:
         _clear_provider_env(monkeypatch)
-        exit_code = main(["--live", "--universe", "TSLA", "--as-of", AS_OF])
+        # GME is deliberately excluded from APPROVED_LIVE_UNIVERSE (SPRINT-011/
+        # UNI-001's own liquidity bar) -- a stable negative case, unlike TSLA
+        # which SPRINT-011 added to the approved set.
+        exit_code = main(["--live", "--universe", "GME", "--as-of", AS_OF])
         assert exit_code == 2
         assert "unsupported universe" in capsys.readouterr().err
 

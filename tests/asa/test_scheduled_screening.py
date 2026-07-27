@@ -11,6 +11,7 @@ from asa.scheduled_screening import (
     run_scheduled_refresh,
 )
 from market_data.transport import ReadOnlyHttpResponse
+from screening import APPROVED_LIVE_UNIVERSE
 from tests.asa.fakes import InMemoryLatestResultRepository
 from tests.asa.market_data_ops.fakes import ScriptedTransport, tradier_quote_response
 
@@ -56,10 +57,16 @@ def _tradier_refresh_responses(expiration: str) -> list[ReadOnlyHttpResponse]:
 
 
 def test_production_universe_is_forward_factor_and_skew_momentum_only() -> None:
+    # SPRINT-011/UNI-001 expanded APPROVED_LIVE_UNIVERSE; the pair count here
+    # derives from it rather than a hardcoded literal so this assertion
+    # doesn't silently drift out of sync (matching PROD-005's own established
+    # single-source-of-truth rationale). earnings_calendar's own addition to
+    # the scheduler is UNI-002's job, not this one.
     signal_ids = {signal_id for signal_id, _symbol in PRODUCTION_SCREENING_UNIVERSE}
     assert signal_ids == {"forward_factor", "skew_momentum"}
-    assert len(PRODUCTION_SCREENING_UNIVERSE) == 12
-    assert len(set(PRODUCTION_SCREENING_UNIVERSE)) == 12  # no duplicate pairs
+    expected = 2 * len(APPROVED_LIVE_UNIVERSE)
+    assert len(PRODUCTION_SCREENING_UNIVERSE) == expected
+    assert len(set(PRODUCTION_SCREENING_UNIVERSE)) == expected  # no duplicate pairs
 
 
 def test_no_enabled_provider_raises(monkeypatch: pytest.MonkeyPatch) -> None:

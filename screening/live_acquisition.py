@@ -69,10 +69,60 @@ def enabled_provider_configs(config: MarketDataConfig) -> tuple[ProviderConfig, 
     return tuple(item for item in config.providers if item.enabled)
 
 
-APPROVED_LIVE_UNIVERSE = ("AAPL", "MSFT", "NVDA", "AMD", "SPY", "QQQ")
-"""The SPRINT-007 Founder-approved live validation_universe. Both
-screening/cli.py's --live flag and asa/'s POST .../refresh endpoint bound
-live acquisition to this same set -- neither widens it independently."""
+APPROVED_LIVE_UNIVERSE = (
+    # Mega-cap single names -- deep, liquid options chains (SPRINT-007's
+    # original bar, unchanged by this expansion).
+    "AAPL", "MSFT", "NVDA", "AMD", "GOOGL", "AMZN", "META", "TSLA", "AVGO", "NFLX",
+    # Financials
+    "JPM", "BAC", "GS",
+    # Healthcare
+    "UNH", "LLY",
+    # Industrials / consumer
+    "HD", "WMT", "DIS",
+    # Energy
+    "XOM", "CVX",
+    # Semis
+    "INTC", "MU",
+    # Major index / sector ETFs
+    "SPY", "QQQ", "IWM", "DIA", "XLF", "XLE", "XLK", "GLD",
+)
+"""SPRINT-011/UNI-001: expanded from the SPRINT-007 six-symbol
+validation_universe (AAPL, MSFT, NVDA, AMD, SPY, QQQ) to 30 symbols, per
+Founder-authorized SPRINT-011 (docs/sprints/SPRINT-011.yaml). Selection
+criteria unchanged from SPRINT-007/PROD-001 and from
+project/reports/SPRINT-008D-REFRESH-UNIVERSE-EXPANSION.md's own recorded
+trigger conditions: deep, liquid, optionable single-name or index/sector
+ETF options markets only, diversified across sectors, no thin or illiquid
+chains that would degrade forward_factor/skew_momentum's strike/expiration
+selection regardless of code correctness. That report explicitly deferred
+expansion pending real production usage data and Founder re-approval;
+SPRINT-011 is that re-approval and that data (SPRINT-010's own production
+evidence, project/reports/SPRINT-010.md).
+
+Both screening/cli.py's --live flag and asa/'s POST .../refresh endpoint
+bound live acquisition to this same set -- neither widens it
+independently. A future change must widen this one tuple, not add a
+second copy anywhere.
+
+Excluded from consideration: meme/low-float names, thinly-traded
+small-caps, and any single name without a consistently deep multi-
+expiration chain -- PROD-001's original liquidity bar, applied
+identically to every candidate added here, not loosened for this
+expansion. Rollback: revert this tuple to the prior six-symbol value
+(git revert of the commit that introduced this expansion); no other file
+needs to change, since every caller reads this one constant directly.
+"""
+
+EARNINGS_CALENDAR_UNIVERSE = tuple(
+    symbol
+    for symbol in APPROVED_LIVE_UNIVERSE
+    if symbol not in {"SPY", "QQQ", "IWM", "DIA", "XLF", "XLE", "XLK", "GLD"}
+)
+"""SPRINT-011/UNI-001: the single-name subset of APPROVED_LIVE_UNIVERSE
+eligible for earnings_calendar -- ETFs have no earnings events and were
+never eligible. Derived from APPROVED_LIVE_UNIVERSE by exclusion (not a
+second maintained list) so it can never drift out of sync as that tuple
+changes."""
 
 _FIXTURE_PROVIDER_ID = "deterministic_fixture"
 
