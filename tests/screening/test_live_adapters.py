@@ -106,11 +106,12 @@ _SPOT = Decimal("210")
 # (days out, ATM implied_volatility) -- spans both Earnings Calendar's
 # front_min/max_dte=7/21, back_min/max_dte=22/75 policy and Forward
 # Factor's front_min/max_dte=35/90, back_min/max_dte=49/139, gap 14-49
-# policy, deliberately without the two ranges overlapping, so each
+# policy, with the earnings pair exactly 30 days apart, deliberately
+# without the two ranges overlapping, so each
 # strategy's selector has exactly one unambiguous valid pair.
 _EXPIRATIONS_DAYS_OUT_AND_IV = (
     (10, Decimal("0.55")),
-    (25, Decimal("0.50")),
+    (40, Decimal("0.50")),
     (61, Decimal("0.48")),
     (91, Decimal("0.4548992562461861547567860943472296")),
 )

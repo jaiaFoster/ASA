@@ -22,12 +22,15 @@ Plugin SDK.
 | `asa.stonk.shared` | `security_universe_filter` | Remove explicitly identified canonical securities without symbol inference |
 | `asa.stonk.shared` | `deterministic_security_cap` | Cap the canonically ordered security tuple |
 | `asa.stonk.shared` | `weighted_score_with_ceiling` | Compute a non-negative-weighted mean and apply an explicit ceiling |
+| `asa.stonk.shared` | `two_factor_weighted_score` | Preserve two named factors while applying explicit manifest weights and ceiling |
 | `asa.stonk.shared` | `verdict_classifier` | Classify one score into configured PASS, WATCH, or FAIL tiers |
 | `asa.stonk.shared` | `verdict_eligibility_gate` | Force FAIL when a manifest eligibility path rejects a candidate |
+| `asa.stonk.shared` | `verdict_eligibility_supplement_gate` | Force hard-gate failures to FAIL and downgrade weak supplemental evidence to WATCH |
 | `asa.stonk.options` | `earnings_event_window` | Test the preferred front-before-event/back-after-event window and confirmation policy |
 | `asa.stonk.options` | `expiration_pair_selector` | Select one stable event-spanning pair within explicit DTE bounds |
 | `asa.stonk.options` | `dte_pair_selector` | Select one stable front/back pair from explicit DTE, gap, and target policy |
 | `asa.stonk.options` | `expiration_pair_projection` | Project one exact pair into typed front and back expiration dates |
+| `asa.stonk.options` | `expiration_gap_projection` | Expose actual expiration-gap days and deviation from the manifest target |
 | `asa.stonk.options` | `forward_factor` | Calculate raw front IV divided by implied forward IV minus one |
 | `asa.stonk.options` | `implied_forward_volatility` | Derive forward variance and volatility from explicit front/back IV and DTE |
 | `asa.stonk.options` | `option_leg_liquidity` | Test observed quote width, open interest, and volume against explicit thresholds |
@@ -37,6 +40,7 @@ Plugin SDK.
 | `asa.stonk.options` | `vertical_structure` | Construct a distinct-strike, same-expiry delta-selected debit vertical |
 | `asa.stonk.options` | `double_calendar_structure` | Compose canonical put and call calendars as a typed tuple |
 | `asa.stonk.options` | `option_structure_collection_liquidity` | Require coherent quoted liquidity evidence on every selected leg |
+| `asa.stonk.options` | `earnings_calendar_liquidity` | Apply quote/open-interest gates and emit LOW/ADEQUATE/HIGH/UNKNOWN volume evidence |
 | `asa.stonk.options` | `option_structure_debit` | Compute mark debit and conservative long-ask/short-bid debit when evidence is complete |
 
 The double calendar is composition of two existing `OptionStructureType.CALENDAR`
@@ -51,7 +55,8 @@ canonical contract observation identities and explicit semantic roles.
   the canonical option-contract ordering, never provider enumeration order.
 - Mark debit sums long marks and subtracts short marks. Conservative debit sums long
   asks and subtracts short bids. Missing mandatory leg evidence returns explicit `None`.
-- Event calendars prefer the nearest pair enclosing the earnings event. After-close
+- Event calendars choose the event-spanning pair with the smallest deviation from the
+  manifest's 30-day target, accepting only the inclusive 25–35 day window. After-close
   earnings on the front expiration date are treated as occurring after that expiry;
   other same-date sessions are not.
 - Weighted scoring does not rank Opportunities. It emits one bounded strategy-local

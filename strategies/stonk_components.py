@@ -13,8 +13,11 @@ from decimal import ROUND_HALF_EVEN, Context, Decimal, localcontext
 from typing import cast
 
 from analytics.derived_facts import (
+    compute_expiration_gap_days,
+    compute_expiration_gap_distance,
     compute_forward_factor,
     compute_implied_forward_volatility,
+    compute_option_volume_band,
 )
 from domain import (
     AnnouncementTime,
@@ -59,6 +62,11 @@ VERDICT = StrategyTypeReference(
     "Enum",
     "1.0.0",
     qualifiers=ManifestObject((("values", ("PASS", "WATCH", "FAIL")),)),
+)
+VOLUME_BAND = StrategyTypeReference(
+    "Enum",
+    "1.0.0",
+    qualifiers=ManifestObject((("values", ("LOW", "ADEQUATE", "HIGH", "UNKNOWN")),)),
 )
 SECURITY_COLLECTION = StrategyTypeReference("SecurityCollection", "1.0.0")
 OPTION_CONTRACT = StrategyTypeReference("OptionContract", "1.0.0")
@@ -254,6 +262,49 @@ class WeightedScoreWithCeiling(BaseComponent):
         return ComponentValues((("score", TypedValue(D, min(score, ceiling))),))
 
 
+class TwoFactorWeightedScore(BaseComponent):
+    """Named two-factor weighted score with explicit manifest policy."""
+
+    __slots__ = ()
+    definition = _definition(
+        "asa.stonk.shared",
+        "two_factor_weighted_score",
+        ComponentCategory.SCORE,
+        (
+            PortDefinition("primary", D),
+            PortDefinition("secondary", D),
+        ),
+        (
+            PortDefinition("primary", D),
+            PortDefinition("secondary", D),
+            PortDefinition("score", D),
+        ),
+        (
+            ParameterDefinition("primary_weight", D),
+            ParameterDefinition("secondary_weight", D),
+            ParameterDefinition("ceiling", D),
+        ),
+    )
+
+    def evaluate(self, inputs: ComponentValues, parameters: ComponentValues) -> ComponentValues:
+        primary = cast(Decimal, _input(inputs, "primary", Decimal))
+        secondary = cast(Decimal, _input(inputs, "secondary", Decimal))
+        primary_weight = cast(Decimal, _parameter(parameters, "primary_weight", Decimal))
+        secondary_weight = cast(Decimal, _parameter(parameters, "secondary_weight", Decimal))
+        ceiling = cast(Decimal, _parameter(parameters, "ceiling", Decimal))
+        total_weight = primary_weight + secondary_weight
+        if min(primary_weight, secondary_weight) < 0 or total_weight <= 0:
+            raise ComponentContractError("factor weights must be non-negative with positive sum")
+        score = (primary * primary_weight + secondary * secondary_weight) / total_weight
+        return ComponentValues(
+            (
+                ("primary", TypedValue(D, primary)),
+                ("score", TypedValue(D, min(score, ceiling))),
+                ("secondary", TypedValue(D, secondary)),
+            )
+        )
+
+
 class VerdictClassifier(BaseComponent):
     """Map a score to a manifest-configured tier; never ranks candidates."""
 
@@ -301,6 +352,35 @@ class VerdictEligibilityGate(BaseComponent):
         verdict = cast(str, inputs.get("verdict").value)
         eligible = cast(bool, inputs.get("eligible").value)
         return ComponentValues((("verdict", TypedValue(VERDICT, verdict if eligible else "FAIL")),))
+
+
+class VerdictEligibilitySupplementGate(BaseComponent):
+    """Apply hard eligibility and downgrade weak supplemental evidence to WATCH."""
+
+    __slots__ = ()
+    definition = _definition(
+        "asa.stonk.shared",
+        "verdict_eligibility_supplement_gate",
+        ComponentCategory.PREDICATE,
+        (
+            PortDefinition("verdict", VERDICT),
+            PortDefinition("eligible", B),
+            PortDefinition("supplement_strong", B),
+        ),
+        (PortDefinition("verdict", VERDICT),),
+    )
+
+    def evaluate(self, inputs: ComponentValues, parameters: ComponentValues) -> ComponentValues:
+        verdict = cast(str, inputs.get("verdict").value)
+        eligible = cast(bool, inputs.get("eligible").value)
+        supplement_strong = cast(bool, inputs.get("supplement_strong").value)
+        if not eligible:
+            result = "FAIL"
+        elif verdict == "PASS" and not supplement_strong:
+            result = "WATCH"
+        else:
+            result = verdict
+        return ComponentValues((("verdict", TypedValue(VERDICT, result)),))
 
 
 class EarningsEventWindow(BaseComponent):
@@ -353,12 +433,17 @@ class ExpirationPairSelector(BaseComponent):
             PortDefinition("expirations", EXPIRATION_COLLECTION),
             PortDefinition("event", EARNINGS_EVENT),
         ),
-        (PortDefinition("selected", EXPIRATION_COLLECTION),),
+        (
+            PortDefinition("selected", EXPIRATION_COLLECTION),
+            PortDefinition("gap_eligible", B),
+        ),
         (
             ParameterDefinition("front_min_dte", INTEGER),
             ParameterDefinition("front_max_dte", INTEGER),
             ParameterDefinition("back_min_dte", INTEGER),
             ParameterDefinition("back_max_dte", INTEGER),
+            ParameterDefinition("target_gap_days", INTEGER),
+            ParameterDefinition("gap_tolerance_days", INTEGER),
         ),
     )
 
@@ -369,7 +454,14 @@ class ExpirationPairSelector(BaseComponent):
         event = cast(EarningsEvent, _input(inputs, "event", EarningsEvent))
         bounds = {
             name: cast(int, _parameter(parameters, name, int))
-            for name in ("front_min_dte", "front_max_dte", "back_min_dte", "back_max_dte")
+            for name in (
+                "front_min_dte",
+                "front_max_dte",
+                "back_min_dte",
+                "back_max_dte",
+                "target_gap_days",
+                "gap_tolerance_days",
+            )
         }
         if (
             min(bounds.values()) < 0
@@ -400,10 +492,21 @@ class ExpirationPairSelector(BaseComponent):
             for front in fronts
             for back in backs
             if back.expiration_date > front.expiration_date
+            and compute_expiration_gap_distance(
+                front.expiration_date,
+                back.expiration_date,
+                bounds["target_gap_days"],
+            )
+            <= bounds["gap_tolerance_days"]
         )
         selected = min(
             pairs,
             key=lambda pair: (
+                compute_expiration_gap_distance(
+                    pair[0].expiration_date,
+                    pair[1].expiration_date,
+                    bounds["target_gap_days"],
+                ),
                 (event.earnings_date - pair[0].expiration_date).days
                 + (pair[1].expiration_date - event.earnings_date).days,
                 pair[0].expiration_date,
@@ -412,7 +515,12 @@ class ExpirationPairSelector(BaseComponent):
             default=None,
         )
         result = ExpirationCollection(expirations.as_of, selected or ())
-        return ComponentValues((("selected", TypedValue(EXPIRATION_COLLECTION, result)),))
+        return ComponentValues(
+            (
+                ("gap_eligible", TypedValue(B, selected is not None)),
+                ("selected", TypedValue(EXPIRATION_COLLECTION, result)),
+            )
+        )
 
 
 class DtePairSelector(BaseComponent):
@@ -510,6 +618,40 @@ class ExpirationPairProjection(BaseComponent):
             (
                 ("back_expiration", TypedValue(DATE, back.expiration_date)),
                 ("front_expiration", TypedValue(DATE, front.expiration_date)),
+            )
+        )
+
+
+class ExpirationGapProjection(BaseComponent):
+    """Expose canonical actual and target-deviation gap derived facts."""
+
+    __slots__ = ()
+    definition = _definition(
+        "asa.stonk.options",
+        "expiration_gap_projection",
+        ComponentCategory.TRANSFORM,
+        (PortDefinition("selected", EXPIRATION_COLLECTION),),
+        (
+            PortDefinition("actual_gap_days", INTEGER),
+            PortDefinition("gap_deviation_days", INTEGER),
+        ),
+        (ParameterDefinition("target_gap_days", INTEGER),),
+    )
+
+    def evaluate(self, inputs: ComponentValues, parameters: ComponentValues) -> ComponentValues:
+        selected = cast(ExpirationCollection, _input(inputs, "selected", ExpirationCollection))
+        if len(selected.cycles) != 2:
+            raise ComponentContractError("expiration gap projection requires exactly two cycles")
+        front, back = selected.cycles
+        target_gap_days = cast(int, _parameter(parameters, "target_gap_days", int))
+        actual_gap_days = compute_expiration_gap_days(front.expiration_date, back.expiration_date)
+        gap_deviation_days = compute_expiration_gap_distance(
+            front.expiration_date, back.expiration_date, target_gap_days
+        )
+        return ComponentValues(
+            (
+                ("actual_gap_days", TypedValue(INTEGER, actual_gap_days)),
+                ("gap_deviation_days", TypedValue(INTEGER, gap_deviation_days)),
             )
         )
 
@@ -892,6 +1034,66 @@ class OptionStructureCollectionLiquidity(BaseComponent):
         return ComponentValues((("acceptable", TypedValue(B, acceptable)),))
 
 
+class EarningsCalendarLiquidity(BaseComponent):
+    """Hard quote/OI gate plus conservative coarse volume supplement."""
+
+    __slots__ = ()
+    definition = _definition(
+        "asa.stonk.options",
+        "earnings_calendar_liquidity",
+        ComponentCategory.PREDICATE,
+        (PortDefinition("structure", OPTION_STRUCTURE),),
+        (
+            PortDefinition("acceptable", B),
+            PortDefinition("volume_band", VOLUME_BAND),
+            PortDefinition("volume_supplement_strong", B),
+        ),
+        (ParameterDefinition("minimum_volume_band", VOLUME_BAND),),
+    )
+
+    def evaluate(self, inputs: ComponentValues, parameters: ComponentValues) -> ComponentValues:
+        structure = cast(OptionStructure, _input(inputs, "structure", OptionStructure))
+        minimum_band = cast(str, _parameter(parameters, "minimum_volume_band", str))
+        band_rank = {"UNKNOWN": 0, "LOW": 1, "ADEQUATE": 2, "HIGH": 3}
+        if minimum_band not in band_rank:
+            raise ComponentContractError("earnings calendar liquidity policy is invalid")
+        contracts = tuple(leg.contract for leg in structure.legs)
+        acceptable = bool(contracts) and all(
+            contract.bid is not None
+            and contract.ask is not None
+            and contract.mark is not None
+            and contract.bid >= 0
+            and contract.ask >= contract.bid
+            and contract.mark > 0
+            and contract.open_interest is not None
+            and contract.open_interest > 0
+            for contract in contracts
+        )
+        volumes = tuple(contract.volume for contract in contracts)
+        raw_band = (
+            0
+            if any(volume is None for volume in volumes)
+            else compute_option_volume_band(min(cast(int, volume) for volume in volumes))
+        )
+        volume_band = (
+            "UNKNOWN"
+            if raw_band == 0
+            else "LOW"
+            if raw_band == 1
+            else "ADEQUATE"
+            if raw_band == 2
+            else "HIGH"
+        )
+        supplement_strong = band_rank[volume_band] >= band_rank[minimum_band]
+        return ComponentValues(
+            (
+                ("acceptable", TypedValue(B, acceptable)),
+                ("volume_band", TypedValue(VOLUME_BAND, volume_band)),
+                ("volume_supplement_strong", TypedValue(B, supplement_strong)),
+            )
+        )
+
+
 class OptionStructureDebit(BaseComponent):
     """Calculate explicit mark and conservative debits from observed leg values."""
 
@@ -949,8 +1151,10 @@ SHARED_STONK_COMPONENTS: tuple[BaseComponent, ...] = (
     SecurityUniverseFilter(),
     DeterministicSecurityCap(),
     WeightedScoreWithCeiling(),
+    TwoFactorWeightedScore(),
     VerdictClassifier(),
     VerdictEligibilityGate(),
+    VerdictEligibilitySupplementGate(),
 )
 
 OPTIONS_STONK_COMPONENTS: tuple[BaseComponent, ...] = (
@@ -958,6 +1162,7 @@ OPTIONS_STONK_COMPONENTS: tuple[BaseComponent, ...] = (
     ExpirationPairSelector(),
     DtePairSelector(),
     ExpirationPairProjection(),
+    ExpirationGapProjection(),
     ForwardFactor(),
     ImpliedForwardVolatility(),
     OptionLegLiquidity(),
@@ -967,5 +1172,6 @@ OPTIONS_STONK_COMPONENTS: tuple[BaseComponent, ...] = (
     VerticalStructure(),
     DoubleCalendarStructure(),
     OptionStructureCollectionLiquidity(),
+    EarningsCalendarLiquidity(),
     OptionStructureDebit(),
 )

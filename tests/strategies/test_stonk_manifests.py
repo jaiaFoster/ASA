@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import timedelta
 from decimal import Decimal
 from pathlib import Path
@@ -71,7 +72,7 @@ def test_four_manifest_catalog_is_canonical_serializable_and_identity_pinned() -
         "asa.stonk.stock_momentum",
     )
     expected = {
-        "earnings_calendar": "5052fe8c42072591a55925603d7941149d2516ec9181d7c76aea27a2269acfda",
+        "earnings_calendar": "27a570ccc830247d23c18069de9a20000ffccd8942874c79fe8ff22c841853ca",
         "skew_momentum": "ee5b2e50a1eecaa9c09f3789ecb203a117d3334689cede490cfc71cf8772a999",
         "forward_factor": "9828747d2ab5f2028e13e91834cebb370e56f11921f69021c75c8ea8144dea4b",
         "asa.stonk.stock_momentum": (
@@ -79,11 +80,11 @@ def test_four_manifest_catalog_is_canonical_serializable_and_identity_pinned() -
         ),
     }
     graph_ids = {
-        "earnings_calendar": "d3858531b65e0f364172b3b1c77c6b3cf946dd94b138aea49bd7497d1ec7bdcc",
-        "skew_momentum": "13eb87386c950861eb3fcf2306e93df3943e830b504119285b547fbc6fc01bc9",
-        "forward_factor": "907c0afb87cdc2826e29fc5575ff66e9fd21bfcb82a6c3b7ab4bda95bd78676b",
+        "earnings_calendar": "c048e7078db407f9d1542c68eb548b3c2d3cc3c989112c27fdd28d08692c28f7",
+        "skew_momentum": "3ebe5f7abea8245234b2fa4a6dbc1d4c3d63a4c11f8cb47c65bdfa254915167f",
+        "forward_factor": "3bcfc4e3ac4bf176d39f3bfe733768c27e3e7d0986afa07ed856f95d68d51446",
         "asa.stonk.stock_momentum": (
-            "1157f759f777089cd922d978be6e0d7c44e48f9548a812e1b16a3fd80de5f197"
+            "8a7589344af97ea0a06a8f0c0cfe17d5f4ff0cc72c0716d7764cd98280ac8ffe"
         ),
     }
     component_registry = registry()
@@ -111,8 +112,8 @@ def test_earnings_calendar_manifest_executes_and_replays() -> None:
             "expiration_select.event": (EARNINGS_EVENT, earnings_event()),
             "calendar.chain": (OPTION_CHAIN, chain()),
             "calendar.target_strike": (D, Decimal("103")),
-            "score.values": (DECIMAL_LIST, (Decimal("80"), Decimal("60"))),
-            "score.weights": (DECIMAL_LIST, (Decimal("3"), Decimal("1"))),
+            "score.primary": (D, Decimal("80")),
+            "score.secondary": (D, Decimal("60")),
         }
     )
     graph = compile_strategy_graph(EARNINGS_CALENDAR_MANIFEST, registry())
@@ -120,9 +121,48 @@ def test_earnings_calendar_manifest_executes_and_replays() -> None:
     second = execute_strategy_graph(graph, execution_context)
     assert first == second
     assert first.outputs.get("eligible").value is True
+    assert first.outputs.get("actual_gap_days").value == 35
+    assert first.outputs.get("gap_deviation_days").value == 5
+    assert first.outputs.get("gap_eligible").value is True
+    assert first.outputs.get("liquidity_acceptable").value is True
+    assert first.outputs.get("option_volume_band").value == "HIGH"
     assert first.outputs.get("score").value == Decimal("75")
     assert first.outputs.get("verdict").value == "PASS"
     assert first.outputs.get("structure").value.identity
+
+    weak_volume_chain = replace(
+        chain(),
+        contracts=tuple(replace(item, volume=5) for item in chain().contracts),
+    )
+    weak_context = context(
+        **{
+            name: (
+                typed.type_ref,
+                weak_volume_chain if name == "calendar.chain" else typed.value,
+            )
+            for name, typed in execution_context.entries
+        }
+    )
+    weak = execute_strategy_graph(graph, weak_context)
+    assert weak.outputs.get("option_volume_band").value == "LOW"
+    assert weak.outputs.get("verdict").value == "WATCH"
+
+    illiquid_chain = replace(
+        chain(),
+        contracts=tuple(replace(item, open_interest=0) for item in chain().contracts),
+    )
+    illiquid_context = context(
+        **{
+            name: (
+                typed.type_ref,
+                illiquid_chain if name == "calendar.chain" else typed.value,
+            )
+            for name, typed in execution_context.entries
+        }
+    )
+    illiquid = execute_strategy_graph(graph, illiquid_context)
+    assert illiquid.outputs.get("liquidity_acceptable").value is False
+    assert illiquid.outputs.get("verdict").value == "FAIL"
 
 
 def test_skew_vertical_manifest_executes_without_portfolio_or_provider_context() -> None:

@@ -97,6 +97,8 @@ _EARNINGS_POLICY = {
     "front_max_dte": 21,
     "back_min_dte": 22,
     "back_max_dte": 75,
+    "target_gap_days": 30,
+    "gap_tolerance_days": 5,
 }
 _EARNINGS_DATE = date(2026, 8, 5)
 
@@ -105,7 +107,7 @@ class TestSelectEarningsRelativeExpirationPair:
     def test_selects_a_pair_spanning_the_earnings_date(self) -> None:
         candidates = (
             _candidate(9, date(2026, 7, 31)),  # before earnings, front window
-            _candidate(58, date(2026, 9, 18)),  # after earnings, back window
+            _candidate(37, date(2026, 8, 28)),  # 28-day gap, after earnings
         )
         selected = select_earnings_relative_expiration_pair(
             candidates, _EARNINGS_DATE, **_EARNINGS_POLICY
@@ -117,35 +119,63 @@ class TestSelectEarningsRelativeExpirationPair:
     def test_front_after_earnings_date_is_rejected(self) -> None:
         candidates = (
             _candidate(16, date(2026, 8, 7)),  # after earnings -- invalid front
-            _candidate(58, date(2026, 9, 18)),
+            _candidate(37, date(2026, 8, 28)),
         )
-        assert select_earnings_relative_expiration_pair(
-            candidates, _EARNINGS_DATE, **_EARNINGS_POLICY
-        ) is None
+        assert (
+            select_earnings_relative_expiration_pair(candidates, _EARNINGS_DATE, **_EARNINGS_POLICY)
+            is None
+        )
 
     def test_back_before_earnings_date_is_rejected(self) -> None:
         candidates = (
             _candidate(9, date(2026, 7, 31)),
             _candidate(2, date(2026, 8, 3)),  # before earnings -- invalid back regardless of DTE
         )
-        assert select_earnings_relative_expiration_pair(
-            candidates, _EARNINGS_DATE, **_EARNINGS_POLICY
-        ) is None
+        assert (
+            select_earnings_relative_expiration_pair(candidates, _EARNINGS_DATE, **_EARNINGS_POLICY)
+            is None
+        )
 
     def test_returns_none_for_empty_candidates(self) -> None:
         assert (
-            select_earnings_relative_expiration_pair((), _EARNINGS_DATE, **_EARNINGS_POLICY)
-            is None
+            select_earnings_relative_expiration_pair((), _EARNINGS_DATE, **_EARNINGS_POLICY) is None
         )
 
     def test_is_deterministic(self) -> None:
         candidates = (
             _candidate(9, date(2026, 7, 31)),
-            _candidate(58, date(2026, 9, 18)),
+            _candidate(37, date(2026, 8, 28)),
         )
-        first = select_earnings_relative_expiration_pair(candidates, _EARNINGS_DATE, **_EARNINGS_POLICY)
-        second = select_earnings_relative_expiration_pair(candidates, _EARNINGS_DATE, **_EARNINGS_POLICY)
+        first = select_earnings_relative_expiration_pair(
+            candidates, _EARNINGS_DATE, **_EARNINGS_POLICY
+        )
+        second = select_earnings_relative_expiration_pair(
+            candidates, _EARNINGS_DATE, **_EARNINGS_POLICY
+        )
         assert first == second
+
+    def test_selects_smallest_gap_deviation_within_tolerance(self) -> None:
+        candidates = (
+            _candidate(9, date(2026, 7, 31)),
+            _candidate(37, date(2026, 8, 28)),  # gap 28
+            _candidate(39, date(2026, 8, 30)),  # gap 30
+            _candidate(44, date(2026, 9, 4)),  # gap 35
+        )
+        selected = select_earnings_relative_expiration_pair(
+            candidates, _EARNINGS_DATE, **_EARNINGS_POLICY
+        )
+        assert selected is not None
+        assert selected[1].expiration_date == date(2026, 8, 30)
+
+    def test_rejects_pairs_outside_gap_tolerance(self) -> None:
+        candidates = (
+            _candidate(9, date(2026, 7, 31)),
+            _candidate(45, date(2026, 9, 5)),  # gap 36
+        )
+        assert (
+            select_earnings_relative_expiration_pair(candidates, _EARNINGS_DATE, **_EARNINGS_POLICY)
+            is None
+        )
 
     def test_invalid_policy_rejected(self) -> None:
         policy = dict(_EARNINGS_POLICY)

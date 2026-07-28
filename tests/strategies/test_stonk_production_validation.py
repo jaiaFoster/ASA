@@ -75,8 +75,8 @@ def _execution_context(manifest: StrategyManifest) -> ComponentValues:
                 "expiration_select.event": (EARNINGS_EVENT, earnings_event()),
                 "calendar.chain": (OPTION_CHAIN, chain()),
                 "calendar.target_strike": (D, Decimal("103")),
-                "score.values": (DECIMAL_LIST, (Decimal("80"), Decimal("60"))),
-                "score.weights": (DECIMAL_LIST, (Decimal("3"), Decimal("1"))),
+                "score.primary": (D, Decimal("80")),
+                "score.secondary": (D, Decimal("60")),
             }
         )
     if manifest is SKEW_MOMENTUM_VERTICAL_MANIFEST:

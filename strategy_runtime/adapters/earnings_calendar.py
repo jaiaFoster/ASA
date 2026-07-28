@@ -65,10 +65,10 @@ from strategy_runtime.result import UniversalScreeningResult, compute_observatio
 
 EARNINGS_CALENDAR_CONTRACT = StrategyContract(
     strategy_id="earnings_calendar",
-    version="1.0.0",
+    version="1.1.0",
     category="options_earnings",
     description=(
-        "Confirmed earnings window with a nearest-common-strike calendar and explicit debit."
+        "Confirmed earnings calendar targeting a 30-day expiration gap with liquidity evidence."
     ),
     requirements=(
         DataRequirement(

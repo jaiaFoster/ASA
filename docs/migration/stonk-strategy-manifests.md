@@ -6,7 +6,7 @@ The source behaviors are pinned to Stonk revision
 
 | Manifest ID | Version | Graph ownership |
 |---|---:|---|
-| `earnings_calendar` | `1.0.0` | confirmed event window, expiration pair, nearest common strike calendar, debit, bounded score and verdict |
+| `earnings_calendar` | `1.1.0` | confirmed event window, nearest eligible 30-day expiration gap (±5 days), liquidity, coarse volume, calendar debit, score and gated verdict |
 | `skew_momentum` | `1.0.0` | delta-selected vertical, observed leg liquidity, debit, bounded score and verdict |
 | `forward_factor` | `1.2.0` | DTE pair, raw front IV, implied forward volatility, confirmed-earnings exclusion, liquidity-complete put/call double calendar, and gated verdict |
 | `asa.stonk.stock_momentum` | `1.0.0` | deterministic candidate cap, bounded momentum score and verdict |

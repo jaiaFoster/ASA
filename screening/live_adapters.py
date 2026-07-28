@@ -109,6 +109,8 @@ EARNINGS_CALENDAR_DTE_POLICY = {
     "front_max_dte": 21,
     "back_min_dte": 22,
     "back_max_dte": 75,
+    "target_gap_days": 30,
+    "gap_tolerance_days": 5,
 }
 EARNINGS_CALENDAR_LOOKAHEAD_DAYS = EARNINGS_CALENDAR_DTE_POLICY["back_max_dte"]
 MAX_FORWARD_FACTOR_PAIR_ATTEMPTS = 5
@@ -491,6 +493,8 @@ def build_live_earnings_calendar_adapter(
             front_max_dte=EARNINGS_CALENDAR_DTE_POLICY["front_max_dte"],
             back_min_dte=EARNINGS_CALENDAR_DTE_POLICY["back_min_dte"],
             back_max_dte=EARNINGS_CALENDAR_DTE_POLICY["back_max_dte"],
+            target_gap_days=EARNINGS_CALENDAR_DTE_POLICY["target_gap_days"],
+            gap_tolerance_days=EARNINGS_CALENDAR_DTE_POLICY["gap_tolerance_days"],
         )
         if selected is None:
             raise StrategyAdapterError(

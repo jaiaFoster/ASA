@@ -164,7 +164,7 @@ def test_plugins_register_all_components_statically_and_deterministically() -> N
         for plugin in STONK_STRATEGY_PLUGINS
         for component in plugin.components
     }
-    assert len(expected) == 20
+    assert len(expected) == 24
     for namespace, name in expected:
         assert registry.resolve(ComponentReference(namespace, name, "1.0.0"))
     assert (
@@ -172,12 +172,12 @@ def test_plugins_register_all_components_statically_and_deterministically() -> N
         == build_plugin_registry((), tuple(reversed(STONK_STRATEGY_PLUGINS))).identity
     )
     assert STONK_STRATEGY_PLUGINS[0].plugin_id == (
-        "f11c642e6407e909ba95f3f9626123628a6ce65b08f3e36841c5b7363da09368"
+        "52b919f7ea1a628d4b4a43056e59e37fb4f1ede111d85a122dc1c83f9cc1a598"
     )
-    assert STONK_STRATEGY_PLUGINS[0].metadata.version == "1.1.0"
-    assert STONK_STRATEGY_PLUGINS[1].metadata.version == "1.3.0"
+    assert STONK_STRATEGY_PLUGINS[0].metadata.version == "1.2.0"
+    assert STONK_STRATEGY_PLUGINS[1].metadata.version == "1.4.0"
     assert STONK_STRATEGY_PLUGINS[1].plugin_id == (
-        "42e3500d47e124688aaa2623965bfbc97bc29dd218a5d656e86d7aa534022961"
+        "af128c97c66ec2576332de6aaa604acf9209b68f2c6494519d0ae5490c6e84a0"
     )
 
 
@@ -282,6 +282,8 @@ def test_event_window_and_expiration_selection_are_explicit_time_only() -> None:
                 front_max_dte=(INTEGER, 30),
                 back_min_dte=(INTEGER, 31),
                 back_max_dte=(INTEGER, 90),
+                target_gap_days=(INTEGER, 30),
+                gap_tolerance_days=(INTEGER, 5),
             ),
         )
         .get("selected")

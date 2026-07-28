@@ -28,7 +28,7 @@ def test_library_is_complete_ordered_and_identity_pinned() -> None:
         == StrategyLibrary(tuple(reversed(STONK_STRATEGY_MANIFESTS))).identity
     )
     assert STONK_STRATEGY_LIBRARY.identity == (
-        "065e7e81dc289b31463e3ecf2f4f7929a6a59d0af0aaf01f7dc6c5bff92ef758"
+        "32ce5e589375175ca58b8d02f6d93e32b5a71df53bed61d17329a3d5242a90fb"
     )
 
 
