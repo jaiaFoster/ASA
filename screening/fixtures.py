@@ -94,7 +94,7 @@ def fixture_contract(
 
 EARNINGS_EVENT_DATE = date(2026, 8, 5)  # +14 days from AS_OF_DATE
 EARNINGS_FRONT_EXPIRATION = date(2026, 7, 31)  # +9 days; before the earnings date
-EARNINGS_BACK_EXPIRATION = date(2026, 9, 18)  # +58 days; after the earnings date
+EARNINGS_BACK_EXPIRATION = date(2026, 8, 30)  # +39 days; exact 30-day gap
 
 
 def earnings_calendar_chain() -> OptionChain:
@@ -113,7 +113,7 @@ def earnings_calendar_chain() -> OptionChain:
 
 def earnings_calendar_expirations() -> tuple[ExpirationCycle, ExpirationCycle]:
     front = ExpirationCycle(EARNINGS_FRONT_EXPIRATION, 9, True, False, AS_OF_DATE, EVIDENCE)
-    back = ExpirationCycle(EARNINGS_BACK_EXPIRATION, 58, True, False, AS_OF_DATE, EVIDENCE)
+    back = ExpirationCycle(EARNINGS_BACK_EXPIRATION, 39, True, False, AS_OF_DATE, EVIDENCE)
     return front, back
 
 

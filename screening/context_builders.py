@@ -171,11 +171,8 @@ def build_earnings_calendar_context(
             "expiration_select.event": (EARNINGS_EVENT, event),
             "calendar.chain": (OPTION_CHAIN, chain),
             "calendar.target_strike": (D, target_strike),
-            "score.values": (
-                DECIMAL_LIST,
-                (term_structure_richness, iv_realized_volatility_richness),
-            ),
-            "score.weights": (DECIMAL_LIST, (Decimal("3"), Decimal("1"))),
+            "score.primary": (D, term_structure_richness),
+            "score.secondary": (D, iv_realized_volatility_richness),
         }
     )
 

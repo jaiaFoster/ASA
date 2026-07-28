@@ -15,7 +15,7 @@ mutable row schemas, report construction, or legacy orchestration is a migration
 
 | Strategy | Universe | Core signal | Structure | Principal gates | Output |
 |---|---|---|---|---|---|
-| Earnings Calendar | Analysis tickers with earnings context | Event-volatility and IV relationship | Same-strike calendar | confirmed event, valid pre/post-event expirations, quotes, liquidity, debit/risk | candidate, near miss, lifecycle row |
+| Earnings Calendar | Analysis tickers with earnings context | Event-volatility and separate term/IV-vs-RV inputs | Same-strike calendar | confirmed event, nearest 30-day expiration gap within ±5 days, quotes, open interest, coarse volume, debit/risk | PASS on core thesis and strong supplement; WATCH on weak/unknown volume; FAIL on hard-gate failure |
 | Skew Momentum Vertical | Holdings/watchlist/gap candidates | Directional trend plus rich short-wing skew | Call or put debit vertical | momentum, delta suitability, skew, liquidity, reward/risk, event risk | vertical candidate |
 | Forward Factor Calendar | Supported equities after deterministic caps | `front_iv / implied_forward_iv - 1` | Matched-strike put-and-call double calendar | raw front IV, positive forward variance, no confirmed earnings through back expiration, complete liquidity evidence | PASS/WATCH/FAIL; dry-run |
 | Stock Momentum | Holdings plus watchlist | Weighted trend, multi-period return, and relative-strength score | Equity exposure proposal | complete metrics, 50d/200d trend, positive 3m/6m returns, RS vs QQQ, allocation, extension, volatility | consider add, pullback, watch, avoid |

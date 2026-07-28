@@ -39,6 +39,8 @@ def select_earnings_relative_expiration_pair(
     front_max_dte: int,
     back_min_dte: int,
     back_max_dte: int,
+    target_gap_days: int,
+    gap_tolerance_days: int,
     front_must_be_before_earnings: bool = True,
 ) -> tuple[ExpirationCandidate, ExpirationCandidate] | None:
     """Select the front/back pair spanning an earnings event: independent
@@ -51,7 +53,15 @@ def select_earnings_relative_expiration_pair(
     non-exceptional outcome the caller must handle explicitly.
     """
     if (
-        min(front_min_dte, front_max_dte, back_min_dte, back_max_dte) < 0
+        min(
+            front_min_dte,
+            front_max_dte,
+            back_min_dte,
+            back_max_dte,
+            target_gap_days,
+            gap_tolerance_days,
+        )
+        < 0
         or front_min_dte > front_max_dte
         or back_min_dte > back_max_dte
     ):
@@ -61,10 +71,7 @@ def select_earnings_relative_expiration_pair(
         candidate
         for candidate in candidates
         if front_min_dte <= candidate.days_to_expiration <= front_max_dte
-        and (
-            candidate.expiration_date < earnings_date
-            or not front_must_be_before_earnings
-        )
+        and (candidate.expiration_date < earnings_date or not front_must_be_before_earnings)
     )
     backs = tuple(
         candidate
@@ -77,10 +84,13 @@ def select_earnings_relative_expiration_pair(
         for front in fronts
         for back in backs
         if back.expiration_date > front.expiration_date
+        and abs((back.expiration_date - front.expiration_date).days - target_gap_days)
+        <= gap_tolerance_days
     )
     return min(
         pairs,
         key=lambda pair: (
+            abs((pair[1].expiration_date - pair[0].expiration_date).days - target_gap_days),
             (earnings_date - pair[0].expiration_date).days
             + (pair[1].expiration_date - earnings_date).days,
             pair[0].expiration_date,
@@ -170,11 +180,7 @@ def rank_expiration_pairs(
             pairs,
             key=lambda pair: (
                 abs(pair[0].days_to_expiration - target_front_dte)
-                + abs(
-                    pair[1].days_to_expiration
-                    - pair[0].days_to_expiration
-                    - target_gap_days
-                ),
+                + abs(pair[1].days_to_expiration - pair[0].days_to_expiration - target_gap_days),
                 pair[0].expiration_date,
                 pair[1].expiration_date,
             ),

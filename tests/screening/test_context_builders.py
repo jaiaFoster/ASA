@@ -111,7 +111,8 @@ class TestBuildEarningsCalendarContext:
         values = dict(context.entries)
         assert values["calendar.target_strike"].value == Decimal("100")
         assert values["event_window.event"].value is event
-        assert values["score.values"].value == (Decimal("80"), Decimal("60"))
+        assert values["score.primary"].value == Decimal("80")
+        assert values["score.secondary"].value == Decimal("60")
 
 
 class TestBuildSkewMomentumContext:
