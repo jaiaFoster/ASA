@@ -41,11 +41,18 @@ def _strategy_files() -> list[Path]:
 
 
 class TestStrategyImportScope:
-    """strategies/ imports only strategies, indicators, facts, reconciliation, domain."""
+    """Strategies consume derived facts, indicators, facts, and domain contracts."""
 
     @pytest.mark.parametrize("py_file", _strategy_files())
     def test_only_permitted_roots(self, py_file):
-        permitted = {"strategies", "indicators", "facts", "reconciliation", "domain"} | STDLIB_ALLOWED
+        permitted = {
+            "strategies",
+            "analytics",
+            "indicators",
+            "facts",
+            "reconciliation",
+            "domain",
+        } | STDLIB_ALLOWED
         imported = _imported_roots(py_file)
         assert imported <= permitted, (
             f"{py_file.name} imports outside {permitted}: {imported - permitted}"

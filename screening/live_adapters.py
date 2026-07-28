@@ -33,6 +33,10 @@ from datetime import date, datetime, timedelta
 from decimal import Decimal
 from typing import cast
 
+from analytics.derived_facts import (
+    compute_iv_realized_spread,
+    compute_normalized_skew,
+)
 from analytics.expiration_selection import (
     ExpirationCandidate,
     rank_expiration_pairs,
@@ -85,6 +89,7 @@ from strategies import (
     execute_strategy_graph,
 )
 from strategies.plugins import build_plugin_registry
+from strategies.scoring import normalize_richness
 
 _COMPONENT_REGISTRY = build_plugin_registry(CORE_COMPONENTS, STONK_STRATEGY_PLUGINS)
 _NON_FAIL_VERDICTS = frozenset({"PASS", "WATCH"})
@@ -192,9 +197,7 @@ def _acquire_or_raise(
             detail += f" at expiration {expiration.isoformat()}"
         raise StrategyAdapterError(ScreeningOutcomeStatus.MISSING_DATA, detail)
     observation = result.observations[0]
-    market_is_open = (
-        UsEquitySessionCalendar().status_at(now) is MarketSessionStatus.OPEN
-    )
+    market_is_open = UsEquitySessionCalendar().status_at(now) is MarketSessionStatus.OPEN
     usability = evaluate_temporal_usability(
         observation.freshness,
         freshness_requirement,
@@ -222,7 +225,11 @@ def _acquire_combined_chain(
     unique_expirations = tuple(dict.fromkeys(expirations))
     chains = tuple(
         _acquire_or_raise(
-            fulfillment, symbol, MarketCapability.OPTION_CHAIN_V1, now, ("contracts",),
+            fulfillment,
+            symbol,
+            MarketCapability.OPTION_CHAIN_V1,
+            now,
+            ("contracts",),
             expiration=expiration,
         )
         for expiration in unique_expirations
@@ -246,18 +253,6 @@ def _spot_price(quote: Quote) -> Decimal:
 # original authorship. See project/reports/SPRINT-011.md for the full
 # defect writeup and cited sources for each strategy's own thesis.
 _HISTORICAL_LOOKBACK_DAYS = 45  # calendar days -- ~30 trading days
-# Centers a richness score at 50 (neutral); a 1/3 (0.33) vol-point or
-# return gap saturates it to 0 or 100. A deliberate, documented, linear
-# approximation -- not the exact z-score-against-own-history system either
-# cited video describes (that needs a persisted historical skew/IV-term
-# time series this codebase does not have yet); reusing IV-vs-realized-
-# volatility and price momentum instead, both computable from data this
-# system already acquires live.
-_RICHNESS_SCALE = Decimal("300")
-
-
-def _richness_score(raw_gap: Decimal) -> Decimal:
-    return max(Decimal(0), min(Decimal(100), Decimal(50) + raw_gap * _RICHNESS_SCALE))
 
 
 def _acquire_daily_closes(
@@ -318,9 +313,7 @@ def build_live_forward_factor_adapter(
     *,
     freshness_requirement: FreshnessRequirement = DEFAULT_FRESHNESS_REQUIREMENT,
 ) -> StrategyAdapter:
-    def _run(
-        definition: ScreeningStrategyDefinition, clock: Clock, run_id: str
-    ) -> ScreeningResult:
+    def _run(definition: ScreeningStrategyDefinition, clock: Clock, run_id: str) -> ScreeningResult:
         now = clock.now()
         as_of = now.date()
         quote = _acquire_or_raise(
@@ -408,9 +401,7 @@ def build_live_earnings_calendar_adapter(
     *,
     freshness_requirement: FreshnessRequirement = DEFAULT_FRESHNESS_REQUIREMENT,
 ) -> StrategyAdapter:
-    def _run(
-        definition: ScreeningStrategyDefinition, clock: Clock, run_id: str
-    ) -> ScreeningResult:
+    def _run(definition: ScreeningStrategyDefinition, clock: Clock, run_id: str) -> ScreeningResult:
         now = clock.now()
         as_of = now.date()
         event = _acquire_or_raise(
@@ -494,7 +485,7 @@ def build_live_earnings_calendar_adapter(
         # separately-fetched fixed 45-day point (this system selects
         # front/back via its own earnings-relative DTE policy, not a fixed
         # calendar pin).
-        term_richness = _richness_score(
+        term_richness = normalize_richness(
             front_contract.implied_volatility - back_contract.implied_volatility
         )
         closes = _acquire_daily_closes(fulfillment, symbol, now)
@@ -502,7 +493,9 @@ def build_live_earnings_calendar_adapter(
         # iv30/rv30-style richness (same source, ~09:40): front-month IV
         # priced above what has actually realized -- the second predictor
         # that video's own decile analysis found correlated with returns.
-        iv_rv_richness = _richness_score(front_contract.implied_volatility - realized_vol)
+        iv_rv_richness = normalize_richness(
+            compute_iv_realized_spread(front_contract.implied_volatility, realized_vol)
+        )
         context = build_earnings_calendar_context(
             chain,
             event,  # type: ignore[arg-type]
@@ -510,7 +503,8 @@ def build_live_earnings_calendar_adapter(
             back_cycle,
             as_of,
             target_strike=target_strike,
-            score_values=(term_richness, iv_rv_richness),
+            term_structure_richness=term_richness,
+            iv_realized_volatility_richness=iv_rv_richness,
         )
         graph = compile_strategy_graph(EARNINGS_CALENDAR_MANIFEST, _COMPONENT_REGISTRY)
         result = execute_strategy_graph(graph, context)
@@ -533,9 +527,7 @@ def build_live_skew_momentum_adapter(
     *,
     freshness_requirement: FreshnessRequirement = DEFAULT_FRESHNESS_REQUIREMENT,
 ) -> StrategyAdapter:
-    def _run(
-        definition: ScreeningStrategyDefinition, clock: Clock, run_id: str
-    ) -> ScreeningResult:
+    def _run(definition: ScreeningStrategyDefinition, clock: Clock, run_id: str) -> ScreeningResult:
         now = clock.now()
         as_of = now.date()
         quote = _acquire_or_raise(
@@ -560,22 +552,28 @@ def build_live_skew_momentum_adapter(
         # upcoming expiration ("front month") is the simplest, standard,
         # non-editorial default absent any other established policy.
         nearest = min(future_expirations, key=lambda cycle: cycle.expiration_date)
-        chain = _acquire_or_raise(
-            fulfillment,
-            symbol,
-            MarketCapability.OPTION_CHAIN_V1,
-            now,
-            ("contracts",),
-            expiration=nearest.expiration_date,
+        chain = cast(
+            OptionChain,
+            _acquire_or_raise(
+                fulfillment,
+                symbol,
+                MarketCapability.OPTION_CHAIN_V1,
+                now,
+                ("contracts",),
+                expiration=nearest.expiration_date,
+            ),
         )
         strike = select_atm_strike_at_expiration(
-            chain, nearest.expiration_date, spot_price, OptionType.CALL  # type: ignore[arg-type]
+            chain,
+            nearest.expiration_date,
+            spot_price,
+            OptionType.CALL,
         )
-        (atm_contract,) = chain.find(  # type: ignore[attr-defined]
+        (atm_contract,) = chain.find(
             expiration=nearest.expiration_date, strike=strike, option_type=OptionType.CALL
         )
         wing_contract = select_nearest_delta_contract(
-            chain,  # type: ignore[arg-type]
+            chain,
             nearest.expiration_date,
             OptionType.CALL,
             Decimal("0.25"),
@@ -595,17 +593,21 @@ def build_live_skew_momentum_adapter(
         # long-ATM/short-wing structure (strategies/stonk_manifests.py's
         # own frozen 0.50/0.25 delta targets, unchanged by this fix) is
         # built to exploit.
-        skew_richness = _richness_score(
-            wing_contract.implied_volatility - atm_contract.implied_volatility
+        skew_richness = normalize_richness(
+            compute_normalized_skew(
+                atm_contract.implied_volatility,
+                wing_contract.implied_volatility,
+            )
         )
         closes = _acquire_daily_closes(fulfillment, symbol, now)
-        momentum_richness = _richness_score(compute_trailing_return(closes))
+        momentum_richness = normalize_richness(compute_trailing_return(closes))
         context = build_skew_momentum_context(
-            chain,  # type: ignore[arg-type]
+            chain,
             nearest.expiration_date,
             strike=strike,
             option_type=OptionType.CALL,
-            score_values=(skew_richness, momentum_richness),
+            normalized_skew_richness=skew_richness,
+            momentum_richness=momentum_richness,
         )
         graph = compile_strategy_graph(SKEW_MOMENTUM_VERTICAL_MANIFEST, _COMPONENT_REGISTRY)
         result = execute_strategy_graph(graph, context)
@@ -616,7 +618,7 @@ def build_live_skew_momentum_adapter(
             symbol,
             result.outputs.get("verdict").value,
             result.outputs.get("score").value,
-            chain.evidence,  # type: ignore[attr-defined]
+            chain.evidence,
         )
 
     return _run

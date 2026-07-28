@@ -99,7 +99,8 @@ class TestBuildEarningsCalendarContext:
             back,
             fixtures.AS_OF_DATE,
             target_strike=Decimal("100"),
-            score_values=(Decimal("80"), Decimal("60")),
+            term_structure_richness=Decimal("80"),
+            iv_realized_volatility_richness=Decimal("60"),
         )
         values = dict(context.entries)
         assert values["calendar.target_strike"].value == Decimal("100")
@@ -115,7 +116,8 @@ class TestBuildSkewMomentumContext:
             fixtures.SKEW_EXPIRATION,
             strike=Decimal("100"),
             option_type=OptionType.CALL,
-            score_values=(Decimal("80"), Decimal("70")),
+            normalized_skew_richness=Decimal("80"),
+            momentum_richness=Decimal("70"),
         )
         values = dict(context.entries)
         assert values["vertical.expiration"].value == fixtures.SKEW_EXPIRATION
