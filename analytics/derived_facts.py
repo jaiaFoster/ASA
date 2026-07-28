@@ -7,7 +7,12 @@ from datetime import date
 from decimal import ROUND_HALF_EVEN, Context, Decimal, localcontext
 
 from analytics.registry import AnalyticsFeatureDefinition, AnalyticsRegistry
-from domain import MarketCapability
+from domain import (
+    ComparisonUniverseReturns,
+    HistoricalSkewObservations,
+    MarketCapability,
+    SectorReferenceReturns,
+)
 
 DERIVED_FACT_DECIMAL_CONTEXT = Context(prec=34, rounding=ROUND_HALF_EVEN)
 
@@ -27,6 +32,8 @@ ATM_IV_VS_REALIZED = "atm_iv_vs_realized_volatility"
 CALL_WING_IV_VS_REALIZED = "call_wing_iv_vs_realized_volatility"
 PUT_WING_IV_VS_REALIZED = "put_wing_iv_vs_realized_volatility"
 NAMED_MOMENTUM_DIMENSIONS = "named_momentum_dimensions"
+CROSS_SECTIONAL_MOMENTUM = "cross_sectional_momentum"
+SECTOR_RELATIVE_MOMENTUM = "sector_relative_momentum"
 OPTION_VOLUME_BAND = "option_volume_band"
 SPREAD_QUALITY = "spread_quality"
 OPEN_INTEREST_QUALITY = "open_interest_quality"
@@ -123,6 +130,46 @@ def compute_historical_zscore(current: Decimal, history: Sequence[Decimal]) -> D
         if variance == 0:
             raise ValueError("historical variance must be positive")
         return (current - mean) / variance.sqrt()
+
+
+def compute_skew_stretch_distributions(
+    current_call_skew: Decimal,
+    current_put_skew: Decimal,
+    history: HistoricalSkewObservations,
+) -> tuple[Decimal, Decimal, Decimal, Decimal]:
+    """Return call/put percentile and z-score without choosing strategy policy."""
+
+    call_history = tuple(item.call_skew for item in history.observations)
+    put_history = tuple(item.put_skew for item in history.observations)
+    return (
+        compute_historical_percentile(current_call_skew, call_history),
+        compute_historical_zscore(current_call_skew, call_history),
+        compute_historical_percentile(current_put_skew, put_history),
+        compute_historical_zscore(current_put_skew, put_history),
+    )
+
+
+def compute_cross_sectional_momentum(
+    subject_return: Decimal,
+    comparison_returns: ComparisonUniverseReturns,
+) -> Decimal:
+    """Exact empirical percentile against an explicitly supplied universe."""
+
+    return compute_historical_percentile(
+        subject_return,
+        tuple(item.return_value for item in comparison_returns.returns),
+    )
+
+
+def compute_sector_relative_momentum(
+    subject_return: Decimal,
+    sector_returns: SectorReferenceReturns,
+) -> Decimal:
+    """Subject return minus the equally weighted explicit sector reference."""
+
+    values = tuple(item.return_value for item in sector_returns.returns)
+    with localcontext(DERIVED_FACT_DECIMAL_CONTEXT):
+        return subject_return - sum(values, Decimal(0)) / Decimal(len(values))
 
 
 def compute_iv_realized_spread(
@@ -225,6 +272,16 @@ DERIVED_FACT_DEFINITIONS = (
         EXPIRATION_GAP_DISTANCE,
         "Absolute distance between actual and target expiration gap.",
         MarketCapability.OPTION_CHAIN_V1,
+    ),
+    _definition(
+        CROSS_SECTIONAL_MOMENTUM,
+        "Subject return empirical percentile within an explicit comparison universe.",
+        MarketCapability.HISTORICAL_BARS_V1,
+    ),
+    _definition(
+        SECTOR_RELATIVE_MOMENTUM,
+        "Subject return minus an explicit equally weighted sector reference.",
+        MarketCapability.HISTORICAL_BARS_V1,
     ),
     *(
         _definition(
