@@ -97,6 +97,7 @@ def run_forward_factor(
         fixtures.AS_OF_DATE,
         front_strike=Decimal("105"),
         back_strike=Decimal("105"),
+        earnings_eligible=True,
     )
     graph = compile_strategy_graph(FORWARD_FACTOR_CALENDAR_MANIFEST, _COMPONENT_REGISTRY)
     result = execute_strategy_graph(graph, context)

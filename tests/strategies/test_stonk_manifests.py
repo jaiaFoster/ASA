@@ -73,17 +73,17 @@ def test_four_manifest_catalog_is_canonical_serializable_and_identity_pinned() -
     expected = {
         "earnings_calendar": "5052fe8c42072591a55925603d7941149d2516ec9181d7c76aea27a2269acfda",
         "skew_momentum": "ee5b2e50a1eecaa9c09f3789ecb203a117d3334689cede490cfc71cf8772a999",
-        "forward_factor": "07e99cd0937721819367d7142095bfe35b526e33475c8e684299262719264fa0",
+        "forward_factor": "9828747d2ab5f2028e13e91834cebb370e56f11921f69021c75c8ea8144dea4b",
         "asa.stonk.stock_momentum": (
             "456a84aa09ca73c65c32490ebaa270beb5b85db273e9d0c10d987f434e13047d"
         ),
     }
     graph_ids = {
-        "earnings_calendar": "20868f2d3af3c15a7fd4f6446c9d89c2d220b6b7cfe0a3a1de8639d04874ec35",
-        "skew_momentum": "4a6b8c7356fed0639d9648617a4ef9a9e5c541a283df85d84558842117ebfbcd",
-        "forward_factor": "aa4a80a5a137607bb935d08c7a21ebd0909f3963639ca7b3f1b422619ff02201",
+        "earnings_calendar": "d3858531b65e0f364172b3b1c77c6b3cf946dd94b138aea49bd7497d1ec7bdcc",
+        "skew_momentum": "13eb87386c950861eb3fcf2306e93df3943e830b504119285b547fbc6fc01bc9",
+        "forward_factor": "907c0afb87cdc2826e29fc5575ff66e9fd21bfcb82a6c3b7ab4bda95bd78676b",
         "asa.stonk.stock_momentum": (
-            "f4e723912f41e4602bd37d4d4ef59be210ff82b889a550e9a7f34c1ee980d537"
+            "1157f759f777089cd922d978be6e0d7c44e48f9548a812e1b16a3fd80de5f197"
         ),
     }
     component_registry = registry()
@@ -190,7 +190,11 @@ def test_forward_factor_manifest_requires_source_iv_and_builds_double_calendar()
                 StrategyTypeReference("Integer", "1.0.0"),
                 90,
             ),
-            "factor.front_ex_earnings_iv": (D, Decimal("0.48")),
+            "factor.front_iv": (D, Decimal("0.48")),
+            "eligibility.left": (
+                StrategyTypeReference("Boolean", "1.0.0"),
+                True,
+            ),
         }
     )
     graph = compile_strategy_graph(FORWARD_FACTOR_CALENDAR_MANIFEST, registry())
@@ -199,7 +203,25 @@ def test_forward_factor_manifest_requires_source_iv_and_builds_double_calendar()
         "0.20000000"
     )
     assert result.outputs.get("verdict").value == "PASS"
+    assert result.outputs.get("eligible").value is True
+    assert result.outputs.get("liquidity_acceptable").value is True
+    assert result.outputs.get("front_iv").value == Decimal("0.48")
     assert len(result.outputs.get("structures").value) == 2
+
+    rejected_context = ComponentValues(
+        tuple(
+            (name, value) for name, value in execution_context.entries if name != "eligibility.left"
+        )
+        + (
+            (
+                "eligibility.left",
+                TypedValue(StrategyTypeReference("Boolean", "1.0.0"), False),
+            ),
+        )
+    )
+    rejected = execute_strategy_graph(graph, rejected_context)
+    assert rejected.outputs.get("eligible").value is False
+    assert rejected.outputs.get("verdict").value == "FAIL"
 
 
 def test_stock_momentum_manifest_stops_before_portfolio_policy() -> None:

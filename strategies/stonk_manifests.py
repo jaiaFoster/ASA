@@ -187,10 +187,11 @@ SKEW_MOMENTUM_VERTICAL_MANIFEST = StrategyManifest(
 FORWARD_FACTOR_CALENDAR_MANIFEST = StrategyManifest(
     "1.1.0",
     "forward_factor",
-    "1.1.0",
+    "1.2.0",
     ManifestMetadata(
         "Forward Factor Calendar",
-        "Source-qualified forward factor with a delta-selected double calendar.",
+        "Raw-front-IV forward factor with confirmed-earnings exclusion and "
+        "a liquidity-complete delta-selected double calendar.",
         ("dry_run", "forward_volatility", "migrated", "options"),
     ),
     (),
@@ -224,6 +225,12 @@ FORWARD_FACTOR_CALENDAR_MANIFEST = StrategyManifest(
         _node("forward_iv", "asa.stonk.options", "implied_forward_volatility"),
         _node("factor", "asa.stonk.options", "forward_factor"),
         _node(
+            "liquidity",
+            "asa.stonk.options",
+            "option_structure_collection_liquidity",
+        ),
+        _node("eligibility", "asa.core", "boolean_and"),
+        _node(
             "verdict",
             "asa.stonk.shared",
             "verdict_classifier",
@@ -232,19 +239,28 @@ FORWARD_FACTOR_CALENDAR_MANIFEST = StrategyManifest(
                 _parameter("watch_threshold", "Decimal", "0.12"),
             ),
         ),
+        _node("gated_verdict", "asa.stonk.shared", "verdict_eligibility_gate"),
     ),
     (
         EdgeSpec("expiration_select", "selected", "pair", "selected"),
         EdgeSpec("pair", "front_expiration", "double_calendar", "front_expiration"),
         EdgeSpec("pair", "back_expiration", "double_calendar", "back_expiration"),
         EdgeSpec("forward_iv", "implied_forward_iv", "factor", "implied_forward_iv"),
+        EdgeSpec("double_calendar", "structures", "liquidity", "structures"),
+        EdgeSpec("liquidity", "acceptable", "eligibility", "right"),
         EdgeSpec("factor", "factor", "verdict", "score"),
+        EdgeSpec("verdict", "verdict", "gated_verdict", "verdict"),
+        EdgeSpec("eligibility", "result", "gated_verdict", "eligible"),
     ),
     (
         OutputSpec("selected_expirations", "expiration_select", "selected"),
         OutputSpec("structures", "double_calendar", "structures"),
+        OutputSpec("liquidity_acceptable", "liquidity", "acceptable"),
+        OutputSpec("eligible", "eligibility", "result"),
+        OutputSpec("front_iv", "factor", "front_iv"),
+        OutputSpec("implied_forward_volatility", "forward_iv", "implied_forward_iv"),
         OutputSpec("forward_factor", "factor", "factor"),
-        OutputSpec("verdict", "verdict", "verdict"),
+        OutputSpec("verdict", "gated_verdict", "verdict"),
     ),
     required_market_capabilities=_capabilities(
         MarketCapability.REAL_TIME_QUOTE_V1,

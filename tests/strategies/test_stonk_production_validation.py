@@ -28,7 +28,6 @@ from strategies import (
 from strategies.component_registry import ComponentRegistry
 from strategies.plugins import build_plugin_registry
 from strategies.stonk_components import (
-    D,
     DATE,
     DECIMAL_LIST,
     EARNINGS_EVENT,
@@ -37,6 +36,7 @@ from strategies.stonk_components import (
     OPTION_CHAIN,
     OPTION_CONTRACT,
     SECURITY_COLLECTION,
+    D,
 )
 from strategies.type_system import ComponentValues, StrategyTypeReference
 from tests.strategies.test_stonk_components import (
@@ -130,7 +130,11 @@ def _execution_context(manifest: StrategyManifest) -> ComponentValues:
                 ),
                 "forward_iv.front_dte": (INTEGER, 60),
                 "forward_iv.back_dte": (INTEGER, 90),
-                "factor.front_ex_earnings_iv": (D, Decimal("0.48")),
+                "factor.front_iv": (D, Decimal("0.48")),
+                "eligibility.left": (
+                    StrategyTypeReference("Boolean", "1.0.0"),
+                    True,
+                ),
             }
         )
     if manifest is STOCK_MOMENTUM_MANIFEST:

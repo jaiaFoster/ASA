@@ -26,12 +26,12 @@ from strategies import (
     VerticalStructure,
 )
 from strategies.stonk_components import (
-    D,
     DATE,
     INTEGER,
     OPTION_CHAIN,
     OPTION_STRUCTURE,
     OPTION_TYPE,
+    D,
 )
 from strategies.type_system import ComponentValues
 from tests.portfolio.helpers import request, snapshot
@@ -58,7 +58,7 @@ def test_forward_factor_matches_legacy_reference_vector_and_replays() -> None:
     assert first == second
     factor = ForwardFactor().evaluate(
         values(
-            front_ex_earnings_iv=(D, Decimal("0.48")),
+            front_iv=(D, Decimal("0.48")),
             implied_forward_iv=(D, first.get("implied_forward_iv").value),
         ),
         ComponentValues(()),

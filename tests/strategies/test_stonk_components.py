@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import ast
 from dataclasses import replace
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from pathlib import Path
 
@@ -54,8 +54,6 @@ from strategies import (
 from strategies.manifest import ComponentReference
 from strategies.plugins import build_plugin_registry
 from strategies.stonk_components import (
-    B,
-    D,
     DATE,
     DECIMAL_LIST,
     EARNINGS_EVENT,
@@ -69,10 +67,12 @@ from strategies.stonk_components import (
     OPTION_STRUCTURE,
     OPTION_TYPE,
     SECURITY_COLLECTION,
+    B,
+    D,
 )
 from strategies.type_system import ComponentValues, StrategyTypeReference, TypedValue
 
-NOW = datetime(2026, 1, 1, 16, tzinfo=timezone.utc)
+NOW = datetime(2026, 1, 1, 16, tzinfo=UTC)
 AS_OF = date(2026, 1, 1)
 FRONT = date(2026, 1, 17)
 BACK = date(2026, 2, 21)
@@ -164,7 +164,7 @@ def test_plugins_register_all_components_statically_and_deterministically() -> N
         for plugin in STONK_STRATEGY_PLUGINS
         for component in plugin.components
     }
-    assert len(expected) == 18
+    assert len(expected) == 20
     for namespace, name in expected:
         assert registry.resolve(ComponentReference(namespace, name, "1.0.0"))
     assert (
@@ -172,11 +172,12 @@ def test_plugins_register_all_components_statically_and_deterministically() -> N
         == build_plugin_registry((), tuple(reversed(STONK_STRATEGY_PLUGINS))).identity
     )
     assert STONK_STRATEGY_PLUGINS[0].plugin_id == (
-        "263fa946cd81ec3ed561a3a64ea80353730f831063466c6b4363ea510bc1fd17"
+        "f11c642e6407e909ba95f3f9626123628a6ce65b08f3e36841c5b7363da09368"
     )
-    assert STONK_STRATEGY_PLUGINS[1].metadata.version == "1.2.0"
+    assert STONK_STRATEGY_PLUGINS[0].metadata.version == "1.1.0"
+    assert STONK_STRATEGY_PLUGINS[1].metadata.version == "1.3.0"
     assert STONK_STRATEGY_PLUGINS[1].plugin_id == (
-        "b0e9154404d087fa078327309ab81071028ee852ad9308be4d85a208f4a5860b"
+        "42e3500d47e124688aaa2623965bfbc97bc29dd218a5d656e86d7aa534022961"
     )
 
 
@@ -399,7 +400,7 @@ def test_dte_pair_projection_and_forward_factor_are_deterministic() -> None:
         ForwardFactor()
         .evaluate(
             values(
-                front_ex_earnings_iv=(D, Decimal("0.48")),
+                front_iv=(D, Decimal("0.48")),
                 implied_forward_iv=(D, implied.value),
             ),
             ComponentValues(()),

@@ -17,7 +17,7 @@ mutable row schemas, report construction, or legacy orchestration is a migration
 |---|---|---|---|---|---|
 | Earnings Calendar | Analysis tickers with earnings context | Event-volatility and IV relationship | Same-strike calendar | confirmed event, valid pre/post-event expirations, quotes, liquidity, debit/risk | candidate, near miss, lifecycle row |
 | Skew Momentum Vertical | Holdings/watchlist/gap candidates | Directional trend plus rich short-wing skew | Call or put debit vertical | momentum, delta suitability, skew, liquidity, reward/risk, event risk | vertical candidate |
-| Forward Factor Calendar | Supported equities after deterministic caps | `front_ex_earnings_iv / implied_forward_iv - 1` | Matched-strike put-and-call double calendar | cheap data, source-qualified ex-earnings IV, positive forward variance, pair quality, liquidity, contamination | PASS/WATCH/NEAR MISS/diagnostic; dry-run |
+| Forward Factor Calendar | Supported equities after deterministic caps | `front_iv / implied_forward_iv - 1` | Matched-strike put-and-call double calendar | raw front IV, positive forward variance, no confirmed earnings through back expiration, complete liquidity evidence | PASS/WATCH/FAIL; dry-run |
 | Stock Momentum | Holdings plus watchlist | Weighted trend, multi-period return, and relative-strength score | Equity exposure proposal | complete metrics, 50d/200d trend, positive 3m/6m returns, RS vs QQQ, allocation, extension, volatility | consider add, pullback, watch, avoid |
 
 `stock_momentum_unified_test` is a disabled test clone and becomes an equivalence fixture, not a

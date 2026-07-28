@@ -13,13 +13,9 @@ translate its ScreeningResult into UniversalScreeningResult -- nothing
 else. No lifecycle: forward_factor has never tracked one, matching its
 own registered contract declaring lifecycle=NO_LIFECYCLE.
 
-Requirements match SPRINT-008D/PROD-004's own confirmed data-requirement
-audit exactly (project/reports/SPRINT-008D-PROVIDER-VALIDATION.md):
-real_time_quote_v1 for spot price plus option_chain_v1 for the calendar
-structure, both actually used by the live adapter even though
-screening/registry.py's own required_capabilities under-declares this
-(PROD-004 recommended, but did not implement, fixing that declaration --
-this contract reflects the corrected, complete requirement set).
+Requirements are mechanically aligned with the canonical manifest:
+real-time quote for spot, option chains for the calendar, and earnings
+calendar evidence for the confirmed-event exclusion gate.
 """
 
 from __future__ import annotations
@@ -43,9 +39,12 @@ from strategy_runtime.result import UniversalScreeningResult, compute_observatio
 
 FORWARD_FACTOR_CONTRACT = StrategyContract(
     strategy_id="forward_factor",
-    version="1.1.0",
+    version="1.2.0",
     category="options_volatility",
-    description="Source-qualified forward factor with a delta-selected double calendar.",
+    description=(
+        "Raw-front-IV forward factor with confirmed-earnings exclusion and "
+        "a liquidity-complete delta-selected double calendar."
+    ),
     requirements=(
         DataRequirement(
             RequirementCategory.MARKET_DATA, capabilities=(MarketCapability.REAL_TIME_QUOTE_V1,)

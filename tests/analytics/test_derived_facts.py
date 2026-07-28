@@ -18,6 +18,7 @@ from analytics.derived_facts import (
     compute_implied_forward_volatility,
     compute_iv_realized_spread,
     compute_momentum_dimensions,
+    compute_no_confirmed_earnings_through_expiration,
     compute_normalized_skew,
     compute_open_interest_quality,
     compute_option_volume_band,
@@ -66,8 +67,23 @@ def test_named_momentum_dimensions_are_replay_stable() -> None:
 
 
 def test_initial_registry_is_closed_versioned_and_complete() -> None:
-    assert len(DERIVED_FACT_REGISTRY.registered_ids()) == 18
+    assert len(DERIVED_FACT_REGISTRY.registered_ids()) == 19
     assert DERIVED_FACT_REGISTRY.get("forward_factor").feature_version == "1.0.0"
+
+
+def test_confirmed_earnings_through_back_expiration_is_ineligible() -> None:
+    assert not compute_no_confirmed_earnings_through_expiration(
+        confirmed=True,
+        earnings_date=date(2026, 8, 1),
+        as_of=date(2026, 7, 1),
+        back_expiration=date(2026, 9, 1),
+    )
+    assert compute_no_confirmed_earnings_through_expiration(
+        confirmed=False,
+        earnings_date=date(2026, 8, 1),
+        as_of=date(2026, 7, 1),
+        back_expiration=date(2026, 9, 1),
+    )
 
 
 @pytest.mark.parametrize(
