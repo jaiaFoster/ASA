@@ -8,6 +8,7 @@ Do not add substantive reasoning to this file. If an entry needs more than two s
 
 | Date | Summary | ADR |
 |---|---|---|
+| 2026-07-28 | StrategyManifest is the sole authored strategy authority; market data owns facts, analytics/indicators own singular reusable derived calculations, strategies own judgment, and screening/runtime remain generic orchestration and projection. | ADR-010 |
 | 2026-07-21 | The analytical execution pipeline is Portfolio Delta → Risk Decision → Execution Plan → Planned Orders → deterministic simulation → Portfolio Engine-applied transition; Position, Portfolio, risk, planning, simulation, identity, provenance, and atomic v1 migration contracts are frozen without any live broker capability. | ASA-ARCH-006 |
 | 2026-07-21 | ASA Core may generate immutable analytical Execution Plans and simulate their lifecycle, but it cannot submit, modify, cancel, authenticate with, or otherwise mutate a live broker; any operational subsystem requires a future constitutional amendment and explicit Founder authorization. | GOV-AMD-014 / Constitution Law 5 |
 | 2026-07-21 | Opportunity owns canonical Instrument identity and Ranking preserves it unchanged; ProposedPosition is narrowed to desired allocation and contains no account, portfolio, quantity, price, provider, broker, or order fields. | ADR-003/ADR-009 amendments (Issue #63) |

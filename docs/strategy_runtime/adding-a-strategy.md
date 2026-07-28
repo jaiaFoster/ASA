@@ -1,5 +1,29 @@
 # Adding a strategy to the Universal Strategy Runtime
 
+SPRINT-012 supersedes the older contract-first extension flow:
+`StrategyManifest` is the only authored strategy definition. A runtime
+`StrategyContract` is a mechanically validated projection, not a second source
+of strategy identity, version, or market-capability semantics.
+
+The production extension path is:
+
+1. Author one versioned manifest and declare every acquired capability.
+2. Reuse or add named, typed, versioned derived facts in `analytics/`.
+3. Put thresholds, gates, direction, structure, score, and PASS/WATCH/FAIL in
+   the strategy graph.
+4. Keep screening orchestration-only: acquire declared facts, invoke derived
+   calculators, execute the graph, and map its result.
+5. Preserve facts, gates, reasons, provenance, and verdict through the generic
+   universal result.
+
+Adapters must not define financial formulas, normalize scores, duplicate
+manifest parameters, read provider payloads, or perform hidden acquisition
+from inside strategy evaluation.
+
+The remainder of this guide documents the legacy projection mechanics during
+the bounded SPRINT-012 migration. Where it conflicts with the rules above,
+ADR-010 and the manifest-first flow govern.
+
 SPRINT-009R/EPIC-R4. Per this sprint's own `definition_of_done`, adding a strategy requires
 exactly four steps, and none of them touch runtime orchestration, persistence, APIs, planners,
 or lifecycle infrastructure:

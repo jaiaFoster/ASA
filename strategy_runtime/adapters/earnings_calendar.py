@@ -80,6 +80,10 @@ EARNINGS_CALENDAR_CONTRACT = StrategyContract(
         DataRequirement(
             RequirementCategory.EARNINGS, capabilities=(MarketCapability.EARNINGS_CALENDAR_V1,)
         ),
+        DataRequirement(
+            RequirementCategory.MARKET_DATA,
+            capabilities=(MarketCapability.HISTORICAL_BARS_V1,),
+        ),
     ),
     lifecycle=LifecycleDeclaration(
         LifecycleModel.OPPORTUNITY,

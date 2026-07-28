@@ -26,10 +26,9 @@ from strategies import (
     execute_strategy_graph,
     serialize_manifest,
 )
-from strategies.plugins import build_plugin_registry
 from strategies.component_registry import ComponentRegistry
+from strategies.plugins import build_plugin_registry
 from strategies.stonk_components import (
-    D,
     DATE,
     DECIMAL_LIST,
     EARNINGS_EVENT,
@@ -38,6 +37,7 @@ from strategies.stonk_components import (
     OPTION_CHAIN,
     OPTION_CONTRACT,
     SECURITY_COLLECTION,
+    D,
 )
 from strategies.type_system import ComponentValues, StrategyTypeReference, TypedValue
 from tests.strategies.test_stonk_components import (
@@ -65,22 +65,26 @@ def registry() -> ComponentRegistry:
 
 def test_four_manifest_catalog_is_canonical_serializable_and_identity_pinned() -> None:
     assert tuple(item.strategy_id for item in STONK_STRATEGY_MANIFESTS) == (
-        "asa.stonk.earnings_calendar",
-        "asa.stonk.skew_momentum_vertical",
-        "asa.stonk.forward_factor_calendar",
+        "earnings_calendar",
+        "skew_momentum",
+        "forward_factor",
         "asa.stonk.stock_momentum",
     )
     expected = {
-        "asa.stonk.earnings_calendar": "f349ab40630bc0b319b2f255cfe4a7bdb16a1b220f0845c30ebb9d4541918475",
-        "asa.stonk.skew_momentum_vertical": "f5ea7d5d16771104bb324b109e75c16672bdbfabdece766be67f8fb4b71caf8c",
-        "asa.stonk.forward_factor_calendar": "098822354245d9cfccd8d2b77b2fc185dfb30425429b608a58430807cbf7b857",
-        "asa.stonk.stock_momentum": "456a84aa09ca73c65c32490ebaa270beb5b85db273e9d0c10d987f434e13047d",
+        "earnings_calendar": "5052fe8c42072591a55925603d7941149d2516ec9181d7c76aea27a2269acfda",
+        "skew_momentum": "ee5b2e50a1eecaa9c09f3789ecb203a117d3334689cede490cfc71cf8772a999",
+        "forward_factor": "07e99cd0937721819367d7142095bfe35b526e33475c8e684299262719264fa0",
+        "asa.stonk.stock_momentum": (
+            "456a84aa09ca73c65c32490ebaa270beb5b85db273e9d0c10d987f434e13047d"
+        ),
     }
     graph_ids = {
-        "asa.stonk.earnings_calendar": "59aeabea7aba834500d51984f08f2ec2882684e410ba3ef4c0bb7c2da422c050",
-        "asa.stonk.skew_momentum_vertical": "a71634910794bc6b456a4913910ce4c2d7ca6d5839797f7cfbffdfb137586292",
-        "asa.stonk.forward_factor_calendar": "d16cd960df3f90aab348052c6f6126047b455a8d5b0ec897a710621e23ed2582",
-        "asa.stonk.stock_momentum": "f4e723912f41e4602bd37d4d4ef59be210ff82b889a550e9a7f34c1ee980d537",
+        "earnings_calendar": "20868f2d3af3c15a7fd4f6446c9d89c2d220b6b7cfe0a3a1de8639d04874ec35",
+        "skew_momentum": "4a6b8c7356fed0639d9648617a4ef9a9e5c541a283df85d84558842117ebfbcd",
+        "forward_factor": "aa4a80a5a137607bb935d08c7a21ebd0909f3963639ca7b3f1b422619ff02201",
+        "asa.stonk.stock_momentum": (
+            "f4e723912f41e4602bd37d4d4ef59be210ff82b889a550e9a7f34c1ee980d537"
+        ),
     }
     component_registry = registry()
     for manifest in STONK_STRATEGY_MANIFESTS:

@@ -52,6 +52,10 @@ SKEW_MOMENTUM_VERTICAL_CONTRACT = StrategyContract(
         DataRequirement(
             RequirementCategory.OPTION_DATA, capabilities=(MarketCapability.OPTION_CHAIN_V1,)
         ),
+        DataRequirement(
+            RequirementCategory.MARKET_DATA,
+            capabilities=(MarketCapability.HISTORICAL_BARS_V1,),
+        ),
     ),
     lifecycle=NO_LIFECYCLE,
     structure=StructureKind.VERTICAL,

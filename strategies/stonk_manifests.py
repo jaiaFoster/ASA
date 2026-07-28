@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+from domain import MarketCapability
 from strategies.manifest import (
+    CapabilityRequirement,
     ComponentReference,
     EdgeSpec,
     ManifestMetadata,
@@ -31,9 +33,13 @@ def _parameter(name: str, type_ref: str, value: ManifestValue) -> ParameterSpec:
     return ParameterSpec(name, type_ref, value)
 
 
+def _capabilities(*values: MarketCapability) -> tuple[CapabilityRequirement, ...]:
+    return tuple(CapabilityRequirement(value.value, "1.0.0") for value in values)
+
+
 EARNINGS_CALENDAR_MANIFEST = StrategyManifest(
-    "1.0.0",
-    "asa.stonk.earnings_calendar",
+    "1.1.0",
+    "earnings_calendar",
     "1.0.0",
     ManifestMetadata(
         "Earnings Calendar Spread",
@@ -100,12 +106,18 @@ EARNINGS_CALENDAR_MANIFEST = StrategyManifest(
         OutputSpec("score", "score", "score"),
         OutputSpec("verdict", "verdict", "verdict"),
     ),
+    required_market_capabilities=_capabilities(
+        MarketCapability.REAL_TIME_QUOTE_V1,
+        MarketCapability.HISTORICAL_BARS_V1,
+        MarketCapability.OPTION_CHAIN_V1,
+        MarketCapability.EARNINGS_CALENDAR_V1,
+    ),
 )
 
 
 SKEW_MOMENTUM_VERTICAL_MANIFEST = StrategyManifest(
-    "1.0.0",
-    "asa.stonk.skew_momentum_vertical",
+    "1.1.0",
+    "skew_momentum",
     "1.0.0",
     ManifestMetadata(
         "Skew Momentum Vertical",
@@ -164,12 +176,17 @@ SKEW_MOMENTUM_VERTICAL_MANIFEST = StrategyManifest(
         OutputSpec("score", "score", "score"),
         OutputSpec("verdict", "verdict", "verdict"),
     ),
+    required_market_capabilities=_capabilities(
+        MarketCapability.REAL_TIME_QUOTE_V1,
+        MarketCapability.HISTORICAL_BARS_V1,
+        MarketCapability.OPTION_CHAIN_V1,
+    ),
 )
 
 
 FORWARD_FACTOR_CALENDAR_MANIFEST = StrategyManifest(
-    "1.0.0",
-    "asa.stonk.forward_factor_calendar",
+    "1.1.0",
+    "forward_factor",
     "1.1.0",
     ManifestMetadata(
         "Forward Factor Calendar",
@@ -228,6 +245,11 @@ FORWARD_FACTOR_CALENDAR_MANIFEST = StrategyManifest(
         OutputSpec("structures", "double_calendar", "structures"),
         OutputSpec("forward_factor", "factor", "factor"),
         OutputSpec("verdict", "verdict", "verdict"),
+    ),
+    required_market_capabilities=_capabilities(
+        MarketCapability.REAL_TIME_QUOTE_V1,
+        MarketCapability.OPTION_CHAIN_V1,
+        MarketCapability.EARNINGS_CALENDAR_V1,
     ),
 )
 

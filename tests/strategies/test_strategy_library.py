@@ -18,22 +18,22 @@ from strategies.errors import ManifestValidationError
 
 def test_library_is_complete_ordered_and_identity_pinned() -> None:
     assert STONK_STRATEGY_LIBRARY.strategy_ids() == (
-        "asa.stonk.earnings_calendar",
-        "asa.stonk.forward_factor_calendar",
-        "asa.stonk.skew_momentum_vertical",
         "asa.stonk.stock_momentum",
+        "earnings_calendar",
+        "forward_factor",
+        "skew_momentum",
     )
     assert (
         STONK_STRATEGY_LIBRARY.identity
         == StrategyLibrary(tuple(reversed(STONK_STRATEGY_MANIFESTS))).identity
     )
     assert STONK_STRATEGY_LIBRARY.identity == (
-        "9b947dbb83d56473c1a11b7f345fa738026bed361c0f81b7653160e7d779a235"
+        "67f28810a151f56a9f848064f2b7201258b12e8864a6bd99d68cfbc939832164"
     )
 
 
 def test_library_returns_canonical_manifest_without_copy_or_mutation() -> None:
-    assert STONK_STRATEGY_LIBRARY.get("asa.stonk.earnings_calendar") is EARNINGS_CALENDAR_MANIFEST
+    assert STONK_STRATEGY_LIBRARY.get("earnings_calendar") is EARNINGS_CALENDAR_MANIFEST
     with pytest.raises(KeyError):
         STONK_STRATEGY_LIBRARY.get("unknown.strategy")
     with pytest.raises(AttributeError):
