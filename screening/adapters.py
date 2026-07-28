@@ -125,8 +125,9 @@ def run_earnings_calendar(
         # Deterministic, offline-only fixture values -- this dry-run path
         # never touches live market data, so there is no real richness
         # signal to compute. Unrelated to the live adapter's own real,
-        # symbol-specific score_values (screening/live_adapters.py).
-        score_values=(Decimal("80"), Decimal("60")),
+        # symbol-specific named score inputs (screening/live_adapters.py).
+        term_structure_richness=Decimal("80"),
+        iv_realized_volatility_richness=Decimal("60"),
     )
     graph = compile_strategy_graph(EARNINGS_CALENDAR_MANIFEST, _COMPONENT_REGISTRY)
     result = execute_strategy_graph(graph, context)
@@ -150,7 +151,8 @@ def run_skew_momentum(
         option_type=OptionType.CALL,
         # Deterministic, offline-only fixture values -- see
         # run_earnings_calendar's own identical note above.
-        score_values=(Decimal("80"), Decimal("70")),
+        normalized_skew_richness=Decimal("80"),
+        momentum_richness=Decimal("70"),
     )
     graph = compile_strategy_graph(SKEW_MOMENTUM_VERTICAL_MANIFEST, _COMPONENT_REGISTRY)
     result = execute_strategy_graph(graph, context)

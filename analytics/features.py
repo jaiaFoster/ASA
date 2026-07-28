@@ -1,20 +1,26 @@
-"""Canonical derived-feature result contract (ANALYTICS-001).
-
-One immutable, canonically serializable output of one registered analytics
-feature computation. Every field here is deliberately generic -- this
-module implements no financial formula itself (implied volatility, DTE,
-RSI, ...); it only defines the shape every such computation's result must
-take, so any future feature is reusable through the same contract.
-"""
+"""Immutable, typed, provenance-bearing Derived Fact contracts."""
 
 from __future__ import annotations
 
+import hashlib
+import json
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
+from enum import StrEnum
 
 from domain import EvidenceReference
 from domain.values import require_tz_aware
+
+DerivedFactValue = Decimal | int | bool | date | tuple[Decimal, ...]
+
+
+class DerivedFactQualityStatus(StrEnum):
+    """Data quality only; never a strategy verdict."""
+
+    VALID = "valid"
+    DEGRADED = "degraded"
+    INSUFFICIENT = "insufficient"
 
 
 def _normalized_text(value: str, owner: str, field_name: str) -> None:
@@ -22,35 +28,94 @@ def _normalized_text(value: str, owner: str, field_name: str) -> None:
         raise ValueError(f"{owner}.{field_name} must be non-empty normalized text")
 
 
+def _value_data(value: DerivedFactValue) -> object:
+    if isinstance(value, Decimal):
+        return {"type": "decimal", "value": str(value)}
+    if isinstance(value, datetime):
+        return {"type": "datetime", "value": value.isoformat()}
+    if isinstance(value, date):
+        return {"type": "date", "value": value.isoformat()}
+    if isinstance(value, tuple):
+        return {"type": "decimal_tuple", "value": [str(item) for item in value]}
+    if isinstance(value, bool):
+        return {"type": "boolean", "value": value}
+    return {"type": "integer", "value": value}
+
+
 @dataclass(frozen=True, slots=True)
-class DerivedFeatureResult:
-    """One immutable, canonically serializable derived-feature computation.
+class DerivedFact:
+    """One deterministic point-in-time calculation over canonical evidence."""
 
-    ``parameters`` records the exact named inputs the computation used
-    (already-normalized string values only, never a raw object) so the
-    result stays explainable and reproducible without needing to keep the
-    original canonical market-data objects around.
-    """
-
-    feature_id: str
-    feature_version: str
-    subject_identity: str
-    as_of: datetime
-    value: Decimal
-    parameters: tuple[tuple[str, str], ...]
-    input_provenance: tuple[EvidenceReference, ...]
+    derived_fact_id: str
+    value: DerivedFactValue
+    unit: str
+    formula_version: str
+    effective_time: datetime
+    input_evidence: tuple[EvidenceReference, ...]
+    quality_status: DerivedFactQualityStatus
 
     def __post_init__(self) -> None:
-        for name in ("feature_id", "feature_version", "subject_identity"):
-            _normalized_text(getattr(self, name), "DerivedFeatureResult", name)
-        require_tz_aware(self.as_of, "DerivedFeatureResult", "as_of")
-        parameter_names = tuple(name for name, _ in self.parameters)
-        if len(set(parameter_names)) != len(parameter_names):
-            raise ValueError("DerivedFeatureResult.parameters keys must be unique")
-        for name, param_value in self.parameters:
-            if not name or name != name.strip():
-                raise ValueError("DerivedFeatureResult.parameters keys must be normalized text")
-            if param_value != param_value.strip():
-                raise ValueError(
-                    "DerivedFeatureResult.parameters values must be normalized text"
+        for name in ("derived_fact_id", "unit", "formula_version"):
+            _normalized_text(getattr(self, name), "DerivedFact", name)
+        require_tz_aware(self.effective_time, "DerivedFact", "effective_time")
+        if len(set(self.input_evidence)) != len(self.input_evidence):
+            raise ValueError("DerivedFact.input_evidence must be unique")
+        object.__setattr__(
+            self,
+            "input_evidence",
+            tuple(
+                sorted(
+                    self.input_evidence,
+                    key=lambda item: (
+                        item.kind.value,
+                        item.referenced_id,
+                        item.version or 0,
+                    ),
                 )
+            ),
+        )
+
+    @property
+    def identity(self) -> str:
+        payload = {
+            "namespace": "asa.derived_fact",
+            "version": "v1",
+            "derived_fact_id": self.derived_fact_id,
+            "value": _value_data(self.value),
+            "unit": self.unit,
+            "formula_version": self.formula_version,
+            "effective_time": self.effective_time.isoformat(),
+            "input_evidence": [
+                {
+                    "kind": item.kind.value,
+                    "referenced_id": item.referenced_id,
+                    "version": item.version,
+                }
+                for item in self.input_evidence
+            ],
+            "quality_status": self.quality_status.value,
+        }
+        encoded = json.dumps(
+            payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True
+        ).encode()
+        return hashlib.sha256(encoded).hexdigest()
+
+
+@dataclass(frozen=True, slots=True)
+class DerivedFactSet:
+    """Named facts with deterministic ordering and lookup."""
+
+    facts: tuple[DerivedFact, ...]
+
+    def __post_init__(self) -> None:
+        ordered = tuple(sorted(self.facts, key=lambda item: item.derived_fact_id))
+        identifiers = tuple(item.derived_fact_id for item in ordered)
+        if len(identifiers) != len(set(identifiers)):
+            raise ValueError("DerivedFactSet fact IDs must be unique")
+        object.__setattr__(self, "facts", ordered)
+
+    def get(self, derived_fact_id: str) -> DerivedFact:
+        for fact in self.facts:
+            if fact.derived_fact_id == derived_fact_id:
+                return fact
+        raise KeyError(derived_fact_id)

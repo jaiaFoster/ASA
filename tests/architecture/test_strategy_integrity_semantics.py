@@ -35,7 +35,6 @@ KNOWN_SCREENING_SEMANTIC_DEBT = frozenset(
     {
         "_outcome_status_for_verdict",
         "_spot_price",
-        "_richness_score",
     }
 )
 

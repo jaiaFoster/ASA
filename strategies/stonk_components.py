@@ -9,9 +9,13 @@ from __future__ import annotations
 
 import hashlib
 from datetime import date
-from decimal import Context, Decimal, ROUND_HALF_EVEN, localcontext
+from decimal import ROUND_HALF_EVEN, Context, Decimal, localcontext
 from typing import cast
 
+from analytics.derived_facts import (
+    compute_forward_factor,
+    compute_implied_forward_volatility,
+)
 from domain import (
     AnnouncementTime,
     EarningsEvent,
@@ -507,11 +511,13 @@ class ForwardFactor(BaseComponent):
     def evaluate(self, inputs: ComponentValues, parameters: ComponentValues) -> ComponentValues:
         front = cast(Decimal, _input(inputs, "front_ex_earnings_iv", Decimal))
         forward = cast(Decimal, _input(inputs, "implied_forward_iv", Decimal))
-        if front < 0 or forward <= 0:
+        try:
+            factor = compute_forward_factor(front, forward)
+        except ValueError as exc:
             raise ComponentContractError(
                 "forward factor requires non-negative front IV and positive forward IV"
-            )
-        return ComponentValues((("factor", TypedValue(D, front / forward - Decimal(1))),))
+            ) from exc
+        return ComponentValues((("factor", TypedValue(D, factor)),))
 
 
 class ImpliedForwardVolatility(BaseComponent):
@@ -538,14 +544,15 @@ class ImpliedForwardVolatility(BaseComponent):
         back_dte = cast(int, _input(inputs, "back_dte", int))
         if not (Decimal(0) < front_iv <= Decimal(5)) or not (Decimal(0) < back_iv <= Decimal(5)):
             raise ComponentContractError("IV inputs must be annualized decimal ratios")
-        if front_dte < 1 or back_dte <= front_dte:
-            raise ComponentContractError("back DTE must be greater than positive front DTE")
-        with localcontext(FINANCIAL_DECIMAL_CONTEXT):
-            numerator = back_iv * back_iv * back_dte - front_iv * front_iv * front_dte
-            variance = numerator / Decimal(back_dte - front_dte)
-            if variance <= 0:
-                raise ComponentContractError("implied forward variance must be positive")
-            forward_iv = variance.sqrt()
+        try:
+            with localcontext(FINANCIAL_DECIMAL_CONTEXT):
+                forward_iv = compute_implied_forward_volatility(
+                    front_iv, back_iv, front_dte, back_dte
+                )
+        except ValueError as exc:
+            raise ComponentContractError(
+                "back DTE and implied forward variance must be valid"
+            ) from exc
         return ComponentValues((("implied_forward_iv", TypedValue(D, forward_iv)),))
 
 
