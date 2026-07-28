@@ -54,7 +54,9 @@ EVIDENCE = (EvidenceReference(EvidenceKind.OBSERVATION, "integration-test"),)
 
 def _security() -> Security:
     return Security(
-        Instrument(CanonicalInstrumentIdentity("figi", "figi-AAPL"), InstrumentKind.EQUITY, "AAPL", "USD"),
+        Instrument(
+            CanonicalInstrumentIdentity("figi", "figi-AAPL"), InstrumentKind.EQUITY, "AAPL", "USD"
+        ),
         "AAPL",
         SecurityAssetType.EQUITY,
         "XNAS",
@@ -92,7 +94,9 @@ def test_analytics_outputs_feed_the_real_manifest_with_zero_additional_math() ->
         OBSERVED_AT,
         (
             _contract(FRONT_EXPIRATION, "105", OptionType.CALL, "0.48"),
-            _contract(BACK_EXPIRATION, "105", OptionType.CALL, "0.4548992562461861547567860943472296"),
+            _contract(
+                BACK_EXPIRATION, "105", OptionType.CALL, "0.4548992562461861547567860943472296"
+            ),
             _contract(FRONT_EXPIRATION, "95", OptionType.PUT, "0.50"),
             _contract(BACK_EXPIRATION, "95", OptionType.PUT, "0.47"),
         ),
@@ -124,10 +128,20 @@ def test_analytics_outputs_feed_the_real_manifest_with_zero_additional_math() ->
     front_dte = compute_days_to_expiration({"expiration": front.expiration_date, "as_of": AS_OF})
     back_dte = compute_days_to_expiration({"expiration": back.expiration_date, "as_of": AS_OF})
     front_iv = compute_option_implied_volatility(
-        {"chain": chain, "expiration": front.expiration_date, "strike": Decimal("105"), "option_type": OptionType.CALL}
+        {
+            "chain": chain,
+            "expiration": front.expiration_date,
+            "strike": Decimal("105"),
+            "option_type": OptionType.CALL,
+        }
     )
     back_iv = compute_option_implied_volatility(
-        {"chain": chain, "expiration": back.expiration_date, "strike": Decimal("105"), "option_type": OptionType.CALL}
+        {
+            "chain": chain,
+            "expiration": back.expiration_date,
+            "strike": Decimal("105"),
+            "option_type": OptionType.CALL,
+        }
     )
 
     # Step 3: those four analytics outputs are passed directly into the
@@ -135,8 +149,12 @@ def test_analytics_outputs_feed_the_real_manifest_with_zero_additional_math() ->
     expirations = ExpirationCollection(
         AS_OF,
         (
-            ExpirationCycle(front.expiration_date, front.days_to_expiration, True, False, AS_OF, EVIDENCE),
-            ExpirationCycle(back.expiration_date, back.days_to_expiration, True, False, AS_OF, EVIDENCE),
+            ExpirationCycle(
+                front.expiration_date, front.days_to_expiration, True, False, AS_OF, EVIDENCE
+            ),
+            ExpirationCycle(
+                back.expiration_date, back.days_to_expiration, True, False, AS_OF, EVIDENCE
+            ),
         ),
     )
     context = ComponentValues(
@@ -145,9 +163,19 @@ def test_analytics_outputs_feed_the_real_manifest_with_zero_additional_math() ->
             ("double_calendar.chain", TypedValue(OPTION_CHAIN, chain)),
             ("forward_iv.front_iv", TypedValue(D, front_iv)),
             ("forward_iv.back_iv", TypedValue(D, back_iv)),
-            ("forward_iv.front_dte", TypedValue(StrategyTypeReference("Integer", "1.0.0"), int(front_dte))),
-            ("forward_iv.back_dte", TypedValue(StrategyTypeReference("Integer", "1.0.0"), int(back_dte))),
-            ("factor.front_ex_earnings_iv", TypedValue(D, front_iv)),
+            (
+                "forward_iv.front_dte",
+                TypedValue(StrategyTypeReference("Integer", "1.0.0"), int(front_dte)),
+            ),
+            (
+                "forward_iv.back_dte",
+                TypedValue(StrategyTypeReference("Integer", "1.0.0"), int(back_dte)),
+            ),
+            ("factor.front_iv", TypedValue(D, front_iv)),
+            (
+                "eligibility.left",
+                TypedValue(StrategyTypeReference("Boolean", "1.0.0"), True),
+            ),
         )
     )
     registry = build_plugin_registry(CORE_COMPONENTS, STONK_STRATEGY_PLUGINS)

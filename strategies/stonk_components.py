@@ -282,6 +282,27 @@ class VerdictClassifier(BaseComponent):
         return ComponentValues((("verdict", TypedValue(VERDICT, verdict)),))
 
 
+class VerdictEligibilityGate(BaseComponent):
+    """Force FAIL when a manifest eligibility path rejects a candidate."""
+
+    __slots__ = ()
+    definition = _definition(
+        "asa.stonk.shared",
+        "verdict_eligibility_gate",
+        ComponentCategory.PREDICATE,
+        (
+            PortDefinition("verdict", VERDICT),
+            PortDefinition("eligible", B),
+        ),
+        (PortDefinition("verdict", VERDICT),),
+    )
+
+    def evaluate(self, inputs: ComponentValues, parameters: ComponentValues) -> ComponentValues:
+        verdict = cast(str, inputs.get("verdict").value)
+        eligible = cast(bool, inputs.get("eligible").value)
+        return ComponentValues((("verdict", TypedValue(VERDICT, verdict if eligible else "FAIL")),))
+
+
 class EarningsEventWindow(BaseComponent):
     """Evaluate the preferred front-before-event/back-after-event window."""
 
@@ -494,7 +515,7 @@ class ExpirationPairProjection(BaseComponent):
 
 
 class ForwardFactor(BaseComponent):
-    """Compute source-qualified front IV divided by forward IV minus one."""
+    """Compute raw front IV divided by forward IV minus one."""
 
     __slots__ = ()
     definition = _definition(
@@ -502,14 +523,17 @@ class ForwardFactor(BaseComponent):
         "forward_factor",
         ComponentCategory.SCORE,
         (
-            PortDefinition("front_ex_earnings_iv", D),
+            PortDefinition("front_iv", D),
             PortDefinition("implied_forward_iv", D),
         ),
-        (PortDefinition("factor", D),),
+        (
+            PortDefinition("factor", D),
+            PortDefinition("front_iv", D),
+        ),
     )
 
     def evaluate(self, inputs: ComponentValues, parameters: ComponentValues) -> ComponentValues:
-        front = cast(Decimal, _input(inputs, "front_ex_earnings_iv", Decimal))
+        front = cast(Decimal, _input(inputs, "front_iv", Decimal))
         forward = cast(Decimal, _input(inputs, "implied_forward_iv", Decimal))
         try:
             factor = compute_forward_factor(front, forward)
@@ -517,7 +541,12 @@ class ForwardFactor(BaseComponent):
             raise ComponentContractError(
                 "forward factor requires non-negative front IV and positive forward IV"
             ) from exc
-        return ComponentValues((("factor", TypedValue(D, factor)),))
+        return ComponentValues(
+            (
+                ("factor", TypedValue(D, factor)),
+                ("front_iv", TypedValue(D, front)),
+            )
+        )
 
 
 class ImpliedForwardVolatility(BaseComponent):
@@ -832,6 +861,37 @@ class DoubleCalendarStructure(BaseComponent):
         return ComponentValues((("structures", TypedValue(OPTION_STRUCTURE_LIST, structures)),))
 
 
+class OptionStructureCollectionLiquidity(BaseComponent):
+    """Require coherent quoted liquidity fields on every selected leg."""
+
+    __slots__ = ()
+    definition = _definition(
+        "asa.stonk.options",
+        "option_structure_collection_liquidity",
+        ComponentCategory.PREDICATE,
+        (PortDefinition("structures", OPTION_STRUCTURE_LIST),),
+        (PortDefinition("acceptable", B),),
+    )
+
+    def evaluate(self, inputs: ComponentValues, parameters: ComponentValues) -> ComponentValues:
+        structures = cast(tuple[OptionStructure, ...], inputs.get("structures").value)
+        contracts = tuple(leg.contract for structure in structures for leg in structure.legs)
+        acceptable = bool(contracts) and all(
+            contract.bid is not None
+            and contract.ask is not None
+            and contract.mark is not None
+            and contract.open_interest is not None
+            and contract.volume is not None
+            and contract.bid >= 0
+            and contract.ask >= contract.bid
+            and contract.mark > 0
+            and contract.open_interest >= 0
+            and contract.volume >= 0
+            for contract in contracts
+        )
+        return ComponentValues((("acceptable", TypedValue(B, acceptable)),))
+
+
 class OptionStructureDebit(BaseComponent):
     """Calculate explicit mark and conservative debits from observed leg values."""
 
@@ -890,6 +950,7 @@ SHARED_STONK_COMPONENTS: tuple[BaseComponent, ...] = (
     DeterministicSecurityCap(),
     WeightedScoreWithCeiling(),
     VerdictClassifier(),
+    VerdictEligibilityGate(),
 )
 
 OPTIONS_STONK_COMPONENTS: tuple[BaseComponent, ...] = (
@@ -905,5 +966,6 @@ OPTIONS_STONK_COMPONENTS: tuple[BaseComponent, ...] = (
     NearestCommonStrikeCalendar(),
     VerticalStructure(),
     DoubleCalendarStructure(),
+    OptionStructureCollectionLiquidity(),
     OptionStructureDebit(),
 )

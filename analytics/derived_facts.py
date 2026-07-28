@@ -16,6 +16,7 @@ IMPLIED_FORWARD_VOLATILITY = "implied_forward_volatility"
 FORWARD_FACTOR = "forward_factor"
 DAYS_TO_EARNINGS = "days_to_earnings"
 EARNINGS_INSIDE_TRADE_WINDOW = "earnings_inside_trade_window"
+NO_CONFIRMED_EARNINGS_THROUGH_EXPIRATION = "no_confirmed_earnings_through_expiration"
 EXPIRATION_GAP_DAYS = "expiration_gap_days"
 EXPIRATION_GAP_DISTANCE = "expiration_gap_distance_from_target"
 NORMALIZED_CALL_SKEW = "normalized_call_skew"
@@ -69,6 +70,18 @@ def compute_earnings_inside_trade_window(
     if back_expiration <= front_expiration:
         raise ValueError("back expiration must follow front expiration")
     return front_expiration < earnings_date <= back_expiration
+
+
+def compute_no_confirmed_earnings_through_expiration(
+    *,
+    confirmed: bool,
+    earnings_date: date,
+    as_of: date,
+    back_expiration: date,
+) -> bool:
+    if back_expiration < as_of:
+        raise ValueError("back expiration cannot precede as_of")
+    return not (confirmed and as_of <= earnings_date <= back_expiration)
 
 
 def compute_expiration_gap_days(front_expiration: date, back_expiration: date) -> int:
@@ -194,6 +207,12 @@ DERIVED_FACT_DEFINITIONS = (
     _definition(
         EARNINGS_INSIDE_TRADE_WINDOW,
         "Whether earnings occurs after front and through back expiration.",
+        MarketCapability.EARNINGS_CALENDAR_V1,
+        MarketCapability.OPTION_CHAIN_V1,
+    ),
+    _definition(
+        NO_CONFIRMED_EARNINGS_THROUGH_EXPIRATION,
+        "Whether no confirmed earnings occurs from as-of through back expiration.",
         MarketCapability.EARNINGS_CALENDAR_V1,
         MarketCapability.OPTION_CHAIN_V1,
     ),

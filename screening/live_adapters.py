@@ -35,6 +35,7 @@ from typing import cast
 
 from analytics.derived_facts import (
     compute_iv_realized_spread,
+    compute_no_confirmed_earnings_through_expiration,
     compute_normalized_skew,
 )
 from analytics.expiration_selection import (
@@ -52,7 +53,11 @@ from domain import (
     OptionType,
     Quote,
 )
-from market_data import CapabilityFulfillmentService, FulfillmentStatus
+from market_data import (
+    CapabilityFulfillmentService,
+    FulfillmentStatus,
+    ProviderErrorCode,
+)
 from market_data.session_calendar import MarketSessionStatus, UsEquitySessionCalendar
 from market_data.temporal import (
     DEFAULT_FRESHNESS_REQUIREMENT,
@@ -237,6 +242,46 @@ def _acquire_combined_chain(
     return combine_option_chains(chains, observed_at=now)  # type: ignore[arg-type]
 
 
+def _acquire_optional_earnings(
+    fulfillment: CapabilityFulfillmentService,
+    symbol: str,
+    now: datetime,
+    back_expiration: date,
+) -> EarningsEvent | None:
+    """Return the earliest event or explicit no-data; reject every other failure."""
+
+    effective_end = now + timedelta(days=max(0, (back_expiration - now.date()).days))
+    subject = build_capability_subject(
+        symbol,
+        MarketCapability.EARNINGS_CALENDAR_V1,
+        now,
+        effective_start=now,
+        effective_end=effective_end,
+        required_fields=("earnings_date", "confirmed"),
+    )
+    result = acquire_capability(
+        fulfillment,
+        MarketCapability.EARNINGS_CALENDAR_V1,
+        subject,
+        effective_start=now,
+        effective_end=effective_end,
+        required_fields=("earnings_date", "confirmed"),
+        maximum_age_seconds=3600,
+        required=False,
+    )
+    if result.observations:
+        events = tuple(cast(EarningsEvent, item.value) for item in result.observations)
+        return min(events, key=lambda item: item.earnings_date)
+    errors = tuple(attempt.error.code for attempt in result.attempts if attempt.error is not None)
+    if errors and all(code is ProviderErrorCode.NO_DATA for code in errors):
+        return None
+    summary = ", ".join(code.value for code in errors) or "unknown_provider_error"
+    raise StrategyAdapterError(
+        ScreeningOutcomeStatus.MISSING_DATA,
+        f"earnings exclusion evidence for {symbol} is unavailable: {summary}",
+    )
+
+
 def _spot_price(quote: Quote) -> Decimal:
     if quote.last is not None:
         return quote.last
@@ -358,6 +403,17 @@ def build_live_forward_factor_adapter(
                 f"attempted {', '.join(attempted)}",
             )
         front, back = selected
+        earnings_event = _acquire_optional_earnings(fulfillment, symbol, now, back.expiration_date)
+        earnings_eligible = (
+            True
+            if earnings_event is None
+            else compute_no_confirmed_earnings_through_expiration(
+                confirmed=earnings_event.confirmed,
+                earnings_date=earnings_event.earnings_date,
+                as_of=as_of,
+                back_expiration=back.expiration_date,
+            )
+        )
         # SPRINT-011-CLOSEOUT/CLOSE-001: selected independently per
         # expiration, not one shared strike reused at both -- see
         # build_forward_factor_context's own docstring for why.
@@ -378,6 +434,7 @@ def build_live_forward_factor_adapter(
             as_of,
             front_strike=front_strike,
             back_strike=back_strike,
+            earnings_eligible=earnings_eligible,
             option_type=OptionType.CALL,
         )
         graph = compile_strategy_graph(FORWARD_FACTOR_CALENDAR_MANIFEST, _COMPONENT_REGISTRY)
@@ -389,7 +446,7 @@ def build_live_forward_factor_adapter(
             symbol,
             result.outputs.get("verdict").value,
             result.outputs.get("forward_factor").value,
-            chain.evidence,
+            chain.evidence + (() if earnings_event is None else earnings_event.evidence),
         )
 
     return _run

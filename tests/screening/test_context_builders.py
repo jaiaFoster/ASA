@@ -25,19 +25,23 @@ class TestBuildForwardFactorContext:
             fixtures.AS_OF_DATE,
             front_strike=Decimal("105"),
             back_strike=Decimal("105"),
+            earnings_eligible=True,
         )
         values = dict(context.entries)
         assert values["forward_iv.front_iv"].value == Decimal("0.48")
         assert values["forward_iv.back_iv"].value == Decimal("0.4548992562461861547567860943472296")
         assert values["forward_iv.front_dte"].value == 61
         assert values["forward_iv.back_dte"].value == 91
-        assert values["factor.front_ex_earnings_iv"].value == Decimal("0.48")
+        assert values["factor.front_iv"].value == Decimal("0.48")
+        assert values["eligibility.left"].value is True
 
     def test_raises_when_no_pair_satisfies_the_dte_policy(self) -> None:
         chain = fixtures.forward_factor_chain()
         near_expiration = fixtures.AS_OF_DATE + timedelta(days=5)
         too_short = (
-            ExpirationCycle(near_expiration, 5, True, False, fixtures.AS_OF_DATE, fixtures.EVIDENCE),
+            ExpirationCycle(
+                near_expiration, 5, True, False, fixtures.AS_OF_DATE, fixtures.EVIDENCE
+            ),
         )
         with pytest.raises(NoValidExpirationPairError):
             build_forward_factor_context(
@@ -46,6 +50,7 @@ class TestBuildForwardFactorContext:
                 fixtures.AS_OF_DATE,
                 front_strike=Decimal("105"),
                 back_strike=Decimal("105"),
+                earnings_eligible=True,
             )
 
     def test_looks_up_front_and_back_iv_at_their_own_distinct_strikes(self) -> None:
@@ -81,6 +86,7 @@ class TestBuildForwardFactorContext:
             fixtures.AS_OF_DATE,
             front_strike=Decimal("105"),
             back_strike=Decimal("110"),
+            earnings_eligible=True,
         )
         values = dict(context.entries)
         assert values["forward_iv.front_iv"].value == Decimal("0.30")  # fixture_contract default

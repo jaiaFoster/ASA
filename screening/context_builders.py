@@ -33,6 +33,7 @@ from strategies.stonk_components import (
     EXPIRATION_CYCLE,
     OPTION_CHAIN,
     OPTION_CONTRACT,
+    B,
     D,
 )
 from strategies.type_system import ComponentValues, StrategyTypeReference, TypedValue
@@ -75,6 +76,7 @@ def build_forward_factor_context(
     *,
     front_strike: Decimal,
     back_strike: Decimal,
+    earnings_eligible: bool,
     option_type: OptionType = OptionType.CALL,
 ) -> ComponentValues:
     """front_strike/back_strike -- SPRINT-011-CLOSEOUT/CLOSE-001: previously
@@ -135,7 +137,8 @@ def build_forward_factor_context(
             "forward_iv.back_iv": (D, back_iv),
             "forward_iv.front_dte": (_INTEGER, int(front_dte)),
             "forward_iv.back_dte": (_INTEGER, int(back_dte)),
-            "factor.front_ex_earnings_iv": (D, front_iv),
+            "factor.front_iv": (D, front_iv),
+            "eligibility.left": (B, earnings_eligible),
         }
     )
 

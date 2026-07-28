@@ -290,6 +290,24 @@ class CapturingMultiExpirationFixtureProvider(MultiExpirationFixtureProvider):
         return super().fetch(request, budget)
 
 
+class UnconfirmedEarningsFixtureProvider(MultiExpirationFixtureProvider):
+    def _value(self, subject, address, observed_at, evidence):  # noqa: ANN001
+        value = super()._value(subject, address, observed_at, evidence)
+        if isinstance(value, EarningsEvent):
+            return EarningsEvent(
+                value.earnings_event_id,
+                value.security,
+                value.earnings_date,
+                value.announcement_time,
+                value.estimated_move,
+                False,
+                value.historical_sequence,
+                value.observed_at,
+                value.evidence,
+            )
+        return value
+
+
 def _no_transport(_provider_id: str) -> object:
     return object()
 
@@ -342,7 +360,10 @@ class TestSkewMomentumLiveNeedsMultipleStrikes:
             clock,
             strategy_ids=("skew_momentum",),
         )
-        assert result.outcome_status in (ScreeningOutcomeStatus.PASS, ScreeningOutcomeStatus.NO_SIGNAL)
+        assert result.outcome_status in (
+            ScreeningOutcomeStatus.PASS,
+            ScreeningOutcomeStatus.NO_SIGNAL,
+        )
         assert result.subject_identity == f"symbol:{SYMBOL}"
 
 
@@ -371,8 +392,23 @@ class TestForwardFactorAndEarningsCalendarNeedTwoExpirations:
             clock,
             strategy_ids=("forward_factor",),
         )
-        assert result.outcome_status in (ScreeningOutcomeStatus.PASS, ScreeningOutcomeStatus.NO_SIGNAL)
+        assert result.outcome_status in (
+            ScreeningOutcomeStatus.PASS,
+            ScreeningOutcomeStatus.NO_SIGNAL,
+        )
         assert result.subject_identity == f"symbol:{SYMBOL}"
+        assert result.signal_classification == "FAIL"
+
+    def test_unconfirmed_earnings_does_not_trigger_exclusion(self) -> None:
+        fulfillment, clock = _fulfillment(UnconfirmedEarningsFixtureProvider)
+        adapters = build_live_adapters(SYMBOL, fulfillment)
+        (result,) = run_screening(
+            TARGET_STRATEGY_REGISTRY,
+            adapters,
+            clock,
+            strategy_ids=("forward_factor",),
+        )
+        assert result.signal_classification in {"PASS", "WATCH"}
 
     def test_earnings_calendar_succeeds_against_the_two_expiration_fixture(self) -> None:
         fulfillment, clock = _fulfillment(MultiExpirationFixtureProvider)
@@ -383,7 +419,10 @@ class TestForwardFactorAndEarningsCalendarNeedTwoExpirations:
             clock,
             strategy_ids=("earnings_calendar",),
         )
-        assert result.outcome_status in (ScreeningOutcomeStatus.PASS, ScreeningOutcomeStatus.NO_SIGNAL)
+        assert result.outcome_status in (
+            ScreeningOutcomeStatus.PASS,
+            ScreeningOutcomeStatus.NO_SIGNAL,
+        )
         assert result.subject_identity == f"symbol:{SYMBOL}"
 
     def test_earnings_calendar_requests_the_complete_upcoming_policy_window(self) -> None:
@@ -428,7 +467,9 @@ class TestCapabilityNotOfferedByAnyEnabledProvider:
             for capability in provider.capabilities
             if capability is not MarketCapability.EARNINGS_CALENDAR_V1
         )
-        capability_registry = CapabilityRegistry(registry, ProviderPriorityPolicy("test-v1", priorities))
+        capability_registry = CapabilityRegistry(
+            registry, ProviderPriorityPolicy("test-v1", priorities)
+        )
         fulfillment = CapabilityFulfillmentService(registry, capability_registry, budget_manager)
         adapters = build_live_adapters(SYMBOL, fulfillment)
         (result,) = run_screening(
@@ -478,7 +519,10 @@ class TradierShapedMultiExpirationProvider(DeterministicFixtureProvider):
     def fetch(self, request, budget):  # noqa: ANN001
         if request.capability is MarketCapability.OPTION_CHAIN_V1:
             self.option_chain_requests.append(request.required_fields)
-            if "expirations" in request.required_fields and "contracts" not in request.required_fields:
+            if (
+                "expirations" in request.required_fields
+                and "contracts" not in request.required_fields
+            ):
                 return self._expirations_response(request)
             if "contracts" in request.required_fields:
                 return self._chain_response_for_one_expiration(request)
@@ -510,15 +554,21 @@ class TradierShapedMultiExpirationProvider(DeterministicFixtureProvider):
                 cycle,
                 "v1",
                 ProviderProvenance(self.provider_id, reference, evidence),
-                FreshnessMetadata(received_at, received_at, request.maximum_age_seconds, 0, FreshnessStatus.FRESH),
+                FreshnessMetadata(
+                    received_at, received_at, request.maximum_age_seconds, 0, FreshnessStatus.FRESH
+                ),
                 CompletenessMetadata(request.required_fields, request.required_fields, ()),
             )
             for cycle in (
-                ExpirationCycle(as_of + timedelta(days=days_out), days_out, False, True, as_of, evidence)
+                ExpirationCycle(
+                    as_of + timedelta(days=days_out), days_out, False, True, as_of, evidence
+                )
                 for days_out, _iv in _EXPIRATIONS_DAYS_OUT_AND_IV
             )
         )
-        return ProviderFetchResult(observations, None, (self._attempt(request, reference, received_at),))
+        return ProviderFetchResult(
+            observations, None, (self._attempt(request, reference, received_at),)
+        )
 
     def _chain_response_for_one_expiration(self, request):  # noqa: ANN001
         (subject,) = request.subjects
@@ -530,14 +580,19 @@ class TradierShapedMultiExpirationProvider(DeterministicFixtureProvider):
         days_out = (expiration - as_of).days
         iv = next(iv for offset_days, iv in _EXPIRATIONS_DAYS_OUT_AND_IV if offset_days == days_out)
         symbol = subject.canonical_instrument.display_symbol
-        security = Security(subject.canonical_instrument, symbol.upper(), SecurityAssetType.EQUITY, "XNAS")
+        security = Security(
+            subject.canonical_instrument, symbol.upper(), SecurityAssetType.EQUITY, "XNAS"
+        )
         evidence = (
-            EvidenceReference(EvidenceKind.OBSERVATION, f"test:tradier-shaped-chain:{expiration.isoformat()}"),
+            EvidenceReference(
+                EvidenceKind.OBSERVATION, f"test:tradier-shaped-chain:{expiration.isoformat()}"
+            ),
         )
         contracts = tuple(
             OptionContract(
                 CanonicalInstrumentIdentity(
-                    "fixture-option", f"{symbol}-{expiration.isoformat()}-{_SPOT + offset}-{kind.value}"
+                    "fixture-option",
+                    f"{symbol}-{expiration.isoformat()}-{_SPOT + offset}-{kind.value}",
                 ),
                 security,
                 expiration,
@@ -561,7 +616,11 @@ class TradierShapedMultiExpirationProvider(DeterministicFixtureProvider):
             for kind in (OptionType.CALL, OptionType.PUT)
         )
         chain = OptionChain(
-            f"test:tradier-shaped:{expiration.isoformat()}", security, received_at, contracts, evidence
+            f"test:tradier-shaped:{expiration.isoformat()}",
+            security,
+            received_at,
+            contracts,
+            evidence,
         )
         observation = MarketObservation(
             market_observation_identity(
@@ -574,7 +633,9 @@ class TradierShapedMultiExpirationProvider(DeterministicFixtureProvider):
             chain,
             "v1",
             ProviderProvenance(self.provider_id, reference, evidence),
-            FreshnessMetadata(received_at, received_at, request.maximum_age_seconds, 0, FreshnessStatus.FRESH),
+            FreshnessMetadata(
+                received_at, received_at, request.maximum_age_seconds, 0, FreshnessStatus.FRESH
+            ),
             CompletenessMetadata(request.required_fields, request.required_fields, ()),
         )
         return ProviderFetchResult(
@@ -589,7 +650,10 @@ class TestTwoStepLiveAcquisitionAgainstATradierShapedProvider:
         (result,) = run_screening(
             TARGET_STRATEGY_REGISTRY, adapters, clock, strategy_ids=("forward_factor",)
         )
-        assert result.outcome_status in (ScreeningOutcomeStatus.PASS, ScreeningOutcomeStatus.NO_SIGNAL)
+        assert result.outcome_status in (
+            ScreeningOutcomeStatus.PASS,
+            ScreeningOutcomeStatus.NO_SIGNAL,
+        )
 
     def test_skew_momentum_receives_its_one_required_expiration_chain(self) -> None:
         fulfillment, clock = _fulfillment(TradierShapedMultiExpirationProvider)
@@ -597,7 +661,10 @@ class TestTwoStepLiveAcquisitionAgainstATradierShapedProvider:
         (result,) = run_screening(
             TARGET_STRATEGY_REGISTRY, adapters, clock, strategy_ids=("skew_momentum",)
         )
-        assert result.outcome_status in (ScreeningOutcomeStatus.PASS, ScreeningOutcomeStatus.NO_SIGNAL)
+        assert result.outcome_status in (
+            ScreeningOutcomeStatus.PASS,
+            ScreeningOutcomeStatus.NO_SIGNAL,
+        )
 
     def test_forward_factor_makes_exactly_three_option_chain_requests(self) -> None:
         # One expirations-only request, one contracts request per selected
@@ -617,7 +684,9 @@ class TestTwoStepLiveAcquisitionAgainstATradierShapedProvider:
         capability_registry = build_capability_registry(registry)
         fulfillment = CapabilityFulfillmentService(registry, capability_registry, budget_manager)
         adapters = build_live_adapters(SYMBOL, fulfillment)
-        run_screening(TARGET_STRATEGY_REGISTRY, adapters, shared_clock, strategy_ids=("forward_factor",))
+        run_screening(
+            TARGET_STRATEGY_REGISTRY, adapters, shared_clock, strategy_ids=("forward_factor",)
+        )
         assert len(provider.option_chain_requests) == 3
         assert provider.option_chain_requests[0] == ("expirations",)
         assert all(request == ("contracts",) for request in provider.option_chain_requests[1:])
@@ -631,7 +700,9 @@ class TestTwoStepLiveAcquisitionAgainstATradierShapedProvider:
         class _BackExpirationFailsProvider(TradierShapedMultiExpirationProvider):
             def _chain_response_for_one_expiration(self, request):  # noqa: ANN001
                 (subject,) = request.subjects
-                projection = subject.projection_for(self.provider_id, "expiration", request.effective_end)
+                projection = subject.projection_for(
+                    self.provider_id, "expiration", request.effective_end
+                )
                 expiration = date.fromisoformat(projection.address_value)
                 if (expiration - self._dependencies.clock.now().date()).days >= 49:
                     reference = self._request_reference(request)
@@ -643,7 +714,9 @@ class TestTwoStepLiveAcquisitionAgainstATradierShapedProvider:
                         request.capability,
                         reference,
                     )
-                    return ProviderFetchResult((), error, (self._attempt(request, reference, received_at),))
+                    return ProviderFetchResult(
+                        (), error, (self._attempt(request, reference, received_at),)
+                    )
                 return super()._chain_response_for_one_expiration(request)
 
         fulfillment, clock = _fulfillment(_BackExpirationFailsProvider)
@@ -707,11 +780,17 @@ class TestAcquisitionErrorClassificationEndToEnd:
             for capability in provider.capabilities
             if capability is not MarketCapability.EARNINGS_CALENDAR_V1
         )
-        capability_registry = CapabilityRegistry(registry, ProviderPriorityPolicy("test-v1", priorities))
+        capability_registry = CapabilityRegistry(
+            registry, ProviderPriorityPolicy("test-v1", priorities)
+        )
         fulfillment = CapabilityFulfillmentService(registry, capability_registry, budget_manager)
         try:
             _acquire_or_raise(
-                fulfillment, SYMBOL, MarketCapability.EARNINGS_CALENDAR_V1, shared_clock.now(), ("earnings_date",)
+                fulfillment,
+                SYMBOL,
+                MarketCapability.EARNINGS_CALENDAR_V1,
+                shared_clock.now(),
+                ("earnings_date",),
             )
             raise AssertionError("expected StrategyAdapterError")
         except StrategyAdapterError as error:
