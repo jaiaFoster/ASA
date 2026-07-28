@@ -1,6 +1,6 @@
 # ASA-ARCH-003: Strategy Composition Architecture
 
-**Status:** Proposed — Founder merge required
+**Status:** Accepted — SPRINT-012 integrity amendment pending Founder merge
 
 **Date:** 2026-07-21
 
@@ -29,7 +29,9 @@ mechanism inside the Strategy Layer, not a new pipeline stage.
    manifest and is the sole source of strategy execution.
 3. **Core** owns manifest validation, type checking, deterministic graph ordering, orchestration,
    tracing, replay verification, and the closed expression evaluator.
-4. **Components** own bounded financial transformations expressed through typed, immutable values.
+4. **Components** own bounded strategy composition and judgment. Shared reusable
+   financial transformations are named Derived Facts or Indicators and are
+   consumed, not privately duplicated, by components.
 5. **Plugins** may contribute additional component types through explicit static registration.
    They cannot alter Core, choose execution order, bypass validation, or add runtime behavior.
 6. The visual editor is a possible future manifest-authoring interface. It has no special runtime
@@ -55,15 +57,20 @@ Canonical Facts + Indicators
  Guardrails → Ranking → operational analytical pipeline
 ```
 
-The runtime may consume only immutable Canonical Facts, Indicators, explicit evaluation context,
+The runtime may consume only immutable Canonical Facts, named Derived Facts, Indicators, explicit evaluation context,
 manifest parameters, and upstream values produced by nodes in the same graph. It must not access
 providers, Observations, repositories, infrastructure, presentation, brokers, filesystems,
 networks, clocks, environment variables, random sources, language models, or mutable global state.
 
 The runtime does not replace Indicators, Guardrails, Ranking, Position Proposal, Portfolio, or
-Execution Planning. A component may select and transform established knowledge to produce a
+Execution Planning. A component may select and combine established knowledge to produce a
 candidate Opportunity; it may not privately recreate a shared Indicator or embed platform-owned
 Guardrail policy.
+
+ADR-010 defines the binding production package topology.
+`StrategyManifest` remains the sole authored authority. A
+`StrategyContract` is a mechanically validated runtime projection and cannot
+independently redefine manifest identity, version, or market capabilities.
 
 ## Canonical Terms
 

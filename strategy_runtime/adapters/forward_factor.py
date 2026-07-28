@@ -53,6 +53,10 @@ FORWARD_FACTOR_CONTRACT = StrategyContract(
         DataRequirement(
             RequirementCategory.OPTION_DATA, capabilities=(MarketCapability.OPTION_CHAIN_V1,)
         ),
+        DataRequirement(
+            RequirementCategory.EARNINGS,
+            capabilities=(MarketCapability.EARNINGS_CALENDAR_V1,),
+        ),
     ),
     lifecycle=NO_LIFECYCLE,
     structure=StructureKind.CALENDAR,

@@ -46,9 +46,9 @@ def test_migrated_strategy_modules_do_not_inject_or_load_legacy_paths() -> None:
 
 def test_supported_boundary_is_four_canonical_manifests_not_legacy_services() -> None:
     assert tuple(manifest.strategy_id for manifest in STONK_STRATEGY_MANIFESTS) == (
-        "asa.stonk.earnings_calendar",
-        "asa.stonk.skew_momentum_vertical",
-        "asa.stonk.forward_factor_calendar",
+        "earnings_calendar",
+        "skew_momentum",
+        "forward_factor",
         "asa.stonk.stock_momentum",
     )
     assert not (ROOT / "legacy").exists()

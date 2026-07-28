@@ -13,6 +13,32 @@ This ADR assumes repository organization is ordinarily an Architect-level engine
 
 ## Decision
 
+### Production strategy topology amendment (SPRINT-012)
+
+ADR-010 extends this repository map for packages added after ADR-004:
+
+- `market_data/` is the provider-neutral fact acquisition/normalization
+  boundary used by production screening. Provider SDK objects never escape it.
+- `analytics/` owns ephemeral named Derived Facts: pure, reusable,
+  formula-versioned calculations over canonical values.
+- `indicators/` retains durable/versioned cross-run Derived Indicators. One
+  formula may not exist in both `analytics/` and `indicators/`.
+- `screening/` orchestrates declared acquisition, analytics invocation, and
+  graph execution. It owns no financial formula, score normalization, or
+  verdict reinterpretation.
+- `strategy_runtime/` owns generic execution isolation, persistence, replay,
+  and API projection. It contains no strategy-named branches.
+
+The production dependency direction is:
+
+```text
+market_data → analytics → strategies → screening → strategy_runtime → asa
+```
+
+This operational chain does not relax the original intelligence-layer
+restrictions: strategies still cannot import providers or observation
+infrastructure, and reusable calculation ownership remains singular.
+
 The repository is organized into one top-level module per pipeline layer, plus one shared module for cross-cutting domain types:
 
 - `providers/` — Provider adapters (ADR-002). Owns all Provider-specific fetching, normalization, and retry logic.

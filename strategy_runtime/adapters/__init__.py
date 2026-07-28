@@ -37,6 +37,7 @@ from strategy_runtime.adapters.skew_momentum_vertical import (
     skew_momentum_adapter,
 )
 from strategy_runtime.catalog import SignalCatalogEntry
+from strategy_runtime.manifest_contract import validate_manifest_contract
 from strategy_runtime.registry import StrategyRegistry
 from strategy_runtime.result import UniversalScreeningResult
 
@@ -49,6 +50,13 @@ def build_migrated_strategy_registry() -> StrategyRegistry[UniversalScreeningRes
     one shared runtime" success criterion is assembled and directly
     checkable (see tests/strategy_runtime/adapters/test_registry.py).
     """
+    pairs = (
+        (FORWARD_FACTOR_CALENDAR_MANIFEST, FORWARD_FACTOR_CONTRACT),
+        (SKEW_MOMENTUM_VERTICAL_MANIFEST, SKEW_MOMENTUM_VERTICAL_CONTRACT),
+        (EARNINGS_CALENDAR_MANIFEST, EARNINGS_CALENDAR_CONTRACT),
+    )
+    for manifest, contract in pairs:
+        validate_manifest_contract(manifest, contract)
     return StrategyRegistry(
         (
             (FORWARD_FACTOR_CONTRACT, forward_factor_adapter),

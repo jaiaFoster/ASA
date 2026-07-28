@@ -28,7 +28,7 @@ from strategies.errors import (
 
 MANIFEST_IDENTITY_NAMESPACE = "asa.strategy_manifest"
 MANIFEST_IDENTITY_VERSION = "v1"
-SUPPORTED_MANIFEST_SCHEMA_VERSIONS = frozenset({"1.0.0"})
+SUPPORTED_MANIFEST_SCHEMA_VERSIONS = frozenset({"1.0.0", "1.1.0"})
 
 _IDENTIFIER_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_.-]*$")
 _SEMVER_RE = re.compile(
@@ -297,6 +297,9 @@ class StrategyManifest:
     edges: tuple[EdgeSpec, ...]
     outputs: tuple[OutputSpec, ...]
     events: tuple[EventBinding, ...] = field(default_factory=tuple)
+    required_market_capabilities: tuple[CapabilityRequirement, ...] = field(
+        default_factory=tuple
+    )
 
     def __post_init__(self) -> None:
         _require_semver(self.schema_version, "schema_version")
@@ -309,6 +312,7 @@ class StrategyManifest:
 
         parameters = tuple(sorted(self.parameters, key=lambda item: item.name))
         capabilities = tuple(sorted(self.required_capabilities))
+        market_capabilities = tuple(sorted(self.required_market_capabilities))
         nodes = tuple(sorted(self.nodes, key=lambda item: item.node_id))
         edges = tuple(sorted(self.edges))
         outputs = tuple(sorted(self.outputs))
@@ -319,6 +323,14 @@ class StrategyManifest:
             tuple(item.name for item in capabilities),
             "manifest.required_capabilities",
         )
+        _require_unique(
+            tuple(item.name for item in market_capabilities),
+            "manifest.required_market_capabilities",
+        )
+        if self.schema_version == "1.0.0" and market_capabilities:
+            raise ManifestValidationError(
+                "required_market_capabilities requires manifest schema 1.1.0"
+            )
         _require_unique(tuple(item.node_id for item in nodes), "manifest.nodes")
         if len(edges) != len(set(edges)):
             raise ManifestValidationError("manifest.edges contains duplicate edges")
@@ -333,6 +345,9 @@ class StrategyManifest:
 
         object.__setattr__(self, "parameters", parameters)
         object.__setattr__(self, "required_capabilities", capabilities)
+        object.__setattr__(
+            self, "required_market_capabilities", market_capabilities
+        )
         object.__setattr__(self, "nodes", nodes)
         object.__setattr__(self, "edges", edges)
         object.__setattr__(self, "outputs", outputs)
@@ -365,7 +380,7 @@ def _parameter_to_data(parameter: ParameterSpec) -> dict[str, object]:
 
 
 def _semantic_manifest_data(manifest: StrategyManifest) -> dict[str, object]:
-    return {
+    data: dict[str, object] = {
         "schema_version": manifest.schema_version,
         "strategy_id": manifest.strategy_id,
         "strategy_version": manifest.strategy_version,
@@ -407,6 +422,12 @@ def _semantic_manifest_data(manifest: StrategyManifest) -> dict[str, object]:
             for item in manifest.events
         ],
     }
+    if manifest.schema_version == "1.1.0":
+        data["required_market_capabilities"] = [
+            {"name": item.name, "version": item.version}
+            for item in manifest.required_market_capabilities
+        ]
+    return data
 
 
 def manifest_to_data(manifest: StrategyManifest) -> dict[str, object]:
@@ -522,7 +543,7 @@ def _parse_manifest_data(root: dict[str, object]) -> StrategyManifest:
         "outputs",
         "events",
     }
-    _reject_unknown(root, required, set(), "$")
+    _reject_unknown(root, required, {"required_market_capabilities"}, "$")
 
     metadata_data = _require_object(root["metadata"], "$.metadata")
     _reject_unknown(metadata_data, {"name", "description", "tags"}, set(), "$.metadata")
@@ -548,6 +569,23 @@ def _parse_manifest_data(root: dict[str, object]) -> StrategyManifest:
         item = _require_object(raw, path)
         _reject_unknown(item, {"name", "version"}, set(), path)
         capabilities.append(
+            CapabilityRequirement(
+                name=_require_string(item["name"], f"{path}.name"),
+                version=_require_string(item["version"], f"{path}.version"),
+            )
+        )
+
+    market_capabilities: list[CapabilityRequirement] = []
+    for index, raw in enumerate(
+        _require_array(
+            root.get("required_market_capabilities", []),
+            "$.required_market_capabilities",
+        )
+    ):
+        path = f"$.required_market_capabilities[{index}]"
+        item = _require_object(raw, path)
+        _reject_unknown(item, {"name", "version"}, set(), path)
+        market_capabilities.append(
             CapabilityRequirement(
                 name=_require_string(item["name"], f"{path}.name"),
                 version=_require_string(item["version"], f"{path}.version"),
@@ -652,6 +690,7 @@ def _parse_manifest_data(root: dict[str, object]) -> StrategyManifest:
         edges=tuple(edges),
         outputs=tuple(outputs),
         events=tuple(events),
+        required_market_capabilities=tuple(market_capabilities),
     )
 
 
