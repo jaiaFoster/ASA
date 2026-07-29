@@ -39,11 +39,11 @@ from strategy_runtime.result import UniversalScreeningResult, compute_observatio
 
 FORWARD_FACTOR_CONTRACT = StrategyContract(
     strategy_id="forward_factor",
-    version="1.2.0",
+    version="1.2.1",
     category="options_volatility",
     description=(
         "Raw-front-IV forward factor with confirmed-earnings exclusion and "
-        "a liquidity-complete delta-selected double calendar."
+        "a common-strike, liquidity-complete delta-selected double calendar."
     ),
     requirements=(
         DataRequirement(

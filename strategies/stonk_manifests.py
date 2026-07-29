@@ -21,10 +21,12 @@ def _node(
     namespace: str,
     component: str,
     parameters: tuple[ParameterSpec, ...] = (),
+    *,
+    component_version: str = "1.0.0",
 ) -> NodeSpec:
     return NodeSpec(
         node_id,
-        ComponentReference(namespace, component, "1.0.0"),
+        ComponentReference(namespace, component, component_version),
         parameters,
     )
 
@@ -360,7 +362,7 @@ SKEW_MOMENTUM_VERTICAL_MANIFEST = StrategyManifest(
 FORWARD_FACTOR_CALENDAR_MANIFEST = StrategyManifest(
     "1.1.0",
     "forward_factor",
-    "1.2.0",
+    "1.2.1",
     ManifestMetadata(
         "Forward Factor Calendar",
         "Raw-front-IV forward factor with confirmed-earnings exclusion and "
@@ -394,6 +396,7 @@ FORWARD_FACTOR_CALENDAR_MANIFEST = StrategyManifest(
                 _parameter("put_delta_target", "Decimal", "-0.35"),
                 _parameter("call_delta_target", "Decimal", "0.35"),
             ),
+            component_version="1.0.1",
         ),
         _node("forward_iv", "asa.stonk.options", "implied_forward_volatility"),
         _node("factor", "asa.stonk.options", "forward_factor"),
