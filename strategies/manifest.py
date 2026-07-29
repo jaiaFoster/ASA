@@ -18,7 +18,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
 from decimal import Decimal, InvalidOperation
 from enum import StrEnum
-from typing import Any, NoReturn, cast
+from typing import Any, NoReturn, TypeAlias, cast
 
 from strategies.errors import (
     ManifestSerializationError,
@@ -40,8 +40,10 @@ _SEMVER_RE = re.compile(
     r"(?:\+([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$"
 )
 
-type ManifestScalar = None | bool | int | str
-type ManifestValue = ManifestScalar | tuple[ManifestValue, ...] | ManifestObject
+ManifestScalar: TypeAlias = None | bool | int | str  # noqa: UP040
+ManifestValue: TypeAlias = (  # noqa: UP040
+    "ManifestScalar | tuple[ManifestValue, ...] | ManifestObject"
+)
 
 
 class LifecycleEvent(StrEnum):
