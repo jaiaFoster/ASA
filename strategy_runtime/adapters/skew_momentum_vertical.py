@@ -40,10 +40,10 @@ from strategy_runtime.result import UniversalScreeningResult, compute_observatio
 
 SKEW_MOMENTUM_VERTICAL_CONTRACT = StrategyContract(
     strategy_id="skew_momentum",
-    version="1.0.0",
+    version="2.0.0-research",
     category="options_momentum",
     description=(
-        "Delta-selected vertical with explicit liquidity inputs, debit, score, and verdict."
+        "Two-sided skew and volatility-value gates with three-dimension momentum alignment."
     ),
     requirements=(
         DataRequirement(

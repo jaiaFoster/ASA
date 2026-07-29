@@ -38,6 +38,7 @@ Plugin SDK.
 | `asa.stonk.options` | `calendar_structure` | Construct a same-strike, front-short/back-long canonical calendar |
 | `asa.stonk.options` | `nearest_common_strike_calendar` | Select the common strike nearest an explicit target and construct a calendar |
 | `asa.stonk.options` | `vertical_structure` | Construct a distinct-strike, same-expiry delta-selected debit vertical |
+| `asa.stonk.options` | `skew_momentum_research_decision` | Apply the versioned two-sided skew, volatility-value, momentum-alignment, liquidity, and missing-evidence policy |
 | `asa.stonk.options` | `double_calendar_structure` | Compose canonical put and call calendars as a typed tuple |
 | `asa.stonk.options` | `option_structure_collection_liquidity` | Require coherent quoted liquidity evidence on every selected leg |
 | `asa.stonk.options` | `earnings_calendar_liquidity` | Apply quote/open-interest gates and emit LOW/ADEQUATE/HIGH/UNKNOWN volume evidence |

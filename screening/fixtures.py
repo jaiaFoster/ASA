@@ -138,8 +138,42 @@ SKEW_EXPIRATION = date(2026, 8, 7)  # +16 days
 
 def skew_momentum_chain() -> OptionChain:
     contracts = (
-        fixture_contract("sm-call-100", SKEW_EXPIRATION, "100", OptionType.CALL, "0.55", "2"),
-        fixture_contract("sm-call-105", SKEW_EXPIRATION, "105", OptionType.CALL, "0.25", "1"),
+        fixture_contract(
+            "sm-call-100",
+            SKEW_EXPIRATION,
+            "100",
+            OptionType.CALL,
+            "0.50",
+            "2",
+            implied_volatility="0.20",
+        ),
+        fixture_contract(
+            "sm-call-105",
+            SKEW_EXPIRATION,
+            "105",
+            OptionType.CALL,
+            "0.25",
+            "2",
+            implied_volatility="0.30",
+        ),
+        fixture_contract(
+            "sm-put-100",
+            SKEW_EXPIRATION,
+            "100",
+            OptionType.PUT,
+            "-0.50",
+            "2",
+            implied_volatility="0.22",
+        ),
+        fixture_contract(
+            "sm-put-95",
+            SKEW_EXPIRATION,
+            "95",
+            OptionType.PUT,
+            "-0.25",
+            "2",
+            implied_volatility="0.28",
+        ),
     )
     return OptionChain(
         "screening-fixture-skew-chain", fixture_security(), OBSERVED_AT, contracts, EVIDENCE

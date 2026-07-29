@@ -6,6 +6,7 @@ from dataclasses import replace
 from datetime import timedelta
 from decimal import Decimal
 from pathlib import Path
+from typing import cast
 
 from domain import (
     ExpirationCollection,
@@ -14,6 +15,8 @@ from domain import (
     OptionType,
     SecurityCollection,
 )
+from screening import fixtures as screening_fixtures
+from screening.context_builders import build_skew_momentum_context
 from strategies import (
     CORE_COMPONENTS,
     EARNINGS_CALENDAR_MANIFEST,
@@ -36,7 +39,6 @@ from strategies.stonk_components import (
     EXPIRATION_COLLECTION,
     EXPIRATION_CYCLE,
     OPTION_CHAIN,
-    OPTION_CONTRACT,
     SECURITY_COLLECTION,
     D,
 )
@@ -73,18 +75,18 @@ def test_four_manifest_catalog_is_canonical_serializable_and_identity_pinned() -
     )
     expected = {
         "earnings_calendar": "27a570ccc830247d23c18069de9a20000ffccd8942874c79fe8ff22c841853ca",
-        "skew_momentum": "ee5b2e50a1eecaa9c09f3789ecb203a117d3334689cede490cfc71cf8772a999",
+        "skew_momentum": "3b71ead5141b4e3d6ebcd8c7e593ddad29f0b97357f54d94eef9c47a2c9b1496",
         "forward_factor": "9828747d2ab5f2028e13e91834cebb370e56f11921f69021c75c8ea8144dea4b",
         "asa.stonk.stock_momentum": (
             "456a84aa09ca73c65c32490ebaa270beb5b85db273e9d0c10d987f434e13047d"
         ),
     }
     graph_ids = {
-        "earnings_calendar": "c048e7078db407f9d1542c68eb548b3c2d3cc3c989112c27fdd28d08692c28f7",
-        "skew_momentum": "3ebe5f7abea8245234b2fa4a6dbc1d4c3d63a4c11f8cb47c65bdfa254915167f",
-        "forward_factor": "3bcfc4e3ac4bf176d39f3bfe733768c27e3e7d0986afa07ed856f95d68d51446",
+        "earnings_calendar": "5539646873b7e314c293385d7a1265f7df2ecade810c98ec172673147a579df1",
+        "skew_momentum": "6a0230283709a61d9d2606600e76e4858e8e9018de64b0917f9478235f6665e3",
+        "forward_factor": "2dabd6b687f9d3f5c234fdcdca9aa18dd97c62142beaac6c7d4223faf5bd1d78",
         "asa.stonk.stock_momentum": (
-            "8a7589344af97ea0a06a8f0c0cfe17d5f4ff0cc72c0716d7764cd98280ac8ffe"
+            "b271f594470d17175fd0126baa137faa71b44680ff7eb46274ea18553518a16c"
         ),
     }
     component_registry = registry()
@@ -166,28 +168,128 @@ def test_earnings_calendar_manifest_executes_and_replays() -> None:
 
 
 def test_skew_vertical_manifest_executes_without_portfolio_or_provider_context() -> None:
-    option_chain = chain()
+    base_chain = chain()
+    option_chain = replace(
+        base_chain,
+        contracts=tuple(
+            replace(
+                item,
+                bid=cast(Decimal, item.mark) - Decimal("0.05"),
+                ask=cast(Decimal, item.mark) + Decimal("0.05"),
+            )
+            for item in base_chain.contracts
+        ),
+    )
     execution_context = context(
         **{
-            "vertical.chain": (OPTION_CHAIN, option_chain),
-            "vertical.expiration": (DATE, FRONT),
-            "liquidity.contract": (
-                OPTION_CONTRACT,
-                option_chain.find(
-                    expiration=FRONT,
-                    strike=Decimal("100"),
-                    option_type=OptionType.CALL,
-                )[0],
+            "decision.chain": (OPTION_CHAIN, option_chain),
+            "decision.expiration": (DATE, FRONT),
+            "decision.normalized_call_skew": (D, Decimal("0.5")),
+            "decision.normalized_put_skew": (D, Decimal("0.2")),
+            "decision.call_skew_zscore": (
+                StrategyTypeReference("Optional", "1.0.0", (D,)),
+                Decimal("-2.1"),
             ),
-            "score.values": (DECIMAL_LIST, (Decimal("80"), Decimal("70"))),
-            "score.weights": (DECIMAL_LIST, (Decimal("2"), Decimal("1"))),
+            "decision.put_skew_zscore": (
+                StrategyTypeReference("Optional", "1.0.0", (D,)),
+                Decimal("-1"),
+            ),
+            "decision.historical_valid_observations": (
+                StrategyTypeReference("Integer", "1.0.0"),
+                60,
+            ),
+            "decision.call_atm_iv_minus_rv": (D, Decimal("-0.01")),
+            "decision.put_atm_iv_minus_rv": (D, Decimal("0.01")),
+            "decision.call_wing_iv_minus_rv": (D, Decimal("0.09")),
+            "decision.put_wing_iv_minus_rv": (D, Decimal("0.07")),
+            "decision.call_wing_iv_minus_atm_iv": (D, Decimal("0.1")),
+            "decision.put_wing_iv_minus_atm_iv": (D, Decimal("0.06")),
+            "decision.time_series_return": (D, Decimal("0.05")),
+            "decision.cross_sectional_percentile": (
+                StrategyTypeReference("Optional", "1.0.0", (D,)),
+                Decimal("0.8"),
+            ),
+            "decision.comparison_peer_count": (
+                StrategyTypeReference("Integer", "1.0.0"),
+                5,
+            ),
+            "decision.sector_relative_return": (
+                StrategyTypeReference("Optional", "1.0.0", (D,)),
+                Decimal("-0.01"),
+            ),
         }
     )
     graph = compile_strategy_graph(SKEW_MOMENTUM_VERTICAL_MANIFEST, registry())
     result = execute_strategy_graph(graph, execution_context)
     assert result.outputs.get("structure").value.identity
-    assert result.outputs.get("liquid").value is True
+    assert result.outputs.get("liquidity_acceptable").value is True
+    assert result.outputs.get("direction").value == "BULLISH"
+    assert result.outputs.get("momentum_alignment_count").value == 2
     assert result.outputs.get("verdict").value == "PASS"
+
+
+def _execute_skew_policy(**overrides: object) -> ComponentValues:
+    inputs: dict[str, object] = {
+        "normalized_call_skew": Decimal("0.5"),
+        "normalized_put_skew": Decimal("0.3"),
+        "call_skew_zscore": Decimal("-2.1"),
+        "put_skew_zscore": Decimal("-1"),
+        "historical_valid_observations": 60,
+        "call_atm_iv_minus_rv": Decimal("-0.01"),
+        "put_atm_iv_minus_rv": Decimal("0.01"),
+        "call_wing_iv_minus_rv": Decimal("0.09"),
+        "put_wing_iv_minus_rv": Decimal("0.07"),
+        "call_wing_iv_minus_atm_iv": Decimal("0.1"),
+        "put_wing_iv_minus_atm_iv": Decimal("0.06"),
+        "time_series_return": Decimal("0.05"),
+        "cross_sectional_percentile": Decimal("0.8"),
+        "comparison_peer_count": 5,
+        "sector_relative_return": Decimal("-0.01"),
+    }
+    inputs.update(overrides)
+    execution_context = build_skew_momentum_context(
+        screening_fixtures.skew_momentum_chain(),
+        screening_fixtures.SKEW_EXPIRATION,
+        **inputs,  # type: ignore[arg-type]
+    )
+    return execute_strategy_graph(
+        compile_strategy_graph(SKEW_MOMENTUM_VERTICAL_MANIFEST, registry()),
+        execution_context,
+    ).outputs
+
+
+def test_skew_research_policy_boundaries_and_unknown_evidence() -> None:
+    assert _execute_skew_policy(call_atm_iv_minus_rv=Decimal("0")).get("verdict").value == "PASS"
+    assert (
+        _execute_skew_policy(historical_valid_observations=39).get("verdict").value
+        == "WATCH"
+    )
+    assert _execute_skew_policy(comparison_peer_count=4).get("verdict").value == "WATCH"
+    assert (
+        _execute_skew_policy(
+            put_skew_zscore=Decimal("-2"),
+            put_atm_iv_minus_rv=Decimal("0"),
+        )
+        .get("verdict")
+        .value
+        == "WATCH"
+    )
+    bearish = _execute_skew_policy(
+        call_skew_zscore=Decimal("-1"),
+        call_atm_iv_minus_rv=Decimal("0.01"),
+        put_skew_zscore=Decimal("-2"),
+        put_atm_iv_minus_rv=Decimal("0"),
+        time_series_return=Decimal("-0.05"),
+        cross_sectional_percentile=Decimal("0.30"),
+        sector_relative_return=Decimal("0.01"),
+    )
+    assert bearish.get("direction").value == "BEARISH"
+    assert bearish.get("momentum_alignment_count").value == 2
+    assert bearish.get("verdict").value == "PASS"
+    assert (
+        _execute_skew_policy(call_wing_iv_minus_rv=Decimal("0")).get("verdict").value
+        == "FAIL"
+    )
 
 
 def _forward_chain() -> tuple[OptionChain, ExpirationCollection]:

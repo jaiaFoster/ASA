@@ -1,7 +1,7 @@
 # Skew Momentum canonical evidence
 
-WS5 consumes provider-neutral evidence. Provider payloads, universe selection,
-lookback selection, and verdict policy are not part of these contracts.
+WS5 consumes provider-neutral evidence. Provider payloads and universe
+acquisition are not part of these contracts.
 
 ## Canonical inputs
 
@@ -36,8 +36,32 @@ Capability declarations remain provider-neutral:
 - comparison and sector returns derive from `historical_bars_v1`.
 
 The orchestration layer must supply already-selected histories and comparison
-members. Strategy adapters must not choose lookbacks, peer universes, sector
-members, thresholds, or weights.
+members. Strategy adapters must not choose peer universes or sector members.
+
+## Research policy v2
+
+The canonical manifest pins `2.0.0-research`. Historical stretch uses a
+60-observation z-score window with at least 40 valid observations and requires
+`z <= -2.0`. The ATM leg must be fair or cheap to realized volatility
+(`ATM IV - RV <= 0`); the wing must be rich to both realized volatility and
+ATM IV (`wing IV - RV > 0` and `wing IV - ATM IV > 0`).
+
+Momentum uses a 20-session return, same-instrument-class cross-sectional
+percentile from at least five configured screening-universe peers, and
+GICS-sector-relative return against the Select Sector SPDR benchmark. Each
+dimension has equal weight. Bullish alignment is respectively `> 0`, `>= 0.70`,
+and `> 0`; bearish alignment is `< 0`, `<= 0.30`, and `< 0`. Two of three
+dimensions are required for PASS.
+
+Core-gate failure is FAIL. Passing core gates with conflicting or incomplete
+momentum is WATCH. If both directional branches qualify, the result is WATCH.
+Missing evidence is UNKNOWN and never replaced by a proxy. Unsupported ETFs and
+missing-sector subjects therefore keep sector-relative evidence UNKNOWN.
+
+The current live adapter computes available option-chain, volatility, and
+20-session return facts. Until canonical history and configured-universe
+orchestration supplies z-scores, peer percentiles, and sector-relative returns,
+those inputs remain UNKNOWN; the adapter does not infer or fabricate them.
 
 ## Deterministic distribution vectors
 

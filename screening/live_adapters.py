@@ -624,51 +624,82 @@ def build_live_skew_momentum_adapter(
                 expiration=nearest.expiration_date,
             ),
         )
-        strike = select_atm_strike_at_expiration(
+        call_strike = select_atm_strike_at_expiration(
             chain,
             nearest.expiration_date,
             spot_price,
             OptionType.CALL,
         )
-        (atm_contract,) = chain.find(
-            expiration=nearest.expiration_date, strike=strike, option_type=OptionType.CALL
+        put_strike = select_atm_strike_at_expiration(
+            chain,
+            nearest.expiration_date,
+            spot_price,
+            OptionType.PUT,
         )
-        wing_contract = select_nearest_delta_contract(
+        (call_atm,) = chain.find(
+            expiration=nearest.expiration_date,
+            strike=call_strike,
+            option_type=OptionType.CALL,
+        )
+        (put_atm,) = chain.find(
+            expiration=nearest.expiration_date,
+            strike=put_strike,
+            option_type=OptionType.PUT,
+        )
+        call_wing = select_nearest_delta_contract(
             chain,
             nearest.expiration_date,
             OptionType.CALL,
             Decimal("0.25"),
-            exclude_strike=strike,
+            exclude_strike=call_strike,
         )
-        if atm_contract.implied_volatility is None or wing_contract.implied_volatility is None:
+        put_wing = select_nearest_delta_contract(
+            chain,
+            nearest.expiration_date,
+            OptionType.PUT,
+            Decimal("-0.25"),
+            exclude_strike=put_strike,
+        )
+        contracts = (call_atm, put_atm, call_wing, put_wing)
+        if any(contract.implied_volatility is None for contract in contracts):
             raise StrategyAdapterError(
                 ScreeningOutcomeStatus.MISSING_DATA,
                 f"at-the-money or 25-delta wing contract for {symbol} has no implied_volatility",
             )
-        # Skew richness (Volatility Vibes, "How to Spot 10x Vertical
-        # Spreads BEFORE They Take Off", ~05:53): call skew = (ATM_IV -
-        # 25-delta_IV) / ATM_IV; a more negative value means the wing
-        # trades richer than the near-the-money leg. Inverted here (wing
-        # minus ATM, not normalized) so a positive richness score means
-        # "the wing we'd sell is rich" -- the sign the vertical's own
-        # long-ATM/short-wing structure (strategies/stonk_manifests.py's
-        # own frozen 0.50/0.25 delta targets, unchanged by this fix) is
-        # built to exploit.
-        skew_richness = normalize_richness(
-            compute_normalized_skew(
-                atm_contract.implied_volatility,
-                wing_contract.implied_volatility,
-            )
-        )
+        call_atm_iv = cast(Decimal, call_atm.implied_volatility)
+        put_atm_iv = cast(Decimal, put_atm.implied_volatility)
+        call_wing_iv = cast(Decimal, call_wing.implied_volatility)
+        put_wing_iv = cast(Decimal, put_wing.implied_volatility)
+        normalized_call_skew = compute_normalized_skew(call_atm_iv, call_wing_iv)
+        normalized_put_skew = compute_normalized_skew(put_atm_iv, put_wing_iv)
         closes = _acquire_daily_closes(fulfillment, symbol, now)
-        momentum_richness = normalize_richness(compute_trailing_return(closes))
+        realized_vol = compute_realized_volatility(closes)
+        if len(closes) < 21:
+            raise StrategyAdapterError(
+                ScreeningOutcomeStatus.MISSING_DATA,
+                "Skew Momentum requires 21 closes for a 20-session return",
+            )
+        time_series_return = compute_trailing_return(closes[-21:])
         context = build_skew_momentum_context(
             chain,
             nearest.expiration_date,
-            strike=strike,
-            option_type=OptionType.CALL,
-            normalized_skew_richness=skew_richness,
-            momentum_richness=momentum_richness,
+            normalized_call_skew=normalized_call_skew,
+            normalized_put_skew=normalized_put_skew,
+            # No canonical live history/universe source is wired yet.
+            # Founder policy requires UNKNOWN, never a proxy fallback.
+            call_skew_zscore=None,
+            put_skew_zscore=None,
+            historical_valid_observations=0,
+            call_atm_iv_minus_rv=compute_iv_realized_spread(call_atm_iv, realized_vol),
+            put_atm_iv_minus_rv=compute_iv_realized_spread(put_atm_iv, realized_vol),
+            call_wing_iv_minus_rv=compute_iv_realized_spread(call_wing_iv, realized_vol),
+            put_wing_iv_minus_rv=compute_iv_realized_spread(put_wing_iv, realized_vol),
+            call_wing_iv_minus_atm_iv=call_wing_iv - call_atm_iv,
+            put_wing_iv_minus_atm_iv=put_wing_iv - put_atm_iv,
+            time_series_return=time_series_return,
+            cross_sectional_percentile=None,
+            comparison_peer_count=0,
+            sector_relative_return=None,
         )
         graph = compile_strategy_graph(SKEW_MOMENTUM_VERTICAL_MANIFEST, _COMPONENT_REGISTRY)
         result = execute_strategy_graph(graph, context)
