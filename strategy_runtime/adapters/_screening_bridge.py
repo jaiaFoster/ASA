@@ -12,6 +12,8 @@ copy-pasted per strategy.
 
 from __future__ import annotations
 
+from decimal import Decimal
+
 from screening.results import ScreeningOutcomeStatus, ScreeningResult
 from strategy_runtime.result import EvaluationState, RowType, UniversalScreeningResult
 from strategy_runtime.values import TypedValue
@@ -35,6 +37,57 @@ def _provenance(result: ScreeningResult) -> tuple[str, ...]:
     return tuple(entries)
 
 
+def _typed_explanation_value(value: object) -> TypedValue:
+    if value is None:
+        return TypedValue.of_string("UNKNOWN")
+    if isinstance(value, bool):
+        return TypedValue.of_boolean(value)
+    if isinstance(value, int):
+        return TypedValue.of_integer(value)
+    if isinstance(value, Decimal):
+        return TypedValue.of_decimal(value)
+    return TypedValue.of_string(str(value))
+
+
+def _explanation_metrics(result: ScreeningResult) -> dict[str, TypedValue]:
+    explanation = result.explanation
+    if explanation is None:
+        return {}
+    metrics = {
+        f"fact.{name}": _typed_explanation_value(value)
+        for name, value in explanation.canonical_facts
+    }
+    metrics.update(
+        {
+            f"derived_fact.{name}": _typed_explanation_value(value)
+            for name, value in explanation.named_derived_facts
+        }
+    )
+    metrics.update(
+        {
+            f"formula_version.{name}": TypedValue.of_string(version)
+            for name, version in explanation.formula_versions
+        }
+    )
+    metrics.update(
+        {
+            f"gate.{name}": _typed_explanation_value(value)
+            for name, value in explanation.gate_results
+        }
+    )
+    if explanation.direction is not None:
+        metrics["decision.direction"] = TypedValue.of_string(explanation.direction)
+    if explanation.structure is not None:
+        metrics["decision.structure"] = TypedValue.of_string(explanation.structure)
+    metrics["decision.reason_codes"] = TypedValue.of_structured(
+        list(explanation.reason_codes)
+    )
+    metrics["decision.assumptions"] = TypedValue.of_structured(
+        list(explanation.assumptions)
+    )
+    return metrics
+
+
 def translate_screening_result(
     result: ScreeningResult,
     *,
@@ -53,7 +106,8 @@ def translate_screening_result(
     correctly.
     """
     is_success = result.outcome_status in _SUCCESS_OUTCOMES
-    metrics = (
+    metrics = _explanation_metrics(result)
+    metrics.update(
         {"strategy_native_score": TypedValue.of_decimal(result.strategy_native_score)}
         if result.strategy_native_score is not None
         else {}
@@ -73,7 +127,7 @@ def translate_screening_result(
         metrics=metrics,
         economics={},
         blockers=(result.failure_detail,) if result.failure_detail else (),
-        warnings=(),
+        warnings=result.explanation.warnings if result.explanation is not None else (),
         provenance=_provenance(result),
         observed_at=result.as_of,
     )

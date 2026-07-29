@@ -16,6 +16,13 @@ The production extension path is:
 5. Preserve facts, gates, reasons, provenance, and verdict through the generic
    universal result.
 
+Each public manifest output must declare its explanation role on `OutputSpec`:
+`fact`, `derived_fact`, `gate`, `direction`, `structure`, `score`, or `verdict`.
+A `derived_fact` also declares its canonical analytics `formula_id`. This
+metadata is part of manifest identity and is the only authority used by generic
+projection; runtime code must not infer financial meaning from output names or
+strategy IDs.
+
 Adapters must not define financial formulas, normalize scores, duplicate
 manifest parameters, read provider payloads, or perform hidden acquisition
 from inside strategy evaluation.

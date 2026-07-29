@@ -45,6 +45,27 @@ def result_to_dict(result: ScreeningResult) -> dict[str, Any]:
         "input_provenance": [_evidence_to_dict(item) for item in result.input_provenance],
         "completeness": _completeness_to_dict(result.completeness),
         "failure_detail": result.failure_detail,
+        "explanation": (
+            None
+            if result.explanation is None
+            else {
+                "canonical_facts": {
+                    key: None if value is None else str(value)
+                    for key, value in result.explanation.canonical_facts
+                },
+                "named_derived_facts": {
+                    key: None if value is None else str(value)
+                    for key, value in result.explanation.named_derived_facts
+                },
+                "formula_versions": dict(result.explanation.formula_versions),
+                "gate_results": dict(result.explanation.gate_results),
+                "direction": result.explanation.direction,
+                "structure": result.explanation.structure,
+                "reason_codes": list(result.explanation.reason_codes),
+                "assumptions": list(result.explanation.assumptions),
+                "warnings": list(result.explanation.warnings),
+            }
+        ),
     }
 
 

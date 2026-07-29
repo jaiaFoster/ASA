@@ -31,6 +31,13 @@ _OUTCOME_WIRE_VALUES = {
     EvaluationState.MALFORMED_OUTPUT: "malformed_output",
     EvaluationState.ADAPTER_EXCEPTION: "strategy_exception",
 }
+_EXPLANATION_PREFIXES = (
+    "fact.",
+    "derived_fact.",
+    "formula_version.",
+    "gate.",
+    "decision.",
+)
 
 
 def _wire_metrics(result: UniversalScreeningResult) -> dict[str, str]:
@@ -40,7 +47,29 @@ def _wire_metrics(result: UniversalScreeningResult) -> dict[str, str]:
     own Decimal.__str__ is stable under that round trip), so this is
     byte-identical to the pre-EPIC-R2 str(strategy_native_score) wire value.
     """
-    return {key: str(value.native()) for key, value in result.metrics.items()}
+    return {
+        key: str(value.native())
+        for key, value in result.metrics.items()
+        if not key.startswith(_EXPLANATION_PREFIXES)
+    }
+
+
+def _prefixed_values(
+    result: UniversalScreeningResult, prefix: str
+) -> dict[str, str]:
+    return {
+        key.removeprefix(prefix): str(value.native())
+        for key, value in result.metrics.items()
+        if key.startswith(prefix)
+    }
+
+
+def _decision_sequence(result: UniversalScreeningResult, key: str) -> list[str]:
+    metric = result.metrics.get(key)
+    if metric is None:
+        return []
+    native = metric.native()
+    return [str(item) for item in native] if isinstance(native, list) else []
 
 
 def _wire_values(result: dict[str, object]) -> dict[str, str]:
@@ -76,6 +105,8 @@ class ScreeningResultResponse(TimestampedResource):
     signal_version: str
     symbol: str
     outcome: str
+    evaluation_state: str
+    verdict: str | None
     explanation: str | None
     metrics: dict[str, str]
     observation_id: str | None = None
@@ -92,6 +123,14 @@ class ScreeningResultResponse(TimestampedResource):
     blockers: list[str] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
     provenance: list[str] = Field(default_factory=list)
+    canonical_facts: dict[str, str] = Field(default_factory=dict)
+    named_derived_facts: dict[str, str] = Field(default_factory=dict)
+    formula_versions: dict[str, str] = Field(default_factory=dict)
+    gate_results: dict[str, str] = Field(default_factory=dict)
+    direction: str | None = None
+    structure: str | None = None
+    reason_codes: list[str] = Field(default_factory=list)
+    assumptions: list[str] = Field(default_factory=list)
     observed_at: datetime
     received_at: datetime
     evaluated_at: datetime
@@ -132,7 +171,13 @@ class ScreeningResultResponse(TimestampedResource):
             signal_id=result.strategy_id,
             signal_version=result.strategy_version,
             symbol=result.symbol,
-            outcome=_OUTCOME_WIRE_VALUES[result.evaluation_state],
+            outcome=(
+                result.verdict.lower()
+                if result.verdict is not None
+                else _OUTCOME_WIRE_VALUES[result.evaluation_state]
+            ),
+            evaluation_state=_OUTCOME_WIRE_VALUES[result.evaluation_state],
+            verdict=result.verdict,
             explanation=_wire_explanation(result),
             metrics=_wire_metrics(result),
             observation_id=result.observation_id,
@@ -163,6 +208,22 @@ class ScreeningResultResponse(TimestampedResource):
             blockers=list(result.blockers),
             warnings=list(result.warnings),
             provenance=list(result.provenance),
+            canonical_facts=_prefixed_values(result, "fact."),
+            named_derived_facts=_prefixed_values(result, "derived_fact."),
+            formula_versions=_prefixed_values(result, "formula_version."),
+            gate_results=_prefixed_values(result, "gate."),
+            direction=(
+                str(result.metrics["decision.direction"].native())
+                if "decision.direction" in result.metrics
+                else None
+            ),
+            structure=(
+                str(result.metrics["decision.structure"].native())
+                if "decision.structure" in result.metrics
+                else None
+            ),
+            reason_codes=_decision_sequence(result, "decision.reason_codes"),
+            assumptions=_decision_sequence(result, "decision.assumptions"),
             updated_at=result.observed_at,
             age_seconds=canonical_age,
             observed_at=observed_at,

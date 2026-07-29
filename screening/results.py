@@ -5,16 +5,52 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
-from enum import Enum
+from enum import StrEnum
 
 from domain import EvidenceReference
 from domain.market_data import CompletenessMetadata
 from domain.values import require_tz_aware
 
 _FAILURE_DETAIL_MAX_LENGTH = 500
+ExplanationScalar = Decimal | int | bool | str | None
 
 
-class ScreeningOutcomeStatus(str, Enum):
+@dataclass(frozen=True, slots=True)
+class ScreeningExplanation:
+    """Immutable strategy-produced audit projection.
+
+    Values are names from the canonical manifest outputs.  Screening transports
+    them but never interprets their financial meaning.
+    """
+
+    canonical_facts: tuple[tuple[str, ExplanationScalar], ...] = ()
+    named_derived_facts: tuple[tuple[str, ExplanationScalar], ...] = ()
+    formula_versions: tuple[tuple[str, str], ...] = ()
+    gate_results: tuple[tuple[str, bool | None], ...] = ()
+    direction: str | None = None
+    structure: str | None = None
+    reason_codes: tuple[str, ...] = ()
+    assumptions: tuple[str, ...] = ()
+    warnings: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        for field_name in (
+            "canonical_facts",
+            "named_derived_facts",
+            "formula_versions",
+            "gate_results",
+        ):
+            entries = getattr(self, field_name)
+            keys = tuple(key for key, _ in entries)
+            if keys != tuple(sorted(keys)) or len(keys) != len(set(keys)):
+                raise ValueError(
+                    f"ScreeningExplanation.{field_name} must have unique sorted keys"
+                )
+        for value in (*self.reason_codes, *self.assumptions, *self.warnings):
+            _normalized_text(value, "ScreeningExplanation", "entry")
+
+
+class ScreeningOutcomeStatus(StrEnum):
     """The screening framework's own execution-level outcome for one
     strategy against one subject -- independent of the strategy's native
     signal classification, which is a separate field.
@@ -72,6 +108,7 @@ class ScreeningResult:
     input_provenance: tuple[EvidenceReference, ...]
     completeness: CompletenessMetadata | None
     failure_detail: str | None
+    explanation: ScreeningExplanation | None = None
 
     def __post_init__(self) -> None:
         for name in ("run_id", "strategy_id", "strategy_version", "subject_identity"):
@@ -101,8 +138,18 @@ class ScreeningResult:
                     "ScreeningResult must not carry strategy_native_score for a "
                     "non-success outcome_status"
                 )
+            if self.explanation is not None:
+                raise ValueError(
+                    "ScreeningResult must not carry explanation for a non-success "
+                    "outcome_status"
+                )
 
-        if self.outcome_status is ScreeningOutcomeStatus.PASS and self.signal_classification is None:
-            raise ValueError("ScreeningResult requires signal_classification for outcome_status PASS")
+        if (
+            self.outcome_status is ScreeningOutcomeStatus.PASS
+            and self.signal_classification is None
+        ):
+            raise ValueError(
+                "ScreeningResult requires signal_classification for outcome_status PASS"
+            )
         if self.signal_classification is not None:
             _normalized_text(self.signal_classification, "ScreeningResult", "signal_classification")

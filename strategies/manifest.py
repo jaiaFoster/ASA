@@ -15,10 +15,10 @@ import hashlib
 import json
 import re
 from dataclasses import dataclass, field
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal, InvalidOperation
-from enum import Enum
-from typing import Any, NoReturn, TypeAlias, cast
+from enum import StrEnum
+from typing import Any, NoReturn, cast
 
 from strategies.errors import (
     ManifestSerializationError,
@@ -40,11 +40,11 @@ _SEMVER_RE = re.compile(
     r"(?:\+([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$"
 )
 
-ManifestScalar: TypeAlias = None | bool | int | str
-ManifestValue: TypeAlias = "ManifestScalar | tuple[ManifestValue, ...] | ManifestObject"
+type ManifestScalar = None | bool | int | str
+type ManifestValue = ManifestScalar | tuple[ManifestValue, ...] | ManifestObject
 
 
-class LifecycleEvent(str, Enum):
+class LifecycleEvent(StrEnum):
     """Closed lifecycle vocabulary frozen by ASA-ARCH-003."""
 
     MANIFEST_VALIDATED = "manifest_validated"
@@ -150,7 +150,7 @@ def _canonical_instant_literal(value: ManifestValue, field_name: str) -> str:
         raise ManifestValidationError(f"{field_name} is not a valid ISO-8601 instant") from exc
     if parsed.tzinfo is None or parsed.utcoffset() is None:
         raise ManifestValidationError(f"{field_name} must include a timezone offset")
-    return parsed.astimezone(timezone.utc).isoformat()
+    return parsed.astimezone(UTC).isoformat()
 
 
 @dataclass(frozen=True, slots=True)
@@ -276,11 +276,32 @@ class OutputSpec:
     name: str
     node_id: str
     port: str
+    explanation_role: str = "value"
+    formula_id: str | None = None
 
     def __post_init__(self) -> None:
         _require_identifier(self.name, "output.name")
         _require_identifier(self.node_id, "output.node_id")
         _require_identifier(self.port, "output.port")
+        if self.explanation_role not in {
+            "value",
+            "fact",
+            "derived_fact",
+            "gate",
+            "direction",
+            "structure",
+            "score",
+            "verdict",
+        }:
+            raise ManifestValidationError(
+                "output.explanation_role must be a supported semantic role"
+            )
+        if self.formula_id is not None:
+            _require_identifier(self.formula_id, "output.formula_id")
+            if self.explanation_role != "derived_fact":
+                raise ManifestValidationError(
+                    "output.formula_id requires explanation_role derived_fact"
+                )
 
 
 @dataclass(frozen=True, slots=True)
@@ -379,6 +400,19 @@ def _parameter_to_data(parameter: ParameterSpec) -> dict[str, object]:
     }
 
 
+def _output_to_data(output: OutputSpec) -> dict[str, object]:
+    data: dict[str, object] = {
+        "name": output.name,
+        "node_id": output.node_id,
+        "port": output.port,
+    }
+    if output.explanation_role != "value":
+        data["explanation_role"] = output.explanation_role
+    if output.formula_id is not None:
+        data["formula_id"] = output.formula_id
+    return data
+
+
 def _semantic_manifest_data(manifest: StrategyManifest) -> dict[str, object]:
     data: dict[str, object] = {
         "schema_version": manifest.schema_version,
@@ -409,10 +443,7 @@ def _semantic_manifest_data(manifest: StrategyManifest) -> dict[str, object]:
             }
             for item in manifest.edges
         ],
-        "outputs": [
-            {"name": item.name, "node_id": item.node_id, "port": item.port}
-            for item in manifest.outputs
-        ],
+        "outputs": [_output_to_data(item) for item in manifest.outputs],
         "events": [
             {
                 "event": item.event.value,
@@ -642,12 +673,31 @@ def _parse_manifest_data(root: dict[str, object]) -> StrategyManifest:
     for index, raw in enumerate(_require_array(root["outputs"], "$.outputs")):
         path = f"$.outputs[{index}]"
         item = _require_object(raw, path)
-        _reject_unknown(item, {"name", "node_id", "port"}, set(), path)
+        _reject_unknown(
+            item,
+            {"name", "node_id", "port"},
+            {"explanation_role", "formula_id"},
+            path,
+        )
+        formula_id = item.get("formula_id")
+        if formula_id is not None and not isinstance(formula_id, str):
+            raise ManifestSerializationError(
+                f"{path}.formula_id must be a string or null"
+            )
         outputs.append(
             OutputSpec(
                 name=_require_string(item["name"], f"{path}.name"),
                 node_id=_require_string(item["node_id"], f"{path}.node_id"),
                 port=_require_string(item["port"], f"{path}.port"),
+                explanation_role=(
+                    _require_string(
+                        item["explanation_role"],
+                        f"{path}.explanation_role",
+                    )
+                    if "explanation_role" in item
+                    else "value"
+                ),
+                formula_id=formula_id,
             )
         )
 

@@ -9,7 +9,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from decimal import Decimal
 
-from screening.results import ScreeningOutcomeStatus, ScreeningResult
+from screening.results import ScreeningExplanation, ScreeningOutcomeStatus, ScreeningResult
 from strategy_runtime.adapters._screening_bridge import translate_screening_result
 from strategy_runtime.values import TypedValue, ValueType
 
@@ -63,3 +63,28 @@ class TestTranslateScreeningResult:
         )
 
         assert result.metrics == {}
+
+    def test_named_explanation_survives_the_generic_bridge(self) -> None:
+        explanation = ScreeningExplanation(
+            named_derived_facts=(("forward_factor", Decimal("0.20")),),
+            formula_versions=(("forward_factor", "1.0.0"),),
+            gate_results=(("eligible", True),),
+            direction="BULLISH",
+            structure="structure-1",
+            reason_codes=("verdict:pass",),
+            assumptions=("threshold=0.20",),
+            warnings=(),
+        )
+        result = translate_screening_result(
+            _screening_result(explanation=explanation),
+            symbol="AAPL",
+            observation_id="obs-1",
+            opportunity_id=None,
+            lifecycle_stage=None,
+        )
+
+        assert result.metrics["derived_fact.forward_factor"].native() == Decimal("0.20")
+        assert result.metrics["formula_version.forward_factor"].native() == "1.0.0"
+        assert result.metrics["gate.eligible"].native() is True
+        assert result.metrics["decision.direction"].native() == "BULLISH"
+        assert result.metrics["decision.reason_codes"].native() == ["verdict:pass"]

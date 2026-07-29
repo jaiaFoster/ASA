@@ -30,6 +30,7 @@ def _record(
     lifecycle_stage: str | None = None,
     recommendation_state: str | None = None,
     score: Decimal = Decimal("75"),
+    verdict: str = "PASS",
 ) -> UniversalSignalRow:
     return UniversalSignalRow(
         signal_id=signal_id,
@@ -38,7 +39,7 @@ def _record(
         observation_id=f"{signal_id}-{symbol}-obs",
         opportunity_id=opportunity_id,
         row_type=RowType.RESULT.value,
-        verdict="PASS",
+        verdict=verdict,
         evaluation_state=EvaluationState(outcome).value,
         lifecycle_stage=lifecycle_stage,
         recommendation_state=recommendation_state,
@@ -135,6 +136,39 @@ class TestListScreening:
         (result,) = response.json()["results"]
         assert result["updated_at"] is not None
         assert result["age_seconds"] >= 0
+
+    def test_watch_and_typed_explanation_survive_persistence_projection(self) -> None:
+        repository = InMemoryLatestResultRepository()
+        row = _record("forward_factor", "AAPL", verdict="WATCH")
+        row.metrics.update(
+            {
+                "derived_fact.forward_factor": TypedValue.of_decimal(Decimal("0.19")),
+                "formula_version.forward_factor": TypedValue.of_string("1.0.0"),
+                "gate.eligible": TypedValue.of_boolean(True),
+                "decision.direction": TypedValue.of_string("NEUTRAL"),
+                "decision.structure": TypedValue.of_string("structure-1"),
+                "decision.reason_codes": TypedValue.of_structured(
+                    ["verdict:watch"]
+                ),
+                "decision.assumptions": TypedValue.of_structured(
+                    ["threshold=0.20"]
+                ),
+            }
+        )
+        repository.upsert(row)
+
+        response = _client(repository).get("/api/v1/screening", headers=_auth())
+        (result,) = response.json()["results"]
+        assert result["outcome"] == "watch"
+        assert result["evaluation_state"] == "pass"
+        assert result["verdict"] == "WATCH"
+        assert result["canonical_facts"] == {}
+        assert result["named_derived_facts"] == {"forward_factor": "0.19"}
+        assert result["formula_versions"] == {"forward_factor": "1.0.0"}
+        assert result["gate_results"] == {"eligible": "True"}
+        assert result["direction"] == "NEUTRAL"
+        assert result["structure"] == "structure-1"
+        assert result["reason_codes"] == ["verdict:watch"]
 
     def test_pagination_limit_and_offset(self) -> None:
         repository = InMemoryLatestResultRepository()

@@ -38,6 +38,9 @@ class TestForwardFactorAdapter:
         assert result.signal_classification == "PASS"
         assert result.strategy_native_score is not None
         assert result.strategy_native_score > Decimal("0")
+        assert result.explanation is not None
+        assert dict(result.explanation.formula_versions)["forward_factor"] == "1.0.0"
+        assert dict(result.explanation.gate_results)["eligible"] is True
 
     def test_is_deterministic(self) -> None:
         first = run_forward_factor(_definition("forward_factor"), FixedClock(), "run-1")
@@ -52,6 +55,10 @@ class TestEarningsCalendarAdapter:
         assert result.outcome_status is ScreeningOutcomeStatus.PASS
         assert result.signal_classification == "PASS"
         assert result.strategy_native_score == Decimal("75")
+        assert result.explanation is not None
+        assert dict(result.explanation.named_derived_facts)["actual_gap_days"] == 30
+        assert dict(result.explanation.formula_versions)["actual_gap_days"] == "1.0.0"
+        assert dict(result.explanation.gate_results)["liquidity_acceptable"] is True
 
     def test_is_deterministic(self) -> None:
         first = run_earnings_calendar(_definition("earnings_calendar"), FixedClock(), "run-1")
@@ -66,6 +73,11 @@ class TestSkewMomentumAdapter:
         assert result.outcome_status is ScreeningOutcomeStatus.PASS
         assert result.signal_classification == "PASS"
         assert result.strategy_native_score is not None
+        assert result.explanation is not None
+        assert dict(result.explanation.gate_results)["bullish_core_gate"] is True
+        assert dict(result.explanation.named_derived_facts)["call_skew_zscore"] == Decimal("-2.1")
+        assert result.explanation.direction == "BULLISH"
+        assert result.explanation.structure
 
     def test_is_deterministic(self) -> None:
         first = run_skew_momentum(_definition("skew_momentum"), FixedClock(), "run-1")
