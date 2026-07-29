@@ -72,6 +72,7 @@ from screening.context_builders import (
     build_forward_factor_context,
     build_skew_momentum_context,
 )
+from screening.explanations import build_graph_explanation
 from screening.live_acquisition import acquire_capability
 from screening.live_context import (
     acquire_expirations,
@@ -93,8 +94,10 @@ from strategies import (
     compile_strategy_graph,
     execute_strategy_graph,
 )
+from strategies.manifest import StrategyManifest
 from strategies.plugins import build_plugin_registry
 from strategies.scoring import normalize_richness
+from strategies.type_system import ComponentValues
 
 _COMPONENT_REGISTRY = build_plugin_registry(CORE_COMPONENTS, STONK_STRATEGY_PLUGINS)
 _NON_FAIL_VERDICTS = frozenset({"PASS", "WATCH"})
@@ -129,10 +132,13 @@ def _live_result(
     clock: Clock,
     run_id: str,
     symbol: str,
-    verdict: object,
-    score: object,
+    manifest: StrategyManifest,
+    outputs: ComponentValues,
+    score_name: str,
     evidence: tuple[object, ...],
 ) -> ScreeningResult:
+    verdict = outputs.get("verdict").value
+    score = outputs.get(score_name).value
     verdict_text = str(verdict)
     return ScreeningResult(
         run_id,
@@ -147,6 +153,7 @@ def _live_result(
         evidence,  # type: ignore[arg-type]
         None,
         None,
+        build_graph_explanation(manifest, outputs),
     )
 
 
@@ -446,8 +453,9 @@ def build_live_forward_factor_adapter(
             clock,
             run_id,
             symbol,
-            result.outputs.get("verdict").value,
-            result.outputs.get("forward_factor").value,
+            FORWARD_FACTOR_CALENDAR_MANIFEST,
+            result.outputs,
+            "forward_factor",
             chain.evidence + (() if earnings_event is None else earnings_event.evidence),
         )
 
@@ -574,8 +582,9 @@ def build_live_earnings_calendar_adapter(
             clock,
             run_id,
             symbol,
-            result.outputs.get("verdict").value,
-            result.outputs.get("score").value,
+            EARNINGS_CALENDAR_MANIFEST,
+            result.outputs,
+            "score",
             chain.evidence,
         )
 
@@ -708,8 +717,9 @@ def build_live_skew_momentum_adapter(
             clock,
             run_id,
             symbol,
-            result.outputs.get("verdict").value,
-            result.outputs.get("score").value,
+            SKEW_MOMENTUM_VERTICAL_MANIFEST,
+            result.outputs,
+            "score",
             chain.evidence,
         )
 

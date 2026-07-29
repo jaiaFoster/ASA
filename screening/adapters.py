@@ -35,6 +35,7 @@ from screening.context_builders import (
     build_forward_factor_context,
     build_skew_momentum_context,
 )
+from screening.explanations import build_graph_explanation
 from screening.registry import ScreeningRegistry, ScreeningStrategyDefinition
 from screening.results import ScreeningOutcomeStatus, ScreeningResult
 from strategies import (
@@ -46,7 +47,9 @@ from strategies import (
     compile_strategy_graph,
     execute_strategy_graph,
 )
+from strategies.manifest import StrategyManifest
 from strategies.plugins import build_plugin_registry
+from strategies.type_system import ComponentValues
 
 _COMPONENT_REGISTRY = build_plugin_registry(CORE_COMPONENTS, STONK_STRATEGY_PLUGINS)
 _SUBJECT_IDENTITY = f"figi:figi-{fixtures.SAFE_SYMBOL}"
@@ -66,9 +69,12 @@ def _result_from_graph_execution(
     definition: ScreeningStrategyDefinition,
     clock: Clock,
     run_id: str,
-    verdict: object,
-    score: object,
+    manifest: StrategyManifest,
+    outputs: ComponentValues,
+    score_name: str,
 ) -> ScreeningResult:
+    verdict = outputs.get("verdict").value
+    score = outputs.get(score_name).value
     verdict_text = str(verdict)
     return ScreeningResult(
         run_id,
@@ -83,6 +89,7 @@ def _result_from_graph_execution(
         fixtures.EVIDENCE,
         None,
         None,
+        build_graph_explanation(manifest, outputs),
     )
 
 
@@ -105,8 +112,9 @@ def run_forward_factor(
         definition,
         clock,
         run_id,
-        result.outputs.get("verdict").value,
-        result.outputs.get("forward_factor").value,
+        FORWARD_FACTOR_CALENDAR_MANIFEST,
+        result.outputs,
+        "forward_factor",
     )
 
 
@@ -136,8 +144,9 @@ def run_earnings_calendar(
         definition,
         clock,
         run_id,
-        result.outputs.get("verdict").value,
-        result.outputs.get("score").value,
+        EARNINGS_CALENDAR_MANIFEST,
+        result.outputs,
+        "score",
     )
 
 
@@ -170,8 +179,9 @@ def run_skew_momentum(
         definition,
         clock,
         run_id,
-        result.outputs.get("verdict").value,
-        result.outputs.get("score").value,
+        SKEW_MOMENTUM_VERTICAL_MANIFEST,
+        result.outputs,
+        "score",
     )
 
 

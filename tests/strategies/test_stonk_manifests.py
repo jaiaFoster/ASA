@@ -74,17 +74,17 @@ def test_four_manifest_catalog_is_canonical_serializable_and_identity_pinned() -
         "asa.stonk.stock_momentum",
     )
     expected = {
-        "earnings_calendar": "27a570ccc830247d23c18069de9a20000ffccd8942874c79fe8ff22c841853ca",
-        "skew_momentum": "3b71ead5141b4e3d6ebcd8c7e593ddad29f0b97357f54d94eef9c47a2c9b1496",
-        "forward_factor": "9828747d2ab5f2028e13e91834cebb370e56f11921f69021c75c8ea8144dea4b",
+        "earnings_calendar": "a165405844d32da747950e2bbd088849bf375b839b79557cb859e6daf51fdd9e",
+        "skew_momentum": "47f0686f74f7687ce09e3f8c13ac5c3c032ff957fab8c801c59443b660ae4028",
+        "forward_factor": "afeec769ff76c5ae7bf78279c9770b4bbc0ad9956f5bef23c3d27ca8c0de0b1f",
         "asa.stonk.stock_momentum": (
             "456a84aa09ca73c65c32490ebaa270beb5b85db273e9d0c10d987f434e13047d"
         ),
     }
     graph_ids = {
-        "earnings_calendar": "5539646873b7e314c293385d7a1265f7df2ecade810c98ec172673147a579df1",
-        "skew_momentum": "6a0230283709a61d9d2606600e76e4858e8e9018de64b0917f9478235f6665e3",
-        "forward_factor": "2dabd6b687f9d3f5c234fdcdca9aa18dd97c62142beaac6c7d4223faf5bd1d78",
+        "earnings_calendar": "d6e3ef8beaecb79ae1593d5e3fc727e7268f65ae3f5dce30e0bf4f0083d61ec6",
+        "skew_momentum": "7a50328bbfcb8fe5cce355c36651b3bffb9bab6bff4c3907220480b9722be628",
+        "forward_factor": "7470c8acd6788128c80b8890a4f107e7475dba9c65442e1433a308547021dd5e",
         "asa.stonk.stock_momentum": (
             "b271f594470d17175fd0126baa137faa71b44680ff7eb46274ea18553518a16c"
         ),
