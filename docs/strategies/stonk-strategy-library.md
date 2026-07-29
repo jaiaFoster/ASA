@@ -8,7 +8,7 @@ it does not dispatch legacy service code.
 |---|---:|---|---|
 | `earnings_calendar` | `1.1.0` | shared + options | confirmed-event calendar targeting a 30-day gap with liquidity and coarse volume evidence |
 | `forward_factor` | `1.2.0` | shared + options | earnings-excluded forward-volatility double-calendar candidate |
-| `skew_momentum` | `1.0.0` | shared + options | skew/momentum vertical candidate |
+| `skew_momentum` | `2.0.0-research` | shared + options | two-sided skew/volatility-value vertical with three-dimensional momentum alignment |
 | `asa.stonk.stock_momentum` | `1.0.0` | shared | deterministic equity momentum candidate set |
 
 ## Use

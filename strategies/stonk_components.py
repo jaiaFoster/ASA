@@ -78,6 +78,15 @@ EARNINGS_EVENT = StrategyTypeReference("EarningsEvent", "1.0.0")
 OPTION_STRUCTURE = StrategyTypeReference("OptionStructure", "1.0.0")
 OPTION_STRUCTURE_LIST = StrategyTypeReference("List", "1.0.0", (OPTION_STRUCTURE,))
 OPTIONAL_DECIMAL = StrategyTypeReference("Optional", "1.0.0", (D,))
+OPTIONAL_BOOLEAN = StrategyTypeReference("Optional", "1.0.0", (B,))
+OPTIONAL_OPTION_STRUCTURE = StrategyTypeReference("Optional", "1.0.0", (OPTION_STRUCTURE,))
+SKEW_DIRECTION = StrategyTypeReference(
+    "Enum",
+    "1.0.0",
+    qualifiers=ManifestObject(
+        (("values", ("BULLISH", "BEARISH", "CONFLICTING", "UNKNOWN")),)
+    ),
+)
 FINANCIAL_DECIMAL_CONTEXT = Context(prec=34, rounding=ROUND_HALF_EVEN)
 
 
@@ -793,6 +802,37 @@ def _nearest_delta(
     )
 
 
+def _vertical(
+    chain: OptionChain,
+    expiration: date,
+    option_type: OptionType,
+    long_target: Decimal,
+    short_target: Decimal,
+) -> OptionStructure:
+    long_contract = _nearest_delta(chain.contracts, expiration, option_type, long_target)
+    short_contract = _nearest_delta(
+        chain.contracts,
+        expiration,
+        option_type,
+        short_target,
+        excluded=frozenset({long_contract.identity}),
+    )
+    return OptionStructure(
+        _identity(
+            "vertical_structure",
+            [long_contract.observation_identity, short_contract.observation_identity],
+        ),
+        OptionStructureType.VERTICAL,
+        chain.underlying,
+        (
+            OptionLeg(long_contract, OptionLegPosition.LONG, Decimal(1), "long"),
+            OptionLeg(short_contract, OptionLegPosition.SHORT, Decimal(1), "short"),
+        ),
+        chain.observed_at,
+        _evidence(chain.evidence, long_contract.evidence, short_contract.evidence),
+    )
+
+
 class DeltaNearestLeg(BaseComponent):
     """Select the nearest absolute delta with a stable contract tie-breaker."""
 
@@ -943,29 +983,342 @@ class VerticalStructure(BaseComponent):
         option_type = OptionType(cast(str, _parameter(parameters, "option_type", str)))
         long_target = cast(Decimal, _parameter(parameters, "long_delta_target", Decimal))
         short_target = cast(Decimal, _parameter(parameters, "short_delta_target", Decimal))
-        long_contract = _nearest_delta(chain.contracts, expiration, option_type, long_target)
-        short_contract = _nearest_delta(
-            chain.contracts,
-            expiration,
-            option_type,
-            short_target,
-            excluded=frozenset({long_contract.identity}),
-        )
-        structure = OptionStructure(
-            _identity(
-                "vertical_structure",
-                [long_contract.observation_identity, short_contract.observation_identity],
-            ),
-            OptionStructureType.VERTICAL,
-            chain.underlying,
-            (
-                OptionLeg(long_contract, OptionLegPosition.LONG, Decimal(1), "long"),
-                OptionLeg(short_contract, OptionLegPosition.SHORT, Decimal(1), "short"),
-            ),
-            chain.observed_at,
-            _evidence(chain.evidence, long_contract.evidence, short_contract.evidence),
-        )
+        structure = _vertical(chain, expiration, option_type, long_target, short_target)
         return ComponentValues((("structure", TypedValue(OPTION_STRUCTURE, structure)),))
+
+
+class SkewMomentumResearchDecision(BaseComponent):
+    """Versioned two-sided research policy; UNKNOWN evidence never uses a proxy."""
+
+    __slots__ = ()
+    definition = _definition(
+        "asa.stonk.options",
+        "skew_momentum_research_decision",
+        ComponentCategory.PREDICATE,
+        (
+            PortDefinition("chain", OPTION_CHAIN),
+            PortDefinition("expiration", DATE),
+            PortDefinition("normalized_call_skew", D),
+            PortDefinition("normalized_put_skew", D),
+            PortDefinition("call_skew_zscore", OPTIONAL_DECIMAL),
+            PortDefinition("put_skew_zscore", OPTIONAL_DECIMAL),
+            PortDefinition("historical_valid_observations", INTEGER),
+            PortDefinition("call_atm_iv_minus_rv", D),
+            PortDefinition("put_atm_iv_minus_rv", D),
+            PortDefinition("call_wing_iv_minus_rv", D),
+            PortDefinition("put_wing_iv_minus_rv", D),
+            PortDefinition("call_wing_iv_minus_atm_iv", D),
+            PortDefinition("put_wing_iv_minus_atm_iv", D),
+            PortDefinition("time_series_return", D),
+            PortDefinition("cross_sectional_percentile", OPTIONAL_DECIMAL),
+            PortDefinition("comparison_peer_count", INTEGER),
+            PortDefinition("sector_relative_return", OPTIONAL_DECIMAL),
+        ),
+        (
+            PortDefinition("verdict", VERDICT),
+            PortDefinition("direction", SKEW_DIRECTION),
+            PortDefinition("structure", OPTIONAL_OPTION_STRUCTURE),
+            PortDefinition("score", D),
+            PortDefinition("bullish_core_gate", OPTIONAL_BOOLEAN),
+            PortDefinition("bearish_core_gate", OPTIONAL_BOOLEAN),
+            PortDefinition("liquidity_acceptable", B),
+            PortDefinition("momentum_alignment_count", INTEGER),
+            PortDefinition("momentum_complete", B),
+            PortDefinition("normalized_call_skew", D),
+            PortDefinition("normalized_put_skew", D),
+            PortDefinition("call_skew_zscore", OPTIONAL_DECIMAL),
+            PortDefinition("put_skew_zscore", OPTIONAL_DECIMAL),
+            PortDefinition("historical_valid_observations", INTEGER),
+            PortDefinition("call_atm_iv_minus_rv", D),
+            PortDefinition("put_atm_iv_minus_rv", D),
+            PortDefinition("call_wing_iv_minus_rv", D),
+            PortDefinition("put_wing_iv_minus_rv", D),
+            PortDefinition("call_wing_iv_minus_atm_iv", D),
+            PortDefinition("put_wing_iv_minus_atm_iv", D),
+            PortDefinition("time_series_return", D),
+            PortDefinition("cross_sectional_percentile", OPTIONAL_DECIMAL),
+            PortDefinition("comparison_peer_count", INTEGER),
+            PortDefinition("sector_relative_return", OPTIONAL_DECIMAL),
+            PortDefinition("mid_debit", OPTIONAL_DECIMAL),
+            PortDefinition("conservative_debit", OPTIONAL_DECIMAL),
+        ),
+        (
+            ParameterDefinition("skew_zscore_threshold", D),
+            ParameterDefinition("historical_lookback_observations", INTEGER),
+            ParameterDefinition("minimum_valid_observations", INTEGER),
+            ParameterDefinition("time_series_lookback_sessions", INTEGER),
+            ParameterDefinition("bullish_cross_sectional_minimum", D),
+            ParameterDefinition("bearish_cross_sectional_maximum", D),
+            ParameterDefinition("required_momentum_alignment", INTEGER),
+            ParameterDefinition("long_delta_target", D),
+            ParameterDefinition("short_delta_target", D),
+            ParameterDefinition("maximum_spread_ratio", D),
+            ParameterDefinition("minimum_open_interest", INTEGER),
+            ParameterDefinition("minimum_volume", INTEGER),
+        ),
+    )
+
+    def evaluate(self, inputs: ComponentValues, parameters: ComponentValues) -> ComponentValues:
+        chain = cast(OptionChain, _input(inputs, "chain", OptionChain))
+        expiration = cast(date, _input(inputs, "expiration", date))
+
+        def decimal(name: str) -> Decimal:
+            return cast(Decimal, _input(inputs, name, Decimal))
+
+        def optional_decimal(name: str) -> Decimal | None:
+            value = inputs.get(name).value
+            if value is not None and not isinstance(value, Decimal):
+                raise ComponentContractError(f"input {name} must be Optional[Decimal]")
+            return value
+
+        threshold = cast(Decimal, _parameter(parameters, "skew_zscore_threshold", Decimal))
+        bullish_cross_min = cast(
+            Decimal, _parameter(parameters, "bullish_cross_sectional_minimum", Decimal)
+        )
+        bearish_cross_max = cast(
+            Decimal, _parameter(parameters, "bearish_cross_sectional_maximum", Decimal)
+        )
+        required_alignment = cast(
+            int, _parameter(parameters, "required_momentum_alignment", int)
+        )
+        historical_lookback = cast(
+            int, _parameter(parameters, "historical_lookback_observations", int)
+        )
+        minimum_history = cast(
+            int, _parameter(parameters, "minimum_valid_observations", int)
+        )
+        time_series_lookback = cast(
+            int, _parameter(parameters, "time_series_lookback_sessions", int)
+        )
+        long_target = cast(Decimal, _parameter(parameters, "long_delta_target", Decimal))
+        short_target = cast(Decimal, _parameter(parameters, "short_delta_target", Decimal))
+        maximum_spread = cast(
+            Decimal, _parameter(parameters, "maximum_spread_ratio", Decimal)
+        )
+        minimum_oi = cast(int, _parameter(parameters, "minimum_open_interest", int))
+        minimum_volume = cast(int, _parameter(parameters, "minimum_volume", int))
+        if (
+            not Decimal(0) <= bearish_cross_max <= bullish_cross_min <= Decimal(1)
+            or required_alignment != 2
+            or historical_lookback != 60
+            or minimum_history != 40
+            or time_series_lookback != 20
+            or maximum_spread < 0
+            or min(minimum_oi, minimum_volume) < 0
+        ):
+            raise ComponentContractError("Skew Momentum research policy is invalid")
+
+        historical_valid_observations = cast(
+            int, _input(inputs, "historical_valid_observations", int)
+        )
+        call_zscore = (
+            optional_decimal("call_skew_zscore")
+            if historical_valid_observations >= minimum_history
+            else None
+        )
+        put_zscore = (
+            optional_decimal("put_skew_zscore")
+            if historical_valid_observations >= minimum_history
+            else None
+        )
+        call_value_gate = (
+            decimal("call_atm_iv_minus_rv") <= 0
+            and decimal("call_wing_iv_minus_rv") > 0
+            and decimal("call_wing_iv_minus_atm_iv") > 0
+        )
+        put_value_gate = (
+            decimal("put_atm_iv_minus_rv") <= 0
+            and decimal("put_wing_iv_minus_rv") > 0
+            and decimal("put_wing_iv_minus_atm_iv") > 0
+        )
+        bullish_core = (
+            False
+            if not call_value_gate
+            else None
+            if call_zscore is None
+            else call_zscore <= threshold
+        )
+        bearish_core = (
+            False
+            if not put_value_gate
+            else None
+            if put_zscore is None
+            else put_zscore <= threshold
+        )
+
+        direction = "UNKNOWN"
+        structure: OptionStructure | None = None
+        if bullish_core is True and bearish_core is True:
+            direction = "CONFLICTING"
+        elif bullish_core is True:
+            direction = "BULLISH"
+            structure = _vertical(
+                chain, expiration, OptionType.CALL, long_target, short_target
+            )
+        elif bearish_core is True:
+            direction = "BEARISH"
+            structure = _vertical(
+                chain, expiration, OptionType.PUT, long_target, short_target
+            )
+
+        time_series_return = decimal("time_series_return")
+        comparison_peer_count = cast(int, _input(inputs, "comparison_peer_count", int))
+        cross = (
+            optional_decimal("cross_sectional_percentile")
+            if comparison_peer_count >= 5
+            else None
+        )
+        sector = optional_decimal("sector_relative_return")
+        momentum_complete = cross is not None and sector is not None
+        bullish_alignment = sum(
+            (
+                time_series_return > 0,
+                cross is not None and cross >= bullish_cross_min,
+                sector is not None and sector > 0,
+            )
+        )
+        bearish_alignment = sum(
+            (
+                time_series_return < 0,
+                cross is not None and cross <= bearish_cross_max,
+                sector is not None and sector < 0,
+            )
+        )
+        alignment_count = (
+            bullish_alignment
+            if direction == "BULLISH"
+            else bearish_alignment
+            if direction == "BEARISH"
+            else 0
+        )
+
+        liquidity_acceptable = False
+        if structure is not None:
+            liquidity_acceptable = all(
+                leg.contract.bid is not None
+                and leg.contract.ask is not None
+                and leg.contract.mark is not None
+                and leg.contract.mark > 0
+                and (leg.contract.ask - leg.contract.bid) / leg.contract.mark
+                <= maximum_spread
+                and leg.contract.open_interest is not None
+                and leg.contract.open_interest >= minimum_oi
+                and leg.contract.volume is not None
+                and leg.contract.volume >= minimum_volume
+                for leg in structure.legs
+            )
+        mid_debit: Decimal | None = None
+        conservative_debit: Decimal | None = None
+        if structure is not None:
+            if all(leg.contract.mark is not None for leg in structure.legs):
+                mid_debit = sum(
+                    (
+                        cast(Decimal, leg.contract.mark)
+                        * (Decimal(1) if leg.position is OptionLegPosition.LONG else Decimal(-1))
+                        for leg in structure.legs
+                    ),
+                    Decimal(0),
+                )
+            if all(
+                (
+                    leg.contract.ask
+                    if leg.position is OptionLegPosition.LONG
+                    else leg.contract.bid
+                )
+                is not None
+                for leg in structure.legs
+            ):
+                conservative_debit = sum(
+                    (
+                        cast(
+                            Decimal,
+                            leg.contract.ask
+                            if leg.position is OptionLegPosition.LONG
+                            else leg.contract.bid,
+                        )
+                        * (Decimal(1) if leg.position is OptionLegPosition.LONG else Decimal(-1))
+                        for leg in structure.legs
+                    ),
+                    Decimal(0),
+                )
+
+        if bullish_core is False and bearish_core is False:
+            verdict = "FAIL"
+        elif direction == "CONFLICTING":
+            verdict = "WATCH"
+        elif direction in {"BULLISH", "BEARISH"}:
+            verdict = (
+                "PASS"
+                if liquidity_acceptable
+                and momentum_complete
+                and alignment_count >= required_alignment
+                else "FAIL"
+                if not liquidity_acceptable
+                else "WATCH"
+            )
+        else:
+            verdict = "WATCH"
+
+        return ComponentValues(
+            (
+                ("bearish_core_gate", TypedValue(OPTIONAL_BOOLEAN, bearish_core)),
+                ("bullish_core_gate", TypedValue(OPTIONAL_BOOLEAN, bullish_core)),
+                ("direction", TypedValue(SKEW_DIRECTION, direction)),
+                (
+                    "conservative_debit",
+                    TypedValue(OPTIONAL_DECIMAL, conservative_debit),
+                ),
+                ("liquidity_acceptable", TypedValue(B, liquidity_acceptable)),
+                ("momentum_alignment_count", TypedValue(INTEGER, alignment_count)),
+                ("momentum_complete", TypedValue(B, momentum_complete)),
+                ("mid_debit", TypedValue(OPTIONAL_DECIMAL, mid_debit)),
+                (
+                    "normalized_call_skew",
+                    TypedValue(D, decimal("normalized_call_skew")),
+                ),
+                (
+                    "normalized_put_skew",
+                    TypedValue(D, decimal("normalized_put_skew")),
+                ),
+                ("call_skew_zscore", TypedValue(OPTIONAL_DECIMAL, call_zscore)),
+                ("put_skew_zscore", TypedValue(OPTIONAL_DECIMAL, put_zscore)),
+                (
+                    "historical_valid_observations",
+                    TypedValue(INTEGER, historical_valid_observations),
+                ),
+                (
+                    "call_atm_iv_minus_rv",
+                    TypedValue(D, decimal("call_atm_iv_minus_rv")),
+                ),
+                (
+                    "put_atm_iv_minus_rv",
+                    TypedValue(D, decimal("put_atm_iv_minus_rv")),
+                ),
+                (
+                    "call_wing_iv_minus_rv",
+                    TypedValue(D, decimal("call_wing_iv_minus_rv")),
+                ),
+                (
+                    "put_wing_iv_minus_rv",
+                    TypedValue(D, decimal("put_wing_iv_minus_rv")),
+                ),
+                (
+                    "call_wing_iv_minus_atm_iv",
+                    TypedValue(D, decimal("call_wing_iv_minus_atm_iv")),
+                ),
+                (
+                    "put_wing_iv_minus_atm_iv",
+                    TypedValue(D, decimal("put_wing_iv_minus_atm_iv")),
+                ),
+                ("time_series_return", TypedValue(D, time_series_return)),
+                ("cross_sectional_percentile", TypedValue(OPTIONAL_DECIMAL, cross)),
+                ("comparison_peer_count", TypedValue(INTEGER, comparison_peer_count)),
+                ("sector_relative_return", TypedValue(OPTIONAL_DECIMAL, sector)),
+                ("score", TypedValue(D, Decimal(alignment_count))),
+                ("structure", TypedValue(OPTIONAL_OPTION_STRUCTURE, structure)),
+                ("verdict", TypedValue(VERDICT, verdict)),
+            )
+        )
 
 
 class DoubleCalendarStructure(BaseComponent):
@@ -1170,6 +1523,7 @@ OPTIONS_STONK_COMPONENTS: tuple[BaseComponent, ...] = (
     CalendarStructure(),
     NearestCommonStrikeCalendar(),
     VerticalStructure(),
+    SkewMomentumResearchDecision(),
     DoubleCalendarStructure(),
     OptionStructureCollectionLiquidity(),
     EarningsCalendarLiquidity(),

@@ -121,12 +121,24 @@ class TestBuildSkewMomentumContext:
         context = build_skew_momentum_context(
             chain,
             fixtures.SKEW_EXPIRATION,
-            strike=Decimal("100"),
-            option_type=OptionType.CALL,
-            normalized_skew_richness=Decimal("80"),
-            momentum_richness=Decimal("70"),
+            normalized_call_skew=Decimal("0.5"),
+            normalized_put_skew=Decimal("0.2"),
+            call_skew_zscore=Decimal("-2.1"),
+            put_skew_zscore=Decimal("-1"),
+            historical_valid_observations=60,
+            call_atm_iv_minus_rv=Decimal("-0.01"),
+            put_atm_iv_minus_rv=Decimal("0.01"),
+            call_wing_iv_minus_rv=Decimal("0.09"),
+            put_wing_iv_minus_rv=Decimal("0.07"),
+            call_wing_iv_minus_atm_iv=Decimal("0.1"),
+            put_wing_iv_minus_atm_iv=Decimal("0.06"),
+            time_series_return=Decimal("0.05"),
+            cross_sectional_percentile=Decimal("0.8"),
+            comparison_peer_count=5,
+            sector_relative_return=Decimal("-0.01"),
         )
         values = dict(context.entries)
-        assert values["vertical.expiration"].value == fixtures.SKEW_EXPIRATION
-        assert values["liquidity.contract"].value.strike == Decimal("100")
-        assert values["score.values"].value == (Decimal("80"), Decimal("70"))
+        assert values["decision.expiration"].value == fixtures.SKEW_EXPIRATION
+        assert values["decision.historical_valid_observations"].value == 60
+        assert values["decision.comparison_peer_count"].value == 5
+        assert values["decision.call_skew_zscore"].value == Decimal("-2.1")

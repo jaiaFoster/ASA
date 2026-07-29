@@ -27,7 +27,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from domain import MarketCapability, OptionType
+from domain import MarketCapability
 from screening import fixtures
 from screening.clock import Clock
 from screening.context_builders import (
@@ -148,12 +148,21 @@ def run_skew_momentum(
     context = build_skew_momentum_context(
         chain,
         fixtures.SKEW_EXPIRATION,
-        strike=Decimal("100"),
-        option_type=OptionType.CALL,
-        # Deterministic, offline-only fixture values -- see
-        # run_earnings_calendar's own identical note above.
-        normalized_skew_richness=Decimal("80"),
-        momentum_richness=Decimal("70"),
+        normalized_call_skew=Decimal("0.50"),
+        normalized_put_skew=Decimal("0.27"),
+        call_skew_zscore=Decimal("-2.1"),
+        put_skew_zscore=Decimal("-1"),
+        historical_valid_observations=60,
+        call_atm_iv_minus_rv=Decimal("-0.01"),
+        put_atm_iv_minus_rv=Decimal("0.01"),
+        call_wing_iv_minus_rv=Decimal("0.09"),
+        put_wing_iv_minus_rv=Decimal("0.07"),
+        call_wing_iv_minus_atm_iv=Decimal("0.10"),
+        put_wing_iv_minus_atm_iv=Decimal("0.06"),
+        time_series_return=Decimal("0.05"),
+        cross_sectional_percentile=Decimal("0.80"),
+        comparison_peer_count=5,
+        sector_relative_return=Decimal("-0.01"),
     )
     graph = compile_strategy_graph(SKEW_MOMENTUM_VERTICAL_MANIFEST, _COMPONENT_REGISTRY)
     result = execute_strategy_graph(graph, context)

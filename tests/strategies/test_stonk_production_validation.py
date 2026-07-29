@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import timedelta
 from decimal import Decimal
 from time import perf_counter
+from typing import cast
 
 from domain import (
     ExpirationCollection,
@@ -13,6 +15,7 @@ from domain import (
     OptionType,
     SecurityCollection,
 )
+from screening.context_builders import build_skew_momentum_context
 from strategies import (
     CORE_COMPONENTS,
     EARNINGS_CALENDAR_MANIFEST,
@@ -28,13 +31,11 @@ from strategies import (
 from strategies.component_registry import ComponentRegistry
 from strategies.plugins import build_plugin_registry
 from strategies.stonk_components import (
-    DATE,
     DECIMAL_LIST,
     EARNINGS_EVENT,
     EXPIRATION_COLLECTION,
     EXPIRATION_CYCLE,
     OPTION_CHAIN,
-    OPTION_CONTRACT,
     SECURITY_COLLECTION,
     D,
 )
@@ -80,22 +81,36 @@ def _execution_context(manifest: StrategyManifest) -> ComponentValues:
             }
         )
     if manifest is SKEW_MOMENTUM_VERTICAL_MANIFEST:
-        option_chain = chain()
-        return context(
-            **{
-                "vertical.chain": (OPTION_CHAIN, option_chain),
-                "vertical.expiration": (DATE, FRONT),
-                "liquidity.contract": (
-                    OPTION_CONTRACT,
-                    option_chain.find(
-                        expiration=FRONT,
-                        strike=Decimal("100"),
-                        option_type=OptionType.CALL,
-                    )[0],
-                ),
-                "score.values": (DECIMAL_LIST, (Decimal("80"), Decimal("70"))),
-                "score.weights": (DECIMAL_LIST, (Decimal("2"), Decimal("1"))),
-            }
+        base_chain = chain()
+        option_chain = replace(
+            base_chain,
+            contracts=tuple(
+                replace(
+                    item,
+                    bid=cast(Decimal, item.mark) - Decimal("0.05"),
+                    ask=cast(Decimal, item.mark) + Decimal("0.05"),
+                )
+                for item in base_chain.contracts
+            ),
+        )
+        return build_skew_momentum_context(
+            option_chain,
+            FRONT,
+            normalized_call_skew=Decimal("0.5"),
+            normalized_put_skew=Decimal("0.2"),
+            call_skew_zscore=Decimal("-2.1"),
+            put_skew_zscore=Decimal("-1"),
+            historical_valid_observations=60,
+            call_atm_iv_minus_rv=Decimal("-0.01"),
+            put_atm_iv_minus_rv=Decimal("0.01"),
+            call_wing_iv_minus_rv=Decimal("0.09"),
+            put_wing_iv_minus_rv=Decimal("0.07"),
+            call_wing_iv_minus_atm_iv=Decimal("0.1"),
+            put_wing_iv_minus_atm_iv=Decimal("0.06"),
+            time_series_return=Decimal("0.05"),
+            cross_sectional_percentile=Decimal("0.8"),
+            comparison_peer_count=5,
+            sector_relative_return=Decimal("-0.01"),
         )
     if manifest is FORWARD_FACTOR_CALENDAR_MANIFEST:
         front = AS_OF + timedelta(days=60)

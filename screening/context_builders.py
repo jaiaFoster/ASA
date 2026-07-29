@@ -27,12 +27,10 @@ from analytics.forward_factor import compute_days_to_expiration, compute_option_
 from domain import EarningsEvent, ExpirationCollection, ExpirationCycle, OptionChain, OptionType
 from strategies.stonk_components import (
     DATE,
-    DECIMAL_LIST,
     EARNINGS_EVENT,
     EXPIRATION_COLLECTION,
     EXPIRATION_CYCLE,
     OPTION_CHAIN,
-    OPTION_CONTRACT,
     B,
     D,
 )
@@ -181,26 +179,52 @@ def build_skew_momentum_context(
     chain: OptionChain,
     expiration: date,
     *,
-    strike: Decimal,
-    option_type: OptionType = OptionType.CALL,
-    normalized_skew_richness: Decimal,
-    momentum_richness: Decimal,
+    normalized_call_skew: Decimal,
+    normalized_put_skew: Decimal,
+    call_skew_zscore: Decimal | None,
+    put_skew_zscore: Decimal | None,
+    historical_valid_observations: int,
+    call_atm_iv_minus_rv: Decimal,
+    put_atm_iv_minus_rv: Decimal,
+    call_wing_iv_minus_rv: Decimal,
+    put_wing_iv_minus_rv: Decimal,
+    call_wing_iv_minus_atm_iv: Decimal,
+    put_wing_iv_minus_atm_iv: Decimal,
+    time_series_return: Decimal,
+    cross_sectional_percentile: Decimal | None,
+    comparison_peer_count: int,
+    sector_relative_return: Decimal | None,
 ) -> ComponentValues:
-    """Build from named strategy score inputs, never a positional feature tuple.
+    """Build the complete named Skew Momentum v2 input boundary."""
 
-    Weights (2, 1) remain the existing strategy policy pending WS5 migration
-    into the manifest.
-    """
-    (contract,) = chain.find(expiration=expiration, strike=strike, option_type=option_type)
+    optional_decimal = StrategyTypeReference("Optional", "1.0.0", (D,))
     return _context(
         **{
-            "vertical.chain": (OPTION_CHAIN, chain),
-            "vertical.expiration": (DATE, expiration),
-            "liquidity.contract": (OPTION_CONTRACT, contract),
-            "score.values": (
-                DECIMAL_LIST,
-                (normalized_skew_richness, momentum_richness),
+            "decision.chain": (OPTION_CHAIN, chain),
+            "decision.expiration": (DATE, expiration),
+            "decision.normalized_call_skew": (D, normalized_call_skew),
+            "decision.normalized_put_skew": (D, normalized_put_skew),
+            "decision.call_skew_zscore": (optional_decimal, call_skew_zscore),
+            "decision.put_skew_zscore": (optional_decimal, put_skew_zscore),
+            "decision.historical_valid_observations": (
+                _INTEGER,
+                historical_valid_observations,
             ),
-            "score.weights": (DECIMAL_LIST, (Decimal("2"), Decimal("1"))),
+            "decision.call_atm_iv_minus_rv": (D, call_atm_iv_minus_rv),
+            "decision.put_atm_iv_minus_rv": (D, put_atm_iv_minus_rv),
+            "decision.call_wing_iv_minus_rv": (D, call_wing_iv_minus_rv),
+            "decision.put_wing_iv_minus_rv": (D, put_wing_iv_minus_rv),
+            "decision.call_wing_iv_minus_atm_iv": (D, call_wing_iv_minus_atm_iv),
+            "decision.put_wing_iv_minus_atm_iv": (D, put_wing_iv_minus_atm_iv),
+            "decision.time_series_return": (D, time_series_return),
+            "decision.cross_sectional_percentile": (
+                optional_decimal,
+                cross_sectional_percentile,
+            ),
+            "decision.comparison_peer_count": (_INTEGER, comparison_peer_count),
+            "decision.sector_relative_return": (
+                optional_decimal,
+                sector_relative_return,
+            ),
         }
     )
