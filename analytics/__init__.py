@@ -15,6 +15,7 @@ from analytics.derived_facts import (
     DERIVED_FACT_DEFINITIONS,
     DERIVED_FACT_REGISTRY,
     compute_bid_ask_spread_ratio,
+    compute_cross_sectional_momentum,
     compute_days_to_earnings,
     compute_earnings_inside_trade_window,
     compute_expiration_gap_days,
@@ -29,6 +30,8 @@ from analytics.derived_facts import (
     compute_normalized_skew,
     compute_open_interest_quality,
     compute_option_volume_band,
+    compute_sector_relative_momentum,
+    compute_skew_stretch_distributions,
 )
 from analytics.engine import FeatureComputation, compute_feature
 from analytics.errors import (
@@ -84,6 +87,7 @@ __all__ = [
     "NoMatchingContractError",
     "UnknownFeatureIdError",
     "compute_days_to_expiration",
+    "compute_cross_sectional_momentum",
     "compute_days_to_earnings",
     "compute_earnings_inside_trade_window",
     "compute_expiration_gap_days",
@@ -99,6 +103,8 @@ __all__ = [
     "compute_option_volume_band",
     "compute_open_interest_quality",
     "compute_realized_volatility",
+    "compute_sector_relative_momentum",
+    "compute_skew_stretch_distributions",
     "compute_trailing_return",
     "compute_bid_ask_spread_ratio",
     "compute_momentum_dimensions",

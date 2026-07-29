@@ -9,10 +9,10 @@ Depends on nothing but itself and the standard library.
 
 from domain.canonical_fact import CanonicalFact
 from domain.execution import (
+    ExecutionPlan,
     ExecutionPlanningEvent,
     ExecutionPlanningEventType,
     ExecutionPlanningLifecycle,
-    ExecutionPlan,
     ExecutionSummary,
     PlannedOrder,
     PlannedOrderSide,
@@ -72,8 +72,8 @@ from domain.market_data import (
     MarketObservation,
     NormalizedProviderErrorMetadata,
     OHLCVBar,
-    ProviderErrorKind,
     ProviderAddressProjection,
+    ProviderErrorKind,
     ProviderProvenance,
     Quote,
     TradingCalendarEvent,
@@ -84,24 +84,24 @@ from domain.market_data import (
     serialize_market_data,
 )
 from domain.observation import Observation
-from domain.opportunity import Opportunity, RecommendationState
 from domain.operational import (
     CanonicalInstrumentIdentity,
-    InstrumentValuation,
     Instrument,
     InstrumentKind,
+    InstrumentValuation,
     MonetaryAmount,
     Portfolio,
     PortfolioEvaluationRequest,
     PortfolioSnapshot,
-    PositionDirection,
     Position,
+    PositionDirection,
     ProposedPosition,
     RiskPolicy,
     RiskPolicyScope,
     RiskPolicyType,
     SectorClassification,
 )
+from domain.opportunity import Opportunity, RecommendationState
 from domain.outcome_metrics import ExpectedOutcomeMetrics
 from domain.provenance import Provenance, ProviderDisagreement
 from domain.provider import Provider
@@ -117,16 +117,27 @@ from domain.simulation import (
     SimulationTraceEvent,
     SimulationTraceEventType,
 )
+from domain.strategy_evidence import (
+    CanonicalReturnObservation,
+    ComparisonUniverseReturns,
+    HistoricalSkewObservation,
+    HistoricalSkewObservations,
+    SectorReferenceReturns,
+)
 from domain.values import DomainInvariantError, is_normalized_value
 
 __all__ = [
     "CanonicalFact",
+    "CanonicalReturnObservation",
     "CanonicalInstrumentIdentity",
     "Confidence",
+    "ComparisonUniverseReturns",
     "DomainInvariantError",
     "is_normalized_value",
     "EvidenceKind",
     "EvidenceReference",
+    "HistoricalSkewObservation",
+    "HistoricalSkewObservations",
     "ExpectedOutcomeMetrics",
     "ExecutionPlanningEvent",
     "ExecutionPlanningEventType",
@@ -218,6 +229,7 @@ __all__ = [
     "SimulationTraceEvent",
     "SimulationTraceEventType",
     "SectorClassification",
+    "SectorReferenceReturns",
     "TimeInForce",
     "VolatilityEvidence",
     "deserialize_financial_contract",
