@@ -97,16 +97,19 @@ def _definition(
     inputs: tuple[PortDefinition, ...],
     outputs: tuple[PortDefinition, ...],
     parameters: tuple[ParameterDefinition, ...] = (),
+    *,
+    version: str = "1.0.0",
+    algorithm_version: str = "1.0.0",
 ) -> ComponentDefinition:
     return ComponentDefinition(
         namespace,
         name,
-        "1.0.0",
+        version,
         category,
         inputs,
         outputs,
         parameters,
-        algorithm_version="1.0.0",
+        algorithm_version=algorithm_version,
         explanation_template=ManifestObject(
             (("migration_source", "Stonk@5f3fec8"), ("operation", name))
         ),
@@ -858,6 +861,46 @@ class DeltaNearestLeg(BaseComponent):
         return ComponentValues((("contract", TypedValue(OPTION_CONTRACT, selected)),))
 
 
+def _nearest_common_strike_delta(
+    chain: OptionChain,
+    front: date,
+    back: date,
+    option_type: OptionType,
+    target: Decimal,
+) -> OptionContract | None:
+    """Select the nearest front delta only among uniquely constructible calendars."""
+
+    choices = tuple(
+        item
+        for item in chain.find(expiration=front, option_type=option_type)
+        if item.delta is not None
+        and len(
+            chain.find(
+                expiration=front,
+                option_type=option_type,
+                strike=item.strike,
+            )
+        )
+        == 1
+        and len(
+            chain.find(
+                expiration=back,
+                option_type=option_type,
+                strike=item.strike,
+            )
+        )
+        == 1
+    )
+    return min(
+        choices,
+        key=lambda item: (
+            abs(abs(cast(Decimal, item.delta)) - abs(target)),
+            _contract_key(item),
+        ),
+        default=None,
+    )
+
+
 def _same_strike(
     chain: OptionChain,
     expiration: date,
@@ -1339,6 +1382,8 @@ class DoubleCalendarStructure(BaseComponent):
             ParameterDefinition("put_delta_target", D),
             ParameterDefinition("call_delta_target", D),
         ),
+        version="1.0.1",
+        algorithm_version="1.0.1",
     )
 
     def evaluate(self, inputs: ComponentValues, parameters: ComponentValues) -> ComponentValues:
@@ -1347,8 +1392,16 @@ class DoubleCalendarStructure(BaseComponent):
         back = cast(date, _input(inputs, "back_expiration", date))
         put_target = cast(Decimal, _parameter(parameters, "put_delta_target", Decimal))
         call_target = cast(Decimal, _parameter(parameters, "call_delta_target", Decimal))
-        put_front = _nearest_delta(chain.contracts, front, OptionType.PUT, put_target)
-        call_front = _nearest_delta(chain.contracts, front, OptionType.CALL, call_target)
+        put_front = _nearest_common_strike_delta(
+            chain, front, back, OptionType.PUT, put_target
+        )
+        call_front = _nearest_common_strike_delta(
+            chain, front, back, OptionType.CALL, call_target
+        )
+        if put_front is None or call_front is None:
+            return ComponentValues(
+                (("structures", TypedValue(OPTION_STRUCTURE_LIST, ())),)
+            )
         structures = (
             _calendar(chain, front, back, OptionType.PUT, put_front.strike, "put"),
             _calendar(chain, front, back, OptionType.CALL, call_front.strike, "call"),

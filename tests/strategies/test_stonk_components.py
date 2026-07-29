@@ -65,10 +65,12 @@ from strategies.stonk_components import (
     OPTION_COLLECTION,
     OPTION_CONTRACT,
     OPTION_STRUCTURE,
+    OPTION_STRUCTURE_LIST,
     OPTION_TYPE,
     SECURITY_COLLECTION,
     B,
     D,
+    OptionStructureCollectionLiquidity,
 )
 from strategies.type_system import ComponentValues, StrategyTypeReference, TypedValue
 
@@ -143,6 +145,18 @@ def chain() -> OptionChain:
     return OptionChain("chain-1", security(), NOW, contracts, EVIDENCE)
 
 
+def asymmetric_double_calendar_chain() -> OptionChain:
+    contracts = (
+        contract("front-call-105", FRONT, "105", OptionType.CALL, "0.55", "2"),
+        contract("front-call-110", FRONT, "110", OptionType.CALL, "0.45", "1"),
+        contract("back-call-110", BACK, "110", OptionType.CALL, "0.48", "2"),
+        contract("front-put-95", FRONT, "95", OptionType.PUT, "-0.30", "2"),
+        contract("front-put-90", FRONT, "90", OptionType.PUT, "-0.40", "1"),
+        contract("back-put-90", BACK, "90", OptionType.PUT, "-0.43", "2"),
+    )
+    return OptionChain("asymmetric-chain", security(), NOW, contracts, EVIDENCE)
+
+
 def earnings_event(*, confirmed: bool = True) -> EarningsEvent:
     return EarningsEvent(
         "event-1",
@@ -160,13 +174,17 @@ def earnings_event(*, confirmed: bool = True) -> EarningsEvent:
 def test_plugins_register_all_components_statically_and_deterministically() -> None:
     registry = build_plugin_registry((), STONK_STRATEGY_PLUGINS)
     expected = {
-        (component.definition.namespace, component.definition.name)
+        (
+            component.definition.namespace,
+            component.definition.name,
+            component.definition.version,
+        )
         for plugin in STONK_STRATEGY_PLUGINS
         for component in plugin.components
     }
     assert len(expected) == 25
-    for namespace, name in expected:
-        assert registry.resolve(ComponentReference(namespace, name, "1.0.0"))
+    for namespace, name, version in expected:
+        assert registry.resolve(ComponentReference(namespace, name, version))
     assert (
         registry.identity
         == build_plugin_registry((), tuple(reversed(STONK_STRATEGY_PLUGINS))).identity
@@ -175,9 +193,9 @@ def test_plugins_register_all_components_statically_and_deterministically() -> N
         "52b919f7ea1a628d4b4a43056e59e37fb4f1ede111d85a122dc1c83f9cc1a598"
     )
     assert STONK_STRATEGY_PLUGINS[0].metadata.version == "1.2.0"
-    assert STONK_STRATEGY_PLUGINS[1].metadata.version == "2.0.0"
+    assert STONK_STRATEGY_PLUGINS[1].metadata.version == "2.0.1"
     assert STONK_STRATEGY_PLUGINS[1].plugin_id == (
-        "09220ea9fce99914437438914a652dbba578ceee83d61954934dde760e0cb998"
+        "f1346d9bb415a06ae62e6849a42af5a60bf3a4798587a0f81f64d55a8fca0536"
     )
 
 
@@ -498,6 +516,70 @@ def test_calendar_vertical_double_calendar_and_debit_are_replay_stable() -> None
     assert isinstance(double, tuple)
     assert len(double) == 2
     assert all(isinstance(item, OptionStructure) for item in double)
+
+
+def test_double_calendar_selects_nearest_delta_from_common_strikes() -> None:
+    structures = (
+        DoubleCalendarStructure()
+        .evaluate(
+            values(
+                chain=(OPTION_CHAIN, asymmetric_double_calendar_chain()),
+                front_expiration=(DATE, FRONT),
+                back_expiration=(DATE, BACK),
+            ),
+            values(
+                put_delta_target=(D, Decimal("-0.30")),
+                call_delta_target=(D, Decimal("0.55")),
+            ),
+        )
+        .get("structures")
+        .value
+    )
+
+    assert isinstance(structures, tuple)
+    assert tuple(
+        {leg.contract.strike for leg in structure.legs} for structure in structures
+    ) == ({Decimal("90")}, {Decimal("110")})
+
+
+def test_double_calendar_without_common_strike_is_empty_and_ineligible() -> None:
+    asymmetric = asymmetric_double_calendar_chain()
+    no_common_put = replace(
+        asymmetric,
+        contracts=tuple(
+            item
+            for item in asymmetric.contracts
+            if not (item.expiration == BACK and item.option_type is OptionType.PUT)
+        ),
+    )
+    structures = (
+        DoubleCalendarStructure()
+        .evaluate(
+            values(
+                chain=(OPTION_CHAIN, no_common_put),
+                front_expiration=(DATE, FRONT),
+                back_expiration=(DATE, BACK),
+            ),
+            values(
+                put_delta_target=(D, Decimal("-0.30")),
+                call_delta_target=(D, Decimal("0.55")),
+            ),
+        )
+        .get("structures")
+        .value
+    )
+
+    assert structures == ()
+    assert (
+        OptionStructureCollectionLiquidity()
+        .evaluate(
+            values(structures=(OPTION_STRUCTURE_LIST, structures)),
+            ComponentValues(()),
+        )
+        .get("acceptable")
+        .value
+        is False
+    )
 
 
 def test_components_fail_closed_on_missing_matches_and_invalid_parameters() -> None:

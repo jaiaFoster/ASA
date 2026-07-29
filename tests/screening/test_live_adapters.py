@@ -291,6 +291,34 @@ class CapturingMultiExpirationFixtureProvider(MultiExpirationFixtureProvider):
         return super().fetch(request, budget)
 
 
+class AsymmetricForwardFactorFixtureProvider(MultiExpirationFixtureProvider):
+    """GS/MU-shaped front/back ladders whose nearest front strikes are absent later."""
+
+    def _value(self, subject, address, observed_at, evidence):  # noqa: ANN001
+        value = super()._value(subject, address, observed_at, evidence)
+        if not isinstance(value, OptionChain):
+            return value
+        back_expiration = observed_at.date() + timedelta(days=91)
+        omitted = {
+            (OptionType.PUT, _SPOT - Decimal("10")),
+            (OptionType.CALL, _SPOT + Decimal("5")),
+        }
+        return OptionChain(
+            value.option_chain_id,
+            value.underlying,
+            value.observed_at,
+            tuple(
+                item
+                for item in value.contracts
+                if not (
+                    item.expiration == back_expiration
+                    and (item.option_type, item.strike) in omitted
+                )
+            ),
+            value.evidence,
+        )
+
+
 class UnconfirmedEarningsFixtureProvider(MultiExpirationFixtureProvider):
     def _value(self, subject, address, observed_at, evidence):  # noqa: ANN001
         value = super()._value(subject, address, observed_at, evidence)
@@ -399,6 +427,23 @@ class TestForwardFactorAndEarningsCalendarNeedTwoExpirations:
         )
         assert result.subject_identity == f"symbol:{SYMBOL}"
         assert result.signal_classification == "FAIL"
+
+    def test_forward_factor_asymmetric_ladders_return_normal_outcome(self) -> None:
+        fulfillment, clock = _fulfillment(AsymmetricForwardFactorFixtureProvider)
+        adapters = build_live_adapters(SYMBOL, fulfillment)
+        (result,) = run_screening(
+            TARGET_STRATEGY_REGISTRY,
+            adapters,
+            clock,
+            strategy_ids=("forward_factor",),
+        )
+
+        assert result.outcome_status in (
+            ScreeningOutcomeStatus.PASS,
+            ScreeningOutcomeStatus.NO_SIGNAL,
+        )
+        assert result.subject_identity == f"symbol:{SYMBOL}"
+        assert result.failure_detail is None
 
     def test_unconfirmed_earnings_does_not_trigger_exclusion(self) -> None:
         fulfillment, clock = _fulfillment(UnconfirmedEarningsFixtureProvider)

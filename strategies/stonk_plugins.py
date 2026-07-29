@@ -17,7 +17,7 @@ STONK_OPTIONS_PLUGIN = StrategyPlugin(
     PluginMetadata(
         "asa.stonk.options",
         "stonk_options_components",
-        "2.0.0",
+        "2.0.1",
         "Provider-neutral earnings, expiration, option-leg, and structure primitives.",
     ),
     OPTIONS_STONK_COMPONENTS,

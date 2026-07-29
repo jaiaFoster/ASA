@@ -76,17 +76,17 @@ def test_four_manifest_catalog_is_canonical_serializable_and_identity_pinned() -
     expected = {
         "earnings_calendar": "a165405844d32da747950e2bbd088849bf375b839b79557cb859e6daf51fdd9e",
         "skew_momentum": "47f0686f74f7687ce09e3f8c13ac5c3c032ff957fab8c801c59443b660ae4028",
-        "forward_factor": "afeec769ff76c5ae7bf78279c9770b4bbc0ad9956f5bef23c3d27ca8c0de0b1f",
+        "forward_factor": "c7f2b6bc3a46a8182464b098f3b703261cde89d11bf9b9ae0bd85cd56e349bf4",
         "asa.stonk.stock_momentum": (
             "456a84aa09ca73c65c32490ebaa270beb5b85db273e9d0c10d987f434e13047d"
         ),
     }
     graph_ids = {
-        "earnings_calendar": "d6e3ef8beaecb79ae1593d5e3fc727e7268f65ae3f5dce30e0bf4f0083d61ec6",
-        "skew_momentum": "7a50328bbfcb8fe5cce355c36651b3bffb9bab6bff4c3907220480b9722be628",
-        "forward_factor": "7470c8acd6788128c80b8890a4f107e7475dba9c65442e1433a308547021dd5e",
+        "earnings_calendar": "c81ed69e3cab866c0f5af1487514e291755975ac490c085f611e08e261c01e22",
+        "skew_momentum": "7722239ef2338c8a210c2f6ad338882e060f217257a88595fe5ba5e97097b9b5",
+        "forward_factor": "239ec2db5f7b34ec1ecc00f0c1e201498ee8c3e8351ccbbaee4ae7e3a489b678",
         "asa.stonk.stock_momentum": (
-            "b271f594470d17175fd0126baa137faa71b44680ff7eb46274ea18553518a16c"
+            "610044e8bce050be3b1433a6fd73a3c20c04e77b27b9b1d063052d0567a3dbcf"
         ),
     }
     component_registry = registry()
@@ -364,6 +364,55 @@ def test_forward_factor_manifest_requires_source_iv_and_builds_double_calendar()
     rejected = execute_strategy_graph(graph, rejected_context)
     assert rejected.outputs.get("eligible").value is False
     assert rejected.outputs.get("verdict").value == "FAIL"
+
+
+def test_forward_factor_without_common_put_strike_returns_fail_not_exception() -> None:
+    option_chain, expirations = _forward_chain()
+    option_chain = replace(
+        option_chain,
+        contracts=tuple(
+            item
+            for item in option_chain.contracts
+            if not (
+                item.expiration == expirations.cycles[1].expiration_date
+                and item.option_type is OptionType.PUT
+            )
+        ),
+    )
+    execution_context = context(
+        **{
+            "expiration_select.expirations": (EXPIRATION_COLLECTION, expirations),
+            "double_calendar.chain": (OPTION_CHAIN, option_chain),
+            "forward_iv.front_iv": (D, Decimal("0.48")),
+            "forward_iv.back_iv": (
+                D,
+                Decimal("0.4548992562461861547567860943472296"),
+            ),
+            "forward_iv.front_dte": (
+                StrategyTypeReference("Integer", "1.0.0"),
+                60,
+            ),
+            "forward_iv.back_dte": (
+                StrategyTypeReference("Integer", "1.0.0"),
+                90,
+            ),
+            "factor.front_iv": (D, Decimal("0.48")),
+            "eligibility.left": (
+                StrategyTypeReference("Boolean", "1.0.0"),
+                True,
+            ),
+        }
+    )
+
+    result = execute_strategy_graph(
+        compile_strategy_graph(FORWARD_FACTOR_CALENDAR_MANIFEST, registry()),
+        execution_context,
+    )
+
+    assert result.outputs.get("structures").value == ()
+    assert result.outputs.get("liquidity_acceptable").value is False
+    assert result.outputs.get("eligible").value is False
+    assert result.outputs.get("verdict").value == "FAIL"
 
 
 def test_stock_momentum_manifest_stops_before_portfolio_policy() -> None:
