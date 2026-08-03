@@ -6,8 +6,8 @@ it does not dispatch legacy service code.
 
 | Strategy ID | Version | Component dependencies | Purpose |
 |---|---:|---|---|
-| `earnings_calendar` | `1.1.0` | shared + options | confirmed-event calendar targeting a 30-day gap with liquidity and coarse volume evidence |
-| `forward_factor` | `1.2.1` | shared + options | earnings-excluded, common-strike forward-volatility double-calendar candidate |
+| `earnings_calendar` | `1.2.0` | shared + options | confirmed-event calendar targeting a 30-day gap with readable dates, liquidity, and coarse volume evidence |
+| `forward_factor` | `1.3.0` | shared + options | earnings-excluded, common-strike forward-volatility double-calendar candidate with explicit hard gates |
 | `skew_momentum` | `2.0.1-research` | shared + options | fail-closed two-sided skew/volatility-value vertical with three-dimensional momentum alignment |
 | `asa.stonk.stock_momentum` | `1.0.0` | shared | deterministic equity momentum candidate set |
 

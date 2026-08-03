@@ -444,6 +444,11 @@ def build_live_forward_factor_adapter(
             front_strike=front_strike,
             back_strike=back_strike,
             earnings_eligible=earnings_eligible,
+            confirmed_earnings_date=(
+                earnings_event.earnings_date
+                if earnings_event is not None and earnings_event.confirmed
+                else None
+            ),
             option_type=OptionType.CALL,
         )
         graph = compile_strategy_graph(FORWARD_FACTOR_CALENDAR_MANIFEST, _COMPONENT_REGISTRY)

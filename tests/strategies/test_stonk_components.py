@@ -182,7 +182,7 @@ def test_plugins_register_all_components_statically_and_deterministically() -> N
         for plugin in STONK_STRATEGY_PLUGINS
         for component in plugin.components
     }
-    assert len(expected) == 25
+    assert len(expected) == 27
     for namespace, name, version in expected:
         assert registry.resolve(ComponentReference(namespace, name, version))
     assert (
@@ -193,9 +193,9 @@ def test_plugins_register_all_components_statically_and_deterministically() -> N
         "52b919f7ea1a628d4b4a43056e59e37fb4f1ede111d85a122dc1c83f9cc1a598"
     )
     assert STONK_STRATEGY_PLUGINS[0].metadata.version == "1.2.0"
-    assert STONK_STRATEGY_PLUGINS[1].metadata.version == "2.0.2"
+    assert STONK_STRATEGY_PLUGINS[1].metadata.version == "2.1.0"
     assert STONK_STRATEGY_PLUGINS[1].plugin_id == (
-        "311b6ff79cdfc302571eb6e6e44ff33415565ad21e43c4dec7550c94978778c9"
+        "f8fc6379b6ac6e6cdf3526a95f51a316b3e8488e7305d7899dcedf4ad50fb420"
     )
 
 

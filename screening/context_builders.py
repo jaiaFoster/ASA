@@ -75,6 +75,7 @@ def build_forward_factor_context(
     front_strike: Decimal,
     back_strike: Decimal,
     earnings_eligible: bool,
+    confirmed_earnings_date: date | None = None,
     option_type: OptionType = OptionType.CALL,
 ) -> ComponentValues:
     """front_strike/back_strike -- SPRINT-011-CLOSEOUT/CLOSE-001: previously
@@ -136,7 +137,11 @@ def build_forward_factor_context(
             "forward_iv.front_dte": (_INTEGER, int(front_dte)),
             "forward_iv.back_dte": (_INTEGER, int(back_dte)),
             "factor.front_iv": (D, front_iv),
-            "eligibility.left": (B, earnings_eligible),
+            "eligibility.earnings_eligible": (B, earnings_eligible),
+            "eligibility.confirmed_earnings_date": (
+                StrategyTypeReference("Optional", "1.0.0", (DATE,)),
+                confirmed_earnings_date,
+            ),
         }
     )
 
@@ -160,6 +165,8 @@ def build_earnings_calendar_context(
     return _context(
         **{
             "event_window.event": (EARNINGS_EVENT, event),
+            "event_projection.event": (EARNINGS_EVENT, event),
+            "event_projection.as_of": (DATE, as_of),
             "event_window.front": (EXPIRATION_CYCLE, front),
             "event_window.back": (EXPIRATION_CYCLE, back),
             "expiration_select.expirations": (
