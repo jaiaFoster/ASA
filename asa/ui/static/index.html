@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'"
+    >
+    <title>ASA Intelligence Console</title>
+    <meta
+      name="description"
+      content="Read-only inspection of persisted ASA strategy results and runtime health."
+    >
+    <link rel="stylesheet" href="/ui/static/styles.css">
+    <script type="module" src="/ui/static/app.js"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to results</a>
+    <div id="app" class="app-shell" aria-live="polite"></div>
+    <noscript>This interface requires JavaScript to read the ASA API.</noscript>
+  </body>
+</html>
