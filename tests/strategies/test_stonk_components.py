@@ -193,9 +193,9 @@ def test_plugins_register_all_components_statically_and_deterministically() -> N
         "52b919f7ea1a628d4b4a43056e59e37fb4f1ede111d85a122dc1c83f9cc1a598"
     )
     assert STONK_STRATEGY_PLUGINS[0].metadata.version == "1.2.0"
-    assert STONK_STRATEGY_PLUGINS[1].metadata.version == "2.0.1"
+    assert STONK_STRATEGY_PLUGINS[1].metadata.version == "2.0.2"
     assert STONK_STRATEGY_PLUGINS[1].plugin_id == (
-        "f1346d9bb415a06ae62e6849a42af5a60bf3a4798587a0f81f64d55a8fca0536"
+        "311b6ff79cdfc302571eb6e6e44ff33415565ad21e43c4dec7550c94978778c9"
     )
 
 

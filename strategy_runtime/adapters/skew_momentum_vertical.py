@@ -40,7 +40,7 @@ from strategy_runtime.result import UniversalScreeningResult, compute_observatio
 
 SKEW_MOMENTUM_VERTICAL_CONTRACT = StrategyContract(
     strategy_id="skew_momentum",
-    version="2.0.0-research",
+    version="2.0.1-research",
     category="options_momentum",
     description=(
         "Two-sided skew and volatility-value gates with three-dimension momentum alignment."

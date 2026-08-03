@@ -1099,6 +1099,8 @@ class SkewMomentumResearchDecision(BaseComponent):
             ParameterDefinition("minimum_open_interest", INTEGER),
             ParameterDefinition("minimum_volume", INTEGER),
         ),
+        version="1.0.1",
+        algorithm_version="1.0.1",
     )
 
     def evaluate(self, inputs: ComponentValues, parameters: ComponentValues) -> ComponentValues:
@@ -1300,7 +1302,10 @@ class SkewMomentumResearchDecision(BaseComponent):
                 else "WATCH"
             )
         else:
-            verdict = "WATCH"
+            # Missing or mixed-negative core evidence cannot support a
+            # directional signal. UNKNOWN remains visible in the gate outputs,
+            # but it is never positive evidence for WATCH.
+            verdict = "FAIL"
 
         return ComponentValues(
             (

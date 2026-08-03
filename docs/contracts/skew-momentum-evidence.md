@@ -40,7 +40,7 @@ members. Strategy adapters must not choose peer universes or sector members.
 
 ## Research policy v2
 
-The canonical manifest pins `2.0.0-research`. Historical stretch uses a
+The canonical manifest pins `2.0.1-research`. Historical stretch uses a
 60-observation z-score window with at least 40 valid observations and requires
 `z <= -2.0`. The ATM leg must be fair or cheap to realized volatility
 (`ATM IV - RV <= 0`); the wing must be rich to both realized volatility and
@@ -53,7 +53,8 @@ dimension has equal weight. Bullish alignment is respectively `> 0`, `>= 0.70`,
 and `> 0`; bearish alignment is `< 0`, `<= 0.30`, and `< 0`. Two of three
 dimensions are required for PASS.
 
-Core-gate failure is FAIL. Passing core gates with conflicting or incomplete
+Core-gate failure or absence of any explicitly true directional core gate is
+FAIL. Passing core gates with conflicting or incomplete
 momentum is WATCH. If both directional branches qualify, the result is WATCH.
 Missing evidence is UNKNOWN and never replaced by a proxy. Unsupported ETFs and
 missing-sector subjects therefore keep sector-relative evidence UNKNOWN.

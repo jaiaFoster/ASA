@@ -207,7 +207,7 @@ EARNINGS_CALENDAR_MANIFEST = StrategyManifest(
 SKEW_MOMENTUM_VERTICAL_MANIFEST = StrategyManifest(
     "1.1.0",
     "skew_momentum",
-    "2.0.0-research",
+    "2.0.1-research",
     ManifestMetadata(
         "Skew Momentum v2 Research",
         "Two-sided skew, volatility-value, and three-dimension momentum policy.",
@@ -234,6 +234,7 @@ SKEW_MOMENTUM_VERTICAL_MANIFEST = StrategyManifest(
                 _parameter("minimum_open_interest", "Integer", 50),
                 _parameter("minimum_volume", "Integer", 10),
             ),
+            component_version="1.0.1",
         ),
     ),
     (),
