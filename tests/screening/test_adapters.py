@@ -40,7 +40,15 @@ class TestForwardFactorAdapter:
         assert result.strategy_native_score > Decimal("0")
         assert result.explanation is not None
         assert dict(result.explanation.formula_versions)["forward_factor"] == "1.0.0"
-        assert dict(result.explanation.gate_results)["eligible"] is True
+        gates = dict(result.explanation.gate_results)
+        assert gates["eligible"] is True
+        assert gates["earnings_exclusion_gate"] is True
+        assert gates["structure_constructible_gate"] is True
+        assert gates["liquidity_gate"] is True
+        facts = dict(result.explanation.canonical_facts)
+        assert facts["selected_front_expiration"] == "2026-09-21"
+        assert facts["selected_back_expiration"] == "2026-10-21"
+        assert facts["confirmed_earnings_date_when_relevant"] is None
 
     def test_is_deterministic(self) -> None:
         first = run_forward_factor(_definition("forward_factor"), FixedClock(), "run-1")
@@ -59,6 +67,14 @@ class TestEarningsCalendarAdapter:
         assert dict(result.explanation.named_derived_facts)["actual_gap_days"] == 30
         assert dict(result.explanation.formula_versions)["actual_gap_days"] == "1.0.0"
         assert dict(result.explanation.gate_results)["liquidity_acceptable"] is True
+        facts = dict(result.explanation.canonical_facts)
+        derived = dict(result.explanation.named_derived_facts)
+        assert facts["earnings_date"] == "2026-08-05"
+        assert facts["announcement_timing"] == "after_close"
+        assert facts["selected_front_expiration"] == "2026-07-31"
+        assert facts["selected_back_expiration"] == "2026-08-30"
+        assert facts["volume_downgrade_reason"] == "NONE"
+        assert derived["days_to_earnings"] == 14
 
     def test_is_deterministic(self) -> None:
         first = run_earnings_calendar(_definition("earnings_calendar"), FixedClock(), "run-1")

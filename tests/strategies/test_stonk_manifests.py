@@ -74,19 +74,19 @@ def test_four_manifest_catalog_is_canonical_serializable_and_identity_pinned() -
         "asa.stonk.stock_momentum",
     )
     expected = {
-        "earnings_calendar": "a165405844d32da747950e2bbd088849bf375b839b79557cb859e6daf51fdd9e",
+        "earnings_calendar": "b8a635c5bcb17511b774539731c6b7ca916c581eb5aaa80629de6c1dc4149208",
         "skew_momentum": "64fed57c5a281dde0a1e071714e4379abc7f901aada4a26d5d97372d366cfdbf",
-        "forward_factor": "c7f2b6bc3a46a8182464b098f3b703261cde89d11bf9b9ae0bd85cd56e349bf4",
+        "forward_factor": "c1fd2ba652daf76d395f3db00d668d6b7fc9fdca94a1fa602646e2b65a8e14cd",
         "asa.stonk.stock_momentum": (
             "456a84aa09ca73c65c32490ebaa270beb5b85db273e9d0c10d987f434e13047d"
         ),
     }
     graph_ids = {
-        "earnings_calendar": "b81f305fc9fcfc644328447ae60c20e8b50f9e67c822ea18f070c9148a27aab4",
-        "skew_momentum": "8a67a57212765d28550778144d90260082c4bd02d494ffd3a82623e27cf6ace7",
-        "forward_factor": "cbf3d7b7f32f77155b888c90434b85a172335d7ef5957295f022ca28fd36549f",
+        "earnings_calendar": "47d7867153dc1717e0e1ddefb7b5aaf466fab380c9fb64a0f603237f00953bc6",
+        "skew_momentum": "7a671af384867ec1a0bab2c87fd2fc08032b889949bd82bc7334e357d862c6e9",
+        "forward_factor": "26e65fe346ac30d48f7060cd225d15c7a205c6db08ae71caa977cee4c1dcc91f",
         "asa.stonk.stock_momentum": (
-            "511a906f3f36685d4bef88bdd796c200c576e16bdf95736eb8d0134db4f0cf7c"
+            "10871d17a6aa79e8c7ec9654d71359fc050bc84eb9ca5d2df5d322dfb5e7f3fd"
         ),
     }
     component_registry = registry()
@@ -105,6 +105,8 @@ def test_earnings_calendar_manifest_executes_and_replays() -> None:
     execution_context = context(
         **{
             "event_window.event": (EARNINGS_EVENT, earnings_event()),
+            "event_projection.event": (EARNINGS_EVENT, earnings_event()),
+            "event_projection.as_of": (DATE, AS_OF),
             "event_window.front": (EXPIRATION_CYCLE, front),
             "event_window.back": (EXPIRATION_CYCLE, back),
             "expiration_select.expirations": (
@@ -128,6 +130,14 @@ def test_earnings_calendar_manifest_executes_and_replays() -> None:
     assert first.outputs.get("gap_eligible").value is True
     assert first.outputs.get("liquidity_acceptable").value is True
     assert first.outputs.get("option_volume_band").value == "HIGH"
+    assert first.outputs.get("volume_downgrade_reason").value == "NONE"
+    assert first.outputs.get("earnings_date").value == earnings_event().earnings_date
+    assert first.outputs.get("days_to_earnings").value == (
+        earnings_event().earnings_date - AS_OF
+    ).days
+    assert first.outputs.get("announcement_timing").value == "after_close"
+    assert first.outputs.get("selected_front_expiration").value == FRONT
+    assert first.outputs.get("selected_back_expiration").value == BACK
     assert first.outputs.get("score").value == Decimal("75")
     assert first.outputs.get("verdict").value == "PASS"
     assert first.outputs.get("structure").value.identity
@@ -147,6 +157,7 @@ def test_earnings_calendar_manifest_executes_and_replays() -> None:
     )
     weak = execute_strategy_graph(graph, weak_context)
     assert weak.outputs.get("option_volume_band").value == "LOW"
+    assert weak.outputs.get("volume_downgrade_reason").value == "BELOW_MINIMUM_VOLUME_BAND"
     assert weak.outputs.get("verdict").value == "WATCH"
 
     illiquid_chain = replace(
@@ -363,9 +374,13 @@ def test_forward_factor_manifest_requires_source_iv_and_builds_double_calendar()
                 90,
             ),
             "factor.front_iv": (D, Decimal("0.48")),
-            "eligibility.left": (
+            "eligibility.earnings_eligible": (
                 StrategyTypeReference("Boolean", "1.0.0"),
                 True,
+            ),
+            "eligibility.confirmed_earnings_date": (
+                StrategyTypeReference("Optional", "1.0.0", (DATE,)),
+                None,
             ),
         }
     )
@@ -377,16 +392,28 @@ def test_forward_factor_manifest_requires_source_iv_and_builds_double_calendar()
     assert result.outputs.get("verdict").value == "PASS"
     assert result.outputs.get("eligible").value is True
     assert result.outputs.get("liquidity_acceptable").value is True
+    assert result.outputs.get("earnings_exclusion_gate").value is True
+    assert result.outputs.get("structure_constructible_gate").value is True
+    assert result.outputs.get("liquidity_gate").value is True
+    assert result.outputs.get("selected_front_expiration").value == (
+        expirations.cycles[0].expiration_date
+    )
+    assert result.outputs.get("selected_back_expiration").value == (
+        expirations.cycles[1].expiration_date
+    )
+    assert result.outputs.get("confirmed_earnings_date_when_relevant").value is None
     assert result.outputs.get("front_iv").value == Decimal("0.48")
     assert len(result.outputs.get("structures").value) == 2
 
     rejected_context = ComponentValues(
         tuple(
-            (name, value) for name, value in execution_context.entries if name != "eligibility.left"
+            (name, value)
+            for name, value in execution_context.entries
+            if name != "eligibility.earnings_eligible"
         )
         + (
             (
-                "eligibility.left",
+                "eligibility.earnings_eligible",
                 TypedValue(StrategyTypeReference("Boolean", "1.0.0"), False),
             ),
         )
@@ -427,9 +454,13 @@ def test_forward_factor_without_common_put_strike_returns_fail_not_exception() -
                 90,
             ),
             "factor.front_iv": (D, Decimal("0.48")),
-            "eligibility.left": (
+            "eligibility.earnings_eligible": (
                 StrategyTypeReference("Boolean", "1.0.0"),
                 True,
+            ),
+            "eligibility.confirmed_earnings_date": (
+                StrategyTypeReference("Optional", "1.0.0", (DATE,)),
+                None,
             ),
         }
     )
@@ -441,6 +472,8 @@ def test_forward_factor_without_common_put_strike_returns_fail_not_exception() -
 
     assert result.outputs.get("structures").value == ()
     assert result.outputs.get("liquidity_acceptable").value is False
+    assert result.outputs.get("structure_constructible_gate").value is False
+    assert result.outputs.get("liquidity_gate").value is False
     assert result.outputs.get("eligible").value is False
     assert result.outputs.get("verdict").value == "FAIL"
 

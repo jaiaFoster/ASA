@@ -52,7 +52,7 @@ def _output(
 EARNINGS_CALENDAR_MANIFEST = StrategyManifest(
     "1.1.0",
     "earnings_calendar",
-    "1.1.0",
+    "1.2.0",
     ManifestMetadata(
         "Earnings Calendar Spread",
         "Confirmed earnings calendar targeting a 30-day expiration gap with liquidity evidence.",
@@ -67,6 +67,7 @@ EARNINGS_CALENDAR_MANIFEST = StrategyManifest(
             "earnings_event_window",
             (_parameter("require_confirmed", "Boolean", True),),
         ),
+        _node("event_projection", "asa.stonk.options", "earnings_event_projection"),
         _node(
             "expiration_select",
             "asa.stonk.options",
@@ -99,6 +100,7 @@ EARNINGS_CALENDAR_MANIFEST = StrategyManifest(
             "asa.stonk.options",
             "earnings_calendar_liquidity",
             (_parameter("minimum_volume_band", "Enum", "ADEQUATE"),),
+            component_version="1.1.0",
         ),
         _node("event_gap_eligibility", "asa.core", "boolean_and"),
         _node("eligibility", "asa.core", "boolean_and"),
@@ -149,10 +151,21 @@ EARNINGS_CALENDAR_MANIFEST = StrategyManifest(
         ),
     ),
     (
+        _output("earnings_date", "event_projection", "earnings_date", "fact"),
+        _output(
+            "days_to_earnings",
+            "event_projection",
+            "days_to_earnings",
+            "derived_fact",
+            "days_to_earnings",
+        ),
+        _output("announcement_timing", "event_projection", "announcement_timing", "fact"),
         _output("earnings_eligible", "event_window", "eligible", "gate"),
         _output("eligible", "eligibility", "result", "gate"),
         _output("gap_eligible", "expiration_select", "gap_eligible", "gate"),
         _output("selected_expirations", "expiration_select", "selected", "fact"),
+        _output("selected_front_expiration", "pair", "front_expiration", "fact"),
+        _output("selected_back_expiration", "pair", "back_expiration", "fact"),
         _output(
             "actual_gap_days",
             "gap",
@@ -181,6 +194,12 @@ EARNINGS_CALENDAR_MANIFEST = StrategyManifest(
             "liquidity",
             "volume_supplement_strong",
             "gate",
+        ),
+        _output(
+            "volume_downgrade_reason",
+            "liquidity",
+            "volume_downgrade_reason",
+            "fact",
         ),
         _output("mid_debit", "debit", "mid_debit", "fact"),
         _output("conservative_debit", "debit", "conservative_debit", "fact"),
@@ -363,7 +382,7 @@ SKEW_MOMENTUM_VERTICAL_MANIFEST = StrategyManifest(
 FORWARD_FACTOR_CALENDAR_MANIFEST = StrategyManifest(
     "1.1.0",
     "forward_factor",
-    "1.2.1",
+    "1.3.0",
     ManifestMetadata(
         "Forward Factor Calendar",
         "Raw-front-IV forward factor with confirmed-earnings exclusion and "
@@ -406,7 +425,7 @@ FORWARD_FACTOR_CALENDAR_MANIFEST = StrategyManifest(
             "asa.stonk.options",
             "option_structure_collection_liquidity",
         ),
-        _node("eligibility", "asa.core", "boolean_and"),
+        _node("eligibility", "asa.stonk.options", "forward_factor_eligibility_gate"),
         _node(
             "verdict",
             "asa.stonk.shared",
@@ -424,16 +443,33 @@ FORWARD_FACTOR_CALENDAR_MANIFEST = StrategyManifest(
         EdgeSpec("pair", "back_expiration", "double_calendar", "back_expiration"),
         EdgeSpec("forward_iv", "implied_forward_iv", "factor", "implied_forward_iv"),
         EdgeSpec("double_calendar", "structures", "liquidity", "structures"),
-        EdgeSpec("liquidity", "acceptable", "eligibility", "right"),
+        EdgeSpec("double_calendar", "structures", "eligibility", "structures"),
+        EdgeSpec("liquidity", "acceptable", "eligibility", "liquidity_acceptable"),
         EdgeSpec("factor", "factor", "verdict", "score"),
         EdgeSpec("verdict", "verdict", "gated_verdict", "verdict"),
-        EdgeSpec("eligibility", "result", "gated_verdict", "eligible"),
+        EdgeSpec("eligibility", "eligible", "gated_verdict", "eligible"),
     ),
     (
         _output("selected_expirations", "expiration_select", "selected", "fact"),
+        _output("selected_front_expiration", "pair", "front_expiration", "fact"),
+        _output("selected_back_expiration", "pair", "back_expiration", "fact"),
         _output("structures", "double_calendar", "structures", "structure"),
+        _output("earnings_exclusion_gate", "eligibility", "earnings_exclusion_gate", "gate"),
+        _output(
+            "structure_constructible_gate",
+            "eligibility",
+            "structure_constructible_gate",
+            "gate",
+        ),
+        _output("liquidity_gate", "eligibility", "liquidity_gate", "gate"),
         _output("liquidity_acceptable", "liquidity", "acceptable", "gate"),
-        _output("eligible", "eligibility", "result", "gate"),
+        _output("eligible", "eligibility", "eligible", "gate"),
+        _output(
+            "confirmed_earnings_date_when_relevant",
+            "eligibility",
+            "confirmed_earnings_date",
+            "fact",
+        ),
         _output("front_iv", "factor", "front_iv", "fact"),
         _output(
             "implied_forward_volatility",

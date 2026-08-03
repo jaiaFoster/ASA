@@ -42,7 +42,7 @@ from strategies import (
     execute_strategy_graph,
 )
 from strategies.plugins import build_plugin_registry
-from strategies.stonk_components import EXPIRATION_COLLECTION, OPTION_CHAIN, D
+from strategies.stonk_components import DATE, EXPIRATION_COLLECTION, OPTION_CHAIN, D
 from strategies.type_system import ComponentValues, StrategyTypeReference, TypedValue
 
 AS_OF = date(2026, 7, 22)
@@ -173,8 +173,12 @@ def test_analytics_outputs_feed_the_real_manifest_with_zero_additional_math() ->
             ),
             ("factor.front_iv", TypedValue(D, front_iv)),
             (
-                "eligibility.left",
+                "eligibility.earnings_eligible",
                 TypedValue(StrategyTypeReference("Boolean", "1.0.0"), True),
+            ),
+            (
+                "eligibility.confirmed_earnings_date",
+                TypedValue(StrategyTypeReference("Optional", "1.0.0", (DATE,)), None),
             ),
         )
     )

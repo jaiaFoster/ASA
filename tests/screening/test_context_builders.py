@@ -33,7 +33,8 @@ class TestBuildForwardFactorContext:
         assert values["forward_iv.front_dte"].value == 61
         assert values["forward_iv.back_dte"].value == 91
         assert values["factor.front_iv"].value == Decimal("0.48")
-        assert values["eligibility.left"].value is True
+        assert values["eligibility.earnings_eligible"].value is True
+        assert values["eligibility.confirmed_earnings_date"].value is None
 
     def test_raises_when_no_pair_satisfies_the_dte_policy(self) -> None:
         chain = fixtures.forward_factor_chain()

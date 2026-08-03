@@ -13,6 +13,7 @@ from decimal import ROUND_HALF_EVEN, Context, Decimal, localcontext
 from typing import cast
 
 from analytics.derived_facts import (
+    compute_days_to_earnings,
     compute_expiration_gap_days,
     compute_expiration_gap_distance,
     compute_forward_factor,
@@ -68,6 +69,18 @@ VOLUME_BAND = StrategyTypeReference(
     "1.0.0",
     qualifiers=ManifestObject((("values", ("LOW", "ADEQUATE", "HIGH", "UNKNOWN")),)),
 )
+ANNOUNCEMENT_TIMING = StrategyTypeReference(
+    "Enum",
+    "1.0.0",
+    qualifiers=ManifestObject((("values", tuple(item.value for item in AnnouncementTime)),)),
+)
+VOLUME_DOWNGRADE_REASON = StrategyTypeReference(
+    "Enum",
+    "1.0.0",
+    qualifiers=ManifestObject(
+        (("values", ("NONE", "UNKNOWN_VOLUME", "BELOW_MINIMUM_VOLUME_BAND")),)
+    ),
+)
 SECURITY_COLLECTION = StrategyTypeReference("SecurityCollection", "1.0.0")
 OPTION_CONTRACT = StrategyTypeReference("OptionContract", "1.0.0")
 OPTION_COLLECTION = StrategyTypeReference("OptionCollection", "1.0.0")
@@ -79,6 +92,7 @@ OPTION_STRUCTURE = StrategyTypeReference("OptionStructure", "1.0.0")
 OPTION_STRUCTURE_LIST = StrategyTypeReference("List", "1.0.0", (OPTION_STRUCTURE,))
 OPTIONAL_DECIMAL = StrategyTypeReference("Optional", "1.0.0", (D,))
 OPTIONAL_BOOLEAN = StrategyTypeReference("Optional", "1.0.0", (B,))
+OPTIONAL_DATE = StrategyTypeReference("Optional", "1.0.0", (DATE,))
 OPTIONAL_OPTION_STRUCTURE = StrategyTypeReference("Optional", "1.0.0", (OPTION_STRUCTURE,))
 SKEW_DIRECTION = StrategyTypeReference(
     "Enum",
@@ -431,6 +445,79 @@ class EarningsEventWindow(BaseComponent):
             and (event.confirmed or not require_confirmed)
         )
         return ComponentValues((("eligible", TypedValue(B, eligible)),))
+
+
+class EarningsEventProjection(BaseComponent):
+    """Expose event facts and canonical days-to-event derived evidence."""
+
+    __slots__ = ()
+    definition = _definition(
+        "asa.stonk.options",
+        "earnings_event_projection",
+        ComponentCategory.TRANSFORM,
+        (PortDefinition("event", EARNINGS_EVENT), PortDefinition("as_of", DATE)),
+        (
+            PortDefinition("earnings_date", DATE),
+            PortDefinition("days_to_earnings", INTEGER),
+            PortDefinition("announcement_timing", ANNOUNCEMENT_TIMING),
+        ),
+    )
+
+    def evaluate(self, inputs: ComponentValues, parameters: ComponentValues) -> ComponentValues:
+        event = cast(EarningsEvent, _input(inputs, "event", EarningsEvent))
+        as_of = cast(date, _input(inputs, "as_of", date))
+        return ComponentValues(
+            (
+                (
+                    "announcement_timing",
+                    TypedValue(ANNOUNCEMENT_TIMING, event.announcement_time.value),
+                ),
+                (
+                    "days_to_earnings",
+                    TypedValue(INTEGER, compute_days_to_earnings(as_of, event.earnings_date)),
+                ),
+                ("earnings_date", TypedValue(DATE, event.earnings_date)),
+            )
+        )
+
+
+class ForwardFactorEligibilityGate(BaseComponent):
+    """Expose each hard gate while preserving existing aggregate eligibility."""
+
+    __slots__ = ()
+    definition = _definition(
+        "asa.stonk.options",
+        "forward_factor_eligibility_gate",
+        ComponentCategory.PREDICATE,
+        (
+            PortDefinition("earnings_eligible", B),
+            PortDefinition("structures", OPTION_STRUCTURE_LIST),
+            PortDefinition("liquidity_acceptable", B),
+            PortDefinition("confirmed_earnings_date", OPTIONAL_DATE),
+        ),
+        (
+            PortDefinition("earnings_exclusion_gate", B),
+            PortDefinition("structure_constructible_gate", B),
+            PortDefinition("liquidity_gate", B),
+            PortDefinition("eligible", B),
+            PortDefinition("confirmed_earnings_date", OPTIONAL_DATE),
+        ),
+    )
+
+    def evaluate(self, inputs: ComponentValues, parameters: ComponentValues) -> ComponentValues:
+        earnings_gate = cast(bool, inputs.get("earnings_eligible").value)
+        structures = cast(tuple[OptionStructure, ...], inputs.get("structures").value)
+        liquidity_gate = cast(bool, inputs.get("liquidity_acceptable").value)
+        structure_gate = bool(structures)
+        return ComponentValues(
+            (
+                ("confirmed_earnings_date", inputs.get("confirmed_earnings_date")),
+                ("earnings_exclusion_gate", TypedValue(B, earnings_gate)),
+                ("eligible", TypedValue(B, earnings_gate and structure_gate and liquidity_gate)),
+                ("liquidity_gate", TypedValue(B, liquidity_gate)),
+                ("structure_constructible_gate", TypedValue(B, structure_gate)),
+            )
+        )
 
 
 class ExpirationPairSelector(BaseComponent):
@@ -1458,8 +1545,11 @@ class EarningsCalendarLiquidity(BaseComponent):
             PortDefinition("acceptable", B),
             PortDefinition("volume_band", VOLUME_BAND),
             PortDefinition("volume_supplement_strong", B),
+            PortDefinition("volume_downgrade_reason", VOLUME_DOWNGRADE_REASON),
         ),
         (ParameterDefinition("minimum_volume_band", VOLUME_BAND),),
+        version="1.1.0",
+        algorithm_version="1.1.0",
     )
 
     def evaluate(self, inputs: ComponentValues, parameters: ComponentValues) -> ComponentValues:
@@ -1496,11 +1586,19 @@ class EarningsCalendarLiquidity(BaseComponent):
             else "HIGH"
         )
         supplement_strong = band_rank[volume_band] >= band_rank[minimum_band]
+        downgrade_reason = (
+            "NONE"
+            if supplement_strong
+            else "UNKNOWN_VOLUME"
+            if volume_band == "UNKNOWN"
+            else "BELOW_MINIMUM_VOLUME_BAND"
+        )
         return ComponentValues(
             (
                 ("acceptable", TypedValue(B, acceptable)),
                 ("volume_band", TypedValue(VOLUME_BAND, volume_band)),
                 ("volume_supplement_strong", TypedValue(B, supplement_strong)),
+                ("volume_downgrade_reason", TypedValue(VOLUME_DOWNGRADE_REASON, downgrade_reason)),
             )
         )
 
@@ -1570,6 +1668,8 @@ SHARED_STONK_COMPONENTS: tuple[BaseComponent, ...] = (
 
 OPTIONS_STONK_COMPONENTS: tuple[BaseComponent, ...] = (
     EarningsEventWindow(),
+    EarningsEventProjection(),
+    ForwardFactorEligibilityGate(),
     ExpirationPairSelector(),
     DtePairSelector(),
     ExpirationPairProjection(),

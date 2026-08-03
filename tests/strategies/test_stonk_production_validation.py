@@ -31,6 +31,7 @@ from strategies import (
 from strategies.component_registry import ComponentRegistry
 from strategies.plugins import build_plugin_registry
 from strategies.stonk_components import (
+    DATE,
     DECIMAL_LIST,
     EARNINGS_EVENT,
     EXPIRATION_COLLECTION,
@@ -67,6 +68,8 @@ def _execution_context(manifest: StrategyManifest) -> ComponentValues:
         return context(
             **{
                 "event_window.event": (EARNINGS_EVENT, earnings_event()),
+                "event_projection.event": (EARNINGS_EVENT, earnings_event()),
+                "event_projection.as_of": (DATE, AS_OF),
                 "event_window.front": (EXPIRATION_CYCLE, front),
                 "event_window.back": (EXPIRATION_CYCLE, back),
                 "expiration_select.expirations": (
@@ -146,9 +149,13 @@ def _execution_context(manifest: StrategyManifest) -> ComponentValues:
                 "forward_iv.front_dte": (INTEGER, 60),
                 "forward_iv.back_dte": (INTEGER, 90),
                 "factor.front_iv": (D, Decimal("0.48")),
-                "eligibility.left": (
+                "eligibility.earnings_eligible": (
                     StrategyTypeReference("Boolean", "1.0.0"),
                     True,
+                ),
+                "eligibility.confirmed_earnings_date": (
+                    StrategyTypeReference("Optional", "1.0.0", (DATE,)),
+                    None,
                 ),
             }
         )
