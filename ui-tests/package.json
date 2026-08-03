@@ -1,0 +1,12 @@
+{
+  "name": "asa-ui-tests",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "lint": "node --check ../asa/ui/static/app.js && node --check ../asa/ui/static/api-client.js && node --check ../asa/ui/static/render.js && node --check ../asa/ui/static/state.js && node --check ui.test.js"
+  },
+  "devDependencies": {
+    "happy-dom": "20.11.1"
+  }
+}
