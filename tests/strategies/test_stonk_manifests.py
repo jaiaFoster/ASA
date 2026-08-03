@@ -75,18 +75,18 @@ def test_four_manifest_catalog_is_canonical_serializable_and_identity_pinned() -
     )
     expected = {
         "earnings_calendar": "a165405844d32da747950e2bbd088849bf375b839b79557cb859e6daf51fdd9e",
-        "skew_momentum": "47f0686f74f7687ce09e3f8c13ac5c3c032ff957fab8c801c59443b660ae4028",
+        "skew_momentum": "64fed57c5a281dde0a1e071714e4379abc7f901aada4a26d5d97372d366cfdbf",
         "forward_factor": "c7f2b6bc3a46a8182464b098f3b703261cde89d11bf9b9ae0bd85cd56e349bf4",
         "asa.stonk.stock_momentum": (
             "456a84aa09ca73c65c32490ebaa270beb5b85db273e9d0c10d987f434e13047d"
         ),
     }
     graph_ids = {
-        "earnings_calendar": "c81ed69e3cab866c0f5af1487514e291755975ac490c085f611e08e261c01e22",
-        "skew_momentum": "7722239ef2338c8a210c2f6ad338882e060f217257a88595fe5ba5e97097b9b5",
-        "forward_factor": "239ec2db5f7b34ec1ecc00f0c1e201498ee8c3e8351ccbbaee4ae7e3a489b678",
+        "earnings_calendar": "b81f305fc9fcfc644328447ae60c20e8b50f9e67c822ea18f070c9148a27aab4",
+        "skew_momentum": "8a67a57212765d28550778144d90260082c4bd02d494ffd3a82623e27cf6ace7",
+        "forward_factor": "cbf3d7b7f32f77155b888c90434b85a172335d7ef5957295f022ca28fd36549f",
         "asa.stonk.stock_momentum": (
-            "610044e8bce050be3b1433a6fd73a3c20c04e77b27b9b1d063052d0567a3dbcf"
+            "511a906f3f36685d4bef88bdd796c200c576e16bdf95736eb8d0134db4f0cf7c"
         ),
     }
     component_registry = registry()
@@ -262,7 +262,7 @@ def test_skew_research_policy_boundaries_and_unknown_evidence() -> None:
     assert _execute_skew_policy(call_atm_iv_minus_rv=Decimal("0")).get("verdict").value == "PASS"
     assert (
         _execute_skew_policy(historical_valid_observations=39).get("verdict").value
-        == "WATCH"
+        == "FAIL"
     )
     assert _execute_skew_policy(comparison_peer_count=4).get("verdict").value == "WATCH"
     assert (
@@ -290,6 +290,36 @@ def test_skew_research_policy_boundaries_and_unknown_evidence() -> None:
         _execute_skew_policy(call_wing_iv_minus_rv=Decimal("0")).get("verdict").value
         == "FAIL"
     )
+
+
+def test_skew_research_policy_requires_one_true_directional_core_gate() -> None:
+    bullish_false_bearish_unknown = _execute_skew_policy(
+        call_atm_iv_minus_rv=Decimal("0.01"),
+        put_atm_iv_minus_rv=Decimal("0"),
+        put_skew_zscore=None,
+    )
+    assert bullish_false_bearish_unknown.get("bullish_core_gate").value is False
+    assert bullish_false_bearish_unknown.get("bearish_core_gate").value is None
+    assert bullish_false_bearish_unknown.get("direction").value == "UNKNOWN"
+    assert bullish_false_bearish_unknown.get("verdict").value == "FAIL"
+
+    both_unknown = _execute_skew_policy(
+        call_skew_zscore=None,
+        put_skew_zscore=None,
+        put_atm_iv_minus_rv=Decimal("0"),
+    )
+    assert both_unknown.get("bullish_core_gate").value is None
+    assert both_unknown.get("bearish_core_gate").value is None
+    assert both_unknown.get("verdict").value == "FAIL"
+
+    qualifying_incomplete = _execute_skew_policy(comparison_peer_count=4)
+    assert qualifying_incomplete.get("bullish_core_gate").value is True
+    assert qualifying_incomplete.get("verdict").value == "WATCH"
+
+    illiquid = _execute_skew_policy(call_wing_iv_minus_rv=Decimal("0"))
+    assert illiquid.get("bullish_core_gate").value is False
+    assert illiquid.get("liquidity_acceptable").value is False
+    assert illiquid.get("verdict").value == "FAIL"
 
 
 def _forward_chain() -> tuple[OptionChain, ExpirationCollection]:
