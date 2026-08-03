@@ -55,6 +55,31 @@ def test_api_version_header_is_present_on_every_response() -> None:
     assert response.headers["API-Version"] == "v1"
 
 
+def test_public_version_endpoint_reports_configured_build_identity() -> None:
+    app = build_application(
+        Settings(application_version="2.4.1", release_sha="abc123def"),
+        DependencyOverrides(repository=InMemoryObservationRepository()),
+    )
+
+    response = TestClient(app).get("/api/v1/version")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "application_version": "2.4.1",
+        "api_version": "v1",
+        "release_sha": "abc123def",
+    }
+
+
+def test_public_version_endpoint_discloses_unavailable_release_explicitly() -> None:
+    app = build_application(
+        Settings(),
+        DependencyOverrides(repository=InMemoryObservationRepository()),
+    )
+
+    assert TestClient(app).get("/api/v1/version").json()["release_sha"] is None
+
+
 def test_agent_api_token_setting_reaches_the_authorizer() -> None:
     app = build_application(
         Settings(agent_api_token=SecretStr("agent-token")),

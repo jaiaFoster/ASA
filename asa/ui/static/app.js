@@ -41,9 +41,13 @@ async function loadPersistedState() {
   state.loading = true;
   state.error = null;
   render();
-  const infrastructure = await Promise.allSettled([api.health(), api.readiness()]);
+  const infrastructure = await Promise.allSettled([api.health(), api.readiness(), api.version()]);
   if (infrastructure[0].status === "fulfilled") state.health = infrastructure[0].value.data;
   if (infrastructure[1].status === "fulfilled") state.readiness = infrastructure[1].value.data;
+  if (infrastructure[2].status === "fulfilled") {
+    state.buildIdentity = infrastructure[2].value.data;
+    state.apiVersion = infrastructure[2].value.data.api_version;
+  }
   if (!hasToken()) {
     state.loading = false;
     render();

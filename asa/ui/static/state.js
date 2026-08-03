@@ -1,6 +1,7 @@
 export const state = {
   health: null,
   readiness: null,
+  buildIdentity: null,
   capabilities: null,
   results: [],
   apiVersion: null,

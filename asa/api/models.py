@@ -58,6 +58,12 @@ class HealthResponse(BaseModel):
     status: str
 
 
+class BuildIdentityResponse(BaseModel):
+    application_version: str
+    api_version: str
+    release_sha: str | None
+
+
 class StartRunRequest(BaseModel):
     requested_at: datetime
     release_sha: str = Field(min_length=1, max_length=64)
