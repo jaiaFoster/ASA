@@ -3,6 +3,7 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, Request, status
 
 from asa.api.models import (
+    BuildIdentityResponse,
     HealthResponse,
     IngestQuotesRequest,
     IngestQuotesResponse,
@@ -28,12 +29,23 @@ def build_router(
     portfolio_runner: RunPortfolioIntelligence,
     portfolio_query: PublishedPortfolioQuery,
     run_query: RunQueryService,
+    application_version: str,
+    api_version: str,
+    release_sha: str | None,
 ) -> APIRouter:
     router = APIRouter(prefix="/api/v1")
 
     @router.get("/health", response_model=HealthResponse)
     def health() -> HealthResponse:
         return HealthResponse(status="ok")
+
+    @router.get("/version", response_model=BuildIdentityResponse)
+    def version() -> BuildIdentityResponse:
+        return BuildIdentityResponse(
+            application_version=application_version,
+            api_version=api_version,
+            release_sha=release_sha,
+        )
 
     @router.get("/readiness", response_model=HealthResponse)
     def readiness() -> HealthResponse:

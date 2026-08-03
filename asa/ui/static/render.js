@@ -97,7 +97,9 @@ function shellHeader(model, handlers) {
   const readiness = model.readiness?.status || (model.readiness ? "ready" : "unknown");
   status.append(badge(`health:${health}`, health === "ok" ? "pass" : "unknown"));
   status.append(badge(`readiness:${readiness}`, readiness === "ready" ? "pass" : "unknown"));
+  status.append(badge(`app:${model.buildIdentity?.application_version || "unavailable"}`, "raw"));
   status.append(badge(`api:${model.apiVersion || "unavailable"}`, "raw"));
+  status.append(badge(`revision:${model.buildIdentity?.release_sha || "unavailable"}`, "raw"));
   header.append(status);
 
   const nav = element("nav", "primary-nav");
@@ -331,6 +333,8 @@ function healthView(model) {
     ["Health endpoint", JSON.stringify(model.health || "Unavailable")],
     ["Readiness endpoint", JSON.stringify(model.readiness || "Unavailable")],
     ["API contract", model.apiVersion || "Revision unavailable"],
+    ["Application version", model.buildIdentity?.application_version || "Unavailable"],
+    ["Release revision", model.buildIdentity?.release_sha || "Unavailable"],
     ["Persisted rows", String(model.results.length)],
     ["Earliest evaluated", model.evaluatedRange.earliest],
     ["Latest evaluated", model.evaluatedRange.latest],

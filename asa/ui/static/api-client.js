@@ -41,6 +41,7 @@ async function requestJson(path, protectedRoute = true) {
 export const api = Object.freeze({
   health: () => requestJson("/api/v1/health", false),
   readiness: () => requestJson("/api/v1/readiness", false),
+  version: () => requestJson("/api/v1/version", false),
   capabilities: () => requestJson("/api/v1/capabilities"),
   results: () => requestJson("/api/v1/screening?limit=500&offset=0"),
   result: (signalId, symbol) =>

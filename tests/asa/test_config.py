@@ -108,6 +108,17 @@ def test_railway_port_is_loaded(monkeypatch: pytest.MonkeyPatch) -> None:
     assert Settings(_env_file=None).port == 9123
 
 
+def test_build_identity_strips_configuration_whitespace() -> None:
+    settings = Settings(
+        _env_file=None,
+        application_version=" 2.4.1 ",
+        release_sha=" abc123 ",
+    )
+
+    assert settings.application_version == "2.4.1"
+    assert settings.release_sha == "abc123"
+
+
 def test_robinhood_provider_is_selected_from_railway_variables(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

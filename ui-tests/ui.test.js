@@ -39,6 +39,7 @@ function model(overrides = {}) {
     health: { status: "ok" },
     readiness: { status: "ready" },
     apiVersion: "v1",
+    buildIdentity: { application_version: "0.1.0", api_version: "v1", release_sha: "abc123" },
     results: [fixture],
     visible: [fixture],
     detail: null,
@@ -74,6 +75,17 @@ test("shared public fixture renders exact audit identity, decision, evidence, an
   assert.match(text, /comparison universe incomplete/);
   assert.match(text, /2026-07-29T13:44:00Z/);
   assert.match(text, /observation:fixture:001/);
+});
+
+test("runtime strip renders exact configured build identity and explicit unavailable revision", () => {
+  const root = document.createElement("div");
+  renderApp(root, model(), noOpHandlers);
+  assert.match(root.querySelector(".runtime-strip").textContent, /app:0\.1\.0/);
+  assert.match(root.querySelector(".runtime-strip").textContent, /api:v1/);
+  assert.match(root.querySelector(".runtime-strip").textContent, /revision:abc123/);
+
+  renderApp(root, model({ buildIdentity: { application_version: "0.1.0", api_version: "v1", release_sha: null } }), noOpHandlers);
+  assert.match(root.querySelector(".runtime-strip").textContent, /revision:unavailable/);
 });
 
 test("verdict, evaluation state, outcome, UNKNOWN, failures, and stale states stay distinct", () => {

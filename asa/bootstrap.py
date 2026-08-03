@@ -40,6 +40,8 @@ from strategy_runtime.adapters import (
 )
 from strategy_runtime.persistence import LatestResultRepository, ObservationHistoryRepository
 
+API_VERSION = "v1"
+
 
 @dataclass(frozen=True)
 class DependencyOverrides:
@@ -91,7 +93,7 @@ def build_application(
     )
     run_query = RunQueryService(run_repository)
 
-    app = FastAPI(title="ASA Market Quote API", version="1.0.0")
+    app = FastAPI(title="ASA Market Quote API", version=settings.application_version)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=[origin.strip() for origin in settings.cors_origins.split(",")],
@@ -106,6 +108,9 @@ def build_application(
             portfolio_runner=portfolio_runner,
             portfolio_query=portfolio_query,
             run_query=run_query,
+            application_version=settings.application_version,
+            api_version=API_VERSION,
+            release_sha=settings.release_sha,
         )
     )
     app.include_router(
@@ -142,7 +147,7 @@ def build_application(
             # confirm which contract it's talking to. Future versions get
             # their own /api/v2 prefix (URL-path versioning, matching the
             # existing /api/v1 convention) rather than a header switch.
-            response.headers["API-Version"] = "v1"
+            response.headers["API-Version"] = API_VERSION
             return response
         finally:
             request_id_context.reset(token)

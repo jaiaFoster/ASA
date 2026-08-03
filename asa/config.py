@@ -19,6 +19,8 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("DATABASE_URL", "ASA_DATABASE_URL"),
     )
     environment: str = "development"
+    application_version: str = Field(default="0.1.0", min_length=1, max_length=64)
+    release_sha: str | None = Field(default=None, min_length=1, max_length=64)
     quote_provider: str = "deterministic_fake"
     broker_portfolio_provider: str = "deterministic_fake_broker"
     robinhood_username: SecretStr | None = None
@@ -36,6 +38,14 @@ class Settings(BaseSettings):
         le=65535,
         validation_alias=AliasChoices("PORT", "ASA_PORT"),
     )
+
+    @field_validator("application_version", "release_sha", mode="before")
+    @classmethod
+    def normalize_build_identity(cls, value: object) -> object:
+        if isinstance(value, str):
+            stripped = value.strip()
+            return stripped or None
+        return value
 
     @field_validator("database_url")
     @classmethod
