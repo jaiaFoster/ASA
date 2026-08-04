@@ -43,7 +43,7 @@ class SecretValue:
 @dataclass(frozen=True, slots=True)
 class RequestBudgetConfig:
     max_requests_per_run: int = 100
-    burst_limit: int = 1
+    burst_limit: int = 8
 
     def __post_init__(self) -> None:
         _positive(self.max_requests_per_run, "max_requests_per_run")
@@ -246,7 +246,7 @@ def _provider(
     enabled = _boolean(values, f"{prefix}_ENABLED", default_enabled)
     timeout = _integer(values, f"{prefix}_TIMEOUT_SECONDS", 10)
     requests = _integer(values, f"{prefix}_MAX_REQUESTS_PER_RUN", 100)
-    burst = _integer(values, f"{prefix}_BURST_LIMIT", 1)
+    burst = _integer(values, f"{prefix}_BURST_LIMIT", 8)
     retries = _integer(values, f"{prefix}_MAX_RETRIES", 1)
     return ProviderConfig(
         provider_id,

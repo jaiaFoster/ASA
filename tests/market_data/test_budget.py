@@ -14,6 +14,7 @@ from market_data.budget import (
     RequestBudgetPolicy,
     RequestOutcome,
 )
+from market_data.rolling_window import ProviderRollingWindowTracker, RollingWindowPolicy
 
 START = datetime(2026, 7, 21, tzinfo=timezone.utc)
 
@@ -156,3 +157,127 @@ def test_same_inputs_and_fake_clock_produce_same_authorization() -> None:
     first = manager(FakeClock()).authorize("fixture", MarketCapability.REAL_TIME_QUOTE_V1, 1)
     second = manager(FakeClock()).authorize("fixture", MarketCapability.REAL_TIME_QUOTE_V1, 1)
     assert first == second
+
+
+# -- SPRINT-013 S13-03A: burst sliding window and shared cross-pair
+# rolling-window integration --------------------------------------------
+
+
+def test_microsecond_separated_requests_obey_the_same_active_window() -> None:
+    """The confirmed root cause (issue #261): the old burst dict keyed
+    usage by the exact authorization timestamp, so under a real clock
+    (unique to the microsecond on every call) two requests essentially
+    never collided and burst_limit was unenforceable in production. A
+    FakeClock that doesn't advance at all is the adversarial case that
+    exposes this."""
+    clock = FakeClock()
+    budget = manager(clock, burst=1)
+    budget.authorize("fixture", MarketCapability.REAL_TIME_QUOTE_V1, 1)
+    with pytest.raises(BudgetExhaustedError, match="burst"):
+        budget.authorize("fixture", MarketCapability.REAL_TIME_QUOTE_V1, 1)
+
+
+def test_burst_window_duration_is_configurable_and_expires_deterministically() -> None:
+    clock = FakeClock()
+    budget = RequestBudgetManager(
+        (RequestBudgetPolicy("fixture", BudgetScope.RUNTIME, 10, 1, 1, "v1",
+                              burst_window_seconds=5),),
+        clock,
+    )
+    budget.authorize("fixture", MarketCapability.REAL_TIME_QUOTE_V1, 1)
+    clock.advance(4)
+    with pytest.raises(BudgetExhaustedError, match="burst"):
+        budget.authorize("fixture", MarketCapability.REAL_TIME_QUOTE_V1, 1)
+    clock.advance(2)  # now 6s after the first authorization
+    assert budget.authorize("fixture", MarketCapability.REAL_TIME_QUOTE_V1, 1)
+
+
+def test_shared_rolling_window_refusal_never_burns_local_pair_budget() -> None:
+    """A cross-pair provider-level refusal must be refused before any
+    local (pair-scoped) budget is consumed -- otherwise a shared-window
+    refusal would silently eat into this pair's own accounting for a
+    request that was never actually sent."""
+    clock = FakeClock()
+    window = ProviderRollingWindowTracker(
+        (RollingWindowPolicy("fixture", 60, 1, "documented"),), clock
+    )
+    window.try_reserve("fixture")  # consume the one shared slot
+    budget = RequestBudgetManager(
+        (RequestBudgetPolicy("fixture", BudgetScope.RUNTIME, 10, 5, 1, "v1"),),
+        clock,
+        rolling_window=window,
+    )
+    with pytest.raises(BudgetExhaustedError, match="rolling-window"):
+        budget.authorize("fixture", MarketCapability.REAL_TIME_QUOTE_V1, 1)
+    assert budget.accounting == ()  # nothing was locally recorded
+
+
+def test_shared_rolling_window_is_consulted_across_independently_constructed_managers() -> None:
+    """The whole point: two DIFFERENT RequestBudgetManager instances (one
+    per pair, as production actually builds them) sharing one
+    ProviderRollingWindowTracker enforce one real cross-pair limit."""
+    clock = FakeClock()
+    window = ProviderRollingWindowTracker(
+        (RollingWindowPolicy("fixture", 60, 1, "documented"),), clock
+    )
+    first_pair_budget = RequestBudgetManager(
+        (RequestBudgetPolicy("fixture", BudgetScope.RUNTIME, 10, 5, 1, "v1"),),
+        clock,
+        rolling_window=window,
+    )
+    second_pair_budget = RequestBudgetManager(
+        (RequestBudgetPolicy("fixture", BudgetScope.RUNTIME, 10, 5, 1, "v1"),),
+        clock,
+        rolling_window=window,
+    )
+    assert first_pair_budget.authorize("fixture", MarketCapability.REAL_TIME_QUOTE_V1, 1)
+    with pytest.raises(BudgetExhaustedError, match="rolling-window"):
+        second_pair_budget.authorize("fixture", MarketCapability.REAL_TIME_QUOTE_V1, 1)
+    # Each manager's own local accounting stays independent (pair isolation).
+    assert len(first_pair_budget.accounting) == 1
+    assert len(second_pair_budget.accounting) == 0
+
+
+def test_upstream_and_local_refusal_remain_distinct() -> None:
+    """A shared-window (upstream-shaped) refusal and a local total-budget
+    refusal must raise distinguishable errors, not the same generic one."""
+    clock = FakeClock()
+    window = ProviderRollingWindowTracker(
+        (RollingWindowPolicy("fixture", 60, 1, "documented"),), clock
+    )
+    window.try_reserve("fixture")
+    budget = RequestBudgetManager(
+        (RequestBudgetPolicy("fixture", BudgetScope.RUNTIME, 1, 1, 1, "v1"),),
+        clock,
+        rolling_window=window,
+    )
+    with pytest.raises(BudgetExhaustedError, match="rolling-window"):
+        budget.authorize("fixture", MarketCapability.REAL_TIME_QUOTE_V1, 1)
+
+    other_budget = RequestBudgetManager(
+        (RequestBudgetPolicy("fixture", BudgetScope.RUNTIME, 1, 1, 1, "v1"),), clock
+    )
+    other_budget.authorize("fixture", MarketCapability.REAL_TIME_QUOTE_V1, 1)
+    with pytest.raises(BudgetExhaustedError, match="budget exhausted"):
+        other_budget.authorize("fixture", MarketCapability.REAL_TIME_QUOTE_V1, 1)
+
+
+def test_complete_forwards_safe_reset_hint_to_shared_window() -> None:
+    clock = FakeClock()
+    window = ProviderRollingWindowTracker(
+        (RollingWindowPolicy("fixture", 60, 5, "documented"),), clock
+    )
+    budget = RequestBudgetManager(
+        (RequestBudgetPolicy("fixture", BudgetScope.RUNTIME, 10, 5, 1, "v1"),),
+        clock,
+        rolling_window=window,
+    )
+    authorization = budget.authorize("fixture", MarketCapability.REAL_TIME_QUOTE_V1, 1)
+    quota = QuotaObservation(
+        "fixture", clock.now(), 0, 5, clock.now() + timedelta(minutes=5), ("x-ratelimit",)
+    )
+    budget.complete(authorization.authorization_id, RequestOutcome.RATE_LIMITED, quota=quota)
+    # The reset hint (5 minutes out) is now the binding constraint, tighter
+    # than the window's own 60s duration would otherwise allow.
+    clock.advance(65)
+    assert window.try_reserve("fixture") is False

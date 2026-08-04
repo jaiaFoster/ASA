@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
@@ -364,18 +364,34 @@ def test_budget_policy_never_exceeds_the_authorized_validation_ceiling() -> None
 
 
 def test_request_budget_manager_refuses_requests_beyond_the_authorized_ceiling() -> None:
+    """Isolates the TOTAL ceiling (maximum_request_units) from burst_limit
+    (a separate, smaller, real-time-window ceiling -- SPRINT-013 S13-03A)
+    by spacing each authorization a full burst_window_seconds apart, so
+    this test can never hit burst exhaustion before the total ceiling it's
+    actually testing.
+    """
+    from dataclasses import dataclass, field
 
-    from asa.market_data_ops.service import Clock, _budget_policy_for
+    from asa.market_data_ops.service import _budget_policy_for
     from domain import MarketCapability
     from market_data.budget import BudgetExhaustedError, RequestBudgetManager
     from market_data.config import load_market_data_config
+
+    @dataclass
+    class _SpacedClock:
+        value: datetime = field(default_factory=lambda: datetime(2026, 1, 1, tzinfo=UTC))
+
+        def now(self) -> datetime:
+            current = self.value
+            self.value += timedelta(seconds=2)
+            return current
 
     config = load_market_data_config(
         {"ASA_TRADIER_ENABLED": "true", "ASA_TRADIER_ACCESS_TOKEN": "x"}
     )
     tradier_config = next(item for item in config.providers if item.provider_id == "tradier")
     policy = _budget_policy_for("tradier", tradier_config)
-    manager = RequestBudgetManager((policy,), Clock())
+    manager = RequestBudgetManager((policy,), _SpacedClock())
     for _ in range(policy.maximum_request_units):
         manager.authorize("tradier", MarketCapability.REAL_TIME_QUOTE_V1, 1)
     with pytest.raises(BudgetExhaustedError):

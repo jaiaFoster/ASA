@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -158,12 +158,25 @@ class TestBuildFulfillmentServiceAndAcquireCapability:
         """Demonstrates real request-budget enforcement, not just that it's
         wired: a second, *distinct* request (a different capability -- an
         identical repeated request is memoized by CapabilityFulfillmentService
-        and never re-authorized) in the same instant hits the provider's
-        burst_limit=1 default and is refused, exactly as RequestBudgetPolicy
+        and never re-authorized) in the same instant hits an explicit
+        burst_limit=1 policy and is refused, exactly as RequestBudgetPolicy
         is designed to do -- LIVE-001's request_budget_compliance deliverable
-        proven, not merely assumed.
+        proven, not merely assumed. burst_limit is overridden explicitly
+        (rather than relying on the production default, which SPRINT-013
+        S13-03A widened to give real multi-request pairs headroom) so this
+        test keeps proving the enforcement mechanism itself regardless of
+        whatever the production default is tuned to.
         """
         config = load_market_data_config({})
+        config = replace(
+            config,
+            providers=tuple(
+                replace(item, request_budget=replace(item.request_budget, burst_limit=1))
+                if item.provider_id == "deterministic_fixture"
+                else item
+                for item in config.providers
+            ),
+        )
         fulfillment = build_fulfillment_service(config, _no_transport, FixedClock())
         first_capability = MarketCapability.REAL_TIME_QUOTE_V1
         second_capability = MarketCapability.HISTORICAL_BARS_V1

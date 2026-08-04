@@ -11,6 +11,7 @@ import pytest
 
 from market_data import load_market_data_config
 from market_data.transport import ReadOnlyHttpResponse
+from screening.live_acquisition import live_only_config
 from strategy_runtime.adapters.skew_momentum_vertical import (
     SKEW_MOMENTUM_VERTICAL_CONTRACT,
     skew_momentum_adapter,
@@ -29,43 +30,89 @@ class _FixedClock:
         return self.value
 
 
+# (strike offset from the 190 ATM strike, call delta) -- put delta is the
+# standard put_delta = call_delta - 1 relationship (matching
+# tests/screening/test_live_adapters.py's own _STRIKE_DELTA_LADDER).
+# SkewMomentumResearchDecision needs both an ATM contract and a ~0.25-delta
+# wing contract on each side, so a single-strike chain (the original
+# fixture here) can never complete the real acquisition -- it only
+# appeared to pass before because deterministic_fixture (alphabetically
+# first, always enabled) silently answered every request instead of this
+# scripted Tradier transport, until live_only_config() below forced it out.
+_STRIKE_DELTA_LADDER = (
+    (-15, "0.80"),
+    (-10, "0.70"),
+    (-5, "0.60"),
+    (0, "0.50"),
+    (5, "0.35"),
+    (10, "0.25"),
+    (15, "0.15"),
+)
+
+
+def _option_row(strike: int, expiration: str, option_type: str, call_delta: str) -> dict:
+    delta = call_delta if option_type == "call" else str(round(float(call_delta) - 1, 2))
+    return {
+        "symbol": f"AAPL_TEST_{option_type.upper()}_{strike}",
+        "underlying": "AAPL",
+        "expiration_date": expiration,
+        "strike": str(strike),
+        "option_type": option_type,
+        "bid": "4.9",
+        "ask": "5.1",
+        "last": "5",
+        "volume": 1000,
+        "open_interest": 5000,
+        "greeks": {
+            "delta": delta,
+            "gamma": "0.03",
+            "theta": "-0.1",
+            "vega": "0.2",
+            "rho": "0.01",
+            "mid_iv": "0.30",
+        },
+    }
+
+
+def _history_response() -> ReadOnlyHttpResponse:
+    # Skew Momentum's realized-volatility input needs ~30 trading days
+    # (screening/live_adapters.py's _HISTORICAL_LOOKBACK_DAYS=45 calendar
+    # days), ending recently enough to satisfy the freshness requirement --
+    # ending 15+ days ago (an earlier draft's mistake) reads as STALE_DATA.
+    days = []
+    cursor = date.today() - timedelta(days=1)
+    price = 189.0
+    while len(days) < 32:
+        if cursor.weekday() < 5:
+            days.append(
+                {
+                    "date": cursor.isoformat(),
+                    "open": str(price - 0.5),
+                    "high": str(price + 1),
+                    "low": str(price - 1),
+                    "close": str(price),
+                    "volume": "1000000",
+                }
+            )
+            price -= 0.1
+        cursor -= timedelta(days=1)
+    days.reverse()
+    return ReadOnlyHttpResponse(200, {"history": {"day": days}}, (), 12, "tradier-request-4")
+
+
 def _chain_responses(expiration: str) -> list[ReadOnlyHttpResponse]:
+    options = [
+        _option_row(190 + offset, expiration, option_type, call_delta)
+        for offset, call_delta in _STRIKE_DELTA_LADDER
+        for option_type in ("call", "put")
+    ]
     return [
         tradier_quote_response(),
         ReadOnlyHttpResponse(
             200, {"expirations": {"date": [expiration]}}, (), 12, "tradier-request-2"
         ),
-        ReadOnlyHttpResponse(
-            200,
-            {
-                "options": {
-                    "option": [
-                        {
-                            "symbol": "AAPL_TEST_CALL",
-                            "underlying": "AAPL",
-                            "expiration_date": expiration,
-                            "strike": "190",
-                            "option_type": "call",
-                            "bid": "4.9",
-                            "ask": "5.1",
-                            "last": "5",
-                            "volume": 1000,
-                            "open_interest": 5000,
-                            "greeks": {
-                                "delta": "0.5",
-                                "gamma": "0.03",
-                                "theta": "-0.1",
-                                "vega": "0.2",
-                                "rho": "0.01",
-                            },
-                        }
-                    ]
-                }
-            },
-            (),
-            12,
-            "tradier-request-3",
-        ),
+        ReadOnlyHttpResponse(200, {"options": {"option": options}}, (), 12, "tradier-request-3"),
+        _history_response(),
     ]
 
 
@@ -100,8 +147,20 @@ class TestSkewMomentumAdapter:
         expiration = (date.today() + timedelta(days=7)).isoformat()
         responses = _chain_responses(expiration)
 
-        config = load_market_data_config(
-            {"ASA_TRADIER_ENABLED": "true", "ASA_TRADIER_ACCESS_TOKEN": "sandbox-secret-token"}
+        # live_only_config() force-disables deterministic_fixture -- it
+        # defaults to enabled and, being alphabetically first, would
+        # otherwise be tried before tradier by CapabilityRegistry's
+        # deterministic priority order and silently answer every request
+        # from offline fixture data instead of this test's own scripted
+        # Tradier-shaped responses (screening/live_acquisition.py's own
+        # documented rationale for this exact failure mode).
+        config = live_only_config(
+            load_market_data_config(
+                {
+                    "ASA_TRADIER_ENABLED": "true",
+                    "ASA_TRADIER_ACCESS_TOKEN": "sandbox-secret-token",
+                }
+            )
         )
         access = build_shared_market_data_access(
             config, lambda _provider_id: ScriptedTransport(responses), clock, ("AAPL",)

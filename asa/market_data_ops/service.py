@@ -217,12 +217,23 @@ def _budget_policy_for(provider_id: str, provider_config: ProviderConfig) -> Req
     """The ceiling enforced here is always the provider's own validation_budget --
     ValidationBudgetConfig.__post_init__ already refuses more than the authorized safety
     ceiling (<=12 requests/run, <=3/capability, <=1 retry); this never widens it.
+
+    burst_limit is deliberately less than max_requests_per_provider_run (not
+    equal to it): a bounded validation run checking every one of a
+    provider's capabilities sequentially (e.g. Tradier's historical_bars_v1,
+    option_chain_v1, real_time_quote_v1) legitimately needs a handful of
+    requests within the same second, but burst_limit still exists to catch
+    a genuinely pathological zero-delay request storm, not to block a
+    normal bounded check (SPRINT-013 S13-03A: RequestBudgetManager's burst
+    accounting now correctly enforces a real sliding window instead of the
+    previous exact-timestamp bug, so this can no longer rely on that bug to
+    silently tolerate a burst_limit of 1).
     """
     return RequestBudgetPolicy(
         provider_id,
         BudgetScope.RUNTIME,
         provider_config.validation_budget.max_requests_per_provider_run,
-        1,
+        min(5, provider_config.validation_budget.max_requests_per_provider_run),
         provider_config.validation_budget.max_retries_per_request,
         "ops-validation-v1",
     )

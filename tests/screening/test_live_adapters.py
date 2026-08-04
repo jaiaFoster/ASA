@@ -15,6 +15,7 @@ still zero network, still fully deterministic.
 
 from __future__ import annotations
 
+import dataclasses
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 
@@ -341,7 +342,12 @@ def _no_transport(_provider_id: str) -> object:
     return object()
 
 
-def _fulfillment(provider_cls=DeterministicFixtureProvider, clock: FixedClock | None = None):
+def _fulfillment(
+    provider_cls=DeterministicFixtureProvider,
+    clock: FixedClock | None = None,
+    *,
+    burst_limit: int | None = None,
+):
     # One shared clock instance for both the budget manager and the
     # provider's dependencies: RequestBudgetManager.authorize()'s burst-key
     # is keyed by *its own* clock reading, independent of whatever clock a
@@ -349,9 +355,27 @@ def _fulfillment(provider_cls=DeterministicFixtureProvider, clock: FixedClock | 
     # instance here is what actually avoids burst collisions across the
     # several acquisitions one adapter run makes (a quote and a chain, at
     # minimum).
+    #
+    # burst_limit override: the configured default (market_data/config.py's
+    # RequestBudgetConfig) is sized for one strategy per pair -- the real
+    # production shape (asa/scheduled_screening.py builds one budget per
+    # (signal_id, symbol) pair). Tests that deliberately run every target
+    # strategy together against one shared budget (TARGET_STRATEGY_REGISTRY
+    # with no strategy_ids filter -- itself a real screening/cli.py --live
+    # multi-strategy path, just not the automated scheduled one) need more
+    # headroom than any single real pair does; pass it explicitly here
+    # rather than inflating the global default for every single-strategy
+    # caller.
     shared_clock = clock or FixedClock()
     config = load_market_data_config({})
     (fixture_config,) = tuple(item for item in config.providers if item.enabled)
+    if burst_limit is not None:
+        fixture_config = dataclasses.replace(
+            fixture_config,
+            request_budget=dataclasses.replace(
+                fixture_config.request_budget, burst_limit=burst_limit
+            ),
+        )
     budget_manager = build_request_budget_manager((fixture_config,), shared_clock)
     provider = provider_cls(
         fixture_config, ProviderDependencies(object(), shared_clock, budget_manager)
@@ -528,7 +552,11 @@ class TestCapabilityNotOfferedByAnyEnabledProvider:
 
 class TestFullLiveRunAcrossAllThreeStrategies:
     def test_all_three_run_and_are_isolated_from_each_other(self) -> None:
-        fulfillment, clock = _fulfillment(MultiExpirationFixtureProvider)
+        # All three strategies deliberately share one budget here (no
+        # strategy_ids filter) -- see _fulfillment()'s burst_limit
+        # docstring for why this needs more headroom than one pair's own
+        # production-shaped budget.
+        fulfillment, clock = _fulfillment(MultiExpirationFixtureProvider, burst_limit=20)
         adapters = build_live_adapters(SYMBOL, fulfillment)
         results = run_screening(TARGET_STRATEGY_REGISTRY, adapters, clock)
         assert {result.strategy_id for result in results} == {
@@ -765,7 +793,10 @@ class TestTwoStepLiveAcquisitionAgainstATradierShapedProvider:
                     )
                 return super()._chain_response_for_one_expiration(request)
 
-        fulfillment, clock = _fulfillment(_BackExpirationFailsProvider)
+        # All three strategies deliberately share one budget here (no
+        # strategy_ids filter) -- see _fulfillment()'s burst_limit
+        # docstring.
+        fulfillment, clock = _fulfillment(_BackExpirationFailsProvider, burst_limit=20)
         adapters = build_live_adapters(SYMBOL, fulfillment)
         results = run_screening(TARGET_STRATEGY_REGISTRY, adapters, clock)
         by_strategy = {result.strategy_id: result for result in results}
