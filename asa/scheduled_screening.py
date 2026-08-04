@@ -44,11 +44,23 @@ from asa.integrations.postgres import create_postgres_engine
 from asa.integrations.refresh_schedule_postgres import (
     PostgresRefreshScheduleClaimRepository,
 )
+from asa.integrations.screening_acquisition_attempts_postgres import (
+    PostgresAcquisitionAttemptRepository,
+)
 from asa.integrations.universal_screening_postgres import PostgresLatestResultRepository
 from market_data import load_market_data_config_from_environment
+from market_data.attempts import AcquisitionAttemptRepository, attempt_records_for
 from market_data.live_transport import build_live_transport
 from market_data.session_schedule import SessionRefreshSchedule
 from screening import APPROVED_LIVE_UNIVERSE, EARNINGS_CALENDAR_UNIVERSE
+from screening.cycle_identity import (
+    manual_invocation_slot_id,
+    new_screening_cycle_id,
+    scope_identity,
+)
+from screening.cycle_identity import (
+    pair_evaluation_id as compute_pair_evaluation_id,
+)
 from screening.live_acquisition import live_only_config
 from strategy_runtime.adapters import build_migrated_strategy_registry
 from strategy_runtime.lifecycle import RecommendedAction
@@ -92,6 +104,7 @@ class PairOutcome:
     outcome: str | None
     request_count: int | None
     error: str | None
+    attempts_recorded: bool
 
 
 class RefreshScheduleClaimRepository(Protocol):
@@ -103,6 +116,7 @@ def run_scheduled_refresh(
     *,
     repository: LatestResultRepository | None = None,
     history_repository: ObservationHistoryRepository | None = None,
+    acquisition_attempt_repository: AcquisitionAttemptRepository | None = None,
     transport_factory: Callable[[str], object] = build_live_transport,
     claim_repository: RefreshScheduleClaimRepository | None = None,
     enforce_schedule: bool = False,
@@ -115,13 +129,25 @@ def run_scheduled_refresh(
     asa/api/screening_routes.py already uses, never shared or cached
     across pairs.
 
-    ``repository`` and ``transport_factory`` are injectable (default:
-    the real Postgres repository and the real live transport) so this
-    function is directly testable without a live database or network,
-    the same DependencyOverrides-style pattern asa/bootstrap.py already
-    uses.
+    ``repository``, ``transport_factory``, and ``acquisition_attempt_
+    repository`` are injectable (default: the real Postgres repositories
+    and the real live transport) so this function is directly testable
+    without a live database or network, the same DependencyOverrides-style
+    pattern asa/bootstrap.py already uses.
+
+    One screening_cycle_id is minted once for the whole invocation
+    (SPRINT-013 S13-02) -- deterministically, from (invocation_type,
+    slot_id, scope_id), never from raw wall-clock alone
+    (screening.cycle_identity.new_screening_cycle_id). Each pair gets its
+    own pair_evaluation_id derived from that cycle. Attempt persistence is
+    best-effort per pair: a persistence failure never aborts an otherwise-
+    successful strategy evaluation, but PairOutcome.attempts_recorded is
+    set False so acquisition accounting is never silently reported
+    complete when it wasn't.
     """
     run_at = now or datetime.now(UTC)
+    invocation_type = "manual"
+    slot_id = manual_invocation_slot_id(run_at)
     if enforce_schedule:
         slot = SessionRefreshSchedule().due_slot(run_at)
         if slot is None:
@@ -133,12 +159,18 @@ def run_scheduled_refresh(
         )
         if not resolved_claim_repository.claim(slot.slot_id, run_at):
             return ()
+        invocation_type = "scheduled"
+        slot_id = slot.slot_id
 
     resolved_repository = repository or PostgresLatestResultRepository(
         create_postgres_engine(Settings().database_url)
     )
     resolved_history_repository = history_repository or PostgresObservationHistoryRepository(
         create_postgres_engine(Settings().database_url)
+    )
+    resolved_acquisition_attempt_repository = (
+        acquisition_attempt_repository
+        or PostgresAcquisitionAttemptRepository(create_postgres_engine(Settings().database_url))
     )
     registry = build_migrated_strategy_registry()
     config = live_only_config(load_market_data_config_from_environment())
@@ -148,10 +180,14 @@ def run_scheduled_refresh(
             "provider; none are enabled"
         )
     clock = _SystemClock()
+    screening_cycle_id = new_screening_cycle_id(
+        invocation_type=invocation_type, slot_id=slot_id, scope_id=scope_identity(universe)
+    )
     outcomes: list[PairOutcome] = []
     for signal_id, symbol in universe:
         access = build_shared_market_data_access(config, transport_factory, clock, (symbol,))
         subject_access = access[symbol]
+        pair_id = compute_pair_evaluation_id(screening_cycle_id, signal_id, symbol)
         try:
             result = refresh(
                 registry,
@@ -178,6 +214,31 @@ def run_scheduled_refresh(
                             "opportunity_id": result.opportunity_id,
                         },
                     )
+            attempts_recorded = True
+            try:
+                sequence_offset = 0
+                for fulfillment_result in subject_access.fulfillment.completed_results:
+                    records = attempt_records_for(
+                        fulfillment_result,
+                        screening_cycle_id=screening_cycle_id,
+                        pair_evaluation_id=pair_id,
+                        recorded_at=clock.now(),
+                        sequence_offset=sequence_offset,
+                    )
+                    sequence_offset += len(records)
+                    resolved_acquisition_attempt_repository.record(records)
+            except Exception:
+                attempts_recorded = False
+                _LOGGER.warning(
+                    "scheduled acquisition attempt recording failed -- "
+                    "diagnostics incomplete for this pair",
+                    extra={
+                        "signal_id": signal_id,
+                        "symbol": symbol,
+                        "screening_cycle_id": screening_cycle_id,
+                        "pair_evaluation_id": pair_id,
+                    },
+                )
             outcomes.append(
                 PairOutcome(
                     signal_id,
@@ -185,10 +246,11 @@ def run_scheduled_refresh(
                     result.evaluation_state.value,
                     len(subject_access.budget_manager.accounting),
                     None,
+                    attempts_recorded,
                 )
             )
         except Exception as exc:
-            outcomes.append(PairOutcome(signal_id, symbol, None, None, str(exc)))
+            outcomes.append(PairOutcome(signal_id, symbol, None, None, str(exc), False))
     return tuple(outcomes)
 
 
@@ -202,6 +264,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     outcomes = run_scheduled_refresh(enforce_schedule=True)
     failures = [item for item in outcomes if item.error is not None]
+    incomplete_diagnostics = [item for item in outcomes if not item.attempts_recorded]
     outcome_counts: dict[str, int] = {}
     for item in outcomes:
         key = "infrastructure_failure" if item.error is not None else (item.outcome or "unknown")
@@ -213,17 +276,25 @@ def main(argv: Sequence[str] | None = None) -> int:
             if item.error is not None:
                 print(f"  {item.signal_id:<18} {item.symbol:<6} FAILED: {item.error}")
             else:
+                incomplete = "" if item.attempts_recorded else " [attempt diagnostics incomplete]"
                 print(
                     f"  {item.signal_id:<18} {item.symbol:<6} {item.outcome} "
-                    f"(requests={item.request_count})"
+                    f"(requests={item.request_count}){incomplete}"
                 )
         print(f"  outcome counts: {outcome_counts}")
+        if incomplete_diagnostics:
+            print(f"  attempt diagnostics incomplete for {len(incomplete_diagnostics)} pair(s)")
 
     print(
         json.dumps(
             {
                 "total": len(outcomes),
                 "failed": len(failures),
+                # Never silently report complete acquisition accounting
+                # (SPRINT-013 S13-02): a pair whose attempt persistence
+                # failed is counted here even though its own screening
+                # result may otherwise be a normal, non-failing outcome.
+                "attempt_diagnostics_incomplete": len(incomplete_diagnostics),
                 # Sanitized outcome-distribution counts only (no symbols, no
                 # request bodies) -- SPRINT-011/UNI-002's own safe
                 # operational diagnostic, distinguishing legitimate
@@ -237,6 +308,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                         "outcome": item.outcome,
                         "request_count": item.request_count,
                         "error": item.error,
+                        "attempts_recorded": item.attempts_recorded,
                     }
                     for item in outcomes
                 ],

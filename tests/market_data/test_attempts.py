@@ -1,14 +1,17 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
 from domain.values import DomainInvariantError
 from market_data import FulfillmentStatus, ProviderErrorCode
 from market_data.attempts import (
+    MAXIMUM_QUERY_LIMIT,
     AcquisitionAttemptRecord,
     AcquisitionOutcome,
+    AttemptQuery,
+    InMemoryAcquisitionAttemptRepository,
     attempt_records_for,
     normalize_acquisition_outcome,
     summary_outcome_for,
@@ -171,3 +174,144 @@ def test_attempt_records_for_sequence_offset_continues_across_capabilities() -> 
         sequence_offset=3,
     )
     assert records[0].sequence == 3
+
+
+# -- InMemoryAcquisitionAttemptRepository (contract also proven for
+# PostgresAcquisitionAttemptRepository in
+# tests/asa/test_screening_acquisition_attempts_postgres.py) --------------
+
+
+def _record(
+    *,
+    pair: str = "cycle_1:forward_factor:AAPL",
+    sequence: int = 0,
+    provider_id: str = "primary",
+    outcome: AcquisitionOutcome = AcquisitionOutcome.SUCCESS,
+    diagnostic_code: ProviderErrorCode | None = None,
+    recorded_at: datetime = RECORDED_AT,
+    capability=CAPABILITY,
+) -> AcquisitionAttemptRecord:
+    failed = outcome is not AcquisitionOutcome.SUCCESS
+    return AcquisitionAttemptRecord(
+        "cycle_1",
+        pair,
+        sequence,
+        capability,
+        provider_id,
+        1,
+        FulfillmentStatus.FULFILLED if not failed else FulfillmentStatus.FAILED,
+        outcome,
+        diagnostic_code if failed else None,
+        failed,
+        "a safe summary" if failed else None,
+        recorded_at,
+    )
+
+
+def test_repository_record_and_query_round_trip() -> None:
+    repo = InMemoryAcquisitionAttemptRepository()
+    repo.record((_record(),))
+    results = repo.query(AttemptQuery(screening_cycle_id="cycle_1"))
+    assert len(results) == 1
+    assert results[0].pair_evaluation_id == "cycle_1:forward_factor:AAPL"
+
+
+def test_repository_record_is_idempotent_on_pair_and_sequence() -> None:
+    """Re-recording the exact same (pair_evaluation_id, sequence) is a
+    no-op -- not a duplicate row, not an error."""
+    repo = InMemoryAcquisitionAttemptRepository()
+    repo.record((_record(),))
+    repo.record((_record(),))
+    results = repo.query(AttemptQuery(screening_cycle_id="cycle_1"))
+    assert len(results) == 1
+
+
+def test_repository_does_not_collapse_a_genuinely_new_attempt() -> None:
+    """A legitimate retry -- a new attempt with the next sequence number --
+    must still get its own row, never collapsed by idempotency."""
+    repo = InMemoryAcquisitionAttemptRepository()
+    repo.record((_record(sequence=0),))
+    repo.record((_record(sequence=1, provider_id="secondary"),))
+    results = repo.query(AttemptQuery(screening_cycle_id="cycle_1"))
+    assert len(results) == 2
+
+
+def test_repository_query_filters_by_provider_capability_outcome_and_time() -> None:
+    repo = InMemoryAcquisitionAttemptRepository()
+    repo.record(
+        (
+            _record(sequence=0, provider_id="primary", outcome=AcquisitionOutcome.SUCCESS),
+            _record(
+                sequence=1,
+                provider_id="secondary",
+                outcome=AcquisitionOutcome.TRANSPORT_FAILURE,
+                diagnostic_code=ProviderErrorCode.TRANSPORT_ERROR,
+                recorded_at=RECORDED_AT + timedelta(minutes=5),
+            ),
+        )
+    )
+    assert len(repo.query(AttemptQuery(provider_id="secondary"))) == 1
+    assert len(repo.query(AttemptQuery(capability=CAPABILITY))) == 2
+    assert len(repo.query(AttemptQuery(outcome=AcquisitionOutcome.TRANSPORT_FAILURE))) == 1
+    assert len(repo.query(AttemptQuery(recorded_after=RECORDED_AT + timedelta(minutes=1)))) == 1
+    assert len(repo.query(AttemptQuery(recorded_before=RECORDED_AT))) == 1
+
+
+def test_repository_query_pagination_and_stable_ordering() -> None:
+    repo = InMemoryAcquisitionAttemptRepository()
+    repo.record(
+        tuple(
+            _record(
+                pair=f"cycle_1:forward_factor:SYM{i}",
+                sequence=0,
+                recorded_at=RECORDED_AT + timedelta(seconds=i),
+            )
+            for i in range(5)
+        )
+    )
+    first_page = repo.query(AttemptQuery(limit=2, offset=0))
+    second_page = repo.query(AttemptQuery(limit=2, offset=2))
+    assert [item.pair_evaluation_id for item in first_page] == [
+        "cycle_1:forward_factor:SYM0",
+        "cycle_1:forward_factor:SYM1",
+    ]
+    assert [item.pair_evaluation_id for item in second_page] == [
+        "cycle_1:forward_factor:SYM2",
+        "cycle_1:forward_factor:SYM3",
+    ]
+
+
+def test_attempt_query_rejects_limit_above_maximum() -> None:
+    with pytest.raises(ValueError):
+        AttemptQuery(limit=MAXIMUM_QUERY_LIMIT + 1)
+
+
+def test_attempt_query_rejects_inverted_time_range() -> None:
+    with pytest.raises(ValueError):
+        AttemptQuery(recorded_after=RECORDED_AT, recorded_before=RECORDED_AT - timedelta(hours=1))
+
+
+def test_repository_summarize_groups_by_outcome_ignoring_pagination() -> None:
+    repo = InMemoryAcquisitionAttemptRepository()
+    repo.record(
+        (
+            _record(sequence=0, outcome=AcquisitionOutcome.SUCCESS),
+            _record(
+                pair="cycle_1:forward_factor:MSFT",
+                sequence=0,
+                outcome=AcquisitionOutcome.TRANSPORT_FAILURE,
+                diagnostic_code=ProviderErrorCode.TRANSPORT_ERROR,
+            ),
+            _record(
+                pair="cycle_1:forward_factor:GOOG",
+                sequence=0,
+                outcome=AcquisitionOutcome.TRANSPORT_FAILURE,
+                diagnostic_code=ProviderErrorCode.TIMEOUT,
+            ),
+        )
+    )
+    counts = repo.summarize(AttemptQuery(screening_cycle_id="cycle_1", limit=1))
+    assert counts == {
+        AcquisitionOutcome.SUCCESS: 1,
+        AcquisitionOutcome.TRANSPORT_FAILURE: 2,
+    }

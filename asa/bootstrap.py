@@ -29,10 +29,14 @@ from asa.integrations.providers.deterministic_fake_broker import (
 )
 from asa.integrations.providers.robinhood import RobinhoodPortfolioProvider
 from asa.integrations.runs_postgres import PostgresRunPublicationRepository
+from asa.integrations.screening_acquisition_attempts_postgres import (
+    PostgresAcquisitionAttemptRepository,
+)
 from asa.integrations.universal_screening_postgres import PostgresLatestResultRepository
 from asa.logging import configure_logging, request_id_context
 from asa.market_data_ops.routes import build_operations_router
 from asa.ui import mount_ui
+from market_data.attempts import AcquisitionAttemptRepository
 from market_data.live_transport import build_live_transport as build_transport_for_provider
 from strategy_runtime.adapters import (
     build_migrated_signal_catalog,
@@ -53,6 +57,7 @@ class DependencyOverrides:
     market_data_transport_factory: Callable[[str], object] | None = None
     latest_result_repository: LatestResultRepository | None = None
     observation_history_repository: ObservationHistoryRepository | None = None
+    acquisition_attempt_repository: AcquisitionAttemptRepository | None = None
 
 
 def build_application(
@@ -79,6 +84,10 @@ def build_application(
     observation_history_repository = (
         selected.observation_history_repository
         or PostgresObservationHistoryRepository(engine_factory(settings.database_url))
+    )
+    acquisition_attempt_repository = (
+        selected.acquisition_attempt_repository
+        or PostgresAcquisitionAttemptRepository(engine_factory(settings.database_url))
     )
     agent_authorize = build_agent_authorizer(settings.agent_api_token)
     quote_service = MarketQuoteService(
@@ -118,6 +127,7 @@ def build_application(
             settings.operations_token,
             selected.market_data_transport_factory or build_transport_for_provider,
             max_runs_per_hour=None if settings.environment == "development" else 50,
+            acquisition_attempt_repository=acquisition_attempt_repository,
         )
     )
     app.include_router(
