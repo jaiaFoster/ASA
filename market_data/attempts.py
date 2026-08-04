@@ -12,11 +12,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
+from typing import Protocol, runtime_checkable
 
 from domain import MarketCapability
 from domain.values import DomainInvariantError, require_tz_aware
 from market_data.fulfillment import CapabilityFulfillmentResult, FulfillmentStatus
 from market_data.providers import ProviderErrorCode
+
+MAXIMUM_QUERY_LIMIT = 500
 
 
 class AcquisitionOutcome(str, Enum):
@@ -182,3 +185,108 @@ def attempt_records_for(
             )
         )
     return tuple(records)
+
+
+@dataclass(frozen=True, slots=True)
+class AttemptQuery:
+    """Bounded, filtered query for durable attempt records. All filters are
+    optional and combine with AND. ``limit`` is always enforced (capped at
+    MAXIMUM_QUERY_LIMIT) so no caller -- including operations routes -- can
+    request an unbounded result set.
+    """
+
+    screening_cycle_id: str | None = None
+    pair_evaluation_id: str | None = None
+    provider_id: str | None = None
+    capability: MarketCapability | None = None
+    outcome: AcquisitionOutcome | None = None
+    recorded_after: datetime | None = None
+    recorded_before: datetime | None = None
+    limit: int = 100
+    offset: int = 0
+
+    def __post_init__(self) -> None:
+        if type(self.limit) is not int or not 1 <= self.limit <= MAXIMUM_QUERY_LIMIT:
+            raise ValueError(f"AttemptQuery.limit must be in [1, {MAXIMUM_QUERY_LIMIT}]")
+        if type(self.offset) is not int or self.offset < 0:
+            raise ValueError("AttemptQuery.offset must be non-negative")
+        if self.recorded_after is not None:
+            require_tz_aware(self.recorded_after, "AttemptQuery", "recorded_after")
+        if self.recorded_before is not None:
+            require_tz_aware(self.recorded_before, "AttemptQuery", "recorded_before")
+        if (
+            self.recorded_after is not None
+            and self.recorded_before is not None
+            and self.recorded_after > self.recorded_before
+        ):
+            raise ValueError("AttemptQuery.recorded_after must not be after recorded_before")
+
+
+@runtime_checkable
+class AcquisitionAttemptRepository(Protocol):
+    """Append-only durable storage for AcquisitionAttemptRecord. Concrete
+    implementations (in-memory, PostgreSQL) must share identical semantics:
+    idempotent on (pair_evaluation_id, sequence) -- re-recording the exact
+    same attempt is a no-op, never a duplicate row and never an error -- and
+    stable-ordered queries (recorded_at, pair_evaluation_id, sequence).
+    """
+
+    def record(self, attempts: tuple[AcquisitionAttemptRecord, ...]) -> None: ...
+
+    def query(self, query: AttemptQuery) -> tuple[AcquisitionAttemptRecord, ...]: ...
+
+    def summarize(self, query: AttemptQuery) -> dict[AcquisitionOutcome, int]:
+        """Count of matching attempts grouped by outcome. Ignores
+        ``query.limit``/``query.offset`` -- a summary counts every matching
+        row, not one bounded page of them.
+        """
+        ...
+
+
+class InMemoryAcquisitionAttemptRepository:
+    """Reference implementation and test double. Production code may also
+    use this directly for non-Postgres deployments; asa/integrations owns
+    the PostgreSQL-backed implementation with identical semantics.
+    """
+
+    def __init__(self) -> None:
+        self._rows: list[AcquisitionAttemptRecord] = []
+        self._seen: set[tuple[str, int]] = set()
+
+    def record(self, attempts: tuple[AcquisitionAttemptRecord, ...]) -> None:
+        for attempt in attempts:
+            key = (attempt.pair_evaluation_id, attempt.sequence)
+            if key in self._seen:
+                continue
+            self._seen.add(key)
+            self._rows.append(attempt)
+
+    def query(self, query: AttemptQuery) -> tuple[AcquisitionAttemptRecord, ...]:
+        matches = [item for item in self._rows if _matches(item, query)]
+        matches.sort(key=lambda item: (item.recorded_at, item.pair_evaluation_id, item.sequence))
+        return tuple(matches[query.offset : query.offset + query.limit])
+
+    def summarize(self, query: AttemptQuery) -> dict[AcquisitionOutcome, int]:
+        counts: dict[AcquisitionOutcome, int] = {}
+        for item in self._rows:
+            if _matches(item, query):
+                counts[item.outcome] = counts.get(item.outcome, 0) + 1
+        return counts
+
+
+def _matches(item: AcquisitionAttemptRecord, query: AttemptQuery) -> bool:
+    cycle_ok = (
+        query.screening_cycle_id is None or item.screening_cycle_id == query.screening_cycle_id
+    )
+    pair_ok = (
+        query.pair_evaluation_id is None or item.pair_evaluation_id == query.pair_evaluation_id
+    )
+    return (
+        cycle_ok
+        and pair_ok
+        and (query.provider_id is None or item.provider_id == query.provider_id)
+        and (query.capability is None or item.capability is query.capability)
+        and (query.outcome is None or item.outcome is query.outcome)
+        and (query.recorded_after is None or item.recorded_at >= query.recorded_after)
+        and (query.recorded_before is None or item.recorded_at <= query.recorded_before)
+    )

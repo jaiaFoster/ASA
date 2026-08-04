@@ -10,6 +10,7 @@ from asa.scheduled_screening import (
     PRODUCTION_SCREENING_UNIVERSE,
     run_scheduled_refresh,
 )
+from market_data.attempts import AttemptQuery, InMemoryAcquisitionAttemptRepository
 from market_data.transport import ReadOnlyHttpResponse
 from screening import APPROVED_LIVE_UNIVERSE, EARNINGS_CALENDAR_UNIVERSE
 from tests.asa.fakes import InMemoryLatestResultRepository
@@ -207,3 +208,114 @@ def test_duplicate_cron_delivery_executes_slot_once(
     assert len(first) == 1
     assert duplicate == ()
     assert len(claims.claimed) == 1
+
+
+# -- SPRINT-013 S13-02: acquisition attempt recording -----------------------
+
+
+def test_attempts_are_recorded_under_one_shared_cycle_id_for_every_pair(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("ASA_TRADIER_ENABLED", "true")
+    monkeypatch.setenv("ASA_TRADIER_ACCESS_TOKEN", "sandbox-secret-token")
+    repository = InMemoryLatestResultRepository()
+    attempt_repository = InMemoryAcquisitionAttemptRepository()
+    expiration = (date.today() + timedelta(days=7)).isoformat()
+    universe = (("skew_momentum", "AAPL"), ("skew_momentum", "MSFT"))
+
+    outcomes = run_scheduled_refresh(
+        universe,
+        repository=repository,
+        acquisition_attempt_repository=attempt_repository,
+        transport_factory=lambda _provider_id: ScriptedTransport(
+            _tradier_refresh_responses(expiration)
+        ),
+    )
+
+    assert all(item.attempts_recorded for item in outcomes)
+    recorded = attempt_repository.query(AttemptQuery(limit=100))
+    assert recorded  # at least one provider attempt was actually persisted
+    cycle_ids = {item.screening_cycle_id for item in recorded}
+    assert len(cycle_ids) == 1  # one cycle spans the whole invocation
+    pair_ids = {item.pair_evaluation_id for item in recorded}
+    cycle_id = next(iter(cycle_ids))
+    assert pair_ids <= {
+        f"{cycle_id}:skew_momentum:AAPL",
+        f"{cycle_id}:skew_momentum:MSFT",
+    }
+
+
+def test_manual_invocation_uses_a_different_cycle_id_each_call(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("ASA_TRADIER_ENABLED", "true")
+    monkeypatch.setenv("ASA_TRADIER_ACCESS_TOKEN", "sandbox-secret-token")
+    expiration = (date.today() + timedelta(days=7)).isoformat()
+    universe = (("skew_momentum", "AAPL"),)
+    first_attempts = InMemoryAcquisitionAttemptRepository()
+    second_attempts = InMemoryAcquisitionAttemptRepository()
+
+    run_scheduled_refresh(
+        universe,
+        repository=InMemoryLatestResultRepository(),
+        acquisition_attempt_repository=first_attempts,
+        now=datetime(2026, 7, 21, 16, 0, tzinfo=UTC),
+        transport_factory=lambda _provider_id: ScriptedTransport(
+            _tradier_refresh_responses(expiration)
+        ),
+    )
+    run_scheduled_refresh(
+        universe,
+        repository=InMemoryLatestResultRepository(),
+        acquisition_attempt_repository=second_attempts,
+        now=datetime(2026, 7, 21, 16, 0, 1, tzinfo=UTC),
+        transport_factory=lambda _provider_id: ScriptedTransport(
+            _tradier_refresh_responses(expiration)
+        ),
+    )
+
+    first_cycle = {item.screening_cycle_id for item in first_attempts.query(AttemptQuery())}
+    second_cycle = {item.screening_cycle_id for item in second_attempts.query(AttemptQuery())}
+    assert first_cycle != second_cycle
+
+
+class _AttemptRepositoryThatAlwaysFails:
+    def record(self, attempts: object) -> None:
+        raise RuntimeError("simulated attempt-persistence outage")
+
+    def query(self, query: object) -> tuple[object, ...]:
+        return ()
+
+    def summarize(self, query: object) -> dict[object, int]:
+        return {}
+
+
+def test_attempt_persistence_failure_preserves_the_screening_result(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A persistence outage for the attempt side-channel must never abort
+    or corrupt the pair's own strategy evaluation, but must never be
+    silently reported as complete either (SPRINT-013 S13-02)."""
+    monkeypatch.setenv("ASA_TRADIER_ENABLED", "true")
+    monkeypatch.setenv("ASA_TRADIER_ACCESS_TOKEN", "sandbox-secret-token")
+    repository = InMemoryLatestResultRepository()
+    expiration = (date.today() + timedelta(days=7)).isoformat()
+    universe = (("skew_momentum", "AAPL"),)
+
+    outcomes = run_scheduled_refresh(
+        universe,
+        repository=repository,
+        acquisition_attempt_repository=_AttemptRepositoryThatAlwaysFails(),  # type: ignore[arg-type]
+        transport_factory=lambda _provider_id: ScriptedTransport(
+            _tradier_refresh_responses(expiration)
+        ),
+    )
+
+    assert len(outcomes) == 1
+    # The strategy evaluation itself is preserved and still persisted.
+    assert outcomes[0].error is None
+    assert outcomes[0].outcome is not None
+    assert repository.get_one("skew_momentum", "AAPL") is not None
+    # But acquisition accounting is honestly marked incomplete, never
+    # silently reported as if it were complete.
+    assert outcomes[0].attempts_recorded is False
