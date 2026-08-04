@@ -97,7 +97,11 @@ class AcquisitionAttemptRecord:
     Carries only safe, generic evidence -- no raw payloads, headers, or
     credentials. ``safe_summary`` is the existing sanitized
     NormalizedProviderError.safe_summary; nothing provider-internal is
-    added here.
+    added here. The outcome fold is diagnostically lossless: ``outcome``
+    is the aggregate S13-02 bucket (useful for reporting/summaries), and
+    ``diagnostic_code`` is always the original, still-safe ProviderErrorCode
+    it was folded from -- root-cause analysis never has to guess which of
+    several folded codes actually happened.
     """
 
     screening_cycle_id: str
@@ -108,6 +112,7 @@ class AcquisitionAttemptRecord:
     priority: int
     fulfillment_status: FulfillmentStatus
     outcome: AcquisitionOutcome
+    diagnostic_code: ProviderErrorCode | None
     retryable: bool
     safe_summary: str | None
     recorded_at: datetime
@@ -122,14 +127,24 @@ class AcquisitionAttemptRecord:
         if type(self.priority) is not int or self.priority < 1:
             raise DomainInvariantError("AcquisitionAttemptRecord.priority must be positive")
         require_tz_aware(self.recorded_at, "AcquisitionAttemptRecord", "recorded_at")
-        if self.outcome is AcquisitionOutcome.SUCCESS and self.safe_summary is not None:
-            raise DomainInvariantError(
-                "AcquisitionAttemptRecord success attempts must not carry a safe_summary"
-            )
-        if self.outcome is not AcquisitionOutcome.SUCCESS and self.safe_summary is None:
-            raise DomainInvariantError(
-                "AcquisitionAttemptRecord failed attempts require a safe_summary"
-            )
+        if self.outcome is AcquisitionOutcome.SUCCESS:
+            if self.safe_summary is not None or self.diagnostic_code is not None:
+                raise DomainInvariantError(
+                    "AcquisitionAttemptRecord success attempts must not carry "
+                    "a safe_summary or diagnostic_code"
+                )
+        else:
+            if self.safe_summary is None or self.diagnostic_code is None:
+                raise DomainInvariantError(
+                    "AcquisitionAttemptRecord failed attempts require both a "
+                    "safe_summary and a diagnostic_code -- the normalized outcome "
+                    "fold must stay diagnostically lossless"
+                )
+            if normalize_acquisition_outcome(self.diagnostic_code) is not self.outcome:
+                raise DomainInvariantError(
+                    "AcquisitionAttemptRecord.diagnostic_code must fold onto "
+                    "the record's own outcome"
+                )
 
 
 def attempt_records_for(
@@ -148,9 +163,8 @@ def attempt_records_for(
     """
     records: list[AcquisitionAttemptRecord] = []
     for offset, attempt in enumerate(result.attempts):
-        outcome = normalize_acquisition_outcome(
-            attempt.error.code if attempt.error is not None else None
-        )
+        error_code = attempt.error.code if attempt.error is not None else None
+        outcome = normalize_acquisition_outcome(error_code)
         records.append(
             AcquisitionAttemptRecord(
                 screening_cycle_id=screening_cycle_id,
@@ -161,6 +175,7 @@ def attempt_records_for(
                 priority=attempt.priority,
                 fulfillment_status=result.status,
                 outcome=outcome,
+                diagnostic_code=error_code,
                 retryable=attempt.error.retryable if attempt.error is not None else False,
                 safe_summary=attempt.error.safe_summary if attempt.error is not None else None,
                 recorded_at=recorded_at,

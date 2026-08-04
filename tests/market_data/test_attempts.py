@@ -61,18 +61,40 @@ def test_every_provider_error_code_is_mapped() -> None:
         normalize_acquisition_outcome(code)
 
 
-def test_attempt_record_requires_summary_iff_not_success() -> None:
+def test_attempt_record_requires_summary_and_diagnostic_code_iff_not_success() -> None:
     with pytest.raises(DomainInvariantError):
         AcquisitionAttemptRecord(
             "cycle_1", "cycle_1:s:AAPL", 0, CAPABILITY, "primary", 1,
-            FulfillmentStatus.FULFILLED, AcquisitionOutcome.SUCCESS, False,
+            FulfillmentStatus.FULFILLED, AcquisitionOutcome.SUCCESS, None, False,
             "unexpected summary", RECORDED_AT,
         )
     with pytest.raises(DomainInvariantError):
         AcquisitionAttemptRecord(
             "cycle_1", "cycle_1:s:AAPL", 0, CAPABILITY, "primary", 1,
-            FulfillmentStatus.FAILED, AcquisitionOutcome.TRANSPORT_FAILURE, True,
-            None, RECORDED_AT,
+            FulfillmentStatus.FULFILLED, AcquisitionOutcome.SUCCESS,
+            ProviderErrorCode.TIMEOUT, False, None, RECORDED_AT,
+        )
+    with pytest.raises(DomainInvariantError):
+        AcquisitionAttemptRecord(
+            "cycle_1", "cycle_1:s:AAPL", 0, CAPABILITY, "primary", 1,
+            FulfillmentStatus.FAILED, AcquisitionOutcome.TRANSPORT_FAILURE, None, True,
+            "a summary but no diagnostic code", RECORDED_AT,
+        )
+    with pytest.raises(DomainInvariantError):
+        AcquisitionAttemptRecord(
+            "cycle_1", "cycle_1:s:AAPL", 0, CAPABILITY, "primary", 1,
+            FulfillmentStatus.FAILED, AcquisitionOutcome.TRANSPORT_FAILURE,
+            ProviderErrorCode.TIMEOUT, True, None, RECORDED_AT,
+        )
+
+
+def test_attempt_record_rejects_diagnostic_code_that_does_not_fold_onto_outcome() -> None:
+    with pytest.raises(DomainInvariantError):
+        AcquisitionAttemptRecord(
+            "cycle_1", "cycle_1:s:AAPL", 0, CAPABILITY, "primary", 1,
+            FulfillmentStatus.FAILED, AcquisitionOutcome.TRANSPORT_FAILURE,
+            ProviderErrorCode.NO_DATA,  # folds to NO_MATCHING_DATA, not TRANSPORT_FAILURE
+            True, "mismatched diagnostic code", RECORDED_AT,
         )
 
 
@@ -90,6 +112,7 @@ def test_attempt_records_for_success_result_is_single_record() -> None:
     assert records[0].fulfillment_status is FulfillmentStatus.FULFILLED
     assert records[0].sequence == 0
     assert records[0].safe_summary is None
+    assert records[0].diagnostic_code is None
     assert summary_outcome_for(result) is AcquisitionOutcome.SUCCESS
 
 
@@ -109,10 +132,12 @@ def test_attempt_records_for_degraded_result_preserves_order_and_fallback_succes
     assert [item.sequence for item in records] == [0, 1]
     assert records[0].provider_id == "primary"
     assert records[0].outcome is AcquisitionOutcome.TRANSPORT_FAILURE
+    assert records[0].diagnostic_code is ProviderErrorCode.TIMEOUT
     assert records[0].fulfillment_status is FulfillmentStatus.DEGRADED
     assert records[0].safe_summary is not None
     assert records[1].provider_id == "secondary"
     assert records[1].outcome is AcquisitionOutcome.SUCCESS
+    assert records[1].diagnostic_code is None
     assert records[1].fulfillment_status is FulfillmentStatus.DEGRADED
     # Fallback succeeded (DEGRADED), distinct from fallback exhausted (FAILED).
     assert summary_outcome_for(result) is AcquisitionOutcome.SUCCESS
@@ -131,6 +156,7 @@ def test_attempt_records_for_failed_result_is_fallback_exhausted() -> None:
     assert len(records) == 2
     assert all(item.fulfillment_status is FulfillmentStatus.FAILED for item in records)
     assert all(item.outcome is AcquisitionOutcome.NO_MATCHING_DATA for item in records)
+    assert all(item.diagnostic_code is ProviderErrorCode.NO_DATA for item in records)
     assert summary_outcome_for(result) is AcquisitionOutcome.FALLBACK_EXHAUSTED
 
 
