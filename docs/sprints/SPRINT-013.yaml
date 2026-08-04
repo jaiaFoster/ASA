@@ -1,17 +1,24 @@
 ---
 id: SPRINT-013
-name: Signal Trust, Data Fulfillment, and Operator Observability
-version: 1.0
-status: SCOPED
+name: Data Fidelity, Modular Strategy Core, and Operational Trust
+version: 1.1
+status: ACTIVE
 type: IMPLEMENTATION_SPRINT
-baseline_commit: b4741975a662fe311fcb52dfab1883e35ff4182a
+priority: P0
+baseline_commit: eb87190a48fbe7dc8df85b84954b40f6414f6251
+parent_issue: 261
 
 activation:
-  id: AMD-013-SPRINT-013
+  id: AMD-013-SPRINT-013-V1.1
   governance_amendment: GOV-AMD-001-013
   founder_authorized: true
-  founder_direction: SPRINT-013-OVERNIGHT-WORK-PACKAGE
-  effective_when: this sprint definition is Founder-merged to the default branch
+  founder_direction: >
+    Expand SPRINT-013 to complete data-fidelity recovery, production closeout,
+    provider-neutral freshness and logging fixes, and a mandatory modularity audit.
+    Reusable acquisition, persistence, analytics, gate primitives, diagnostics,
+    budgeting, caching, and projection belong in core/shared layers. Strategy
+    packages remain declarative policy and composition surfaces.
+  effective_when: this version is Founder-merged to the default branch
   delegate:
     role: ROLE-WORKER
     instance: implementation-worker
@@ -20,106 +27,433 @@ activation:
     - S13-00
     - S13-01
     - S13-02
-    - S13-03
+    - S13-03A
+    - S13-03B
     - S13-04
     - S13-05
     - S13-06
     - S13-07
+    - S13-08
+    - S13-09
+    - S13-10
+    - S13-11
+  linked_issues: [244, 245, 246, 247, 261, 162, 242, 250]
   expires:
     - sprint_complete
     - sprint_stopped
     - Founder_revokes_delegation
 
-objective: >
-  Make screening classifications truthful, missing-data results attributable
-  to secret-safe causes, provider requests bounded and observable, required
-  Skew Momentum evidence canonical, and operator-visible results auditable.
+executive_objective: >
+  Make every screening result attributable to truthful canonical evidence,
+  provider and budget behavior, reusable derived calculations, and
+  strategy-owned policy. Resolve known data-fidelity defects at their earliest
+  shared boundary, keep all non-strategy-specific behavior modular and reusable
+  for future strategies, and prove the deployed product through consecutive
+  production cycles.
 
-bounded_scope:
+success_definition:
+  every_result_is_one_of:
+    - evaluated_successfully
+    - legitimately_ineligible
+    - specific_missing_capability
+    - specific_provider_failure
+    - specific_normalization_failure
+    - specific_budget_deferral
+    - specific_stale_data_rejection
+    - specific_internal_defect
+  modularity:
+    - shared_behavior_is_implemented_once_in_the_correct_core_layer
+    - strategy_files_are_declarative_policy_and_composition_surfaces
+    - future_strategies_can_reuse_data_history_gates_diagnostics_and_budgeting
+    - no_strategy_ID_symbol_or_provider_branches_in_generic_layers
+  production:
+    - two_consecutive_cycles_account_for_every_expected_pair
+    - UI_and_API_show_exact_deployed_identity_and_result_semantics
+    - zero_unexplained_strategy_exceptions
+  note: PASS_occurrence_is_not_required
+
+architecture_philosophy:
+  canonical_flow:
+    - market_data_and_domain_own_provider_neutral_facts_provenance_and_freshness
+    - persistence_owns_durable_history_and_attempt_records
+    - analytics_owns_pure_reusable_derived_facts_and_formula_versions
+    - shared_components_own_reusable_typed_gate_and_structure_primitives
+    - strategy_manifests_own_parameters_requirements_thresholds_weights_policy_composition_direction_structure_selection_and_verdict
+    - screening_owns_generic_orchestration_only
+    - strategy_runtime_owns_generic_execution_persistence_translation_and_projection_only
+    - UI_renders_API_truth_without_reconstruction
+  strategy_file_rule: >
+    Strategy packages may declare thesis, requirements, parameters, graph
+    composition, thresholds, weights, strategy-specific eligibility policy,
+    direction, structure selection, reasons, and verdict. Provider access,
+    storage, generic calculations, generic history, reusable gate mechanics,
+    budgeting, caching, diagnostics, and API/UI reconstruction are forbidden.
+  core_rule: >
+    Anything semantically reusable by another strategy belongs in the correct
+    core/shared layer, not necessarily one monolithic package. Extract only
+    after semantic identity is proven; do not create speculative abstractions.
+  one_owner_per:
+    - canonical_fact
+    - formula
+    - history_series
+    - gate_primitive
+    - strategy_policy
+    - verdict
+    - provider_attempt
+    - freshness_decision
+    - request_budget
+
+operating_directives:
+  root_cause:
+    mandatory: true
+    rules:
+      - trace_from_observed_failure_to_earliest_shared_failing_boundary
+      - fix_the_owner_not_the_downstream_symptom
+      - do_not_mask_failures_with_generic_missing_data
+      - do_not_special_case_symbols_strategies_or_providers_in_shared_code
+      - add_provider_shaped_or_production_shaped_regressions
+      - update_existing_issue_before_creating_a_duplicate
+  modularity_gate:
+    mandatory_before_every_implementation_PR: true
+    questions:
+      - is_this_behavior_financial_policy_unique_to_one_strategy
+      - can_another_strategy_need_the_same_fact_formula_history_gate_or_diagnostic
+      - does_an_equivalent_owner_already_exist
+      - would_this_change_duplicate_calculation_or_persistence
+      - is_the_proposed_interface_provider_neutral_and_strategy_neutral
+    required_actions:
+      - use_existing_core_contract_when_available
+      - place_new_reusable_behavior_in_the_correct_core_or_shared_component_layer
+      - keep_strategy_manifest_changes_to_declarations_parameters_and_policy_composition
+      - add_architecture_test_for_any_new_boundary
+      - preserve_compatibility_or_raise_blocker_before_breaking_a_frozen_contract
+  token_efficiency:
+    mandatory: true
+    rules:
+      - inspect_current_code_and_issue_state_before_explaining
+      - use_one_concise_issue_comment_per_workstream_milestone
+      - do_not_repeat_repository_history_or_full_test_logs
+      - report_only_root_cause_changed_behavior_evidence_blocker_and_next_action
+      - use_targeted_tests_during_iteration_and_one_required_full_gate_before_merge
+      - reuse_existing_contracts_fixtures_and_helpers
+      - avoid_duplicate_docs_parallel_paths_and_speculative_abstractions
+  continuity:
+    mandatory: true
+    rules:
+      - continue_to_next_unblocked_ticket_without_routine_Founder_review
+      - run_production_verification_in_parallel_with_implementation
+      - auto_merge_when_all_ticket_and_Amendment_013_gates_pass
+      - stop_only_for_sprint_completion_or_a_true_Founder_required_blocker
+
+merge_policy:
+  activation_or_scope_change_merge_authority: Founder_only
+  implementation_merge_authority: active_Amendment_013_delegate
+  auto_merge: true
+  merge_when:
+    - ticket_acceptance_criteria_met
+    - all_required_CI_checks_pass
+    - required_tests_pass
+    - modularity_and_architecture_gates_pass
+    - no_unresolved_high_risk_finding
+    - migration_has_upgrade_and_downgrade_evidence_when_applicable
+    - rollback_and_production_verification_notes_exist
+    - self_review_is_recorded_concisely
+  founder_review_required_only_for:
+    - sprint_scope_expansion
+    - governance_or_frozen_architecture_change
+    - public_or_domain_contract_break
+    - provider_priority_paid_service_license_or_credential_decision
+    - destructive_change_outside_scope
+    - truthful_data_source_or_backfill_policy_decision
+    - blocker_with_no_authorized_technical_resolution
+  deployment_authority: Founder_only
+
+completed:
+  S13-00:
+    state: COMPLETE
+    evidence: issue_261_and_activation_PR_263
+  S13-01:
+    state: COMPLETE
+    evidence: PR_262_merge_23a6fcda147c55c7bd4e10708958597c7ca304c7
+  S13-05:
+    state: COMPLETE
+    evidence: PR_265_merge_eb87190a48fbe7dc8df85b84954b40f6414f6251
+  S13-06:
+    state: COMPLETE
+    evidence: PR_264_merge_7172cb186d4be561ab477285449c010c8d6d2b4d
+
+execution_order:
+  mandatory_sequence:
+    - S13-08
+    - S13-02
+    - S13-03A
+    - S13-03B
+    - S13-04
+    - S13-09
+    - S13-10
+    - S13-11
+  production_parallel:
+    - S13-07
+  dependency_notes:
+    - S13-08_audit_guides_all_remaining_placement_decisions
+    - S13-02_supplies_cycle_and_attempt_truth_for_S13-03A_S13-03B_and_S13-09
+    - S13-04_may_build_isolated_foundations_after_S13-08
+    - S13-10_and_S13-11_begin_after_diagnostic_contracts_are_stable
+
+scope:
   in:
-    - fail_closed_skew_momentum_directional_verdicts
-    - capability_level_acquisition_diagnostics
-    - quota_window_aware_request_accounting
-    - scheduled_cycle_fact_reuse_and_request_deduplication
-    - canonical_skew_history_peer_and_sector_evidence_foundation
-    - generic_operator_readable_strategy_outputs
-    - generic_read_only_deployment_identity
-    - fixture_and_production_validation
+    - durable_screening_cycle_pair_and_provider_attempt_identity
+    - secret_safe_capability_level_diagnostics
+    - provider_specific_rolling_request_windows_and_concurrency
+    - cycle_scoped_request_deduplication_and_fact_reuse
+    - reusable_historical_evidence_persistence_and_query
+    - historical_skew_peer_return_and_sector_relative_foundation
+    - specific_earnings_acquisition_and_normalization_defects
+    - scheduler_and_temporal_production_verification
+    - Forward_Factor_production_closeout
+    - UI_API_and_deployment_smoke
+    - provider_neutral_quote_and_option_chain_freshness
+    - structured_sanitized_exception_detail
+    - strategy_modularity_and_core_ownership_audit
+    - bounded_root_cause_extraction_of_verified_misplaced_shared_logic
   out:
     - new_strategies
-    - strategy_threshold_changes_to_manufacture_signals
-    - fabricated_history_or_proxy_evidence
-    - symbol_specific_production_branches
-    - provider_priority_changes_without_Founder_decision
-    - provider_payload_or_secret_exposure
-    - execution_orders_sizing_or_portfolio_mutation
-    - brokerage_changes
-    - governance_or_constitution_changes
-    - frozen_architecture_redefinition
-    - deployment
-    - sprint_scope_expansion
+    - strategy_threshold_tuning_to_manufacture_signals
+    - strategy_thesis_redesign
+    - fabricated_history_peers_sectors_events_or_provider_quota_values
+    - provider_priority_change_without_Founder_decision
+    - raw_provider_payload_or_secret_exposure
+    - execution_orders_sizing_portfolio_or_brokerage_changes
+    - broad_repository_refactor_without_a_verified_ownership_defect
+    - speculative_framework_generalization
+    - governance_constitution_or_frozen_architecture_redefinition
 
-execution:
-  mode: founder_authorized_autonomous_sprint
-  branch_strategy: bounded_workstream_prs
-  workflow:
-    - implement_one_approved_ticket
-    - run_required_validation
-    - perform_and_record_self_review
-    - open_or_update_pull_request
-    - verify_pull_request_scope_and_required_checks
-    - merge_only_when_every_Amendment_013_gate_is_green
-    - verify_default_branch_contains_merge_commit
-    - run_post_merge_validation
-    - continue_next_unblocked_ticket
+workstreams:
+  S13-08:
+    title: Strategy modularity and core ownership audit
+    priority: P0.0
+    objective: >
+      Audit production strategy, component, adapter, analytics, market-data,
+      persistence, and projection code; identify behavior living in strategy
+      files that is actually reusable core behavior; fix bounded verified
+      ownership defects before they are copied into more strategies.
+    audit_scope:
+      - strategies
+      - strategy_runtime
+      - screening
+      - analytics
+      - market_data
+      - asa_integrations_and_API_projection
+    classification:
+      - KEEP_STRATEGY_POLICY
+      - KEEP_DECLARATIVE_MANIFEST
+      - MOVE_CORE_FACT_OR_NORMALIZATION
+      - MOVE_CORE_PERSISTENCE_OR_HISTORY
+      - MOVE_CORE_ANALYTICS
+      - MOVE_SHARED_COMPONENT_OR_GATE_PRIMITIVE
+      - MOVE_SCREENING_ORCHESTRATION
+      - MOVE_GENERIC_PROJECTION
+      - REMOVE_DUPLICATE
+      - UNKNOWN_REQUIRES_ARCHITECT_OR_FOUNDER
+    required_work:
+      - inventory_significant_operations_not_every_line
+      - identify_duplicate_or_private_implementations_of_shared_concepts
+      - verify_strategy_files_have_no_provider_DB_network_budget_or_cache_ownership
+      - verify_reusable_formulas_have_one_versioned_owner
+      - verify_reusable_gate_mechanics_are_typed_shared_components
+      - verify_manifests_remain_the_strategy_semantic_authority
+      - move_only_verified_misplaced_behavior_in_bounded_PRs
+      - add_architecture_tests_preventing_regression
+    acceptance:
+      - concise_audit_matrix_is_recorded
+      - every_remaining_strategy_operation_is_justified_as_policy_or_composition
+      - verified_shared_logic_is_moved_to_the_correct_core_layer
+      - no_duplicate_calculation_or_persistence_path_remains_in_touched_scope
+      - existing_strategy_results_and_deterministic_identities_are_preserved_or_versioned
+      - broad_refactor_is_not_used_as_a_substitute_for_evidence
 
-authority:
-  ultimate: Founder
-  delegate:
-    role: ROLE-WORKER
-    instance: implementation-worker
-    may:
-      - implement_enumerated_tickets
-      - add_tests_and_internal_documentation
-      - perform_bounded_contract_preserving_refactors
-      - create_and_update_pull_requests
-      - execute_validation_and_self_review
-      - create_non_blocking_GitHub_issues
-      - merge_enumerated_implementation_pull_requests_after_all_gates_pass
-      - verify_main_and_continue_to_next_ticket
-    may_not:
-      - merge_this_activation_or_any_governance_change
-      - merge_architecture_or_constitution_changes
-      - bypass_branch_protection_or_required_checks
-      - merge_with_missing_skipped_failing_or_unavailable_gates
-      - lower_risk_or_expand_scope
-      - deploy
+  S13-02:
+    title: Durable acquisition attempts and screening-cycle identity
+    priority: P0.1
+    depends_on: [S13-08]
+    ownership:
+      market_data: attempt_contract_and_normalized_outcomes
+      screening: cycle_and_pair_evaluation_identity
+      integrations: PostgreSQL_repository_and_migration
+      market_data_ops: operations_token_read_queries_and_summaries
+      strategy_runtime: safe_generic_reason_codes_only
+    required_identity:
+      - screening_cycle_id
+      - pair_evaluation_id
+      - attempt_id
+    normalized_outcomes:
+      - success
+      - upstream_rate_limited
+      - local_quota_exhausted
+      - empty_payload
+      - no_matching_data
+      - stale_data
+      - incomplete_data
+      - malformed_payload
+      - entitlement_unavailable
+      - transport_failure
+      - fallback_exhausted
+    acceptance:
+      - attempts_are_append_only_and_deterministically_ordered
+      - cycle_pair_provider_capability_outcome_and_time_queries_exist
+      - operations_routes_are_hidden_by_existing_token_behavior
+      - public_results_receive_only_safe_generic_reason_codes
+      - fallback_success_and_failure_are_distinct
+      - in_memory_and_PostgreSQL_semantics_match
+      - raw_payloads_headers_credentials_and_unrestricted_exceptions_are_absent
 
-tickets:
-  - id: S13-00
-    title: Activate sprint and freeze baseline
-  - id: S13-01
-    title: PATCH-012C fail-closed Skew Momentum verdicts
-  - id: S13-02
-    title: Capability-level acquisition diagnostics
-  - id: S13-03
-    title: Quota-window-aware acquisition and fact reuse
-  - id: S13-04
-    title: Wire full-fidelity Skew Momentum evidence
-  - id: S13-05
-    title: Operator-readable strategy fields
-  - id: S13-06
-    title: Deployment identity and UI trust strip
-  - id: S13-07
-    title: Production validation and registry closeout
+  S13-03A:
+    title: Rolling provider quota correctness
+    priority: P0.2
+    depends_on: [S13-02]
+    required_work:
+      - monotonic_rolling_request_windows
+      - provider_specific_limits_and_window_duration
+      - separate_concurrency_burst_and_total_ceilings
+      - bounded_retry_backoff_and_cooldown
+      - safe_reset_hint_handling
+      - cycle_level_sanitized_accounting
+      - pair_isolation
+    acceptance:
+      - microsecond_separated_requests_obey_the_same_active_window
+      - window_expiry_restores_allowance_deterministically
+      - providers_have_independent_accounting
+      - upstream_and_local_refusal_remain_distinct
+      - retry_and_fallback_units_are_recorded
+      - no_unconfigured_provider_plan_limit_is_invented
+
+  S13-03B:
+    title: Cycle-scoped request reuse
+    priority: P0.3
+    depends_on: [S13-02, S13-03A]
+    required_work:
+      - verify_fulfillment_service_lifetime_matches_cycle_scope
+      - deduplicate_exact_capability_requests
+      - reuse_stable_earnings_and_history_facts_when_identity_and_freshness_match
+      - bypass_stale_incomplete_or_policy_mismatched_cache_entries
+      - expose_reuse_and_skip_counts_in_cycle_summary
+    acceptance:
+      - provider_calls_approximate_unique_valid_requests
+      - requests_differing_by_subject_capability_window_expiration_parameters_or_freshness_do_not_collide
+      - no_cross_symbol_reuse
+      - option_chain_and_quote_reuse_never_exceeds_declared_freshness
+      - strategies_do_not_own_or_access_provider_caches
+
+  S13-04:
+    title: Shared historical evidence foundation
+    priority: P0.4
+    depends_on: [S13-08]
+    objective: >
+      Provide reusable provider-neutral historical observation storage, query,
+      alignment, and analytics inputs. Skew Momentum is the first consumer, not
+      the owner of the pipeline.
+    required_work:
+      - canonical_end_of_session_skew_snapshot_contract
+      - durable_history_repository_and_query_port
+      - reusable_time_alignment_and_completeness_rules
+      - comparison_universe_return_inputs
+      - canonical_sector_mapping_and_benchmark_inputs
+      - analytics_owned_zscore_percentile_and_relative_return_formulas
+      - prospective_accumulation_when_truthful_history_is_unavailable
+    hard_rules:
+      - no_synthetic_or_repeated_current_chain_backfill
+      - no_private_strategy_database
+      - no_adapter_owned_financial_formula
+      - no_guessed_peers_or_sector_mapping
+      - preserve_60_observation_lookback_and_40_valid_minimum
+    acceptance:
+      - another_strategy_can_consume_the_same_history_contract_without_runtime_changes
+      - valid_history_reaches_analytics_and_manifest
+      - insufficient_or_misaligned_history_remains_UNKNOWN
+      - provenance_effective_time_and_formula_versions_survive_end_to_end
+      - missing_source_or_mapping_becomes_a_precise_Founder_blocker
+
+  S13-09:
+    title: Resolve specific earnings capability defects
+    priority: P0.5
+    issue: 245
+    depends_on: [S13-02, S13-03A, S13-03B]
+    required_work:
+      - classify_each_reproducible_failure_by_capability_provider_and_boundary
+      - fix_shared_acquisition_normalization_history_or_budget_root_causes
+      - preserve_legitimate_no_event_and_no_expiration_pair_outcomes
+      - add_provider_shaped_regressions_per_unique_signature
+    acceptance:
+      - no_generic_could_not_normalize_reason_remains_for_reproducible_failures
+      - supported_symbols_evaluate_or_fail_with_specific_truthful_reason
+      - strategy_thresholds_and_policy_are_unchanged
+      - reusable_fixes_land_in_core_not_earnings_specific_adapters
+
+  S13-07:
+    title: Production validation and issue closeout
+    priority: P0.parallel
+    implementation_blocking: false
+    covers:
+      - issue_246_scheduler_verification
+      - issue_247_temporal_verification
+      - issue_244_Forward_Factor_closeout
+      - UI_and_deployment_smoke
+    required_work:
+      - verify_deployed_release_identity
+      - verify_UI_static_assets_health_readiness_and_GET_only_behavior
+      - observe_two_consecutive_due_cycles
+      - reconcile_expected_attempted_completed_failed_and_skipped_pairs
+      - prove_overdue_rows_do_not_report_live_without_evidence
+      - rerun_previously_failing_Forward_Factor_symbols
+      - update_or_close_issues_only_when_original_acceptance_is_met
+    acceptance:
+      - every_expected_pair_is_attempted_or_has_an_explicit_skip_reason
+      - no_unexplained_strategy_exception_remains
+      - temporal_status_matches_exposed_timestamps
+      - UI_renders_exact_API_semantics_and_release_identity
+      - zero_PASS_is_not_treated_as_failure
+
+  S13-10:
+    title: Provider-neutral quote and option-chain freshness
+    priority: P1.1
+    issue: 162
+    depends_on: [S13-02]
+    required_work:
+      - define_observation_level_quote_and_chain_freshness_semantics
+      - stop_one_contract_last_trade_from_owning_whole_chain_freshness
+      - distinguish_last_trade_time_quote_time_response_time_and_session_state
+      - implement_provider_neutral_policy_and_provider_adapter_mapping
+    acceptance:
+      - valid_chain_is_not_rejected_by_arbitrary_first_row_timestamp
+      - after_hours_quote_behavior_is_explicit_and_tested
+      - stale_data_remains_fail_closed
+      - no_strategy_specific_freshness_exception_exists
+
+  S13-11:
+    title: Structured sanitized exception detail
+    priority: P1.2
+    issue: 242
+    depends_on: [S13-02]
+    required_fields:
+      - exception_type
+      - component_id
+      - strategy_id
+      - capability_id
+      - safe_error_code
+      - request_id
+    acceptance:
+      - unexpected_internal_defects_are_diagnosable_in_structured_logs_or_ops_records
+      - normalized_provider_failures_use_acquisition_outcomes_not_exception_text
+      - no_credentials_payloads_headers_secret_URLs_or_unrestricted_messages_escape
+      - public_result_contract_remains_safe
 
 validation:
   required_before_every_delegated_merge:
-    - all_required_CI_checks_pass
+    - focused_tests_for_changed_behavior
     - full_pytest_passes
     - changed_file_ruff_passes
     - mypy_asa_passes
-    - architecture_validation_passes
+    - architecture_tests_pass
     - deterministic_replay_validation_passes
     - immutable_contract_validation_passes
     - deterministic_identity_validation_passes
@@ -127,36 +461,66 @@ validation:
     - lean_entrypoint_validation_passes
     - secret_scan_passes
     - git_diff_check_passes
-    - self_review_passes
-    - no_unresolved_blocking_issue_or_governance_gate
-    - pull_request_contains_only_approved_ticket_scope
+    - frontend_tests_when_UI_changes
+    - PostgreSQL_migration_upgrade_and_downgrade_when_schema_changes
+    - concise_self_review_passes
+  architecture_assertions:
+    - strategies_do_not_import_provider_SDK_database_transport_or_operations_modules
+    - screening_does_not_define_reusable_financial_formulas_or_strategy_scores
+    - analytics_does_not_emit_strategy_verdicts
+    - market_data_does_not_apply_strategy_thresholds
+    - strategy_runtime_and_API_have_no_strategy_ID_conditionals
+    - reusable_gate_or_history_contracts_have_one_owner
   post_merge:
     - verify_default_branch_contains_merge_commit
-    - run_ticket_validation_from_default_branch
+    - run_ticket_specific_smoke_from_default_branch
     - verify_worktree_clean
+    - continue_next_unblocked_ticket
 
-self_review:
+blocker_policy:
+  raise_immediately_when:
+    - frozen_governance_or_architecture_change_is_required
+    - public_or_domain_contract_must_break
+    - truthful_history_peer_sector_or_freshness_source_is_unavailable
+    - provider_priority_paid_plan_license_or_credential_decision_is_required
+    - destructive_migration_or_retention_policy_requires_product_decision
+    - validation_gate_cannot_be_resolved_within_scope
+  required_format:
+    - exact_blocked_action
+    - confirmed_root_cause_and_sanitized_evidence
+    - why_current_authority_or_tools_cannot_resolve_it
+    - options_with_tradeoffs
+    - recommended_option
+    - smallest_Founder_action_required
+    - work_continuing_in_parallel
+  forbidden:
+    - vague_waiting_for_Founder
+    - speculative_blocker_without_current_code_evidence
+    - stopping_unrelated_unblocked_work
+
+sprint_exit:
+  complete_when:
+    - S13-02_S13-03A_S13-03B_S13-04_S13-08_S13-09_S13-10_and_S13-11_acceptance_pass
+    - S13-07_has_two_consecutive_production_cycles_and_UI_smoke_evidence
+    - every_result_category_is_specific_and_traceable
+    - no_verified_shared_behavior_remains_misowned_in_strategy_files
+    - issue_244_245_246_247_162_242_and_250_are_updated_or_closed_with_evidence
+  allowed_final_verdicts:
+    - COMPLETE_PRODUCTION_VERIFIED
+    - COMPLETE_WITH_TRUTHFUL_HISTORICAL_ACCUMULATION_PENDING
+    - BLOCKED_FOUNDER_DATA_SOURCE_OR_POLICY_DECISION
+    - FAILED_REMAINING_DATA_OR_MODULARITY_DEFECT
+
+report:
   required: true
-  checklist:
-    - facts_derived_facts_and_strategy_policy_boundaries_preserved
-    - UNKNOWN_never_replaced_with_proxy_or_positive_evidence
-    - provider_payloads_credentials_and_unsafe_quota_details_absent
-    - no_threshold_or_provider_priority_change
-    - deterministic_outputs_and_accounting_preserved
-    - Constitution_and_frozen_governance_unchanged
-
-stop_conditions:
-  - frozen_governance_or_architecture_change_required
-  - product_policy_or_provider_priority_decision_required
-  - truthful_historical_or_sector_source_missing
-  - new_paid_service_credential_or_license_decision_required
-  - breaking_public_or_domain_contract_required
-  - validation_gate_cannot_be_resolved_within_ticket_scope
-  - credential_or_provider_payload_exposure_detected
-  - sprint_complete_or_Founder_revokes_delegation
-
-merge_policy:
-  activation_merge_authority: Founder_only
-  implementation_merge_authority: active_Amendment_013_delegate
-  auto_merge_when_all_required_gates_pass: true
-  deployment_authority: Founder_only
+  destination: project/reports/SPRINT-013.md
+  format: concise
+  contents:
+    - executive_summary
+    - merged_PRs_and_commits
+    - root_causes_and_core_fixes
+    - modularity_audit_and_moved_ownership
+    - provider_budget_reuse_and_history_evidence
+    - two_cycle_production_results
+    - issues_closed_updated_and_remaining_blockers
+    - final_verdict
