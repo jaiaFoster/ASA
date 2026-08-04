@@ -12,6 +12,7 @@ from domain import MarketCapability
 from domain.values import DomainInvariantError, require_tz_aware
 from market_data.factory import Clock
 from market_data.providers import RequestBudgetAuthorization
+from market_data.rolling_window import ProviderRollingWindowTracker
 
 
 class BudgetExhaustedError(RuntimeError):
@@ -38,13 +39,14 @@ class RequestBudgetPolicy:
     burst_limit: int
     maximum_retries_per_request: int
     policy_version: str
+    burst_window_seconds: int = 1
 
     def __post_init__(self) -> None:
         for name in ("provider_id", "policy_version"):
             value = getattr(self, name)
             if not value or value != value.strip():
                 raise DomainInvariantError(f"RequestBudgetPolicy.{name} must be normalized")
-        for name in ("maximum_request_units", "burst_limit"):
+        for name in ("maximum_request_units", "burst_limit", "burst_window_seconds"):
             if type(getattr(self, name)) is not int or getattr(self, name) <= 0:
                 raise DomainInvariantError(f"RequestBudgetPolicy.{name} must be positive")
         if self.burst_limit > self.maximum_request_units:
@@ -112,11 +114,28 @@ class RequestAccountingEntry:
 
 
 class RequestBudgetManager:
-    """Explicit per-run operational ledger; no background retries or hidden provider state."""
+    """Explicit per-run operational ledger; no background retries or hidden
+    provider state. Deliberately rebuilt fresh per pair -- pair_isolation
+    is a property of this class's own lifetime, not enforced elsewhere.
 
-    __slots__ = ("_policies", "_clock", "_entries", "_cooldowns", "_burst")
+    ``rolling_window``, when supplied, is the one deliberately SHARED,
+    cross-pair exception to that isolation: a provider's real external
+    rate limit is consulted (never owned or mutated beyond reservation)
+    before any local per-pair budget is consumed, so a pair whose request
+    would exceed the provider's actual rolling window is refused before
+    it ever reaches the provider, regardless of what this pair's own
+    local ledger would otherwise allow.
+    """
 
-    def __init__(self, policies: tuple[RequestBudgetPolicy, ...], clock: Clock) -> None:
+    __slots__ = ("_policies", "_clock", "_entries", "_cooldowns", "_burst", "_rolling_window")
+
+    def __init__(
+        self,
+        policies: tuple[RequestBudgetPolicy, ...],
+        clock: Clock,
+        *,
+        rolling_window: ProviderRollingWindowTracker | None = None,
+    ) -> None:
         ordered = tuple(sorted(policies, key=lambda value: (value.provider_id, value.scope.value)))
         keys = tuple((value.provider_id, value.scope) for value in ordered)
         if not ordered or len(keys) != len(set(keys)):
@@ -125,7 +144,8 @@ class RequestBudgetManager:
         self._clock = clock
         self._entries: list[RequestAccountingEntry] = []
         self._cooldowns: dict[str, datetime] = {}
-        self._burst: dict[tuple[str, BudgetScope, datetime], int] = {}
+        self._burst: dict[tuple[str, BudgetScope], list[datetime]] = {}
+        self._rolling_window = rolling_window
 
     @property
     def accounting(self) -> tuple[RequestAccountingEntry, ...]:
@@ -167,9 +187,11 @@ class RequestBudgetManager:
         )
         if consumed + request_units > policy.maximum_request_units:
             raise BudgetExhaustedError(f"Provider {provider_id!r} {scope.value} budget exhausted")
-        burst_key = (provider_id, scope, now)
-        burst = self._burst.get(burst_key, 0)
-        if burst + 1 > policy.burst_limit:
+        burst_key = (provider_id, scope)
+        window_start = now - timedelta(seconds=policy.burst_window_seconds)
+        recent_burst = [value for value in self._burst.get(burst_key, []) if value > window_start]
+        if len(recent_burst) + 1 > policy.burst_limit:
+            self._burst[burst_key] = recent_burst
             raise BudgetExhaustedError(f"Provider {provider_id!r} burst budget exhausted")
         attempt_number = 1
         retry_root_id: str | None = None
@@ -186,6 +208,15 @@ class RequestBudgetManager:
             if retries >= policy.maximum_retries_per_request:
                 raise BudgetExhaustedError(f"Provider {provider_id!r} retry budget exhausted")
             attempt_number = original[0].attempt_number + 1
+        # Shared cross-pair reservation is the LAST gate, only once every
+        # local (pair-scoped) check has already passed -- reserving a
+        # shared window slot for a request that was going to be refused
+        # locally anyway would waste real provider capacity across the
+        # whole cycle for no reason.
+        if self._rolling_window is not None and not self._rolling_window.try_reserve(provider_id):
+            raise BudgetExhaustedError(
+                f"Provider {provider_id!r} shared rolling-window budget exhausted"
+            )
         sequence = len(self._entries) + 1
         payload = json.dumps(
             {
@@ -217,7 +248,7 @@ class RequestBudgetManager:
                 None,
             )
         )
-        self._burst[burst_key] = burst + 1
+        self._burst[burst_key] = recent_burst + [now]
         return RequestBudgetAuthorization(
             authorization_id,
             provider_id,
@@ -245,6 +276,11 @@ class RequestBudgetManager:
             if type(retry_after_seconds) is not int or retry_after_seconds < 0:
                 raise DomainInvariantError("retry_after_seconds must be non-negative")
             self._cooldowns[current.provider_id] = now + timedelta(seconds=retry_after_seconds)
+        if self._rolling_window is not None and quota is not None and quota.resets_at is not None:
+            # Safe application only: apply_reset_hint() can shorten the
+            # shared window's effective allowance, never lengthen it --
+            # see ProviderRollingWindowTracker.apply_reset_hint.
+            self._rolling_window.apply_reset_hint(current.provider_id, quota.resets_at)
         completed = RequestAccountingEntry(
             current.authorization_id,
             current.retry_root_id,
