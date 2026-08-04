@@ -1,0 +1,11 @@
+# SPRINT-013 S13-02 — Outcome Vocabulary Fold Notes
+
+`market_data/attempts.py`'s `AcquisitionOutcome` is the 11-value closed vocabulary the sprint defines. The existing `ProviderErrorCode` has 17 values, so 3 groupings are not 1-to-1. Recorded here for review, not silently decided:
+
+| Existing codes | Folded to | Rationale |
+|---|---|---|
+| `ENTITLEMENT_MISSING`, `AUTHORIZATION_FAILED`, `AUTHENTICATION_FAILED` | `entitlement_unavailable` | All three mean "we lack valid credentialed access to this capability from this provider" — distinct from a transient network problem. |
+| `TIMEOUT`, `PROVIDER_UNAVAILABLE`, `TRANSPORT_ERROR`, `CONFIGURATION_ERROR`, `INVALID_REQUEST`, `UNKNOWN_PROVIDER_ERROR` | `transport_failure` | The first three are literal transport-shaped failures. The last three (config/invalid-request/unknown) don't cleanly fit any of the 11 buckets — they're internal-defect-shaped, not data-availability-shaped — and are folded here as the closest available bucket ("we could not successfully complete a request/response cycle with this provider"), rather than adding a 12th value outside the ticket's defined vocabulary. If this masks a real distinction operators need (e.g. `CONFIGURATION_ERROR` should page differently than a genuine timeout), flag it and we'll add a dedicated bucket in a follow-up rather than silently living with the fold. |
+| `UNSUPPORTED_CAPABILITY`, `UNSUPPORTED_SYMBOL` | `no_matching_data` | Both mean "this provider has no data offering matching the request," which is exactly what `no_matching_data` already means for `NO_DATA`. |
+
+`fallback_exhausted` is never returned by the per-attempt mapping (`normalize_acquisition_outcome`) — no single attempt's own error code means "every candidate was exhausted." It's a pair-evaluation-level signal, computed by `summary_outcome_for(result)`: `FALLBACK_EXHAUSTED` when `CapabilityFulfillmentResult.status is FulfillmentStatus.FAILED`, `SUCCESS` otherwise. `fulfillment_status` (FULFILLED/DEGRADED/FAILED) is persisted on every attempt record, which is what actually satisfies `fallback_success_and_failure_are_distinct` — DEGRADED means a fallback candidate succeeded, FAILED means fallback was exhausted.
