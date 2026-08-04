@@ -174,7 +174,14 @@ def test_no_raw_payloads_headers_or_credentials_in_stored_row(
 ) -> None:
     """Column set itself is the guardrail -- there is no column that could
     hold a raw payload, header, or credential in the first place."""
-    repository.record((_record(outcome=AcquisitionOutcome.STALE_DATA),))
+    repository.record(
+        (
+            _record(
+                outcome=AcquisitionOutcome.STALE_DATA,
+                diagnostic_code=ProviderErrorCode.STALE_DATA,
+            ),
+        )
+    )
     engine = repository._engine  # noqa: SLF001 -- test-only introspection
     with engine.connect() as connection:
         columns = connection.execute(
