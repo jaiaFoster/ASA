@@ -826,6 +826,31 @@ class ImpliedForwardVolatility(BaseComponent):
         return ComponentValues((("implied_forward_iv", TypedValue(D, forward_iv)),))
 
 
+def _contract_liquid(
+    contract: OptionContract,
+    maximum_spread: Decimal,
+    minimum_oi: int,
+    minimum_volume: int,
+) -> bool:
+    """Shared quote-width/open-interest/volume gate for a single leg contract."""
+
+    if (
+        contract.bid is None
+        or contract.ask is None
+        or contract.mark is None
+        or contract.mark <= 0
+        or contract.open_interest is None
+        or contract.volume is None
+    ):
+        return False
+    spread = (contract.ask - contract.bid) / contract.mark
+    return (
+        spread <= maximum_spread
+        and contract.open_interest >= minimum_oi
+        and contract.volume >= minimum_volume
+    )
+
+
 class OptionLegLiquidity(BaseComponent):
     """Evaluate quote width, open interest, and volume without deriving a mark."""
 
@@ -850,21 +875,7 @@ class OptionLegLiquidity(BaseComponent):
         minimum_volume = cast(int, _parameter(parameters, "minimum_volume", int))
         if maximum_spread < 0 or minimum_oi < 0 or minimum_volume < 0:
             raise ComponentContractError("liquidity thresholds cannot be negative")
-        liquid = False
-        if (
-            contract.bid is not None
-            and contract.ask is not None
-            and contract.mark is not None
-            and contract.mark > 0
-            and contract.open_interest is not None
-            and contract.volume is not None
-        ):
-            spread = (contract.ask - contract.bid) / contract.mark
-            liquid = (
-                spread <= maximum_spread
-                and contract.open_interest >= minimum_oi
-                and contract.volume >= minimum_volume
-            )
+        liquid = _contract_liquid(contract, maximum_spread, minimum_oi, minimum_volume)
         return ComponentValues((("liquid", TypedValue(B, liquid)),))
 
 
@@ -1327,16 +1338,7 @@ class SkewMomentumResearchDecision(BaseComponent):
         liquidity_acceptable = False
         if structure is not None:
             liquidity_acceptable = all(
-                leg.contract.bid is not None
-                and leg.contract.ask is not None
-                and leg.contract.mark is not None
-                and leg.contract.mark > 0
-                and (leg.contract.ask - leg.contract.bid) / leg.contract.mark
-                <= maximum_spread
-                and leg.contract.open_interest is not None
-                and leg.contract.open_interest >= minimum_oi
-                and leg.contract.volume is not None
-                and leg.contract.volume >= minimum_volume
+                _contract_liquid(leg.contract, maximum_spread, minimum_oi, minimum_volume)
                 for leg in structure.legs
             )
         mid_debit: Decimal | None = None
