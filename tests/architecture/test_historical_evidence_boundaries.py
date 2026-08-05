@@ -42,7 +42,15 @@ def test_historical_evidence_only_imports_from_permitted_roots() -> None:
     # asa, screening, or a concrete Postgres integration (this ticket's
     # own "persistence/integrations owns durable historical storage" rule
     # means the concrete adapter lives in asa/integrations, not here).
-    permitted = {"__future__", "typing", "datetime", "domain", "market_data", "strategy_runtime"}
+    permitted = {
+        "__future__",
+        "dataclasses",
+        "typing",
+        "datetime",
+        "domain",
+        "market_data",
+        "strategy_runtime",
+    }
     tree = ast.parse(_MODULE.read_text())
     roots = _imported_roots(tree)
     violations = roots - permitted
