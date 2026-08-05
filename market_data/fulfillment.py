@@ -1,4 +1,32 @@
-"""Deterministic, capability-driven provider fulfillment (MD-012)."""
+"""Deterministic, capability-driven provider fulfillment (MD-012).
+
+SPRINT-013 S13-03B extends the existing per-instance request de-duplication
+(``_results``) with two things a caller sharing one service across more
+than one strategy evaluation needs: (1) a cached failed result is never
+served from cache -- always retried fresh and independently, so one
+evaluation's transient failure can never propagate onto every later
+evaluation sharing this service (see ``_bypass_decision_for`` below); (2) an
+append-only ``call_log`` recording, per ``fulfill()`` call, the exact
+``ReuseDecision`` that call resolved to. A caller that shares one service
+across several evaluations (e.g. several strategies for the same subject in
+one screening cycle) can slice ``call_log`` around one evaluation to know
+precisely which capability requests *that* evaluation actually triggered,
+and whether each was a genuine provider attempt or a reuse -- without
+reaching into this class's own internals.
+
+A cached *successful* result needs no separate staleness re-check at reuse
+time: ``CapabilityRequest.maximum_age_seconds`` is already baked into the
+request's own identity and validated once, at the original fetch, against
+whatever "now" the caller's own clock reported then. A caller sharing this
+service across a bounded window of evaluations (SPRINT-013 S13-03B's own
+cycle-scoped clock, frozen once per screening cycle -- see
+asa/scheduled_screening.py) sees that exact same "now" for the whole
+window by construction, so a successful cached result is definitionally
+still exactly as fresh, by that same clock, as it was when it was fetched.
+A caller that does *not* freeze its own clock across calls (e.g. a
+single-use service built for one on-demand evaluation) never reuses across
+enough elapsed time for this to matter in the first place.
+"""
 
 from __future__ import annotations
 
@@ -28,6 +56,20 @@ class FulfillmentStatus(str, Enum):
     FULFILLED = "fulfilled"
     DEGRADED = "degraded"
     FAILED = "failed"
+
+
+class ReuseDecision(str, Enum):
+    """SPRINT-013 S13-03B: the exact disposition of one ``fulfill()`` call,
+    recorded in ``CapabilityFulfillmentService.call_log`` -- never inferred
+    after the fact from ``_results`` alone, since a cache entry a later
+    call evicts (stale or failed) leaves no trace of *why* it was evicted.
+    """
+
+    REUSED = "reused"
+    FRESH = "fresh"
+    FRESH_AFTER_STALE_BYPASS = "fresh_after_stale_bypass"
+    FRESH_AFTER_INCOMPLETE_BYPASS = "fresh_after_incomplete_bypass"
+    FRESH_AFTER_OTHER_BYPASS = "fresh_after_other_bypass"
 
 
 @dataclass(frozen=True, slots=True)
@@ -74,7 +116,7 @@ class CapabilityFulfillmentResult:
 class CapabilityFulfillmentService:
     """Per-run service with explicit fallback evidence and request de-duplication."""
 
-    __slots__ = ("_providers", "_capabilities", "_budgets", "_results")
+    __slots__ = ("_providers", "_capabilities", "_budgets", "_results", "_call_log")
 
     def __init__(
         self,
@@ -86,14 +128,24 @@ class CapabilityFulfillmentService:
         self._capabilities = capabilities
         self._budgets = budgets
         self._results: dict[tuple[CapabilityRequest, bool], CapabilityFulfillmentResult] = {}
+        self._call_log: list[tuple[CapabilityFulfillmentResult, ReuseDecision]] = []
 
     def fulfill(
         self, request: CapabilityRequest, *, required: bool = True
     ) -> CapabilityFulfillmentResult:
         key = (request, required)
         existing = self._results.get(key)
+        decision = ReuseDecision.FRESH
         if existing is not None:
-            return existing
+            if existing.status is not FulfillmentStatus.FAILED:
+                self._call_log.append((existing, ReuseDecision.REUSED))
+                return existing
+            # A failed attempt is never served from cache, regardless of
+            # why: it always gets its own fresh, independently isolated
+            # retry rather than propagating one evaluation's failure onto
+            # every later evaluation that shares this service.
+            del self._results[key]
+            decision = self._bypass_decision_for(existing)
 
         audit: list[ProviderFulfillmentAttempt] = []
         for candidate in self._capabilities.lookup(request.capability):
@@ -157,6 +209,7 @@ class CapabilityFulfillmentService:
                     request, status, provider.provider_id, observations, tuple(audit), required
                 )
                 self._results[key] = result
+                self._call_log.append((result, decision))
                 return result
 
             if fetch_error.code is ProviderErrorCode.UNSUPPORTED_CAPABILITY:
@@ -166,7 +219,27 @@ class CapabilityFulfillmentService:
             request, FulfillmentStatus.FAILED, None, (), tuple(audit), required
         )
         self._results[key] = result
+        self._call_log.append((result, decision))
         return result
+
+    @staticmethod
+    def _bypass_decision_for(existing: CapabilityFulfillmentResult) -> ReuseDecision:
+        last_error = existing.attempts[-1].error if existing.attempts else None
+        if last_error is not None and last_error.code is ProviderErrorCode.STALE_DATA:
+            return ReuseDecision.FRESH_AFTER_STALE_BYPASS
+        if last_error is not None and last_error.code is ProviderErrorCode.INCOMPLETE_DATA:
+            return ReuseDecision.FRESH_AFTER_INCOMPLETE_BYPASS
+        return ReuseDecision.FRESH_AFTER_OTHER_BYPASS
+
+    @property
+    def call_log(self) -> tuple[tuple[CapabilityFulfillmentResult, ReuseDecision], ...]:
+        """One entry per ``fulfill()`` call, in call order -- a caller that
+        shares this service across more than one evaluation (SPRINT-013
+        S13-03B) can slice this by index to recover exactly which requests
+        one specific evaluation triggered and how each resolved, without
+        reaching into ``_results``.
+        """
+        return tuple(self._call_log)
 
     @property
     def completed_results(self) -> tuple[CapabilityFulfillmentResult, ...]:

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import dataclasses
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from domain import (
     CanonicalInstrumentIdentity,
@@ -28,30 +28,31 @@ from market_data import (
     DeterministicFixtureProvider,
     FixtureScenario,
     FulfillmentStatus,
+    HealthProbe,
+    ProviderAttemptMetadata,
     ProviderDependencies,
     ProviderErrorCode,
+    ProviderFetchResult,
+    ProviderHealthReport,
+    ProviderIdentity,
+    ProviderMetadata,
     ProviderPriority,
     ProviderPriorityPolicy,
     ProviderRegistry,
-    ProviderIdentity,
-    ProviderMetadata,
-    ProviderFetchResult,
-    ProviderAttemptMetadata,
     ProviderResponseMetadata,
-    ProviderHealthReport,
-    ProviderStatus,
     ProviderShutdownReport,
+    ProviderStatus,
     ProviderValidationPlan,
     ProviderValidationReport,
-    HealthProbe,
-    normalized_provider_error,
+    RequestBudgetAuthorization,
     RequestBudgetManager,
     RequestBudgetPolicy,
-    RequestBudgetAuthorization,
+    ReuseDecision,
     load_market_data_config,
+    normalized_provider_error,
 )
 
-NOW = datetime(2026, 7, 21, 16, 0, tzinfo=timezone.utc)
+NOW = datetime(2026, 7, 21, 16, 0, tzinfo=UTC)
 CAPABILITY = MarketCapability.REAL_TIME_QUOTE_V1
 EVIDENCE = (EvidenceReference(EvidenceKind.OBSERVATION, "instrument-reference:AAPL"),)
 INSTRUMENT = Instrument(
@@ -362,3 +363,149 @@ def test_shared_window_refusal_produces_a_distinct_diagnostic_reason() -> None:
     assert result.attempts[0].error is not None
     assert result.attempts[0].error.code is ProviderErrorCode.PROVIDER_ROLLING_WINDOW_EXHAUSTED
     assert budgets.accounting == ()  # local ledger untouched by the shared refusal
+
+
+# -- SPRINT-013 S13-03B: cycle-scoped request reuse -----------------------
+
+
+def test_reuse_hit_is_logged_reused_and_costs_no_new_provider_request() -> None:
+    fulfillment, budgets = service(provider("primary"))
+
+    initial = fulfillment.fulfill(request())
+    duplicate = fulfillment.fulfill(request())
+
+    assert duplicate is initial
+    assert len(budgets.accounting) == 1
+    assert [decision for _, decision in fulfillment.call_log] == [
+        ReuseDecision.FRESH,
+        ReuseDecision.REUSED,
+    ]
+
+
+class _FailsOnceProvider:
+    """A provider that fails its first fetch and succeeds every fetch
+    after -- used to prove a cached failure is never reused (SPRINT-013
+    S13-03B), unlike ScriptedProvider, whose scripted outcome is fixed for
+    its whole lifetime.
+    """
+
+    def __init__(self, provider_id: str) -> None:
+        self.provider_id = provider_id
+        self._calls = 0
+        self.metadata = ProviderMetadata(
+            ProviderIdentity(provider_id, "test_provider", "v1"),
+            (CAPABILITY,),
+            (),
+            (CAPABILITY,),
+            "v1",
+        )
+
+    @property
+    def capabilities(self) -> tuple[MarketCapability, ...]:
+        return self.metadata.capabilities
+
+    def fetch(
+        self, capability_request: CapabilityRequest, budget: RequestBudgetAuthorization
+    ) -> ProviderFetchResult:
+        self._calls += 1
+        response = ProviderResponseMetadata(
+            self.provider_id, f"{self.provider_id}-request-{self._calls}", NOW, "fixture", 0, 0
+        )
+        attempt = ProviderAttemptMetadata(self.provider_id, CAPABILITY, 1, 1, response)
+        if self._calls == 1:
+            return ProviderFetchResult(
+                (),
+                normalized_provider_error(
+                    ProviderErrorCode.TRANSPORT_ERROR,
+                    "simulated transient failure",
+                    self.provider_id,
+                    CAPABILITY,
+                ),
+                (attempt,),
+            )
+        base = (
+            fixture_provider(FixtureScenario())
+            .fetch(
+                capability_request,
+                RequestBudgetAuthorization("fixture", "deterministic_fixture", 1, 1),
+            )
+            .observations[0]
+        )
+        provenance = ProviderProvenance(
+            self.provider_id, response.provider_request_reference, base.provenance.evidence
+        )
+        observation = dataclasses.replace(
+            base,
+            provenance=provenance,
+            observation_id=market_observation_identity(
+                self.provider_id,
+                base.capability,
+                base.subject,
+                base.effective_time,
+                base.value,
+                base.schema_version,
+            ),
+        )
+        return ProviderFetchResult((observation,), None, (attempt,))
+
+    def health(self, probe: HealthProbe) -> ProviderHealthReport:
+        return ProviderHealthReport(self.provider_id, ProviderStatus.AVAILABLE, NOW, "OK", None)
+
+    def validate(self, plan: ProviderValidationPlan) -> ProviderValidationReport:
+        raise NotImplementedError
+
+    def shutdown(self) -> ProviderShutdownReport:
+        return ProviderShutdownReport(self.provider_id, NOW)
+
+
+def test_a_failed_result_is_never_reused_and_gets_its_own_independent_retry() -> None:
+    flaky = _FailsOnceProvider("primary")
+    registry = ProviderRegistry((flaky,))
+    capabilities = CapabilityRegistry(
+        registry, ProviderPriorityPolicy("v1", (ProviderPriority(CAPABILITY, ("primary",)),))
+    )
+    budgets = RequestBudgetManager(
+        (RequestBudgetPolicy("primary", BudgetScope.RUNTIME, 4, 4, 0, "v1"),), Clock()
+    )
+    fulfillment = CapabilityFulfillmentService(registry, capabilities, budgets)
+
+    first = fulfillment.fulfill(request(), required=False)
+    second = fulfillment.fulfill(request(), required=False)
+
+    assert first.status is FulfillmentStatus.FAILED
+    assert second.status is FulfillmentStatus.FULFILLED  # independent retry, not a cached failure
+    assert len(budgets.accounting) == 2
+    assert [decision for _, decision in fulfillment.call_log] == [
+        ReuseDecision.FRESH,
+        ReuseDecision.FRESH_AFTER_OTHER_BYPASS,
+    ]
+
+
+def test_different_subjects_never_share_a_cached_result() -> None:
+    fulfillment, budgets = service(provider("primary"))
+
+    fields = ("last",)
+    other_projection = ProviderAddressProjection(
+        "deterministic_fixture", "v1", "symbol", "MSFT", NOW, None, EVIDENCE
+    )
+    other_subject = MarketDataSubject(
+        Instrument(
+            CanonicalInstrumentIdentity("figi", "BBG000BPH459"),
+            InstrumentKind.EQUITY,
+            "MSFT",
+            "USD",
+        ),
+        MarketDataSubjectType.INSTRUMENT,
+        CAPABILITY,
+        MarketDataRequestContext(NOW, NOW, fields, (other_projection,), EVIDENCE),
+    )
+    other_request = CapabilityRequest(CAPABILITY, (other_subject,), NOW, NOW, fields, 60)
+
+    fulfillment.fulfill(request())
+    fulfillment.fulfill(other_request)
+
+    assert len(budgets.accounting) == 2  # no cross-symbol reuse
+    assert [decision for _, decision in fulfillment.call_log] == [
+        ReuseDecision.FRESH,
+        ReuseDecision.FRESH,
+    ]

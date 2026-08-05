@@ -48,7 +48,7 @@ from asa.integrations.screening_acquisition_attempts_postgres import (
     PostgresAcquisitionAttemptRepository,
 )
 from asa.integrations.universal_screening_postgres import PostgresLatestResultRepository
-from market_data import load_market_data_config_from_environment
+from market_data import ReuseDecision, load_market_data_config_from_environment
 from market_data.attempts import AcquisitionAttemptRepository, attempt_records_for
 from market_data.live_transport import build_live_transport
 from market_data.session_schedule import SessionRefreshSchedule
@@ -93,9 +93,37 @@ _LOGGER = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
-class _SystemClock:
+class _FrozenCycleClock:
+    """SPRINT-013 S13-03B: one fixed ``now``, captured once at cycle
+    start -- not a fresh wall-clock reading on every call.
+
+    ``screening/live_adapters.py``'s own per-strategy adapters (unmodified
+    by this ticket) each capture ``now = clock.now()`` once at the start of
+    their own evaluation and build their point-in-time capability requests'
+    (quote, option chain, expirations) ``effective_start``/``effective_end``
+    from it. A clock that advances between pairs -- the previous
+    ``_SystemClock``, a fresh ``datetime.now(UTC)`` reading every call --
+    made every pair's own request window subtly unique even for the exact
+    same symbol evaluated a heartbeat apart, which made cycle-scoped reuse
+    a no-op in practice for these capabilities: confirmed empirically while
+    testing this fix (a same-symbol, same-strategy pair run twice back to
+    back still needed a fresh quote/chain fetch the second time, because
+    its request window's timestamps did not match the first's byte for
+    byte), not assumed from reading the code alone.
+
+    Market data's own observation timestamps (``effective_time``,
+    freshness, provenance) always come from the provider's real response
+    data, never from this clock, so freezing it does not change what
+    "fresh" means for any observation -- only how this system itself
+    timestamps "the moment this cycle looked," which is one coherent
+    instant for every pair in one cycle, not 82 almost-identical ones
+    scattered across however long the cycle actually took to run.
+    """
+
+    value: datetime
+
     def now(self) -> datetime:
-        return datetime.now(UTC)
+        return self.value
 
 
 @dataclass(frozen=True, slots=True)
@@ -124,11 +152,19 @@ def run_scheduled_refresh(
     now: datetime | None = None,
 ) -> tuple[PairOutcome, ...]:
     """Run one bounded refresh per pair in ``universe``, in order,
-    persisting every result. One pair's failure never stops the others --
-    a fresh CapabilityFulfillmentService (and its own request budget) is
-    built per pair, exactly matching the per-request pattern
-    asa/api/screening_routes.py already uses, never shared or cached
-    across pairs.
+    persisting every result. One pair's failure never stops the others.
+
+    One CapabilityFulfillmentService (and its own request budget) is built
+    per unique *subject* for the whole cycle (SPRINT-013 S13-03B) -- not
+    per pair, and not one shared instance across every subject either
+    (cross-symbol reuse stays impossible by construction). Every pair
+    touching the same symbol shares that symbol's own service, so an exact
+    duplicate capability request made by more than one strategy for that
+    symbol is served once, from the service's own reuse-eligibility-checked
+    cache, and consumes no additional provider request or rolling-window
+    reservation. asa/api/screening_routes.py's single-pair on-demand
+    refresh endpoint has no cycle to share across and is unaffected --
+    still one fresh service per request there, correctly.
 
     ``repository``, ``transport_factory``, and ``acquisition_attempt_
     repository`` are injectable (default: the real Postgres repositories
@@ -180,7 +216,7 @@ def run_scheduled_refresh(
             "scheduled refresh requires at least one enabled live market data "
             "provider; none are enabled"
         )
-    clock = _SystemClock()
+    clock = _FrozenCycleClock(datetime.now(UTC))
     screening_cycle_id = new_screening_cycle_id(
         invocation_type=invocation_type, slot_id=slot_id, scope_id=scope_identity(universe)
     )
@@ -201,14 +237,41 @@ def run_scheduled_refresh(
                 "provider_ids": providers_without_declared_limit,
             },
         )
+    # SPRINT-013 S13-03B: one SubjectMarketDataAccess per unique symbol,
+    # built exactly once for the whole cycle -- never rebuilt per pair.
+    # Every pair below looks up its own symbol's already-built access
+    # instead of constructing a fresh, single-use CapabilityFulfillmentService
+    # (which discarded that service's own request de-duplication, see
+    # market_data/fulfillment.py, before this fix). No module-global cache:
+    # ``access`` is a local built fresh on every call to this function, so a
+    # new scheduled cycle always starts from empty cycle-scoped state.
+    unique_symbols = tuple(sorted({symbol for _, symbol in universe}))
+    access = build_shared_market_data_access(
+        config, transport_factory, clock, unique_symbols, rolling_window=rolling_window
+    )
+    reuse_counts = {
+        "provider_calls": 0,
+        "reuse_hits": 0,
+        "stale_cache_bypasses": 0,
+        "incomplete_cache_bypasses": 0,
+        "requests_not_eligible_for_reuse": 0,
+    }
     outcomes: list[PairOutcome] = []
     for signal_id, symbol in universe:
-        access = build_shared_market_data_access(
-            config, transport_factory, clock, (symbol,), rolling_window=rolling_window
-        )
         subject_access = access[symbol]
         pair_id = compute_pair_evaluation_id(screening_cycle_id, signal_id, symbol)
         try:
+            # SPRINT-013 S13-03B: call_log and the budget manager's own
+            # accounting are both sliced around this pair's own refresh()
+            # so only what *this* pair's own evaluation actually triggered
+            # is ever persisted or counted for it -- neither completed_results
+            # nor accounting's raw length can be used per pair any more once
+            # the fulfillment service (and its budget manager) are shared
+            # cycle-wide: both would include every other pair's own
+            # contribution for this same subject, over- or double-counting
+            # a shared symbol's request_count across the pairs that share it.
+            call_log_start = len(subject_access.fulfillment.call_log)
+            budget_accounting_start = len(subject_access.budget_manager.accounting)
             result = refresh(
                 registry,
                 resolved_repository,
@@ -217,6 +280,7 @@ def run_scheduled_refresh(
                 symbol=symbol,
                 fulfillment_by_subject={symbol: subject_access.fulfillment},
             )
+            pair_calls = subject_access.fulfillment.call_log[call_log_start:]
             if result.opportunity_id is not None:
                 try:
                     record_opportunity_observation(
@@ -237,7 +301,23 @@ def run_scheduled_refresh(
             attempts_recorded = True
             try:
                 sequence_offset = 0
-                for fulfillment_result in subject_access.fulfillment.completed_results:
+                for fulfillment_result, decision in pair_calls:
+                    if decision is ReuseDecision.REUSED:
+                        # SPRINT-013 S13-03B: a reuse hit consumed no
+                        # provider request and produced no new attempt
+                        # evidence -- never a fabricated attempt record for
+                        # it, only this safe cycle-level count (required
+                        # behavior: "do not create fake provider-attempt
+                        # records for cache hits").
+                        reuse_counts["reuse_hits"] += 1
+                        continue
+                    reuse_counts["provider_calls"] += 1
+                    if decision is ReuseDecision.FRESH_AFTER_STALE_BYPASS:
+                        reuse_counts["stale_cache_bypasses"] += 1
+                    elif decision is ReuseDecision.FRESH_AFTER_INCOMPLETE_BYPASS:
+                        reuse_counts["incomplete_cache_bypasses"] += 1
+                    elif decision is ReuseDecision.FRESH_AFTER_OTHER_BYPASS:
+                        reuse_counts["requests_not_eligible_for_reuse"] += 1
                     records = attempt_records_for(
                         fulfillment_result,
                         screening_cycle_id=screening_cycle_id,
@@ -264,7 +344,7 @@ def run_scheduled_refresh(
                     signal_id,
                     symbol,
                     result.evaluation_state.value,
-                    len(subject_access.budget_manager.accounting),
+                    len(subject_access.budget_manager.accounting) - budget_accounting_start,
                     None,
                     attempts_recorded,
                 )
@@ -281,6 +361,22 @@ def run_scheduled_refresh(
     _LOGGER.info(
         "provider_rolling_window_summary",
         extra={"screening_cycle_id": screening_cycle_id, "summary": rolling_window.summary()},
+    )
+    # SPRINT-013 S13-03B: unique_capability_requests is the total number of
+    # distinct (subject, capability, params, freshness) requests this
+    # cycle ever resolved (fresh or bypassed-then-fresh), summed across
+    # every subject's own fulfillment service -- reuse_hits above never
+    # adds to this count, since a reuse resolves an already-counted request.
+    unique_capability_requests = sum(
+        len(item.fulfillment.completed_results) for item in access.values()
+    )
+    _LOGGER.info(
+        "cycle_scoped_request_reuse_summary",
+        extra={
+            "screening_cycle_id": screening_cycle_id,
+            "unique_capability_requests": unique_capability_requests,
+            **reuse_counts,
+        },
     )
     return tuple(outcomes)
 

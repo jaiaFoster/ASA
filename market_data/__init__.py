@@ -1,5 +1,20 @@
 """Market Data Platform application services."""
 
+from market_data.alpha_vantage import AlphaVantageProvider, alpha_vantage_provider_registration
+from market_data.budget import (
+    BudgetExhaustedError,
+    BudgetScope,
+    QuotaObservation,
+    RequestAccountingEntry,
+    RequestBudgetManager,
+    RequestBudgetPolicy,
+    RequestOutcome,
+)
+from market_data.compliance import (
+    ProviderCapabilityCase,
+    ProviderComplianceReport,
+    evaluate_provider_compliance,
+)
 from market_data.config import (
     ConfigurationError,
     MarketDataConfig,
@@ -11,6 +26,27 @@ from market_data.config import (
     ValidationBudgetConfig,
     load_market_data_config,
     load_market_data_config_from_environment,
+)
+from market_data.factory import (
+    BudgetAuthorizer,
+    Clock,
+    ProviderDependencies,
+    ProviderFactory,
+    ProviderFactoryError,
+    ProviderRegistration,
+)
+from market_data.finnhub import FinnhubProvider, finnhub_provider_registration
+from market_data.fixture import (
+    DeterministicFixtureProvider,
+    FixtureScenario,
+    fixture_provider_registration,
+)
+from market_data.fulfillment import (
+    CapabilityFulfillmentResult,
+    CapabilityFulfillmentService,
+    FulfillmentStatus,
+    ProviderFulfillmentAttempt,
+    ReuseDecision,
 )
 from market_data.providers import (
     CapabilityRequest,
@@ -34,14 +70,6 @@ from market_data.providers import (
     ValidationCheckStatus,
     normalized_provider_error,
 )
-from market_data.factory import (
-    BudgetAuthorizer,
-    Clock,
-    ProviderDependencies,
-    ProviderFactory,
-    ProviderFactoryError,
-    ProviderRegistration,
-)
 from market_data.registry import (
     CapabilityRegistry,
     ProviderCandidate,
@@ -49,19 +77,40 @@ from market_data.registry import (
     ProviderPriorityPolicy,
     ProviderRegistry,
 )
-from market_data.budget import (
-    BudgetExhaustedError,
-    BudgetScope,
-    QuotaObservation,
-    RequestAccountingEntry,
-    RequestBudgetManager,
-    RequestBudgetPolicy,
-    RequestOutcome,
+from market_data.replay import (
+    SnapshotFixtureLibrary,
+    SnapshotReplayRecord,
+    SnapshotReplayResult,
+    replay_market_snapshot,
 )
-from market_data.fixture import (
-    DeterministicFixtureProvider,
-    FixtureScenario,
-    fixture_provider_registration,
+from market_data.resolution import (
+    ConfidenceClassification,
+    FieldDisagreement,
+    ObservationResolver,
+    ResolutionConfidence,
+    ResolutionMethod,
+    ResolutionPolicy,
+    ResolutionResult,
+)
+from market_data.snapshot import (
+    SNAPSHOT_IDENTITY_NAMESPACE,
+    SNAPSHOT_SCHEMA_VERSION,
+    MarketSnapshot,
+    MarketSnapshotBuilder,
+    SnapshotCompleteness,
+    SnapshotRequest,
+    SnapshotValidationMetadata,
+    market_snapshot_digest,
+    market_snapshot_to_data,
+    serialize_market_snapshot,
+)
+from market_data.tradier import TradierProvider, tradier_provider_registration
+from market_data.transport import (
+    ReadOnlyHttpRequest,
+    ReadOnlyHttpResponse,
+    ReadOnlyHttpTransport,
+    ReadOnlyTransportError,
+    ReadOnlyTransportTimeout,
 )
 from market_data.validation import (
     DiagnosticFinding,
@@ -74,54 +123,6 @@ from market_data.validation import (
     redact_diagnostic_text,
     render_validation_result,
     validation_result_to_data,
-)
-from market_data.tradier import TradierProvider, tradier_provider_registration
-from market_data.finnhub import FinnhubProvider, finnhub_provider_registration
-from market_data.alpha_vantage import AlphaVantageProvider, alpha_vantage_provider_registration
-from market_data.fulfillment import (
-    CapabilityFulfillmentResult,
-    CapabilityFulfillmentService,
-    FulfillmentStatus,
-    ProviderFulfillmentAttempt,
-)
-from market_data.resolution import (
-    ConfidenceClassification,
-    FieldDisagreement,
-    ObservationResolver,
-    ResolutionConfidence,
-    ResolutionMethod,
-    ResolutionPolicy,
-    ResolutionResult,
-)
-from market_data.snapshot import (
-    MarketSnapshot,
-    MarketSnapshotBuilder,
-    SNAPSHOT_IDENTITY_NAMESPACE,
-    SNAPSHOT_SCHEMA_VERSION,
-    SnapshotCompleteness,
-    SnapshotRequest,
-    SnapshotValidationMetadata,
-    market_snapshot_digest,
-    market_snapshot_to_data,
-    serialize_market_snapshot,
-)
-from market_data.replay import (
-    SnapshotFixtureLibrary,
-    SnapshotReplayRecord,
-    SnapshotReplayResult,
-    replay_market_snapshot,
-)
-from market_data.compliance import (
-    ProviderCapabilityCase,
-    ProviderComplianceReport,
-    evaluate_provider_compliance,
-)
-from market_data.transport import (
-    ReadOnlyHttpRequest,
-    ReadOnlyHttpResponse,
-    ReadOnlyHttpTransport,
-    ReadOnlyTransportError,
-    ReadOnlyTransportTimeout,
 )
 
 __all__ = [
@@ -201,6 +202,7 @@ __all__ = [
     "CapabilityFulfillmentService",
     "FulfillmentStatus",
     "ProviderFulfillmentAttempt",
+    "ReuseDecision",
     "ConfidenceClassification",
     "FieldDisagreement",
     "ObservationResolver",

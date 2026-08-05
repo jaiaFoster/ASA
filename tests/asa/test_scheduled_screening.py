@@ -497,3 +497,83 @@ def test_two_separate_invocations_each_get_a_fresh_tracker(
     assert first_outcomes[0].request_count == _SKEW_MOMENTUM_REQUESTS_PER_PAIR
     assert second_outcomes[0].error is None
     assert second_outcomes[0].request_count == _SKEW_MOMENTUM_REQUESTS_PER_PAIR
+
+
+# -- SPRINT-013 S13-03B: cycle-scoped request reuse ------------------------
+
+
+def test_a_symbol_shared_across_two_pairs_in_one_cycle_reuses_the_first_pairs_requests(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("ASA_TRADIER_ENABLED", "true")
+    monkeypatch.setenv("ASA_TRADIER_ACCESS_TOKEN", "sandbox-secret-token")
+    repository = InMemoryLatestResultRepository()
+    expiration = (date.today() + timedelta(days=7)).isoformat()
+    # Same (strategy, symbol) pair twice -- an identical adapter evaluation
+    # requests the exact same capabilities with the exact same window and
+    # freshness both times, so a working cycle-scoped reuse coordinator
+    # must serve the second occurrence's quote and chain requests entirely
+    # from the first's cache.
+    universe = (("skew_momentum", "AAPL"), ("skew_momentum", "AAPL"))
+    # Two full acquisitions' worth of scripted responses: this fixture's
+    # own synthetic historical-bars response (32 days ending yesterday)
+    # fails its own strategy's freshness policy (STALE_DATA) even for the
+    # very first pair -- a pre-existing fixture characteristic, unrelated
+    # to this fix, that this test's own outcomes[0] assertions already
+    # show (request_count reaches 4 but the evaluated outcome is
+    # missing_data, not pass). A cached *failed* result is never reused
+    # (market_data/fulfillment.py's own explicit rule, to preserve failure
+    # isolation -- see tests/market_data/test_fulfillment.py's
+    # test_a_failed_result_is_never_reused_and_gets_its_own_independent_retry),
+    # so the second pair correctly retries that one capability fresh while
+    # still reusing the other three -- proof of real, partial reuse in the
+    # actual wired path, not an artificially perfect scenario.
+    responses = _complete_skew_momentum_responses(expiration) + _complete_skew_momentum_responses(
+        expiration
+    )
+
+    outcomes = run_scheduled_refresh(
+        universe,
+        repository=repository,
+        acquisition_attempt_repository=InMemoryAcquisitionAttemptRepository(),
+        transport_factory=lambda _provider_id: ScriptedTransport(responses),
+    )
+
+    assert len(outcomes) == 2
+    assert outcomes[0].error is None
+    assert outcomes[0].request_count == _SKEW_MOMENTUM_REQUESTS_PER_PAIR
+    assert outcomes[1].error is None
+    # Only the one capability whose cached result was a failure needed a
+    # fresh, independent retry -- the other three were served from cache.
+    assert outcomes[1].request_count == 1
+    assert outcomes[1].outcome == outcomes[0].outcome  # reused evidence, same evaluated outcome
+
+
+def test_different_symbols_in_the_same_cycle_never_share_requests(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("ASA_TRADIER_ENABLED", "true")
+    monkeypatch.setenv("ASA_TRADIER_ACCESS_TOKEN", "sandbox-secret-token")
+    repository = InMemoryLatestResultRepository()
+    expiration = (date.today() + timedelta(days=7)).isoformat()
+    universe = (("skew_momentum", "AAPL"), ("skew_momentum", "MSFT"))
+    # Two full acquisitions' worth of responses -- if this pair incorrectly
+    # reused AAPL's cached evidence for MSFT (cross-symbol reuse, explicitly
+    # forbidden), the second pair would need fewer than 4 requests and this
+    # test's own assertion on outcomes[1].request_count would catch it.
+    responses = _complete_skew_momentum_responses(expiration) + _complete_skew_momentum_responses(
+        expiration
+    )
+
+    outcomes = run_scheduled_refresh(
+        universe,
+        repository=repository,
+        acquisition_attempt_repository=InMemoryAcquisitionAttemptRepository(),
+        transport_factory=lambda _provider_id: ScriptedTransport(responses),
+    )
+
+    assert len(outcomes) == 2
+    assert outcomes[0].error is None
+    assert outcomes[0].request_count == _SKEW_MOMENTUM_REQUESTS_PER_PAIR
+    assert outcomes[1].error is None
+    assert outcomes[1].request_count == _SKEW_MOMENTUM_REQUESTS_PER_PAIR
