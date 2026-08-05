@@ -1,10 +1,10 @@
-# SPRINT-013 — Overnight Readiness Report (interim)
+# SPRINT-013 — Overnight Readiness Report
 
-Status as of `main` @ `4d2bbb6026cc75165d95eee80b7df30a505eecc0`, 2026-08-05T06:55Z.
+Status as of `main` @ `a4101fa`, 2026-08-05T15:15Z. Markets open; two consecutive real scheduled production cycles observed and analyzed.
 
 ## Executive summary
 
-All four readiness-critical tickets (S13-09, S13-10, S13-11, plus the S13-04 arc completed earlier this session) are merged to `main` and deployed to Railway. Deployment is confirmed healthy (health/readiness both 200, exact-commit match). **S13-07's live-cycle production verification is not yet possible**: the scheduled screening cron (`*/10 13-20 * * 1-5` UTC, service `trustworthy-education`) has not fired since these fixes deployed — the window opens at 13:00 UTC, currently ~6 hours away. This report will be updated once a real cycle's results can be observed via Railway deploy logs.
+All readiness-critical tickets (S13-09, S13-10, S13-11, S13-07, plus the S13-04 arc) are merged to `main` and deployed to Railway. Two consecutive real scheduled screening cycles (2026-08-05T13:41:57Z and 2026-08-05T15:02:26Z) both attempted exactly the expected 82/82 pairs with **zero `strategy_exception`** across all 164 pair-evaluations — every outcome was a truthful `pass`/`no_signal`/`missing_data`. A real, adjacent diagnostic gap (a missing `exc_info=True` in `asa/scheduled_screening.py`'s own isolated exception handlers, found live in the first cycle's logs) was fixed the same night (#282) and is now deployed. Issue #244 is closed with current production evidence satisfying its acceptance criteria in full. Issues #162, #245, #242, #246, #247 remain open with evidence posted — each has a genuine, disclosed reason the *complete* acceptance bar isn't independently re-exercised yet (either the specific repro window/condition didn't recur in the two observed cycles, or full verification needs token-gated row-level data this delegate does not have and did not attempt to obtain).
 
 ## Merged PRs and commits
 
@@ -17,6 +17,8 @@ All four readiness-critical tickets (S13-09, S13-10, S13-11, plus the S13-04 arc
 | S13-04D | #278 | `f9362df` | Wire Skew Momentum as first declarative consumer |
 | S13-10 | #279 | `1ea6fd0` | Provider-neutral session-aware freshness (fixes #162) |
 | S13-11 | #280 | `4d2bbb6` | Sanitized exception detail in structured logs (fixes #242) |
+| (doc) | #281 | `e737a13` | Interim overnight readiness report |
+| S13-07 | #282 | `a4101fa` | Add `exc_info=True` to three isolated exception handlers, found from live production evidence |
 
 S13-09 (#245) had no separate PR: diagnosed as substantially the same root cause as #162 and fixed in the same PR (#279); see root-cause section below.
 
@@ -36,20 +38,29 @@ Unchanged tonight — S13-03A/S13-03B (rolling quota, cycle-scoped reuse) and S1
 
 ## Two-cycle production results
 
-**Not yet available.** No scheduled cycle has executed since these fixes deployed (last real cycle: Tuesday 2026-08-04, before tonight's work; next cycle: Wednesday 2026-08-05 13:00 UTC). Deployment-level checks completed instead:
-- `main` contains every merge above; Railway's `ASA` and `trustworthy-education` (cron) services both redeployed to `4d2bbb6`, status `SUCCESS`.
-- Health (`GET /api/v1/health` → `{"status":"ok"}`, 200) and readiness (`GET /api/v1/readiness` → `{"status":"ready"}`, 200) confirmed against the live deployment.
-- `GET /api/v1/version` → `{"application_version":"0.1.0","api_version":"v1","release_sha":null}` — `release_sha` is null because no `ASA_RELEASE_SHA` environment variable is configured; this is pre-existing (unrelated to tonight's work) and out of scope (setting it would be a Railway variable change, explicitly forbidden without Founder authorization).
-- Screening/attempt-query API endpoints require an operations or agent token this delegate does not have and did not attempt to extract — live screening-state/attempt-record inspection was not possible tonight. Railway deploy logs (readable without any app-level token) will be the verification channel for the next real cycle: `asa/scheduled_screening.py::main()` prints a JSON summary (`total`, `failed`, `attempt_diagnostics_incomplete`, `outcome_counts`, per-pair `results`) to stdout on every invocation.
+Read from `trustworthy-education` (cron service) deploy logs — `asa/scheduled_screening.py::main()` prints a JSON summary on every invocation, readable without any app-level token.
+
+The `SessionRefreshSchedule` fires 5 slots per session (open+10m, open+1h30m, open+3h30m, open+5h30m, close-10m); the cron itself ticks every 10 minutes but most ticks find no due slot (`total: 0`) — expected, not starvation.
+
+| Cycle | Slot | Total | Failed | Outcome counts | Notes |
+|---|---|---|---|---|---|
+| 1 | 2026-08-05T13:41:57Z (open+10m) | 82 | 0 | `no_signal:13, missing_data:68, pass:1` | Ran against pre-#282 code; `skew_history_capture_failed` × 30, no exception detail (the gap #282 fixed) |
+| 2 | 2026-08-05T15:02:26Z (open+1h30m) | 82 | 0 | `missing_data:72, no_signal:10` | Also pre-#282 (deployed 15:10Z, after this cycle) |
+
+Both cycles: exactly 82/82 expected pairs attempted, `attempts_recorded: true` for every pair, **zero `strategy_exception`** in either cycle's `outcome_counts`. Historical-skew capture's isolation held in both: every `skew_momentum` pair shows `error: null` despite the (now-fixed) undiagnosed capture failures. Satisfies the sprint's own `two_consecutive_cycles_account_for_every_expected_pair` and `zero_unexplained_strategy_exceptions` criteria directly.
+
+The next due slot (open+3h30m, ~17:00 UTC) will be the first to run against #282's `exc_info` fix; not observed as part of this report.
+
+Deployment/health, confirmed against `a4101fa`: `GET /api/v1/health` → `{"status":"ok"}` (200); `GET /api/v1/readiness` → `{"status":"ready"}` (200); `GET /api/v1/version` → `{"application_version":"0.1.0","api_version":"v1","release_sha":null}` (`release_sha` null is pre-existing/unrelated — no `ASA_RELEASE_SHA` env var configured; setting one is a Railway variable change, out of scope). Screening/attempt-query API endpoints remain token-gated; not queried.
 
 ## Issues closed, updated, and remaining blockers
 
-- **#162**: comment posted with confirmed root cause and fix reference. Not closed — pending live-cycle confirmation.
-- **#245**: comment posted with combined diagnosis and what was ruled out. Not closed — pending live-cycle confirmation; if any residual symbol-specific failure remains after the next cycle, it will be re-classified as a narrower follow-up.
-- **#242**: comment posted with confirmed root cause and fix reference. Not closed — pending observing a real exception-carrying log line in production.
-- **#244, #246, #247**: not touched tonight (S13-07's own scope); require the same live-cycle evidence before any closure per the sprint's own "do not close based only on unit tests or old cycles" rule.
+- **#244 — CLOSED.** All five originally-reported symbols (GS, LLY, NFLX, XLE, XLK) returned normal outcomes (`no_signal`/`missing_data`, never `strategy_exception`) in both live cycles above — its acceptance criteria are fully satisfiable from this evidence alone. Root-cause provenance (whether caused by #162's fix or an unrelated intervening change) was not independently re-investigated.
+- **#162, #245**: fix deployed, both live cycles clean, but neither independently re-exercised the *specific* repro condition (an after-close chain fetch; an earnings_calendar symbol with a real upcoming event) — both cycles ran mid-session and found no upcoming earnings for any covered symbol. Not closed.
+- **#242**: fix deployed; a real *adjacent* gap (missing `exc_info=True`, #282) was found and fixed from direct production evidence, but the *original* call site (`screening/runner.py`'s unhandled-adapter-exception line) has not fired in either observed cycle (zero `strategy_exception` in both). Not closed.
+- **#246, #247**: both cycles show no cycle-summary-level starvation (82/82 attempted both times), but full acceptance requires per-row persisted-timestamp inspection this delegate cannot perform without the token-gated API. Not closed.
 - No Founder blocker raised. The manifest-parameter-accessor blocker from S13-08 remains open and unrelated to tonight's readiness lane.
 
 ## Final verdict
 
-**READY_WITH_TRUTHFUL_RESEARCH_GAPS** (interim) — every readiness-critical code fix (S13-09/S13-10/S13-11) is merged, tested (2820 passed, 45 skipped, zero regressions; `tests/architecture` 467 passed), and deployed; health/readiness/deployment identity are confirmed. The one remaining gap is empirical, not a defect: no scheduled production cycle has run against this code yet. This report will be updated to a final verdict once the 13:00 UTC cycle's results can be observed.
+**READY_FOR_NEXT_TRADING_DAY** — every item in the Founder's own "tomorrow-ready" checklist is satisfied by current, real production evidence, not just tests: the application starts and serves health/readiness (200/200); scheduled screening attempted every one of the 82 expected pairs in both of two independent live cycles; no pair failed with an unexplained generic error (zero `strategy_exception` across 164 pair-evaluations); every strategy outcome was a truthful `pass`/`no_signal`/`missing_data`; historical-skew capture stayed isolated in both cycles; a real diagnosability gap found live tonight was fixed and deployed (#282); no secrets, raw provider payloads, or unrestricted exceptions were observed in any log reviewed. Skew Momentum correctly remains at zero accumulated historical-skew sessions (UNKNOWN until 40 real sessions accumulate) and cross-sectional/sector momentum correctly remains UNKNOWN — both explicitly exempted from this verdict per Founder instruction, not defects. Five issues (#162, #245, #242, #246, #247) remain open with evidence posted, each for a specific, disclosed reason full closure evidence isn't yet available — none of them a defect blocking tomorrow's trading day.
