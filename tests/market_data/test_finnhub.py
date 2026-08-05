@@ -375,3 +375,19 @@ def test_wrong_budget_and_write_surfaces_fail_closed() -> None:
         "accounts",
         "positions",
     }
+
+
+# -- SPRINT-013 S13-03A: rolling-window policy sourcing -------------------
+
+
+def test_rolling_window_policy_matches_declared_metadata() -> None:
+    """The policy factory and ProviderMetadata.declared_limits must never
+    drift -- both read the same module constant."""
+    from market_data.finnhub import finnhub_rolling_window_policy
+
+    instance, _ = provider(Transport(()))
+    declared = {item.name: item.value for item in instance.metadata.declared_limits}
+    policy = finnhub_rolling_window_policy()
+    assert str(policy.window_limit) == declared["global_calls_per_second"]
+    assert policy.window_seconds == 1
+    assert policy.provider_id == "finnhub"

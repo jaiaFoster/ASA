@@ -63,6 +63,15 @@ _OUTCOME_BY_ERROR_CODE: dict[ProviderErrorCode, AcquisitionOutcome] = {
     ProviderErrorCode.CONFIGURATION_ERROR: AcquisitionOutcome.TRANSPORT_FAILURE,
     ProviderErrorCode.INVALID_REQUEST: AcquisitionOutcome.TRANSPORT_FAILURE,
     ProviderErrorCode.UNKNOWN_PROVIDER_ERROR: AcquisitionOutcome.TRANSPORT_FAILURE,
+    # SPRINT-013 S13-03A: all four distinguish pair-local vs shared-provider
+    # quota refusals at the diagnostic_code level (see
+    # project/reports/SPRINT-013-S13-02-notes.md's fold rationale) -- the
+    # aggregate LOCAL_QUOTA_EXHAUSTED bucket is exactly what it already
+    # means: "we ourselves declined to send the request."
+    ProviderErrorCode.PAIR_BUDGET_EXHAUSTED: AcquisitionOutcome.LOCAL_QUOTA_EXHAUSTED,
+    ProviderErrorCode.PAIR_BURST_EXHAUSTED: AcquisitionOutcome.LOCAL_QUOTA_EXHAUSTED,
+    ProviderErrorCode.PROVIDER_ROLLING_WINDOW_EXHAUSTED: AcquisitionOutcome.LOCAL_QUOTA_EXHAUSTED,
+    ProviderErrorCode.PROVIDER_COOLDOWN_ACTIVE: AcquisitionOutcome.LOCAL_QUOTA_EXHAUSTED,
 }
 
 

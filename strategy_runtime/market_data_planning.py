@@ -50,6 +50,9 @@ from market_data import (
     tradier_provider_registration,
 )
 from market_data.budget import BudgetScope
+from market_data.finnhub import finnhub_rolling_window_policy
+from market_data.rolling_window import ProviderRollingWindowTracker, RollingWindowPolicy
+from market_data.tradier import tradier_rolling_window_policy
 from strategy_runtime.clock import Clock
 
 PRIORITY_POLICY_VERSION = "strategy-runtime-shared-plan-v1"
@@ -91,7 +94,10 @@ def _build_capability_registry(provider_registry: ProviderRegistry) -> Capabilit
 
 
 def _build_request_budget_manager(
-    enabled_configs: tuple[ProviderConfig, ...], clock: Clock
+    enabled_configs: tuple[ProviderConfig, ...],
+    clock: Clock,
+    *,
+    rolling_window: ProviderRollingWindowTracker | None = None,
 ) -> RequestBudgetManager:
     policies = tuple(
         RequestBudgetPolicy(
@@ -104,7 +110,54 @@ def _build_request_budget_manager(
         )
         for item in enabled_configs
     )
-    return RequestBudgetManager(policies, clock)
+    return RequestBudgetManager(policies, clock, rolling_window=rolling_window)
+
+
+# Providers with no typed, declared rolling rate limit in this codebase.
+# alpha_vantage: the installed key's plan tier is not knowable from
+# configuration (free vs paid), so no limit is invented here (SPRINT-013
+# S13-03A) -- only market_data/tradier.py and market_data/finnhub.py
+# currently export a rolling_window_policy factory, sourced from their own
+# ProviderMetadata.declared_limits. deterministic_fixture is not a real
+# external provider and carries no quota concern.
+NO_DECLARED_ROLLING_LIMIT_DIAGNOSTIC = "no_declared_rolling_limit"
+
+
+def declared_rolling_window_policies(
+    enabled_configs: tuple[ProviderConfig, ...],
+) -> tuple[tuple[RollingWindowPolicy, ...], tuple[str, ...]]:
+    """Rolling-window policies built only from each provider's own typed,
+    declared limit (ProviderMetadata.declared_limits, exposed via
+    tradier_rolling_window_policy()/finnhub_rolling_window_policy()) and
+    the configured provider endpoint environment -- never invented, never
+    inferred from external documentation. Returns (policies,
+    provider_ids_without_a_declared_limit) so callers can record the safe
+    no_declared_rolling_limit diagnostic instead of silently omitting
+    enforcement.
+    """
+    policies: list[RollingWindowPolicy] = []
+    undeclared: list[str] = []
+    for item in enabled_configs:
+        if item.provider_id == "tradier":
+            policies.append(tradier_rolling_window_policy(item.endpoint_environment))
+        elif item.provider_id == "finnhub":
+            policies.append(finnhub_rolling_window_policy())
+        else:
+            undeclared.append(item.provider_id)
+    return tuple(policies), tuple(undeclared)
+
+
+def build_provider_rolling_window_tracker(
+    config: MarketDataConfig, clock: Clock
+) -> tuple[ProviderRollingWindowTracker, tuple[str, ...]]:
+    """Construct exactly one ProviderRollingWindowTracker for one
+    screening cycle -- callers mint this once, beside screening_cycle_id,
+    never per pair and never as a module-global singleton (SPRINT-013
+    S13-03A). Returns the tracker plus provider_ids with no declared
+    limit, for the caller's own no_declared_rolling_limit diagnostic.
+    """
+    policies, undeclared = declared_rolling_window_policies(enabled_provider_configs(config))
+    return ProviderRollingWindowTracker(policies, clock), undeclared
 
 
 @dataclass(frozen=True, slots=True)
@@ -118,17 +171,29 @@ def build_shared_market_data_access(
     transport_factory: Callable[[str], object],
     clock: Clock,
     subjects: tuple[str, ...],
+    *,
+    rolling_window: ProviderRollingWindowTracker | None = None,
 ) -> dict[str, SubjectMarketDataAccess]:
     """One SubjectMarketDataAccess per subject in ``subjects`` -- never one
     shared across subjects (no request in this sprint's migration targets
     is ever shared between two different subjects, so there is no
     deduplication opportunity there to capture), and never one per
     (strategy, subject) pair.
+
+    ``rolling_window``, when supplied, is consulted (never constructed
+    here) by every subject's own RequestBudgetManager -- the caller mints
+    one ProviderRollingWindowTracker per screening cycle and passes the
+    same instance across every call this function makes within that
+    cycle, so cross-pair provider-quota enforcement is real while each
+    subject's own RequestBudgetManager stays independently pair-isolated
+    (SPRINT-013 S13-03A).
     """
     enabled_configs = enabled_provider_configs(config)
     result: dict[str, SubjectMarketDataAccess] = {}
     for subject in subjects:
-        budget_manager = _build_request_budget_manager(enabled_configs, clock)
+        budget_manager = _build_request_budget_manager(
+            enabled_configs, clock, rolling_window=rolling_window
+        )
         factory = _provider_factory()
         providers = tuple(
             factory.create(

@@ -11,12 +11,26 @@ from enum import Enum
 from domain import MarketCapability
 from domain.values import DomainInvariantError, require_tz_aware
 from market_data.factory import Clock
-from market_data.providers import RequestBudgetAuthorization
+from market_data.providers import ProviderErrorCode, RequestBudgetAuthorization
 from market_data.rolling_window import ProviderRollingWindowTracker
 
 
 class BudgetExhaustedError(RuntimeError):
-    """A request was refused before transport because its explicit budget was exhausted."""
+    """A request was refused before transport because its explicit budget was exhausted.
+
+    ``code`` distinguishes *why* (SPRINT-013 S13-03A) -- market_data/
+    fulfillment.py reads it instead of always normalizing to the single
+    QUOTA_EXHAUSTED code, so pair-local and shared-provider refusals
+    remain distinguishable all the way into S13-02's attempt records.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        code: ProviderErrorCode = ProviderErrorCode.QUOTA_EXHAUSTED,
+    ) -> None:
+        super().__init__(message)
+        self.code = code
 
 
 class BudgetScope(str, Enum):
@@ -179,20 +193,29 @@ class RequestBudgetManager:
         require_tz_aware(now, "RequestBudgetManager", "clock")
         cooldown = self._cooldowns.get(provider_id)
         if cooldown is not None and now < cooldown:
-            raise BudgetExhaustedError(f"Provider {provider_id!r} is in explicit cooldown")
+            raise BudgetExhaustedError(
+                f"Provider {provider_id!r} is in explicit cooldown",
+                ProviderErrorCode.PROVIDER_COOLDOWN_ACTIVE,
+            )
         consumed = sum(
             value.request_units
             for value in self._entries
             if value.provider_id == provider_id and value.scope is scope
         )
         if consumed + request_units > policy.maximum_request_units:
-            raise BudgetExhaustedError(f"Provider {provider_id!r} {scope.value} budget exhausted")
+            raise BudgetExhaustedError(
+                f"Provider {provider_id!r} {scope.value} budget exhausted",
+                ProviderErrorCode.PAIR_BUDGET_EXHAUSTED,
+            )
         burst_key = (provider_id, scope)
         window_start = now - timedelta(seconds=policy.burst_window_seconds)
         recent_burst = [value for value in self._burst.get(burst_key, []) if value > window_start]
         if len(recent_burst) + 1 > policy.burst_limit:
             self._burst[burst_key] = recent_burst
-            raise BudgetExhaustedError(f"Provider {provider_id!r} burst budget exhausted")
+            raise BudgetExhaustedError(
+                f"Provider {provider_id!r} burst budget exhausted",
+                ProviderErrorCode.PAIR_BURST_EXHAUSTED,
+            )
         attempt_number = 1
         retry_root_id: str | None = None
         if retry_of is not None:
@@ -206,7 +229,10 @@ class RequestBudgetManager:
                 if value.retry_root_id == retry_root_id and value.attempt_number > 1
             )
             if retries >= policy.maximum_retries_per_request:
-                raise BudgetExhaustedError(f"Provider {provider_id!r} retry budget exhausted")
+                raise BudgetExhaustedError(
+                    f"Provider {provider_id!r} retry budget exhausted",
+                    ProviderErrorCode.PAIR_BUDGET_EXHAUSTED,
+                )
             attempt_number = original[0].attempt_number + 1
         # Shared cross-pair reservation is the LAST gate, only once every
         # local (pair-scoped) check has already passed -- reserving a
@@ -215,7 +241,8 @@ class RequestBudgetManager:
         # whole cycle for no reason.
         if self._rolling_window is not None and not self._rolling_window.try_reserve(provider_id):
             raise BudgetExhaustedError(
-                f"Provider {provider_id!r} shared rolling-window budget exhausted"
+                f"Provider {provider_id!r} shared rolling-window budget exhausted",
+                ProviderErrorCode.PROVIDER_ROLLING_WINDOW_EXHAUSTED,
             )
         sequence = len(self._entries) + 1
         payload = json.dumps(

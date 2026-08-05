@@ -346,3 +346,32 @@ def test_adapter_has_no_write_or_brokerage_surface() -> None:
         "accounts",
         "positions",
     }
+
+
+# -- SPRINT-013 S13-03A: rolling-window policy sourcing -------------------
+
+
+def test_production_and_sandbox_select_different_declared_policies() -> None:
+    from market_data.config import ProviderEndpointEnvironment
+    from market_data.tradier import tradier_rolling_window_policy
+
+    production = tradier_rolling_window_policy(ProviderEndpointEnvironment.PRODUCTION)
+    sandbox = tradier_rolling_window_policy(ProviderEndpointEnvironment.SANDBOX)
+    assert production.window_limit == 120
+    assert sandbox.window_limit == 60
+    assert production.window_limit != sandbox.window_limit
+    assert production.provider_id == sandbox.provider_id == "tradier"
+
+
+def test_rolling_window_policy_values_match_declared_metadata() -> None:
+    """The policy factory and ProviderMetadata.declared_limits must never
+    drift -- both read the same module constants."""
+    from market_data.config import ProviderEndpointEnvironment
+    from market_data.tradier import tradier_rolling_window_policy
+
+    instance = provider(Transport(()))
+    declared = {item.name: item.value for item in instance.metadata.declared_limits}
+    production = tradier_rolling_window_policy(ProviderEndpointEnvironment.PRODUCTION)
+    sandbox = tradier_rolling_window_policy(ProviderEndpointEnvironment.SANDBOX)
+    assert str(production.window_limit) == declared["market_data_per_minute_production"]
+    assert str(sandbox.window_limit) == declared["market_data_per_minute_sandbox"]

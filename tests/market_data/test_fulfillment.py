@@ -178,6 +178,7 @@ def service(
     second: ScriptedProvider | None = None,
     *,
     maximum: int = 4,
+    rolling_window: object | None = None,
 ) -> tuple[CapabilityFulfillmentService, RequestBudgetManager]:
     providers = (first,) if second is None else (first, second)
     registry = ProviderRegistry(providers)
@@ -192,6 +193,7 @@ def service(
             for item in ids
         ),
         Clock(),
+        rolling_window=rolling_window,
     )
     return CapabilityFulfillmentService(registry, capabilities, budgets), budgets
 
@@ -297,4 +299,66 @@ def test_exhausted_budget_is_recorded_and_duplicate_request_is_not_reissued() ->
     exhausted = other_service.fulfill(request())
     assert exhausted.status is FulfillmentStatus.FAILED
     assert exhausted.attempts[0].error is not None
-    assert exhausted.attempts[0].error.code is ProviderErrorCode.QUOTA_EXHAUSTED
+    # SPRINT-013 S13-03A: the pair-local total ceiling now gets its own
+    # distinct code instead of the generic QUOTA_EXHAUSTED.
+    assert exhausted.attempts[0].error.code is ProviderErrorCode.PAIR_BUDGET_EXHAUSTED
+
+
+# -- SPRINT-013 S13-03A: shared rolling-window request boundary -----------
+
+
+def test_outbound_upstream_rejection_still_consumes_a_provider_unit() -> None:
+    """A request that reaches the provider and comes back rate_limited
+    consumes its shared-window unit exactly like a success would --
+    authorize() reserves before the outcome is known, never after."""
+    from market_data.rolling_window import ProviderRollingWindowTracker, RollingWindowPolicy
+
+    window = ProviderRollingWindowTracker((RollingWindowPolicy("primary", 60, 5, "test"),), Clock())
+    failed = FixtureScenario(failures=((CAPABILITY, ProviderErrorCode.RATE_LIMITED),))
+    fulfillment, _ = service(provider("primary", failed), rolling_window=window)
+
+    result = fulfillment.fulfill(request(), required=False)
+
+    assert result.status is FulfillmentStatus.FAILED
+    assert window.summary()["primary"] == 1
+
+
+def test_fallback_consumes_the_fallback_providers_own_unit() -> None:
+    """Primary fails locally-shaped, fallback succeeds -- each provider's
+    rolling window is reserved independently, under its own provider_id."""
+    from market_data.rolling_window import ProviderRollingWindowTracker, RollingWindowPolicy
+
+    window = ProviderRollingWindowTracker(
+        (
+            RollingWindowPolicy("primary", 60, 5, "test"),
+            RollingWindowPolicy("secondary", 60, 5, "test"),
+        ),
+        Clock(),
+    )
+    primary = provider(
+        "primary", FixtureScenario(failures=((CAPABILITY, ProviderErrorCode.TIMEOUT),))
+    )
+    fulfillment, _ = service(primary, provider("secondary"), rolling_window=window)
+
+    result = fulfillment.fulfill(request())
+
+    assert result.status is FulfillmentStatus.DEGRADED
+    assert window.summary() == {"primary": 1, "secondary": 1}
+
+
+def test_shared_window_refusal_produces_a_distinct_diagnostic_reason() -> None:
+    """The exact refusal reason (SPRINT-013 S13-03A) survives into the
+    NormalizedProviderError -- never collapsed to generic QUOTA_EXHAUSTED,
+    and distinguishable from a pair-local total/burst refusal."""
+    from market_data.rolling_window import ProviderRollingWindowTracker, RollingWindowPolicy
+
+    window = ProviderRollingWindowTracker((RollingWindowPolicy("primary", 60, 1, "test"),), Clock())
+    window.try_reserve("primary")  # consume the one shared slot up front
+    fulfillment, budgets = service(provider("primary"), rolling_window=window)
+
+    result = fulfillment.fulfill(request(), required=False)
+
+    assert result.status is FulfillmentStatus.FAILED
+    assert result.attempts[0].error is not None
+    assert result.attempts[0].error.code is ProviderErrorCode.PROVIDER_ROLLING_WINDOW_EXHAUSTED
+    assert budgets.accounting == ()  # local ledger untouched by the shared refusal

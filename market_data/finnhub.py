@@ -50,6 +50,7 @@ from market_data.providers import (
     ValidationCheckStatus,
     normalized_provider_error,
 )
+from market_data.rolling_window import RollingWindowPolicy
 from market_data.session_calendar import classify_quote_freshness
 from market_data.transport import (
     ReadOnlyHttpRequest,
@@ -64,6 +65,21 @@ FINNHUB_CAPABILITIES = (
     MarketCapability.HISTORICAL_BARS_V1,
     MarketCapability.EARNINGS_CALENDAR_V1,
 )
+
+# Declared, documented Finnhub rate limit (SPRINT-013 S13-03A) -- the
+# single source both ProviderMetadata.declared_limits below and
+# finnhub_rolling_window_policy() read from.
+_GLOBAL_CALLS_PER_SECOND = 30
+
+
+def finnhub_rolling_window_policy() -> RollingWindowPolicy:
+    """Finnhub's own declared, documented rolling rate limit. Finnhub does
+    not distinguish sandbox/production endpoints the way Tradier does, so
+    this takes no endpoint_environment parameter.
+    """
+    return RollingWindowPolicy(
+        "finnhub", 1, _GLOBAL_CALLS_PER_SECOND, "documented:global_calls_per_second"
+    )
 
 
 class _NoData(ValueError):
@@ -87,7 +103,11 @@ class FinnhubProvider:
         self._metadata = ProviderMetadata(
             ProviderIdentity("finnhub", "finnhub", config.adapter_version),
             FINNHUB_CAPABILITIES,
-            (ProviderLimitDeclaration("global_calls_per_second", "30", "documented"),),
+            (
+                ProviderLimitDeclaration(
+                    "global_calls_per_second", str(_GLOBAL_CALLS_PER_SECOND), "documented"
+                ),
+            ),
             FINNHUB_CAPABILITIES,
             "v1",
         )

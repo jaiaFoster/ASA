@@ -13,6 +13,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
+import pytest
+
 from domain import (
     CanonicalInstrumentIdentity,
     EvidenceKind,
@@ -26,6 +28,7 @@ from domain import (
     ProviderAddressProjection,
 )
 from market_data import CapabilityRequest, load_market_data_config
+from market_data.rolling_window import ProviderRollingWindowTracker, RollingWindowPolicy
 from strategy_runtime import (
     NO_LIFECYCLE,
     DataRequirement,
@@ -35,9 +38,12 @@ from strategy_runtime import (
     StrategyContract,
     StrategyRegistry,
     StructureKind,
+    build_provider_rolling_window_tracker,
     build_shared_market_data_access,
+    declared_rolling_window_policies,
     run_strategies,
 )
+from strategy_runtime.market_data_planning import enabled_provider_configs
 
 NOW = datetime(2026, 1, 1, tzinfo=UTC)
 CAPABILITY = MarketCapability.REAL_TIME_QUOTE_V1
@@ -155,3 +161,160 @@ class TestRunStrategiesWithSharedMarketData:
         run_strategies(registry, clock, subjects=("AAPL",))  # no fulfillment_by_subject at all
 
         assert seen == [None]
+
+
+def _quote_request_for(symbol: str) -> CapabilityRequest:
+    instrument = Instrument(
+        CanonicalInstrumentIdentity("figi", f"BBG-{symbol}"), InstrumentKind.EQUITY, symbol, "USD"
+    )
+    fields = ("last",)
+    projection = ProviderAddressProjection(
+        "deterministic_fixture", "v1", "symbol", symbol, NOW, None, EVIDENCE
+    )
+    item = MarketDataSubject(
+        instrument,
+        MarketDataSubjectType.INSTRUMENT,
+        CAPABILITY,
+        MarketDataRequestContext(NOW, NOW, fields, (projection,), EVIDENCE),
+    )
+    return CapabilityRequest(CAPABILITY, (item,), NOW, NOW, fields, 60)
+
+
+class TestProviderRollingWindowWiring:
+    """SPRINT-013 S13-03A: build_shared_market_data_access's own
+    rolling_window parameter, threaded through to every pair-scoped
+    RequestBudgetManager it builds.
+    """
+
+    def _window(self, clock: _FixedClock, limit: int = 2) -> ProviderRollingWindowTracker:
+        return ProviderRollingWindowTracker(
+            (RollingWindowPolicy("deterministic_fixture", 60, limit, "test"),), clock
+        )
+
+    def test_two_different_pairs_consume_one_shared_provider_window(self) -> None:
+        config = load_market_data_config({})
+        clock = _FixedClock()
+        window = self._window(clock, limit=2)
+        access = build_shared_market_data_access(
+            config, _no_transport_needed, clock, ("AAPL", "MSFT"), rolling_window=window
+        )
+        access["AAPL"].fulfillment.fulfill(_quote_request_for("AAPL"))
+        access["MSFT"].fulfillment.fulfill(_quote_request_for("MSFT"))
+        assert window.summary()["deterministic_fixture"] == 2
+
+    def test_a_third_pair_is_refused_when_the_declared_window_is_full(self) -> None:
+        from market_data import FulfillmentStatus
+
+        config = load_market_data_config({})
+        clock = _FixedClock()
+        window = self._window(clock, limit=2)
+        access = build_shared_market_data_access(
+            config,
+            _no_transport_needed,
+            clock,
+            ("AAPL", "MSFT", "GOOG"),
+            rolling_window=window,
+        )
+        access["AAPL"].fulfillment.fulfill(_quote_request_for("AAPL"))
+        access["MSFT"].fulfillment.fulfill(_quote_request_for("MSFT"))
+        third = access["GOOG"].fulfillment.fulfill(_quote_request_for("GOOG"))
+        assert third.status is FulfillmentStatus.FAILED
+        assert third.attempts[0].error is not None
+        assert third.attempts[0].error.code.value == "provider_rolling_window_exhausted"
+
+    def test_per_pair_totals_and_retries_remain_isolated_under_a_shared_window(self) -> None:
+        config = load_market_data_config({})
+        clock = _FixedClock()
+        window = self._window(clock, limit=100)  # generous -- isolates pair-local accounting
+        access = build_shared_market_data_access(
+            config, _no_transport_needed, clock, ("AAPL", "MSFT"), rolling_window=window
+        )
+        access["AAPL"].fulfillment.fulfill(_quote_request_for("AAPL"))
+        access["MSFT"].fulfillment.fulfill(_quote_request_for("MSFT"))
+        # Each pair's own RequestBudgetManager stays a distinct instance
+        # with its own accounting, unaffected by the other pair's usage.
+        assert access["AAPL"].budget_manager is not access["MSFT"].budget_manager
+        assert len(access["AAPL"].budget_manager.accounting) == 1
+        assert len(access["MSFT"].budget_manager.accounting) == 1
+
+    def test_cache_hit_consumes_no_provider_unit(self) -> None:
+        config = load_market_data_config({})
+        clock = _FixedClock()
+        window = self._window(clock, limit=1)
+        access = build_shared_market_data_access(
+            config, _no_transport_needed, clock, ("AAPL",), rolling_window=window
+        )
+        request = _quote_request_for("AAPL")
+        first = access["AAPL"].fulfillment.fulfill(request)
+        second = access["AAPL"].fulfillment.fulfill(request)  # memoized, no new authorize()
+        assert first is second
+        assert window.summary()["deterministic_fixture"] == 1  # only the first call reserved
+
+
+class TestDeclaredRollingWindowPolicies:
+    """No limit is ever invented for a provider without a typed, declared
+    one (SPRINT-013 S13-03A) -- alpha_vantage today.
+    """
+
+    def test_alpha_vantage_gets_no_invented_limit(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("ASA_ALPHA_VANTAGE_ENABLED", "true")
+        monkeypatch.setenv("ASA_ALPHA_VANTAGE_API_KEY", "test-key")
+        config = load_market_data_config(
+            {"ASA_ALPHA_VANTAGE_ENABLED": "true", "ASA_ALPHA_VANTAGE_API_KEY": "test-key"}
+        )
+        policies, undeclared = declared_rolling_window_policies(enabled_provider_configs(config))
+        assert "alpha_vantage" in undeclared
+        assert not any(item.provider_id == "alpha_vantage" for item in policies)
+
+    def test_tradier_and_finnhub_get_their_own_declared_policies(self) -> None:
+        config = load_market_data_config(
+            {
+                "ASA_TRADIER_ENABLED": "true",
+                "ASA_TRADIER_ACCESS_TOKEN": "x",
+                "ASA_FINNHUB_ENABLED": "true",
+                "ASA_FINNHUB_API_KEY": "x",
+            }
+        )
+        policies, undeclared = declared_rolling_window_policies(enabled_provider_configs(config))
+        provider_ids = {item.provider_id for item in policies}
+        assert {"tradier", "finnhub"} <= provider_ids
+        assert "tradier" not in undeclared
+        assert "finnhub" not in undeclared
+
+
+class TestBuildProviderRollingWindowTracker:
+    def test_scheduled_screening_constructs_one_tracker_per_cycle_not_per_pair(self) -> None:
+        """The same tracker instance -- built once here -- is what a
+        caller (asa/scheduled_screening.py) must reuse across every pair
+        in one cycle; this proves the construction itself does not create
+        new state per call within what should be a single invocation.
+        """
+        config = load_market_data_config(
+            {"ASA_TRADIER_ENABLED": "true", "ASA_TRADIER_ACCESS_TOKEN": "x"}
+        )
+        clock = _FixedClock()
+        tracker, undeclared = build_provider_rolling_window_tracker(config, clock)
+        tracker.try_reserve("tradier")
+        tracker.try_reserve("tradier")
+        # Reusing the SAME instance (not rebuilding it) accumulates state,
+        # exactly the property asa/scheduled_screening.py's per-pair loop
+        # relies on for real cross-pair enforcement.
+        assert tracker.summary()["tradier"] == 2
+        # deterministic_fixture is enabled by default (load_market_data_config's
+        # own safety default) and has no declared external rate limit --
+        # correctly reported as undeclared, not silently dropped.
+        assert undeclared == ("deterministic_fixture",)
+
+    def test_a_new_cycle_receives_fresh_cycle_scoped_state(self) -> None:
+        config = load_market_data_config(
+            {"ASA_TRADIER_ENABLED": "true", "ASA_TRADIER_ACCESS_TOKEN": "x"}
+        )
+        clock = _FixedClock()
+        first_tracker, _ = build_provider_rolling_window_tracker(config, clock)
+        first_tracker.try_reserve("tradier")
+        first_tracker.try_reserve("tradier")
+
+        second_tracker, _ = build_provider_rolling_window_tracker(config, clock)
+
+        assert second_tracker is not first_tracker
+        assert second_tracker.summary()["tradier"] == 0  # fresh state, not inherited
