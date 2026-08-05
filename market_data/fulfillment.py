@@ -105,9 +105,13 @@ class CapabilityFulfillmentService:
                     1,
                     BudgetScope.RUNTIME,
                 )
-            except BudgetExhaustedError:
+            except BudgetExhaustedError as exc:
+                # SPRINT-013 S13-03A: exc.code distinguishes pair-local
+                # (total/burst/retry) refusals from the shared provider
+                # rolling-window refusal and an active cooldown -- never
+                # collapsed into one generic code.
                 error = normalized_provider_error(
-                    ProviderErrorCode.QUOTA_EXHAUSTED,
+                    exc.code,
                     "finite provider request budget is unavailable or exhausted",
                     provider.provider_id,
                     request.capability,

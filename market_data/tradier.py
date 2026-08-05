@@ -31,7 +31,7 @@ from domain import (
 from domain.market_data import MarketObservationValue
 from domain.operational import CanonicalInstrumentIdentity
 from domain.values import DomainInvariantError
-from market_data.config import ProviderConfig
+from market_data.config import ProviderConfig, ProviderEndpointEnvironment
 from market_data.factory import ProviderDependencies, ProviderRegistration
 from market_data.providers import (
     CapabilityRequest,
@@ -53,6 +53,7 @@ from market_data.providers import (
     ValidationCheckStatus,
     normalized_provider_error,
 )
+from market_data.rolling_window import RollingWindowPolicy
 from market_data.session_calendar import classify_quote_freshness
 from market_data.transport import (
     ReadOnlyHttpRequest,
@@ -67,6 +68,35 @@ TRADIER_CAPABILITIES = (
     MarketCapability.HISTORICAL_BARS_V1,
     MarketCapability.OPTION_CHAIN_V1,
 )
+
+# Declared, documented Tradier rate limits (SPRINT-013 S13-03A) -- the
+# single source both ProviderMetadata.declared_limits below and
+# tradier_rolling_window_policy() read from, so the two can never drift.
+_MARKET_DATA_PER_MINUTE_PRODUCTION = 120
+_MARKET_DATA_PER_MINUTE_SANDBOX = 60
+
+
+def tradier_rolling_window_policy(
+    endpoint_environment: ProviderEndpointEnvironment,
+) -> RollingWindowPolicy:
+    """Tradier's own declared, documented rolling rate limit for the
+    configured endpoint environment. Never a hardcoded standalone number --
+    the exact same values ProviderMetadata.declared_limits already
+    declares.
+    """
+    if endpoint_environment is ProviderEndpointEnvironment.PRODUCTION:
+        return RollingWindowPolicy(
+            "tradier",
+            60,
+            _MARKET_DATA_PER_MINUTE_PRODUCTION,
+            "documented:market_data_per_minute_production",
+        )
+    return RollingWindowPolicy(
+        "tradier",
+        60,
+        _MARKET_DATA_PER_MINUTE_SANDBOX,
+        "documented:market_data_per_minute_sandbox",
+    )
 
 
 class _EmptyPayload(ValueError):
@@ -89,8 +119,16 @@ class TradierProvider:
             ProviderIdentity("tradier", "tradier", config.adapter_version),
             TRADIER_CAPABILITIES,
             (
-                ProviderLimitDeclaration("market_data_per_minute_production", "120", "documented"),
-                ProviderLimitDeclaration("market_data_per_minute_sandbox", "60", "documented"),
+                ProviderLimitDeclaration(
+                    "market_data_per_minute_production",
+                    str(_MARKET_DATA_PER_MINUTE_PRODUCTION),
+                    "documented",
+                ),
+                ProviderLimitDeclaration(
+                    "market_data_per_minute_sandbox",
+                    str(_MARKET_DATA_PER_MINUTE_SANDBOX),
+                    "documented",
+                ),
             ),
             TRADIER_CAPABILITIES,
             "v1",

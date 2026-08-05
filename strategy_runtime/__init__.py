@@ -79,7 +79,9 @@ from strategy_runtime.execution import (
 )
 from strategy_runtime.market_data_planning import (
     SubjectMarketDataAccess,
+    build_provider_rolling_window_tracker,
     build_shared_market_data_access,
+    declared_rolling_window_policies,
 )
 from strategy_runtime.registry import (
     StrategyAdapter,
@@ -125,8 +127,10 @@ __all__ = [
     "UniversalScreeningResult",
     "UnknownStrategyIdError",
     "ValueType",
+    "build_provider_rolling_window_tracker",
     "build_shared_market_data_access",
     "compute_observation_id",
+    "declared_rolling_window_policies",
     "describe_contract",
     "describe_registry",
     "register",

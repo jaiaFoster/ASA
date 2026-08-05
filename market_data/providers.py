@@ -55,6 +55,14 @@ class ProviderErrorCode(str, Enum):
     STALE_DATA = "stale_data"
     INCOMPLETE_DATA = "incomplete_data"
     UNKNOWN_PROVIDER_ERROR = "unknown_provider_error"
+    # SPRINT-013 S13-03A: distinct local/shared quota refusal reasons --
+    # RequestBudgetManager.authorize() no longer collapses these into the
+    # single QUOTA_EXHAUSTED code (market_data/budget.py's own
+    # BudgetExhaustedError.code carries the specific one).
+    PAIR_BUDGET_EXHAUSTED = "pair_budget_exhausted"
+    PAIR_BURST_EXHAUSTED = "pair_burst_exhausted"
+    PROVIDER_ROLLING_WINDOW_EXHAUSTED = "provider_rolling_window_exhausted"
+    PROVIDER_COOLDOWN_ACTIVE = "provider_cooldown_active"
 
 
 _ERROR_POLICY: dict[ProviderErrorCode, tuple[ProviderErrorKind, bool]] = {
@@ -76,6 +84,10 @@ _ERROR_POLICY: dict[ProviderErrorCode, tuple[ProviderErrorKind, bool]] = {
     ProviderErrorCode.STALE_DATA: (ProviderErrorKind.UNAVAILABLE, False),
     ProviderErrorCode.INCOMPLETE_DATA: (ProviderErrorKind.SCHEMA, False),
     ProviderErrorCode.UNKNOWN_PROVIDER_ERROR: (ProviderErrorKind.UNKNOWN, False),
+    ProviderErrorCode.PAIR_BUDGET_EXHAUSTED: (ProviderErrorKind.RATE_LIMIT, False),
+    ProviderErrorCode.PAIR_BURST_EXHAUSTED: (ProviderErrorKind.RATE_LIMIT, True),
+    ProviderErrorCode.PROVIDER_ROLLING_WINDOW_EXHAUSTED: (ProviderErrorKind.RATE_LIMIT, True),
+    ProviderErrorCode.PROVIDER_COOLDOWN_ACTIVE: (ProviderErrorKind.RATE_LIMIT, True),
 }
 
 

@@ -65,6 +65,7 @@ from screening.live_acquisition import live_only_config
 from strategy_runtime.adapters import build_migrated_strategy_registry
 from strategy_runtime.lifecycle import RecommendedAction
 from strategy_runtime.market_data_planning import (
+    build_provider_rolling_window_tracker,
     build_shared_market_data_access,
     enabled_provider_configs,
 )
@@ -183,9 +184,28 @@ def run_scheduled_refresh(
     screening_cycle_id = new_screening_cycle_id(
         invocation_type=invocation_type, slot_id=slot_id, scope_id=scope_identity(universe)
     )
+    # Exactly one ProviderRollingWindowTracker per cycle -- minted here,
+    # beside screening_cycle_id, and passed by reference into every pair's
+    # own RequestBudgetManager below (SPRINT-013 S13-03A). Never rebuilt
+    # per pair, never a module-global singleton: a fresh tracker for every
+    # new invocation of this function, so a new scheduled cycle always
+    # starts with fresh cycle-scoped window state.
+    rolling_window, providers_without_declared_limit = build_provider_rolling_window_tracker(
+        config, clock
+    )
+    if providers_without_declared_limit:
+        _LOGGER.info(
+            "no_declared_rolling_limit",
+            extra={
+                "screening_cycle_id": screening_cycle_id,
+                "provider_ids": providers_without_declared_limit,
+            },
+        )
     outcomes: list[PairOutcome] = []
     for signal_id, symbol in universe:
-        access = build_shared_market_data_access(config, transport_factory, clock, (symbol,))
+        access = build_shared_market_data_access(
+            config, transport_factory, clock, (symbol,), rolling_window=rolling_window
+        )
         subject_access = access[symbol]
         pair_id = compute_pair_evaluation_id(screening_cycle_id, signal_id, symbol)
         try:
@@ -251,6 +271,17 @@ def run_scheduled_refresh(
             )
         except Exception as exc:
             outcomes.append(PairOutcome(signal_id, symbol, None, None, str(exc), False))
+    # Cycle-level sanitized accounting (SPRINT-013 S13-03A): provider_id ->
+    # in-window reservation count only, no payloads, no per-pair detail.
+    # This tracker is cycle-local and in-process -- it enforces truthfully
+    # within this one invocation only, never across the separately
+    # deployed always-on web service process or another concurrent
+    # invocation of this same job (see project/reports/SPRINT-013-S13-03A-
+    # wiring-notes.md's BLOCKED_DISTRIBUTED_QUOTA_OWNERSHIP packet).
+    _LOGGER.info(
+        "provider_rolling_window_summary",
+        extra={"screening_cycle_id": screening_cycle_id, "summary": rolling_window.summary()},
+    )
     return tuple(outcomes)
 
 

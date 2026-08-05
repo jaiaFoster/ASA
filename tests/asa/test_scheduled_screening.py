@@ -319,3 +319,181 @@ def test_attempt_persistence_failure_preserves_the_screening_result(
     # But acquisition accounting is honestly marked incomplete, never
     # silently reported as if it were complete.
     assert outcomes[0].attempts_recorded is False
+
+
+# -- SPRINT-013 S13-03A: shared cross-pair provider rolling window ----------
+
+
+def _force_tiny_tradier_window(monkeypatch: pytest.MonkeyPatch, window_limit: int) -> None:
+    """Overrides the real declared Tradier limit (60-120/min) with a tiny
+    one so cross-pair refusal is observable with just two pairs, instead
+    of scripting dozens of requests."""
+    import strategy_runtime.market_data_planning as planning
+    from market_data.rolling_window import RollingWindowPolicy
+
+    monkeypatch.setattr(
+        planning,
+        "tradier_rolling_window_policy",
+        lambda endpoint_environment: RollingWindowPolicy(  # noqa: ARG005
+            "tradier", 60, window_limit, "test-override"
+        ),
+    )
+
+
+# One pair's complete, real Skew Momentum acquisition needs exactly 4
+# sequential Tradier requests (quote, expirations, option chain,
+# historical daily closes) -- confirmed empirically. The module-level
+# _tradier_refresh_responses() above is intentionally minimal (a single
+# call contract, no put, no history) and only proves the runner isolates
+# an unexpected exception, not a full clean success -- fine for the tests
+# that already use it, but these two tests need a genuinely complete
+# fixture so their pass/refusal assertions are unambiguous rather than
+# "some outcome, who knows which."
+_SKEW_MOMENTUM_REQUESTS_PER_PAIR = 4
+_STRIKE_DELTA_LADDER = (
+    (-15, "0.80"),
+    (-10, "0.70"),
+    (-5, "0.60"),
+    (0, "0.50"),
+    (5, "0.35"),
+    (10, "0.25"),
+    (15, "0.15"),
+)
+
+
+def _option_row(strike: int, expiration: str, option_type: str, call_delta: str) -> dict:
+    delta = call_delta if option_type == "call" else str(round(float(call_delta) - 1, 2))
+    return {
+        "symbol": f"TEST_{option_type.upper()}_{strike}",
+        "underlying": "AAPL",
+        "expiration_date": expiration,
+        "strike": str(strike),
+        "option_type": option_type,
+        "bid": "4.9",
+        "ask": "5.1",
+        "last": "5",
+        "volume": 1000,
+        "open_interest": 5000,
+        "greeks": {
+            "delta": delta,
+            "gamma": "0.03",
+            "theta": "-0.1",
+            "vega": "0.2",
+            "rho": "0.01",
+            "mid_iv": "0.30",
+        },
+    }
+
+
+def _complete_history_response() -> ReadOnlyHttpResponse:
+    days = []
+    cursor = date.today() - timedelta(days=1)
+    price = 189.0
+    while len(days) < 32:
+        if cursor.weekday() < 5:
+            days.append(
+                {
+                    "date": cursor.isoformat(),
+                    "open": str(price - 0.5),
+                    "high": str(price + 1),
+                    "low": str(price - 1),
+                    "close": str(price),
+                    "volume": "1000000",
+                }
+            )
+            price -= 0.1
+        cursor -= timedelta(days=1)
+    days.reverse()
+    return ReadOnlyHttpResponse(200, {"history": {"day": days}}, (), 12, "tradier-request-4")
+
+
+def _complete_skew_momentum_responses(expiration: str) -> list[ReadOnlyHttpResponse]:
+    options = [
+        _option_row(190 + offset, expiration, option_type, call_delta)
+        for offset, call_delta in _STRIKE_DELTA_LADDER
+        for option_type in ("call", "put")
+    ]
+    return [
+        tradier_quote_response(),
+        ReadOnlyHttpResponse(
+            200, {"expirations": {"date": [expiration]}}, (), 12, "tradier-request-2"
+        ),
+        ReadOnlyHttpResponse(200, {"options": {"option": options}}, (), 12, "tradier-request-3"),
+        _complete_history_response(),
+    ]
+
+
+def test_one_tracker_is_shared_across_every_pair_in_the_cycle(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("ASA_TRADIER_ENABLED", "true")
+    monkeypatch.setenv("ASA_TRADIER_ACCESS_TOKEN", "sandbox-secret-token")
+    # Exactly enough for one pair's full 4-request acquisition, not two.
+    _force_tiny_tradier_window(monkeypatch, window_limit=_SKEW_MOMENTUM_REQUESTS_PER_PAIR)
+    repository = InMemoryLatestResultRepository()
+    expiration = (date.today() + timedelta(days=7)).isoformat()
+    universe = (("skew_momentum", "AAPL"), ("skew_momentum", "MSFT"))
+
+    outcomes = run_scheduled_refresh(
+        universe,
+        repository=repository,
+        acquisition_attempt_repository=InMemoryAcquisitionAttemptRepository(),
+        transport_factory=lambda _provider_id: ScriptedTransport(
+            _complete_skew_momentum_responses(expiration)
+        ),
+    )
+
+    assert len(outcomes) == 2
+    # First pair's acquisition runs to completion -- all 4 requests are
+    # actually authorized and made, consuming the entire shared window
+    # doing so (what skew_momentum's own strategy logic then decides from
+    # that real data -- pass/no_signal/its own missing_data -- is a
+    # business-logic question this test isn't about, and is sensitive to
+    # the real wall clock _SystemClock always uses regardless of any `now`
+    # passed to run_scheduled_refresh, so it is deliberately not asserted
+    # here). The second pair's very first request is refused by that SAME
+    # shared window, before it ever reaches the (unconsumed) scripted
+    # transport queue -- proof one tracker is genuinely shared across
+    # pairs within this one cycle, not rebuilt per pair.
+    assert outcomes[0].error is None
+    assert outcomes[0].request_count == _SKEW_MOMENTUM_REQUESTS_PER_PAIR
+    assert outcomes[1].error is None  # isolated per-pair failure, not a crash
+    assert outcomes[1].outcome == "missing_data"
+    assert outcomes[1].request_count == 0  # refused before any request was made
+
+
+def test_two_separate_invocations_each_get_a_fresh_tracker(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("ASA_TRADIER_ENABLED", "true")
+    monkeypatch.setenv("ASA_TRADIER_ACCESS_TOKEN", "sandbox-secret-token")
+    _force_tiny_tradier_window(monkeypatch, window_limit=_SKEW_MOMENTUM_REQUESTS_PER_PAIR)
+    expiration = (date.today() + timedelta(days=7)).isoformat()
+
+    first_outcomes = run_scheduled_refresh(
+        (("skew_momentum", "AAPL"),),
+        repository=InMemoryLatestResultRepository(),
+        acquisition_attempt_repository=InMemoryAcquisitionAttemptRepository(),
+        transport_factory=lambda _provider_id: ScriptedTransport(
+            _complete_skew_momentum_responses(expiration)
+        ),
+    )
+    second_outcomes = run_scheduled_refresh(
+        (("skew_momentum", "MSFT"),),
+        repository=InMemoryLatestResultRepository(),
+        acquisition_attempt_repository=InMemoryAcquisitionAttemptRepository(),
+        transport_factory=lambda _provider_id: ScriptedTransport(
+            _complete_skew_momentum_responses(expiration)
+        ),
+    )
+
+    # Both runs authorize and make their own full 4 requests independently
+    # -- the second call's tracker does not inherit the first call's
+    # already-exhausted window state, proving fresh cycle-scoped state per
+    # invocation. (What skew_momentum's own strategy logic decides from
+    # the real data is a business-logic question this test isn't about --
+    # see the sibling test above for why that's deliberately not asserted.)
+    assert first_outcomes[0].error is None
+    assert first_outcomes[0].request_count == _SKEW_MOMENTUM_REQUESTS_PER_PAIR
+    assert second_outcomes[0].error is None
+    assert second_outcomes[0].request_count == _SKEW_MOMENTUM_REQUESTS_PER_PAIR
