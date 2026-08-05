@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -14,9 +14,10 @@ from market_data.budget import (
     RequestBudgetPolicy,
     RequestOutcome,
 )
+from market_data.providers import ProviderErrorCode
 from market_data.rolling_window import ProviderRollingWindowTracker, RollingWindowPolicy
 
-START = datetime(2026, 7, 21, tzinfo=timezone.utc)
+START = datetime(2026, 7, 21, tzinfo=UTC)
 
 
 @dataclass
@@ -260,6 +261,32 @@ def test_upstream_and_local_refusal_remain_distinct() -> None:
     other_budget.authorize("fixture", MarketCapability.REAL_TIME_QUOTE_V1, 1)
     with pytest.raises(BudgetExhaustedError, match="budget exhausted"):
         other_budget.authorize("fixture", MarketCapability.REAL_TIME_QUOTE_V1, 1)
+
+
+def test_local_rolling_window_exhaustion_has_a_distinct_error_code_from_upstream_rate_limit() -> (
+    None
+):
+    """SPRINT-013 P0: a LOCAL shared-window refusal (raised here, before
+    any provider request is ever made) must carry its own distinct
+    ProviderErrorCode, never ProviderErrorCode.RATE_LIMITED -- that code
+    is reserved for a genuine upstream 429/rate-limit response
+    (market_data/fulfillment.py's own classification of a real fetch
+    result), a structurally different event this manager never raises.
+    """
+    clock = FakeClock()
+    window = ProviderRollingWindowTracker(
+        (RollingWindowPolicy("fixture", 60, 1, "documented"),), clock
+    )
+    window.try_reserve("fixture")
+    budget = RequestBudgetManager(
+        (RequestBudgetPolicy("fixture", BudgetScope.RUNTIME, 10, 5, 1, "v1"),),
+        clock,
+        rolling_window=window,
+    )
+    with pytest.raises(BudgetExhaustedError) as excinfo:
+        budget.authorize("fixture", MarketCapability.REAL_TIME_QUOTE_V1, 1)
+    assert excinfo.value.code is ProviderErrorCode.PROVIDER_ROLLING_WINDOW_EXHAUSTED
+    assert excinfo.value.code is not ProviderErrorCode.RATE_LIMITED
 
 
 def test_complete_forwards_safe_reset_hint_to_shared_window() -> None:

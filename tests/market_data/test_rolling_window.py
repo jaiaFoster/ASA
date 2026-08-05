@@ -6,7 +6,10 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 from domain.values import DomainInvariantError
+from market_data.config import ProviderEndpointEnvironment
+from market_data.finnhub import finnhub_rolling_window_policy
 from market_data.rolling_window import ProviderRollingWindowTracker, RollingWindowPolicy
+from market_data.tradier import tradier_rolling_window_policy
 
 START = datetime(2026, 7, 21, tzinfo=UTC)
 
@@ -108,6 +111,36 @@ def test_reset_hint_for_unconfigured_provider_is_ignored() -> None:
     tracker = ProviderRollingWindowTracker((policy("tradier"),), clock)
     tracker.apply_reset_hint("alpha_vantage", clock.now() + timedelta(seconds=999))
     assert tracker.try_reserve("alpha_vantage") is True
+
+
+# -- SPRINT-013 P0: declared-window expiry against each provider's own
+# real, documented policy (not a synthetic one) -- proves the fix
+# against the actual values production uses, not just an arbitrary
+# window_seconds/window_limit pair.
+
+
+def test_a_finnhub_reservation_expires_after_its_declared_second() -> None:
+    policy = finnhub_rolling_window_policy()
+    clock = FakeClock()
+    tracker = ProviderRollingWindowTracker((policy,), clock)
+    for _ in range(policy.window_limit):
+        assert tracker.try_reserve("finnhub") is True
+    assert tracker.try_reserve("finnhub") is False  # exactly at the declared per-second limit
+
+    clock.advance(seconds=policy.window_seconds)  # 1s: Finnhub's own declared window
+    assert tracker.try_reserve("finnhub") is True
+
+
+def test_a_tradier_reservation_expires_after_its_declared_minute() -> None:
+    policy = tradier_rolling_window_policy(ProviderEndpointEnvironment.PRODUCTION)
+    clock = FakeClock()
+    tracker = ProviderRollingWindowTracker((policy,), clock)
+    for _ in range(policy.window_limit):
+        assert tracker.try_reserve("tradier") is True
+    assert tracker.try_reserve("tradier") is False  # exactly at the declared per-minute limit
+
+    clock.advance(seconds=policy.window_seconds)  # 60s: Tradier's own declared window
+    assert tracker.try_reserve("tradier") is True
 
 
 def test_summary_reports_sanitized_in_window_counts_only() -> None:
