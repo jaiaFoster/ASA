@@ -1,5 +1,6 @@
 import json
 import logging
+import sys
 from pathlib import Path
 from unittest.mock import Mock
 from uuid import uuid4
@@ -44,6 +45,120 @@ def test_structured_market_log_contains_required_correlation_fields() -> None:
     assert payload["run_id"] == "run-123"
     assert payload["run_step"] == "acquire_portfolio"
     assert payload["account_id"] == "taxable-001"
+
+
+def _record_with_exc_info(exc: BaseException, msg: str = "operation failed") -> logging.LogRecord:
+    try:
+        raise exc
+    except type(exc):
+        record = logging.LogRecord(
+            name="asa.test",
+            level=logging.WARNING,
+            pathname=__file__,
+            lineno=1,
+            msg=msg,
+            args=(),
+            exc_info=sys.exc_info(),
+        )
+    return record
+
+
+class TestSanitizedExceptionDetail:
+    """SPRINT-013 S13-11 (issue #242): exc_info=True previously produced no
+    exception detail at all in the emitted JSON -- JsonFormatter never
+    read record.exc_info. These tests exercise the fix directly against
+    the formatter, the shared logging boundary, not a specific call site.
+    """
+
+    def test_exc_info_produces_exception_type_and_useful_safe_detail(self) -> None:
+        record = _record_with_exc_info(ValueError("no put contracts at expiration 2026-08-21"))
+        payload = json.loads(JsonFormatter().format(record))
+        assert payload["exception_type"] == "ValueError"
+        assert "no put contracts at expiration" in payload["exception_message"]
+        assert payload["stack_location"]
+        assert payload["stack_location"][0]["file"] == "test_logging.py"
+        assert isinstance(payload["stack_location"][0]["line"], int)
+
+    def test_traceback_information_survives_json_formatting(self) -> None:
+        record = _record_with_exc_info(RuntimeError("boom"))
+        formatted = JsonFormatter().format(record)
+        # One valid JSON value, not multiple lines -- json.loads would
+        # raise on anything but a single well-formed document.
+        payload = json.loads(formatted)
+        assert "\n" not in formatted
+        assert payload["exception_type"] == "RuntimeError"
+        for frame in payload["stack_location"]:
+            assert set(frame) == {"file", "line", "function"}
+
+    def test_secrets_in_the_exception_message_are_redacted(self) -> None:
+        record = _record_with_exc_info(
+            ValueError(
+                "request to https://api.example.com/v1/quote?symbol=AAPL&token=sk-live-abc123 "
+                "failed with header Authorization: Bearer sk-live-verysecrettoken"
+            )
+        )
+        payload = json.loads(JsonFormatter().format(record))
+        assert "sk-live-abc123" not in payload["exception_message"]
+        assert "sk-live-verysecrettoken" not in payload["exception_message"]
+        assert "[REDACTED]" in payload["exception_message"]
+
+    def test_provider_shaped_payload_fragments_never_escape_via_extra(self) -> None:
+        record = _record_with_exc_info(ValueError("boom"))
+        record.raw_response = {"api_key": "super-secret", "quotes": [{"bid": 1}] * 500}
+        record.headers = {"Authorization": "Bearer super-secret-header-token"}
+        payload = json.loads(JsonFormatter().format(record))
+        assert "raw_response" not in payload
+        assert "headers" not in payload
+        assert "super-secret" not in json.dumps(payload)
+
+    def test_nested_exceptions_remain_bounded(self) -> None:
+        try:
+            try:
+                try:
+                    try:
+                        raise ValueError("level 0")
+                    except ValueError as inner:
+                        raise TypeError("level 1") from inner
+                except TypeError as inner:
+                    raise KeyError("level 2") from inner
+            except KeyError as inner:
+                raise RuntimeError("level 3") from inner
+        except RuntimeError as exc:
+            record = logging.LogRecord(
+                name="asa.test",
+                level=logging.WARNING,
+                pathname=__file__,
+                lineno=1,
+                msg="deeply nested failure",
+                args=(),
+                exc_info=(type(exc), exc, exc.__traceback__),
+            )
+        payload = json.loads(JsonFormatter().format(record))
+        assert payload["exception_type"] == "RuntimeError"
+        assert len(payload["caused_by"]) <= 3
+
+    def test_ordinary_non_exception_logs_are_unchanged(self) -> None:
+        record = logging.LogRecord(
+            name="asa.market",
+            level=logging.INFO,
+            pathname=__file__,
+            lineno=1,
+            msg="quote_observation_saved",
+            args=(),
+            exc_info=None,
+        )
+        record.symbol = "AAPL"
+        payload = json.loads(JsonFormatter().format(record))
+        assert payload["event"] == "quote_observation_saved"
+        assert payload["symbol"] == "AAPL"
+        assert "exception_type" not in payload
+        assert "stack_location" not in payload
+
+    def test_output_is_one_railway_compatible_json_line(self) -> None:
+        record = _record_with_exc_info(ValueError("multi\nline\nmessage"))
+        formatted = JsonFormatter().format(record)
+        assert "\n" not in formatted
+        assert json.loads(formatted)["exception_message"] == "multi\nline\nmessage"
 
 
 def test_run_step_log_uses_provider_supplied_by_port(
