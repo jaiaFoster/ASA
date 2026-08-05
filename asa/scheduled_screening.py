@@ -332,6 +332,11 @@ def run_scheduled_refresh(
                         },
                     )
                 except Exception:
+                    # SPRINT-013 S13-07: exc_info=True confirmed missing here
+                    # by real production evidence (2026-08-05 13:41Z cycle --
+                    # every skew_momentum pair logged this event with no
+                    # exception detail at all, even after S13-11's formatter
+                    # fix, since this call site never passed exc_info).
                     _LOGGER.warning(
                         "skew_history_capture_failed",
                         extra={
@@ -339,6 +344,7 @@ def run_scheduled_refresh(
                             "symbol": symbol,
                             "screening_cycle_id": screening_cycle_id,
                         },
+                        exc_info=True,
                     )
             if result.opportunity_id is not None:
                 try:
@@ -356,6 +362,7 @@ def run_scheduled_refresh(
                             "symbol": result.symbol,
                             "opportunity_id": result.opportunity_id,
                         },
+                        exc_info=True,
                     )
             attempts_recorded = True
             try:
@@ -397,6 +404,7 @@ def run_scheduled_refresh(
                         "screening_cycle_id": screening_cycle_id,
                         "pair_evaluation_id": pair_id,
                     },
+                    exc_info=True,
                 )
             outcomes.append(
                 PairOutcome(
