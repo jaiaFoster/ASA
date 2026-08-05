@@ -9,6 +9,7 @@ from domain import (
     CanonicalInstrumentIdentity,
     EvidenceKind,
     EvidenceReference,
+    FreshnessStatus,
     Instrument,
     InstrumentKind,
     MarketCapability,
@@ -102,7 +103,11 @@ def subject(
 
 
 def request(
-    capability: MarketCapability, fields: tuple[str, ...], *, expiration: bool = False
+    capability: MarketCapability,
+    fields: tuple[str, ...],
+    *,
+    expiration: bool = False,
+    maximum_age_seconds: int = 86400 * 10,
 ) -> CapabilityRequest:
     item = subject(capability, fields, expiration=expiration)
     return CapabilityRequest(
@@ -111,7 +116,7 @@ def request(
         item.request_context.semantic_start,
         item.request_context.semantic_end,
         fields,
-        86400 * 10,
+        maximum_age_seconds,
     )
 
 
@@ -188,6 +193,61 @@ def test_weekend_quote_from_friday_session_is_prior_session() -> None:
     assert result.observations[0].freshness.status.value == "prior_session"
 
 
+def test_quote_during_open_session_is_fresh() -> None:
+    open_session_instant = datetime(2026, 7, 24, 15, 0, tzinfo=UTC)  # Friday, mid-session
+    just_traded = open_session_instant - timedelta(seconds=30)
+    transport = Transport(
+        (
+            response(
+                {
+                    "quotes": {
+                        "quote": {
+                            "symbol": "AAPL",
+                            "bid": 209.9,
+                            "ask": 210.1,
+                            "last": 210,
+                            "trade_date": int(just_traded.timestamp() * 1000),
+                        }
+                    }
+                }
+            ),
+        )
+    )
+    requested = replace(
+        request(MarketCapability.REAL_TIME_QUOTE_V1, ("bid", "ask", "last")),
+        maximum_age_seconds=3600,
+    )
+    result = provider(transport, Clock(open_session_instant)).fetch(requested, authorization())
+    assert result.error is None
+    assert result.observations[0].freshness.status is FreshnessStatus.FRESH
+
+
+def test_option_chain_during_open_session_is_fresh() -> None:
+    open_session_instant = datetime(2026, 7, 24, 15, 0, tzinfo=UTC)
+    just_traded = open_session_instant - timedelta(seconds=30)
+    row = {
+        "symbol": "AAPL260821C00210000",
+        "underlying": "AAPL",
+        "expiration_date": "2026-08-21",
+        "strike": "210",
+        "option_type": "call",
+        "last": "5",
+        "trade_date": int(just_traded.timestamp() * 1000),
+    }
+    transport = Transport((response({"options": {"option": [row]}}),))
+    result = provider(transport, clock=Clock(value=open_session_instant)).fetch(
+        request(
+            MarketCapability.OPTION_CHAIN_V1,
+            ("contracts",),
+            expiration=True,
+            maximum_age_seconds=3600,
+        ),
+        authorization(),
+    )
+    assert result.error is None
+    assert result.observations[0].freshness.status is FreshnessStatus.FRESH
+
+
 def test_daily_history_normalizes_decimal_ohlcv() -> None:
     transport = Transport(
         (
@@ -249,7 +309,13 @@ def test_option_chain_preserves_greeks_iv_and_liquidity() -> None:
     assert transport.requests[0].path == "/v1/markets/options/chains"
 
 
-def test_option_chain_freshness_uses_newest_contract_not_first_response_row() -> None:
+def test_option_chain_freshness_is_the_median_not_the_first_response_row() -> None:
+    """SPRINT-013 S13-10: the chain's own canonical timestamp is a
+    deterministic aggregate (median) over every contract's own genuine
+    trade time -- never the first row's own value, and never simply the
+    single newest either (an aggregate robust to an outlier in *either*
+    direction, not a max/min that only guards one direction).
+    """
     old = {
         "symbol": "AAPL260821C00210000",
         "underlying": "AAPL",
@@ -271,7 +337,134 @@ def test_option_chain_freshness_uses_newest_contract_not_first_response_row() ->
         authorization(),
     )
     assert result.error is None
-    assert result.observations[0].effective_time == NOW - timedelta(minutes=5)
+    old_time = NOW - timedelta(days=3)
+    recent_time = NOW - timedelta(minutes=5)
+    expected_median = old_time + (recent_time - old_time) / 2
+    assert result.observations[0].effective_time == expected_median
+
+
+def test_option_chain_freshness_is_identical_regardless_of_response_row_order() -> None:
+    old = {
+        "symbol": "AAPL260821C00210000",
+        "underlying": "AAPL",
+        "expiration_date": "2026-08-21",
+        "strike": "210",
+        "option_type": "call",
+        "last": "5",
+        "trade_date": int((NOW - timedelta(minutes=90)).timestamp() * 1000),
+    }
+    middle = {
+        **old,
+        "symbol": "AAPL260821C00212000",
+        "strike": "212",
+        "trade_date": old["trade_date"],
+    }
+    recent = {
+        **old,
+        "symbol": "AAPL260821C00215000",
+        "strike": "215",
+        "trade_date": int((NOW - timedelta(minutes=5)).timestamp() * 1000),
+    }
+    forward = Transport((response({"options": {"option": [old, middle, recent]}}),))
+    reversed_order = Transport((response({"options": {"option": [recent, middle, old]}}),))
+    forward_result = provider(forward).fetch(
+        request(MarketCapability.OPTION_CHAIN_V1, ("contracts",), expiration=True),
+        authorization(),
+    )
+    reversed_result = provider(reversed_order).fetch(
+        request(MarketCapability.OPTION_CHAIN_V1, ("contracts",), expiration=True),
+        authorization(),
+    )
+    assert forward_result.error is None
+    assert reversed_result.error is None
+    assert (
+        forward_result.observations[0].effective_time
+        == reversed_result.observations[0].effective_time
+    )
+
+
+def test_option_chain_after_close_with_a_session_old_contract_is_not_rejected_stale() -> None:
+    """SPRINT-013 S13-10 (issue #162): a chain acquired well after the
+    session closed, whose own contracts' last trades are from that same
+    now-completed session, must be accepted as PRIOR_SESSION evidence --
+    not silently rejected STALE_DATA the way the pre-fix binary
+    FRESH/STALE check (no session awareness) always did once age exceeded
+    the request's own maximum_age_seconds.
+    """
+    after_close = datetime(2026, 7, 24, 23, 0, tzinfo=UTC)  # Friday, ~7h after 20:00 UTC close
+    same_session_trade = datetime(2026, 7, 24, 19, 55, tzinfo=UTC)
+    row = {
+        "symbol": "AAPL260821C00210000",
+        "underlying": "AAPL",
+        "expiration_date": "2026-08-21",
+        "strike": "210",
+        "option_type": "call",
+        "last": "5",
+        "trade_date": int(same_session_trade.timestamp() * 1000),
+    }
+    transport = Transport((response({"options": {"option": [row]}}),))
+    result = provider(transport, clock=Clock(value=after_close)).fetch(
+        request(
+            MarketCapability.OPTION_CHAIN_V1,
+            ("contracts",),
+            expiration=True,
+            maximum_age_seconds=3600,
+        ),
+        authorization(),
+    )
+    assert result.error is None
+    assert result.observations[0].freshness.status is FreshnessStatus.PRIOR_SESSION
+
+
+def test_option_chain_genuinely_older_than_the_latest_session_remains_stale() -> None:
+    after_close = datetime(2026, 7, 24, 23, 0, tzinfo=UTC)
+    two_sessions_ago_trade = datetime(2026, 7, 22, 19, 55, tzinfo=UTC)
+    row = {
+        "symbol": "AAPL260821C00210000",
+        "underlying": "AAPL",
+        "expiration_date": "2026-08-21",
+        "strike": "210",
+        "option_type": "call",
+        "last": "5",
+        "trade_date": int(two_sessions_ago_trade.timestamp() * 1000),
+    }
+    transport = Transport((response({"options": {"option": [row]}}),))
+    result = provider(transport, clock=Clock(value=after_close)).fetch(
+        request(
+            MarketCapability.OPTION_CHAIN_V1,
+            ("contracts",),
+            expiration=True,
+            maximum_age_seconds=3600,
+        ),
+        authorization(),
+    )
+    assert result.error is None
+    assert result.observations[0].freshness.status is FreshnessStatus.STALE
+
+
+def test_option_chain_with_no_contract_timestamps_falls_back_to_retrieval_time() -> None:
+    """Missing timestamps must never be silently treated as fabricated
+    market time -- but this is existing, pre-S13-10 behavior (median over
+    zero valid candidates falls back to the request's own retrieval time,
+    same as the prior max()-based implementation did), not a new
+    allowance: this test locks it in, not introduces it.
+    """
+    row = {
+        "symbol": "AAPL260821C00210000",
+        "underlying": "AAPL",
+        "expiration_date": "2026-08-21",
+        "strike": "210",
+        "option_type": "call",
+        "last": "5",
+    }
+    transport = Transport((response({"options": {"option": [row]}}),))
+    result = provider(transport).fetch(
+        request(MarketCapability.OPTION_CHAIN_V1, ("contracts",), expiration=True),
+        authorization(),
+    )
+    assert result.error is None
+    assert result.observations[0].effective_time == NOW
+    assert result.observations[0].freshness.status is FreshnessStatus.FRESH
 
 
 @pytest.mark.parametrize(

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, time, timedelta
 from enum import StrEnum
@@ -70,16 +71,28 @@ class UsEquitySessionCalendar:
         raise DomainInvariantError("no completed US equity session found in bounded lookback")
 
 
-def classify_quote_freshness(
+def classify_market_data_freshness(
     as_of: datetime,
     effective_time: datetime,
     threshold_seconds: int,
     *,
     calendar: UsEquitySessionCalendar | None = None,
 ) -> FreshnessMetadata:
-    """Classify age without rejecting expected closed-session evidence."""
-    require_tz_aware(as_of, "classify_quote_freshness", "as_of")
-    require_tz_aware(effective_time, "classify_quote_freshness", "effective_time")
+    """Provider-neutral, capability-neutral freshness classification
+    (SPRINT-013 S13-10): age within threshold is FRESH; age beyond
+    threshold is PRIOR_SESSION, not STALE, when ``effective_time`` falls
+    within the most recently completed US equity session as of ``as_of``
+    -- classifying age without rejecting expected closed-session evidence.
+    Used identically for a real-time quote, an option chain's own
+    canonical timestamp (see median_observed_at), and any other
+    capability's observation -- one owner for this decision, not a
+    per-capability or per-provider duplicate (previously only quotes got
+    this treatment; option chains fell back to a naive binary FRESH/STALE
+    check with no session awareness at all, silently rejecting a
+    legitimate just-closed session's chain as STALE_DATA).
+    """
+    require_tz_aware(as_of, "classify_market_data_freshness", "as_of")
+    require_tz_aware(effective_time, "classify_market_data_freshness", "effective_time")
     age = max(0, int((as_of - effective_time).total_seconds()))
     if age <= threshold_seconds:
         status = FreshnessStatus.FRESH
@@ -91,6 +104,27 @@ def classify_quote_freshness(
             else FreshnessStatus.STALE
         )
     return FreshnessMetadata(as_of, effective_time, threshold_seconds, age, status)
+
+
+def median_observed_at(candidates: Sequence[datetime]) -> datetime:
+    """Deterministic, response-order-independent canonical timestamp for a
+    set of per-record observation timestamps (SPRINT-013 S13-10) -- e.g.
+    one option chain's own per-contract last-trade times. A single very
+    old outlier (one illiquid contract that hasn't traded in days) cannot
+    alone make the whole chain look stale the way the earliest value
+    would; a single very new outlier cannot alone make it look fresher
+    than it really is the way the latest value would. The median is the
+    one aggregate robust to an outlier in either direction, computed here
+    purely over already-parsed timestamps -- no provider-specific parsing.
+    """
+    if not candidates:
+        raise ValueError("median_observed_at requires at least one candidate")
+    ordered = sorted(candidates)
+    midpoint = len(ordered) // 2
+    if len(ordered) % 2 == 1:
+        return ordered[midpoint]
+    earlier, later = ordered[midpoint - 1], ordered[midpoint]
+    return earlier + (later - earlier) / 2
 
 
 def _observed(day: date) -> date:

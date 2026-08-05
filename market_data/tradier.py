@@ -13,8 +13,6 @@ from domain import (
     EvidenceKind,
     EvidenceReference,
     ExpirationCycle,
-    FreshnessMetadata,
-    FreshnessStatus,
     MarketCapability,
     MarketDataSubject,
     MarketObservation,
@@ -54,7 +52,7 @@ from market_data.providers import (
     normalized_provider_error,
 )
 from market_data.rolling_window import RollingWindowPolicy
-from market_data.session_calendar import classify_quote_freshness
+from market_data.session_calendar import classify_market_data_freshness, median_observed_at
 from market_data.transport import (
     ReadOnlyHttpRequest,
     ReadOnlyHttpResponse,
@@ -356,19 +354,12 @@ class TradierProvider:
         evidence = _evidence(response)
         present = tuple(field for field in request.required_fields if _field_present(field, value))
         missing = tuple(field for field in request.required_fields if field not in present)
-        age = max(0, int((received - effective).total_seconds()))
-        freshness = (
-            classify_quote_freshness(received, effective, request.maximum_age_seconds)
-            if isinstance(value, Quote)
-            else FreshnessMetadata(
-                received,
-                effective,
-                request.maximum_age_seconds,
-                age,
-                FreshnessStatus.FRESH
-                if age <= request.maximum_age_seconds
-                else FreshnessStatus.STALE,
-            )
+        # SPRINT-013 S13-10: one shared, session-aware classifier for every
+        # capability -- not just Quote. An option chain (or any other
+        # non-quote capability) acquired shortly after the session closes
+        # is now correctly PRIOR_SESSION, not silently rejected STALE_DATA.
+        freshness = classify_market_data_freshness(
+            received, effective, request.maximum_age_seconds
         )
         provenance = ProviderProvenance("tradier", response.request_reference, evidence)
         identity = market_observation_identity(
@@ -464,14 +455,18 @@ def _is_monthly_expiration(value: date) -> bool:
     return value.weekday() == 4 and 15 <= value.day <= 21
 
 
-def _observed_at(row: Mapping[str, object], fallback: datetime) -> datetime:
+def _row_observed_at_or_none(row: Mapping[str, object]) -> datetime | None:
     raw = row.get("trade_date") or row.get("timestamp")
     if isinstance(raw, (int, float)):
         divisor = 1000 if raw > 10_000_000_000 else 1
         return datetime.fromtimestamp(raw / divisor, tz=UTC)
     if isinstance(raw, str):
         return datetime.fromisoformat(raw.replace("Z", "+00:00")).astimezone(UTC)
-    return fallback
+    return None
+
+
+def _observed_at(row: Mapping[str, object], fallback: datetime) -> datetime:
+    return _row_observed_at_or_none(row) or fallback
 
 
 def _required_observed_at(row: Mapping[str, object]) -> datetime:
@@ -526,7 +521,18 @@ def _chain(
 ) -> OptionChain:
     if not rows:
         raise ValueError("empty option chain")
-    observed = max(_observed_at(row, received_at) for row in rows)
+    # SPRINT-013 S13-10: the chain's own canonical timestamp is the median
+    # of every contract row's own genuine trade timestamp (rows missing
+    # one entirely are excluded, never silently treated as "now" -- a
+    # missing timestamp must never inflate apparent freshness). Median,
+    # not min/max: a single very old illiquid contract cannot alone make
+    # an otherwise-current chain look stale, and a single very recently
+    # touched contract cannot alone make an otherwise-stale chain look
+    # fresh. Never response order (median_observed_at sorts internally).
+    valid_times = tuple(
+        parsed for row in rows if (parsed := _row_observed_at_or_none(row)) is not None
+    )
+    observed = median_observed_at(valid_times) if valid_times else received_at
     evidence = _evidence(response)
     symbol = str(rows[0].get("underlying") or subject.canonical_instrument.display_symbol)
     security = _security(subject, symbol)

@@ -14,8 +14,6 @@ from domain import (
     EarningsEvent,
     EvidenceKind,
     EvidenceReference,
-    FreshnessMetadata,
-    FreshnessStatus,
     MarketCapability,
     MarketDataSubject,
     MarketObservation,
@@ -51,7 +49,7 @@ from market_data.providers import (
     normalized_provider_error,
 )
 from market_data.rolling_window import RollingWindowPolicy
-from market_data.session_calendar import classify_quote_freshness
+from market_data.session_calendar import classify_market_data_freshness
 from market_data.transport import (
     ReadOnlyHttpRequest,
     ReadOnlyHttpResponse,
@@ -378,7 +376,6 @@ class FinnhubProvider:
         response: ReadOnlyHttpResponse,
     ) -> MarketObservation:
         received = self._dependencies.clock.now().astimezone(UTC)
-        age = max(0, int((received - effective).total_seconds()))
         present = tuple(field for field in request.required_fields if _present(field, value))
         missing = tuple(field for field in request.required_fields if field not in present)
         provenance = ProviderProvenance("finnhub", response.request_reference, _evidence(response))
@@ -394,21 +391,11 @@ class FinnhubProvider:
             value,
             "v1",
             provenance,
-            (
-                classify_quote_freshness(
-                    received, effective, request.maximum_age_seconds
-                )
-                if isinstance(value, Quote)
-                else FreshnessMetadata(
-                    received,
-                    effective,
-                    request.maximum_age_seconds,
-                    age,
-                    FreshnessStatus.FRESH
-                    if age <= request.maximum_age_seconds
-                    else FreshnessStatus.STALE,
-                )
-            ),
+            # SPRINT-013 S13-10: one shared, session-aware classifier for
+            # every capability, matching market_data/tradier.py exactly --
+            # freshness behavior must be identical across providers for
+            # equivalent canonical observations.
+            classify_market_data_freshness(received, effective, request.maximum_age_seconds),
             CompletenessMetadata(request.required_fields, present, missing),
         )
 

@@ -203,6 +203,36 @@ def test_candle_success_validates_status_arrays_and_utc_timestamps() -> None:
     assert dict(transport.requests[0].query)["resolution"] == "D"
 
 
+def test_historical_bar_after_close_from_the_latest_session_is_not_rejected_stale() -> None:
+    """SPRINT-013 S13-10: provider-neutral parity with market_data/tradier.py
+    -- a non-quote observation (here, a daily bar) whose age exceeds the
+    request's own threshold must be rescued to PRIOR_SESSION when it
+    genuinely falls within the latest completed session, on Finnhub
+    exactly as on Tradier, not just silently STALE the way the pre-fix
+    duplicated fallback always classified every non-quote observation.
+    """
+    friday_bar_start = datetime(2026, 7, 24, 0, tzinfo=UTC)
+    saturday = datetime(2026, 7, 25, 16, tzinfo=UTC)
+    body = {
+        "s": "ok",
+        "o": [205],
+        "h": [212],
+        "l": [204],
+        "c": [210],
+        "v": [50000000],
+        "t": [int(friday_bar_start.timestamp())],
+    }
+    transport = Transport((response(body),))
+    adapter, _ = provider(transport, clock=Clock(saturday))
+    requested = replace(
+        request(MarketCapability.HISTORICAL_BARS_V1, ("open", "high", "low", "close", "volume")),
+        maximum_age_seconds=3600,
+    )
+    result = adapter.fetch(requested, authorization())
+    assert result.error is None
+    assert result.observations[0].freshness.status.value == "prior_session"
+
+
 @pytest.mark.parametrize(
     ("symbol", "event_date", "hour"),
     (("AAPL", "2026-08-01", "amc"), ("NVDA", "2026-08-19", "bmo")),
