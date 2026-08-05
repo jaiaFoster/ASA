@@ -39,6 +39,7 @@ from datetime import UTC, datetime
 from typing import Protocol
 
 from asa.config import Settings
+from asa.integrations.historical_skew_postgres import PostgresHistoricalSkewRepository
 from asa.integrations.observation_history_postgres import PostgresObservationHistoryRepository
 from asa.integrations.postgres import create_postgres_engine
 from asa.integrations.refresh_schedule_postgres import (
@@ -51,6 +52,7 @@ from asa.integrations.universal_screening_postgres import PostgresLatestResultRe
 from market_data import ReuseDecision, load_market_data_config_from_environment
 from market_data.attempts import AcquisitionAttemptRepository, attempt_records_for
 from market_data.live_transport import build_live_transport
+from market_data.session_calendar import UsEquitySessionCalendar
 from market_data.session_schedule import SessionRefreshSchedule
 from screening import APPROVED_LIVE_UNIVERSE, EARNINGS_CALENDAR_UNIVERSE
 from screening.cycle_identity import (
@@ -62,7 +64,14 @@ from screening.cycle_identity import (
     pair_evaluation_id as compute_pair_evaluation_id,
 )
 from screening.live_acquisition import live_only_config
+from screening.live_adapters import capture_skew_snapshot
 from strategy_runtime.adapters import build_migrated_strategy_registry
+from strategy_runtime.historical_evidence import (
+    ConflictingHistoricalObservationError,
+    HistoricalSkewRepository,
+    SyntheticOrBackdatedObservationError,
+    record_prospective_skew_observation,
+)
 from strategy_runtime.lifecycle import RecommendedAction
 from strategy_runtime.market_data_planning import (
     build_provider_rolling_window_tracker,
@@ -146,6 +155,7 @@ def run_scheduled_refresh(
     repository: LatestResultRepository | None = None,
     history_repository: ObservationHistoryRepository | None = None,
     acquisition_attempt_repository: AcquisitionAttemptRepository | None = None,
+    historical_skew_repository: HistoricalSkewRepository | None = None,
     transport_factory: Callable[[str], object] = build_live_transport,
     claim_repository: RefreshScheduleClaimRepository | None = None,
     enforce_schedule: bool = False,
@@ -209,6 +219,11 @@ def run_scheduled_refresh(
         acquisition_attempt_repository
         or PostgresAcquisitionAttemptRepository(create_postgres_engine(Settings().database_url))
     )
+    resolved_historical_skew_repository = (
+        historical_skew_repository
+        or PostgresHistoricalSkewRepository(create_postgres_engine(Settings().database_url))
+    )
+    session_calendar = UsEquitySessionCalendar()
     registry = build_migrated_strategy_registry()
     config = live_only_config(load_market_data_config_from_environment())
     if not enabled_provider_configs(config):
@@ -279,8 +294,52 @@ def run_scheduled_refresh(
                 strategy_id=signal_id,
                 symbol=symbol,
                 fulfillment_by_subject={symbol: subject_access.fulfillment},
+                historical_skew_repository=resolved_historical_skew_repository,
             )
             pair_calls = subject_access.fulfillment.call_log[call_log_start:]
+            if signal_id == "skew_momentum":
+                # SPRINT-013 S13-04D: attempt prospective accumulation on
+                # every cycle, not only after close -- record_prospective_
+                # skew_observation's own gate accepts only the most
+                # recently *completed* session, so every intraday attempt
+                # is a harmless, expected rejection and only the cycle(s)
+                # that actually run after that day's close ever succeed.
+                # capture_skew_snapshot reuses the exact acquisition this
+                # pair's own refresh() just made via the same fulfillment
+                # instance and now (SPRINT-013 S13-03B's per-cycle cache),
+                # so this never issues a second live provider request.
+                # Best-effort and fully isolated: never turns an otherwise
+                # successful pair into a failed PairOutcome.
+                try:
+                    observation = capture_skew_snapshot(
+                        subject_access.fulfillment, symbol, clock.now()
+                    )
+                    record_prospective_skew_observation(
+                        resolved_historical_skew_repository,
+                        clock,
+                        session_calendar,
+                        observation,
+                    )
+                except SyntheticOrBackdatedObservationError:
+                    pass
+                except ConflictingHistoricalObservationError:
+                    _LOGGER.error(
+                        "skew_history_conflicting_observation",
+                        extra={
+                            "signal_id": signal_id,
+                            "symbol": symbol,
+                            "screening_cycle_id": screening_cycle_id,
+                        },
+                    )
+                except Exception:
+                    _LOGGER.warning(
+                        "skew_history_capture_failed",
+                        extra={
+                            "signal_id": signal_id,
+                            "symbol": symbol,
+                            "screening_cycle_id": screening_cycle_id,
+                        },
+                    )
             if result.opportunity_id is not None:
                 try:
                     record_opportunity_observation(

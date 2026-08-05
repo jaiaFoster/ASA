@@ -31,12 +31,13 @@ from __future__ import annotations
 
 from datetime import date, datetime, timedelta
 from decimal import Decimal
-from typing import cast
+from typing import NamedTuple, Protocol, cast
 
 from analytics.derived_facts import (
     compute_iv_realized_spread,
     compute_no_confirmed_earnings_through_expiration,
     compute_normalized_skew,
+    compute_skew_stretch_distributions,
 )
 from analytics.expiration_selection import (
     ExpirationCandidate,
@@ -45,8 +46,11 @@ from analytics.expiration_selection import (
 )
 from analytics.realized_volatility import compute_realized_volatility, compute_trailing_return
 from domain import (
+    CanonicalInstrumentIdentity,
     DomainInvariantError,
     EarningsEvent,
+    HistoricalSkewObservation,
+    HistoricalSkewObservations,
     MarketCapability,
     OHLCVBar,
     OptionChain,
@@ -307,6 +311,40 @@ def _spot_price(quote: Quote) -> Decimal:
 # original authorship. See project/reports/SPRINT-011.md for the full
 # defect writeup and cited sources for each strategy's own thesis.
 _HISTORICAL_LOOKBACK_DAYS = 45  # calendar days -- ~30 trading days
+
+# SPRINT-013 S13-04D: mirrors strategies/stonk_manifests.py's own
+# SKEW_MOMENTUM_VERTICAL_MANIFEST-declared historical_lookback_observations/
+# minimum_valid_observations exactly (issue #255's approved research
+# policy) -- duplicated here for the same reason EARNINGS_CALENDAR_DTE_
+# POLICY/FORWARD_FACTOR_DTE_POLICY already are: this module's own
+# acquisition-and-computation code needs these values directly, not only
+# the manifest's own declarative record of them.
+SKEW_HISTORICAL_LOOKBACK_OBSERVATIONS = 60
+SKEW_MINIMUM_VALID_OBSERVATIONS = 40
+
+
+class HistoricalSkewHistoryReader(Protocol):
+    """Structural, read-only duplicate of strategy_runtime.historical_
+    evidence.HistoricalSkewRepository's own history_for() method --
+    screening must not import strategy_runtime (strategy_runtime is the
+    more foundational layer, screening is one of its consumers, see
+    strategy_runtime/market_data_planning.py's own docstring), so this
+    file-local Protocol lets any conforming repository (in practice always
+    that same concrete one, dependency-injected by whatever caller
+    constructs it) be read from here structurally, with zero import
+    coupling in either direction. Recording a new observation is
+    deliberately not part of this Protocol -- see capture_skew_snapshot's
+    own docstring for why the write path is never screening's own
+    responsibility.
+    """
+
+    def history_for(
+        self,
+        instrument: CanonicalInstrumentIdentity,
+        *,
+        as_of: datetime | None = None,
+        maximum_observations: int | None = None,
+    ) -> tuple[HistoricalSkewObservation, ...]: ...
 
 
 def _acquire_daily_closes(
@@ -596,96 +634,170 @@ def build_live_earnings_calendar_adapter(
     return _run
 
 
+class _SkewSnapshot(NamedTuple):
+    normalized_call_skew: Decimal
+    normalized_put_skew: Decimal
+    call_atm_iv: Decimal
+    put_atm_iv: Decimal
+    call_wing_iv: Decimal
+    put_wing_iv: Decimal
+    chain: OptionChain
+    expiration: date
+
+
+def _acquire_skew_snapshot(
+    fulfillment: CapabilityFulfillmentService,
+    symbol: str,
+    now: datetime,
+    *,
+    freshness_requirement: FreshnessRequirement = DEFAULT_FRESHNESS_REQUIREMENT,
+) -> _SkewSnapshot:
+    """Acquire the live quote and option chain and compute today's
+    normalized call/put skew -- the one acquisition-and-computation path
+    shared by the live Skew Momentum signal itself (build_live_skew_
+    momentum_adapter) and by capture_skew_snapshot's own historical-
+    accumulation use (SPRINT-013 S13-04D), so the two can never observe or
+    compute a different value for what is supposed to be the exact same
+    live snapshot.
+    """
+    as_of = now.date()
+    quote = _acquire_or_raise(
+        fulfillment,
+        symbol,
+        MarketCapability.REAL_TIME_QUOTE_V1,
+        now,
+        ("last",),
+        freshness_requirement=freshness_requirement,
+    )
+    spot_price = _spot_price(quote)  # type: ignore[arg-type]
+    available_expirations = acquire_expirations(fulfillment, symbol, now)
+    future_expirations = tuple(
+        cycle for cycle in available_expirations if cycle.expiration_date > as_of
+    )
+    if not future_expirations:
+        raise StrategyAdapterError(
+            ScreeningOutcomeStatus.MISSING_DATA, f"no future expiration available for {symbol}"
+        )
+    # No dte_pair_selector node exists for Skew Momentum (it takes one
+    # bare expiration, unlike the other two strategies) -- nearest
+    # upcoming expiration ("front month") is the simplest, standard,
+    # non-editorial default absent any other established policy.
+    nearest = min(future_expirations, key=lambda cycle: cycle.expiration_date)
+    chain = cast(
+        OptionChain,
+        _acquire_or_raise(
+            fulfillment,
+            symbol,
+            MarketCapability.OPTION_CHAIN_V1,
+            now,
+            ("contracts",),
+            expiration=nearest.expiration_date,
+        ),
+    )
+    call_strike = select_atm_strike_at_expiration(
+        chain,
+        nearest.expiration_date,
+        spot_price,
+        OptionType.CALL,
+    )
+    put_strike = select_atm_strike_at_expiration(
+        chain,
+        nearest.expiration_date,
+        spot_price,
+        OptionType.PUT,
+    )
+    (call_atm,) = chain.find(
+        expiration=nearest.expiration_date,
+        strike=call_strike,
+        option_type=OptionType.CALL,
+    )
+    (put_atm,) = chain.find(
+        expiration=nearest.expiration_date,
+        strike=put_strike,
+        option_type=OptionType.PUT,
+    )
+    call_wing = select_nearest_delta_contract(
+        chain,
+        nearest.expiration_date,
+        OptionType.CALL,
+        Decimal("0.25"),
+        exclude_strike=call_strike,
+    )
+    put_wing = select_nearest_delta_contract(
+        chain,
+        nearest.expiration_date,
+        OptionType.PUT,
+        Decimal("-0.25"),
+        exclude_strike=put_strike,
+    )
+    contracts = (call_atm, put_atm, call_wing, put_wing)
+    if any(contract.implied_volatility is None for contract in contracts):
+        raise StrategyAdapterError(
+            ScreeningOutcomeStatus.MISSING_DATA,
+            f"at-the-money or 25-delta wing contract for {symbol} has no implied_volatility",
+        )
+    call_atm_iv = cast(Decimal, call_atm.implied_volatility)
+    put_atm_iv = cast(Decimal, put_atm.implied_volatility)
+    call_wing_iv = cast(Decimal, call_wing.implied_volatility)
+    put_wing_iv = cast(Decimal, put_wing.implied_volatility)
+    return _SkewSnapshot(
+        normalized_call_skew=compute_normalized_skew(call_atm_iv, call_wing_iv),
+        normalized_put_skew=compute_normalized_skew(put_atm_iv, put_wing_iv),
+        call_atm_iv=call_atm_iv,
+        put_atm_iv=put_atm_iv,
+        call_wing_iv=call_wing_iv,
+        put_wing_iv=put_wing_iv,
+        chain=chain,
+        expiration=nearest.expiration_date,
+    )
+
+
+def capture_skew_snapshot(
+    fulfillment: CapabilityFulfillmentService,
+    symbol: str,
+    now: datetime,
+) -> HistoricalSkewObservation:
+    """Acquire today's live skew snapshot for ``symbol`` and package it as
+    an unrecorded HistoricalSkewObservation candidate (SPRINT-013 S13-04D).
+
+    Pure acquisition and packaging only -- this module has no
+    strategy_runtime import (screening must not depend on strategy_runtime,
+    see strategy_runtime/market_data_planning.py's own docstring) and never
+    decides whether, or how, this candidate may actually be recorded; only
+    strategy_runtime.historical_evidence.record_prospective_skew_observation
+    (the one entry point for that) may ever accept or reject it. The
+    caller that actually calls it (asa/scheduled_screening.py) already
+    legitimately imports strategy_runtime.
+
+    Reuses _acquire_skew_snapshot, the exact same acquisition path the
+    live Skew Momentum signal itself uses -- calling this immediately
+    after that signal ran for the same symbol/now/fulfillment, as
+    asa/scheduled_screening.py does, hits that fulfillment service's own
+    per-cycle request cache (SPRINT-013 S13-03B) rather than issuing a
+    second live provider request for data it just acquired moments ago.
+    """
+    snapshot = _acquire_skew_snapshot(fulfillment, symbol, now)
+    return HistoricalSkewObservation(
+        instrument=CanonicalInstrumentIdentity("symbol", symbol),
+        call_skew=snapshot.normalized_call_skew,
+        put_skew=snapshot.normalized_put_skew,
+        effective_time=snapshot.chain.observed_at,
+        evidence=snapshot.chain.evidence,
+    )
+
+
 def build_live_skew_momentum_adapter(
     symbol: str,
     fulfillment: CapabilityFulfillmentService,
     *,
     freshness_requirement: FreshnessRequirement = DEFAULT_FRESHNESS_REQUIREMENT,
+    historical_skew_repository: HistoricalSkewHistoryReader | None = None,
 ) -> StrategyAdapter:
     def _run(definition: ScreeningStrategyDefinition, clock: Clock, run_id: str) -> ScreeningResult:
         now = clock.now()
-        as_of = now.date()
-        quote = _acquire_or_raise(
-            fulfillment,
-            symbol,
-            MarketCapability.REAL_TIME_QUOTE_V1,
-            now,
-            ("last",),
-            freshness_requirement=freshness_requirement,
+        snapshot = _acquire_skew_snapshot(
+            fulfillment, symbol, now, freshness_requirement=freshness_requirement
         )
-        spot_price = _spot_price(quote)  # type: ignore[arg-type]
-        available_expirations = acquire_expirations(fulfillment, symbol, now)
-        future_expirations = tuple(
-            cycle for cycle in available_expirations if cycle.expiration_date > as_of
-        )
-        if not future_expirations:
-            raise StrategyAdapterError(
-                ScreeningOutcomeStatus.MISSING_DATA, f"no future expiration available for {symbol}"
-            )
-        # No dte_pair_selector node exists for Skew Momentum (it takes one
-        # bare expiration, unlike the other two strategies) -- nearest
-        # upcoming expiration ("front month") is the simplest, standard,
-        # non-editorial default absent any other established policy.
-        nearest = min(future_expirations, key=lambda cycle: cycle.expiration_date)
-        chain = cast(
-            OptionChain,
-            _acquire_or_raise(
-                fulfillment,
-                symbol,
-                MarketCapability.OPTION_CHAIN_V1,
-                now,
-                ("contracts",),
-                expiration=nearest.expiration_date,
-            ),
-        )
-        call_strike = select_atm_strike_at_expiration(
-            chain,
-            nearest.expiration_date,
-            spot_price,
-            OptionType.CALL,
-        )
-        put_strike = select_atm_strike_at_expiration(
-            chain,
-            nearest.expiration_date,
-            spot_price,
-            OptionType.PUT,
-        )
-        (call_atm,) = chain.find(
-            expiration=nearest.expiration_date,
-            strike=call_strike,
-            option_type=OptionType.CALL,
-        )
-        (put_atm,) = chain.find(
-            expiration=nearest.expiration_date,
-            strike=put_strike,
-            option_type=OptionType.PUT,
-        )
-        call_wing = select_nearest_delta_contract(
-            chain,
-            nearest.expiration_date,
-            OptionType.CALL,
-            Decimal("0.25"),
-            exclude_strike=call_strike,
-        )
-        put_wing = select_nearest_delta_contract(
-            chain,
-            nearest.expiration_date,
-            OptionType.PUT,
-            Decimal("-0.25"),
-            exclude_strike=put_strike,
-        )
-        contracts = (call_atm, put_atm, call_wing, put_wing)
-        if any(contract.implied_volatility is None for contract in contracts):
-            raise StrategyAdapterError(
-                ScreeningOutcomeStatus.MISSING_DATA,
-                f"at-the-money or 25-delta wing contract for {symbol} has no implied_volatility",
-            )
-        call_atm_iv = cast(Decimal, call_atm.implied_volatility)
-        put_atm_iv = cast(Decimal, put_atm.implied_volatility)
-        call_wing_iv = cast(Decimal, call_wing.implied_volatility)
-        put_wing_iv = cast(Decimal, put_wing.implied_volatility)
-        normalized_call_skew = compute_normalized_skew(call_atm_iv, call_wing_iv)
-        normalized_put_skew = compute_normalized_skew(put_atm_iv, put_wing_iv)
         closes = _acquire_daily_closes(fulfillment, symbol, now)
         realized_vol = compute_realized_volatility(closes)
         if len(closes) < 21:
@@ -694,23 +806,49 @@ def build_live_skew_momentum_adapter(
                 "Skew Momentum requires 21 closes for a 20-session return",
             )
         time_series_return = compute_trailing_return(closes[-21:])
+        # SPRINT-013 S13-04D: real history once the repository has enough
+        # of it, UNKNOWN (None) below the approved minimum or with no
+        # repository at all -- never a partial-confidence proxy. Reads
+        # only the most recently completed sessions already recorded
+        # before this cycle; today's own not-yet-recorded snapshot is
+        # never included in its own ranking.
+        call_skew_zscore: Decimal | None = None
+        put_skew_zscore: Decimal | None = None
+        historical_valid_observations = 0
+        if historical_skew_repository is not None:
+            history = historical_skew_repository.history_for(
+                CanonicalInstrumentIdentity("symbol", symbol),
+                maximum_observations=SKEW_HISTORICAL_LOOKBACK_OBSERVATIONS,
+            )
+            historical_valid_observations = len(history)
+            if historical_valid_observations >= SKEW_MINIMUM_VALID_OBSERVATIONS:
+                _, call_zscore, _, put_zscore = compute_skew_stretch_distributions(
+                    snapshot.normalized_call_skew,
+                    snapshot.normalized_put_skew,
+                    HistoricalSkewObservations(history),
+                )
+                call_skew_zscore = call_zscore
+                put_skew_zscore = put_zscore
         context = build_skew_momentum_context(
-            chain,
-            nearest.expiration_date,
-            normalized_call_skew=normalized_call_skew,
-            normalized_put_skew=normalized_put_skew,
-            # No canonical live history/universe source is wired yet.
-            # Founder policy requires UNKNOWN, never a proxy fallback.
-            call_skew_zscore=None,
-            put_skew_zscore=None,
-            historical_valid_observations=0,
-            call_atm_iv_minus_rv=compute_iv_realized_spread(call_atm_iv, realized_vol),
-            put_atm_iv_minus_rv=compute_iv_realized_spread(put_atm_iv, realized_vol),
-            call_wing_iv_minus_rv=compute_iv_realized_spread(call_wing_iv, realized_vol),
-            put_wing_iv_minus_rv=compute_iv_realized_spread(put_wing_iv, realized_vol),
-            call_wing_iv_minus_atm_iv=call_wing_iv - call_atm_iv,
-            put_wing_iv_minus_atm_iv=put_wing_iv - put_atm_iv,
+            snapshot.chain,
+            snapshot.expiration,
+            normalized_call_skew=snapshot.normalized_call_skew,
+            normalized_put_skew=snapshot.normalized_put_skew,
+            call_skew_zscore=call_skew_zscore,
+            put_skew_zscore=put_skew_zscore,
+            historical_valid_observations=historical_valid_observations,
+            call_atm_iv_minus_rv=compute_iv_realized_spread(snapshot.call_atm_iv, realized_vol),
+            put_atm_iv_minus_rv=compute_iv_realized_spread(snapshot.put_atm_iv, realized_vol),
+            call_wing_iv_minus_rv=compute_iv_realized_spread(snapshot.call_wing_iv, realized_vol),
+            put_wing_iv_minus_rv=compute_iv_realized_spread(snapshot.put_wing_iv, realized_vol),
+            call_wing_iv_minus_atm_iv=snapshot.call_wing_iv - snapshot.call_atm_iv,
+            put_wing_iv_minus_atm_iv=snapshot.put_wing_iv - snapshot.put_atm_iv,
             time_series_return=time_series_return,
+            # No canonical live comparison-universe/sector acquisition is
+            # wired yet (S13-04C built the reusable functions; wiring them
+            # here needs a cycle-wide, budget-aware multi-symbol return
+            # acquisition this ticket deliberately does not build --
+            # Founder policy requires UNKNOWN, never a proxy fallback).
             cross_sectional_percentile=None,
             comparison_peer_count=0,
             sector_relative_return=None,
@@ -725,7 +863,7 @@ def build_live_skew_momentum_adapter(
             SKEW_MOMENTUM_VERTICAL_MANIFEST,
             result.outputs,
             "score",
-            chain.evidence,
+            snapshot.chain.evidence,
         )
 
     return _run
