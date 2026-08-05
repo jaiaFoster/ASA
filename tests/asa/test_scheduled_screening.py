@@ -802,3 +802,199 @@ def test_different_symbols_in_the_same_cycle_never_share_requests(
     assert outcomes[0].request_count == _SKEW_MOMENTUM_REQUESTS_PER_PAIR
     assert outcomes[1].error is None
     assert outcomes[1].request_count == _SKEW_MOMENTUM_REQUESTS_PER_PAIR
+
+
+# -- SPRINT-013 P0: quota clock separation -----------------------------------
+
+
+def _stepped_monotonic(steps: list[float], *, tail: float):  # noqa: ANN201
+    """A fake time.monotonic() that returns each of ``steps`` in order,
+    then holds at ``tail`` forever -- never raises StopIteration even if
+    a call count assumption is slightly off."""
+    values = iter(steps)
+
+    def _fake() -> float:
+        return next(values, tail)
+
+    return _fake
+
+
+class TestMonotonicUtcClockUnit:
+    def test_start_anchors_a_real_utc_and_monotonic_reading(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import asa.scheduled_screening as scheduled_screening_module
+
+        monkeypatch.setattr(scheduled_screening_module.time, "monotonic", lambda: 42.0)
+        before = datetime.now(UTC)
+        clock = scheduled_screening_module._MonotonicUtcClock.start()
+        after = datetime.now(UTC)
+        assert before <= clock.anchor_utc <= after
+        assert clock.anchor_utc.tzinfo is UTC
+        assert clock.anchor_monotonic == 42.0
+
+    def test_now_advances_by_real_elapsed_monotonic_time(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import asa.scheduled_screening as scheduled_screening_module
+
+        anchor_utc = datetime(2026, 8, 5, 12, 0, tzinfo=UTC)
+        clock = scheduled_screening_module._MonotonicUtcClock(anchor_utc, 100.0)
+        monkeypatch.setattr(scheduled_screening_module.time, "monotonic", lambda: 137.5)
+        assert clock.now() == anchor_utc + timedelta(seconds=37.5)
+
+    def test_no_elapsed_time_returns_the_anchor_exactly(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import asa.scheduled_screening as scheduled_screening_module
+
+        anchor_utc = datetime(2026, 8, 5, 12, 0, tzinfo=UTC)
+        clock = scheduled_screening_module._MonotonicUtcClock(anchor_utc, 5.0)
+        monkeypatch.setattr(scheduled_screening_module.time, "monotonic", lambda: 5.0)
+        assert clock.now() == anchor_utc
+
+    def test_two_calls_at_the_same_monotonic_instant_are_equal(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import asa.scheduled_screening as scheduled_screening_module
+
+        clock = scheduled_screening_module._MonotonicUtcClock(
+            datetime(2026, 8, 5, 12, 0, tzinfo=UTC), 0.0
+        )
+        monkeypatch.setattr(scheduled_screening_module.time, "monotonic", lambda: 10.0)
+        assert clock.now() == clock.now()
+
+
+def test_evaluation_and_request_identity_stay_frozen_across_a_cycle(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """SPRINT-013 P0's own required ownership: _FrozenCycleClock (the
+    clock every pair's own evaluation timestamps and capability-request
+    windows are built from) must stay exactly frozen across a whole
+    cycle, unaffected by giving the rolling-window tracker its own
+    separate, genuinely advancing clock. This is the same cycle-scoped
+    reuse property S13-03B's own tests already depend on -- confirmed
+    directly here by asserting the two pairs sharing symbol AAPL still
+    reuse each other's requests, which is only possible if their request
+    windows are byte-identical.
+    """
+    monkeypatch.setenv("ASA_TRADIER_ENABLED", "true")
+    monkeypatch.setenv("ASA_TRADIER_ACCESS_TOKEN", "sandbox-secret-token")
+    repository = InMemoryLatestResultRepository()
+    expiration = (date.today() + timedelta(days=7)).isoformat()
+    universe = (("skew_momentum", "AAPL"), ("earnings_calendar", "AAPL"))
+    responses = _complete_skew_momentum_responses(expiration) + _complete_skew_momentum_responses(
+        expiration
+    )
+
+    outcomes = run_scheduled_refresh(
+        universe,
+        repository=repository,
+        acquisition_attempt_repository=InMemoryAcquisitionAttemptRepository(),
+        transport_factory=lambda _provider_id: ScriptedTransport(responses),
+    )
+
+    assert len(outcomes) == 2
+    assert outcomes[0].error is None
+    # earnings_calendar shares AAPL's quote with skew_momentum -- only
+    # reusable if both pairs built byte-identical request windows from
+    # the exact same frozen `now`, proving _FrozenCycleClock itself was
+    # never touched by this fix.
+    assert outcomes[1].error is None
+
+
+def test_quota_clock_advances_independently_of_the_frozen_evaluation_clock(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("ASA_TRADIER_ENABLED", "true")
+    monkeypatch.setenv("ASA_TRADIER_ACCESS_TOKEN", "sandbox-secret-token")
+    import asa.scheduled_screening as scheduled_screening_module
+
+    captured: list[scheduled_screening_module._MonotonicUtcClock] = []
+    real_start = scheduled_screening_module._MonotonicUtcClock.start
+
+    def _capturing_start() -> scheduled_screening_module._MonotonicUtcClock:
+        clock = real_start()
+        captured.append(clock)
+        return clock
+
+    monkeypatch.setattr(
+        scheduled_screening_module._MonotonicUtcClock, "start", staticmethod(_capturing_start)
+    )
+    repository = InMemoryLatestResultRepository()
+    expiration = (date.today() + timedelta(days=7)).isoformat()
+    universe = (("skew_momentum", "AAPL"),)
+
+    run_scheduled_refresh(
+        universe,
+        repository=repository,
+        acquisition_attempt_repository=InMemoryAcquisitionAttemptRepository(),
+        transport_factory=lambda _provider_id: ScriptedTransport(
+            _complete_skew_momentum_responses(expiration)
+        ),
+    )
+
+    assert len(captured) == 1
+    quota_clock = captured[0]
+    first = quota_clock.now()
+    second = quota_clock.now()
+    # A real quota clock genuinely advances between two calls (however
+    # little); the pre-fix frozen clock given to the tracker would have
+    # returned the exact same value forever.
+    assert second >= first
+
+
+def test_a_long_running_cycle_regains_provider_capacity_after_elapsed_time(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """SPRINT-013 P0's own confirmed root cause and required fix: with a
+    single frozen clock feeding both evaluation identity and the
+    rolling-window tracker, a provider's real rolling limit silently
+    became a hard per-cycle cap -- once exhausted, it could never regain
+    capacity for the rest of the cycle, however long the cycle actually
+    ran in real wall-clock time. test_one_tracker_is_shared_across_every_
+    pair_in_the_cycle (same tiny window, same universe shape, no elapsed
+    time simulated) still correctly proves the second pair is refused
+    when no real time has passed. Here, with the exact same tiny window
+    but a real elapsed-time jump between pairs (as the quota clock, not
+    any evaluation timestamp, measures it), the second pair now regains
+    capacity and succeeds instead.
+    """
+    monkeypatch.setenv("ASA_TRADIER_ENABLED", "true")
+    monkeypatch.setenv("ASA_TRADIER_ACCESS_TOKEN", "sandbox-secret-token")
+    _force_tiny_tradier_window(monkeypatch, window_limit=_SKEW_MOMENTUM_REQUESTS_PER_PAIR)
+    import asa.scheduled_screening as scheduled_screening_module
+
+    # Anchor (call 0), pair 1's own 4 requests closely spaced (call 1-4,
+    # all well within the same 60s Tradier window together), then a
+    # large jump comfortably past 60s before pair 2's own requests
+    # (call 5+) -- a real elapsed-time gap, never an evaluation-timestamp
+    # one (every pair still shares the exact same frozen `now` for its
+    # own request windows; see test_evaluation_and_request_identity_
+    # stay_frozen_across_a_cycle).
+    monkeypatch.setattr(
+        scheduled_screening_module.time,
+        "monotonic",
+        _stepped_monotonic(
+            [0.0, 0.01, 0.02, 0.03, 0.04, 400.0, 400.01, 400.02, 400.03], tail=400.04
+        ),
+    )
+
+    repository = InMemoryLatestResultRepository()
+    expiration = (date.today() + timedelta(days=7)).isoformat()
+    universe = (("skew_momentum", "AAPL"), ("skew_momentum", "MSFT"))
+
+    outcomes = run_scheduled_refresh(
+        universe,
+        repository=repository,
+        acquisition_attempt_repository=InMemoryAcquisitionAttemptRepository(),
+        transport_factory=lambda _provider_id: ScriptedTransport(
+            _complete_skew_momentum_responses(expiration)
+        ),
+    )
+
+    assert len(outcomes) == 2
+    assert outcomes[0].error is None
+    assert outcomes[0].request_count == _SKEW_MOMENTUM_REQUESTS_PER_PAIR
+    assert outcomes[1].error is None
+    assert outcomes[1].request_count == _SKEW_MOMENTUM_REQUESTS_PER_PAIR

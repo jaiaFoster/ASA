@@ -33,9 +33,10 @@ import argparse
 import json
 import logging
 import sys
+import time
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Protocol
 
 from asa.config import Settings
@@ -133,6 +134,49 @@ class _FrozenCycleClock:
 
     def now(self) -> datetime:
         return self.value
+
+
+@dataclass(frozen=True, slots=True)
+class _MonotonicUtcClock:
+    """SPRINT-013 P0: a separate, genuinely advancing clock for
+    ProviderRollingWindowTracker's own elapsed-window decisions --
+    deliberately not the same instance as _FrozenCycleClock.
+
+    Confirmed root cause this fixes: ProviderRollingWindowTracker.
+    try_reserve() computes ``window_start = now - window_seconds`` from
+    whatever clock it is given, to decide whether an earlier reservation
+    has aged out of a provider's real rolling window. Given
+    _FrozenCycleClock (correct and necessary for evaluation timestamps
+    and cycle-scoped request-window identity/reuse, SPRINT-013 S13-03B),
+    that ``now`` never advances during a cycle, so ``window_start`` never
+    advances either -- once window_limit reservations land, none can
+    ever prune, and a provider's real rolling rate limit silently
+    becomes a hard per-cycle cap instead of the rolling window it is
+    supposed to be.
+
+    Anchored once at cycle start (``anchor_utc``/``anchor_monotonic``);
+    every ``now()`` call projects forward by real elapsed monotonic time,
+    never by re-reading the wall clock directly -- elapsed-window
+    decisions must reflect true elapsed time, immune to a wall-clock
+    adjustment (NTP step, DST) mid-cycle, which a raw ``datetime.now()``
+    reading would not be. Still returns a genuine UTC ``datetime`` (not a
+    raw monotonic float): ProviderRollingWindowTracker.apply_reset_hint()
+    compares against provider-reported reset timestamps, which only ever
+    exist in UTC wall-clock terms -- there is no monotonic equivalent of
+    "resets at 14:32:00 UTC," so the clock's own output type must stay a
+    real UTC datetime even though its own advancement is monotonic.
+    """
+
+    anchor_utc: datetime
+    anchor_monotonic: float
+
+    @classmethod
+    def start(cls) -> _MonotonicUtcClock:
+        return cls(datetime.now(UTC), time.monotonic())
+
+    def now(self) -> datetime:
+        elapsed_seconds = time.monotonic() - self.anchor_monotonic
+        return self.anchor_utc + timedelta(seconds=elapsed_seconds)
 
 
 @dataclass(frozen=True, slots=True)
@@ -241,8 +285,16 @@ def run_scheduled_refresh(
     # per pair, never a module-global singleton: a fresh tracker for every
     # new invocation of this function, so a new scheduled cycle always
     # starts with fresh cycle-scoped window state.
+    #
+    # SPRINT-013 P0: deliberately NOT `clock` (the frozen one). The
+    # rolling-window tracker's own window-expiry arithmetic needs real
+    # elapsed time to ever prune a reservation; `clock` must stay frozen
+    # for evaluation timestamps and cycle-scoped request-window identity
+    # (S13-03B) -- those are two different, independently correct
+    # requirements on two different clocks, not one setting to tune.
+    quota_clock = _MonotonicUtcClock.start()
     rolling_window, providers_without_declared_limit = build_provider_rolling_window_tracker(
-        config, clock
+        config, quota_clock
     )
     if providers_without_declared_limit:
         _LOGGER.info(
