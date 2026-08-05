@@ -49,6 +49,14 @@ strategies/stonk_manifests.py) and translates its output into
 UniversalScreeningResult via the shared _screening_bridge module. Not
 re-exported here -- imported directly from strategy_runtime.adapters.*,
 since registering them with a live registry is EPIC-9's own job.
+SPRINT-013 S13-04 (Shared Historical Evidence Foundation) lives in
+strategy_runtime.historical_evidence: HistoricalSkewRepository, a pure
+Protocol matching strategy_runtime.persistence's own no-infrastructure-
+imports convention exactly, plus record_prospective_skew_observation(),
+the one entry point that may ever append to it -- reusable across any
+future historical fact family, not owned by skew_momentum. Not
+re-exported here, for the same reason strategy_runtime.persistence's own
+Protocols are not: a concrete implementation belongs to asa/integrations.
 """
 
 from __future__ import annotations
