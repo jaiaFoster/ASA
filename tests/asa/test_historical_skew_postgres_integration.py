@@ -236,7 +236,12 @@ class TestPostgresRoundTrip:
         assert only.call_skew == Decimal("0.0512345")
         assert only.put_skew == Decimal("0.0798765")
         assert only.effective_time == _SESSION_1.closes_at
-        assert only.evidence == EVIDENCE
+        # HistoricalSkewObservation.__post_init__ deterministically sorts
+        # evidence by (kind, referenced_id, version) -- compare against
+        # the constructed observation's own already-sorted field, not the
+        # raw EVIDENCE constant's own input order, which the domain type
+        # itself never preserves verbatim in the first place.
+        assert only.evidence == observation.evidence
 
     def test_evidence_references_round_trip_deterministically(
         self, postgres_repository: PostgresHistoricalSkewRepository
@@ -249,7 +254,10 @@ class TestPostgresRoundTrip:
         postgres_repository.append(observation, session_date=_SESSION_1.trading_date)
 
         (only,) = postgres_repository.history_for(AAPL)
-        assert only.evidence == multi_evidence
+        # Same reason as the sibling test above: compare against what the
+        # domain type actually stored (sorted), not the raw input order.
+        assert only.evidence == observation.evidence
+        assert set(only.evidence) == set(multi_evidence)  # same references, order aside
 
     def test_utc_aware_effective_time_round_trips_exactly(
         self, postgres_repository: PostgresHistoricalSkewRepository
