@@ -26,6 +26,7 @@ from market_data import CapabilityFulfillmentService
 from strategy_runtime.clock import Clock
 from strategy_runtime.context import RuntimeContext
 from strategy_runtime.errors import StrategyContractViolationError
+from strategy_runtime.historical_evidence import HistoricalSkewRepository
 from strategy_runtime.registry import StrategyRegistry
 from strategy_runtime.validation import validate_result
 
@@ -106,11 +107,14 @@ def _run_one(
     clock: Clock,
     run_id: str,
     fulfillment_by_subject: Mapping[str, CapabilityFulfillmentService] | None,
+    historical_skew_repository: HistoricalSkewRepository | None,
 ) -> StrategyExecutionResult[TResult]:
     adapter = registry.adapter_for(strategy_id)
     contract = registry.contract_for(strategy_id)
     fulfillment = fulfillment_by_subject.get(subject) if fulfillment_by_subject else None
-    context = RuntimeContext(contract, subject, clock, run_id, fulfillment)
+    context = RuntimeContext(
+        contract, subject, clock, run_id, fulfillment, historical_skew_repository
+    )
     started_at = clock.now()
     try:
         result = adapter(context)
@@ -156,6 +160,7 @@ def run_strategies(
     subjects: tuple[str, ...],
     strategy_ids: tuple[str, ...] | None = None,
     fulfillment_by_subject: Mapping[str, CapabilityFulfillmentService] | None = None,
+    historical_skew_repository: HistoricalSkewRepository | None = None,
 ) -> tuple[StrategyExecutionResult[TResult], ...]:
     """Run every requested registered strategy against every requested
     subject, independently. One (strategy, subject) pair's adapter
@@ -179,6 +184,12 @@ def run_strategies(
     CapabilityFulfillmentService instance via RuntimeContext.fulfillment,
     so an identical request any two of them make is only ever fulfilled
     once.
+
+    ``historical_skew_repository`` (SPRINT-013 S13-04D) is likewise
+    optional and defaults to None; when given, every strategy receives the
+    identical instance via RuntimeContext.historical_skew_repository. Only
+    a strategy contract that actually declares a historical-evidence
+    requirement should read it.
     """
     requested_strategy_ids = tuple(
         sorted(strategy_ids if strategy_ids is not None else registry.strategy_ids())
@@ -192,7 +203,15 @@ def run_strategies(
     as_of = clock.now()
     run_id = _compute_run_id(requested_strategy_ids, sorted_subjects, as_of)
     return tuple(
-        _run_one(registry, strategy_id, subject, clock, run_id, fulfillment_by_subject)
+        _run_one(
+            registry,
+            strategy_id,
+            subject,
+            clock,
+            run_id,
+            fulfillment_by_subject,
+            historical_skew_repository,
+        )
         for strategy_id in requested_strategy_ids
         for subject in sorted_subjects
     )

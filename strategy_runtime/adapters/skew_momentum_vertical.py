@@ -74,6 +74,7 @@ def skew_momentum_adapter(context: RuntimeContext) -> UniversalScreeningResult:
         context.subject,
         context.fulfillment,
         freshness_requirement=context.contract.freshness_requirement,
+        historical_skew_repository=context.historical_skew_repository,
     )
     (result,) = run_screening(
         TARGET_STRATEGY_REGISTRY,

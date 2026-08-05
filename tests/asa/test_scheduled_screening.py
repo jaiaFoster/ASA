@@ -10,11 +10,91 @@ from asa.scheduled_screening import (
     PRODUCTION_SCREENING_UNIVERSE,
     run_scheduled_refresh,
 )
+from domain import CanonicalInstrumentIdentity
+from domain.strategy_evidence import HistoricalSkewObservation
 from market_data.attempts import AttemptQuery, InMemoryAcquisitionAttemptRepository
 from market_data.transport import ReadOnlyHttpResponse
 from screening import APPROVED_LIVE_UNIVERSE, EARNINGS_CALENDAR_UNIVERSE
 from tests.asa.fakes import InMemoryLatestResultRepository
 from tests.asa.market_data_ops.fakes import ScriptedTransport, tradier_quote_response
+
+
+def _tradier_option(
+    symbol: str, expiration: str, strike: str, option_type: str, delta: str
+) -> dict[str, object]:
+    return {
+        "symbol": symbol,
+        "underlying": "AAPL",
+        "expiration_date": expiration,
+        "strike": strike,
+        "option_type": option_type,
+        "bid": "4.9",
+        "ask": "5.1",
+        "last": "5",
+        "volume": 1000,
+        "open_interest": 5000,
+        "greeks": {
+            "delta": delta,
+            "gamma": "0.03",
+            "theta": "-0.1",
+            "vega": "0.2",
+            "mid_iv": "0.5",
+        },
+    }
+
+
+def _tradier_daily_bars_response() -> ReadOnlyHttpResponse:
+    days: list[dict[str, object]] = []
+    for day_offset in range(29, -1, -1):
+        day = (date.today() - timedelta(days=day_offset)).isoformat()
+        close = 200 + (day_offset % 5) + (29 - day_offset) * 0.15
+        days.append(
+            {
+                "date": day,
+                "open": str(close - 2),
+                "high": str(close + 2),
+                "low": str(close - 3),
+                "close": str(close),
+                "volume": "50000000",
+            }
+        )
+    return ReadOnlyHttpResponse(
+        200, {"history": {"day": days}}, (), 12, "tradier-request-history"
+    )
+
+
+def _tradier_skew_capable_chain_responses(expiration: str) -> list[ReadOnlyHttpResponse]:
+    """Enough strikes on both sides (an ATM and a 0.25/-0.25-delta wing)
+    for Skew Momentum's own real vertical-leg selection to succeed, plus
+    30 daily closes for its own realized-volatility/momentum computation
+    -- _tradier_refresh_responses's single call-only contract and no
+    history is enough to exercise runner-level infrastructure isolation
+    but not enough for the strategy's own read path
+    (historical_valid_observations) to ever be reached.
+    """
+    return [
+        tradier_quote_response(),
+        ReadOnlyHttpResponse(
+            200, {"expirations": {"date": [expiration]}}, (), 12, "tradier-request-2"
+        ),
+        ReadOnlyHttpResponse(
+            200,
+            {
+                "options": {
+                    "option": [
+                        _tradier_option("ATM_CALL", expiration, "190", "call", "0.50"),
+                        _tradier_option("WING_CALL", expiration, "195", "call", "0.25"),
+                        _tradier_option("ATM_PUT", expiration, "190", "put", "-0.50"),
+                        _tradier_option("WING_PUT", expiration, "185", "put", "-0.25"),
+                    ]
+                }
+            },
+            (),
+            12,
+            "tradier-request-3",
+        ),
+        _tradier_daily_bars_response(),
+    ]
 
 
 def _tradier_refresh_responses(expiration: str) -> list[ReadOnlyHttpResponse]:
@@ -319,6 +399,148 @@ def test_attempt_persistence_failure_preserves_the_screening_result(
     # But acquisition accounting is honestly marked incomplete, never
     # silently reported as if it were complete.
     assert outcomes[0].attempts_recorded is False
+
+
+# -- SPRINT-013 S13-04D: historical-skew read/write wiring -------------------
+
+
+class _RecordingHistoricalSkewRepository:
+    def __init__(self) -> None:
+        self.history_for_calls: list[CanonicalInstrumentIdentity] = []
+        self.append_calls: list[HistoricalSkewObservation] = []
+
+    def append(self, observation: HistoricalSkewObservation, *, session_date: date) -> None:
+        self.append_calls.append(observation)
+
+    def history_for(
+        self,
+        instrument: CanonicalInstrumentIdentity,
+        *,
+        as_of: datetime | None = None,
+        maximum_observations: int | None = None,
+    ) -> tuple[HistoricalSkewObservation, ...]:
+        self.history_for_calls.append(instrument)
+        return ()
+
+
+def test_skew_momentum_pair_reads_the_injected_historical_skew_repository(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("ASA_TRADIER_ENABLED", "true")
+    monkeypatch.setenv("ASA_TRADIER_ACCESS_TOKEN", "sandbox-secret-token")
+    repository = InMemoryLatestResultRepository()
+    historical_skew_repository = _RecordingHistoricalSkewRepository()
+    expiration = (date.today() + timedelta(days=7)).isoformat()
+    universe = (("skew_momentum", "AAPL"),)
+
+    outcomes = run_scheduled_refresh(
+        universe,
+        repository=repository,
+        historical_skew_repository=historical_skew_repository,
+        transport_factory=lambda _provider_id: ScriptedTransport(
+            _tradier_skew_capable_chain_responses(expiration)
+        ),
+    )
+
+    assert outcomes[0].error is None
+    assert historical_skew_repository.history_for_calls == [
+        CanonicalInstrumentIdentity("symbol", "AAPL")
+    ]
+
+
+def test_non_skew_momentum_pairs_never_touch_the_historical_skew_repository(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("ASA_TRADIER_ENABLED", "true")
+    monkeypatch.setenv("ASA_TRADIER_ACCESS_TOKEN", "sandbox-secret-token")
+    repository = InMemoryLatestResultRepository()
+    historical_skew_repository = _RecordingHistoricalSkewRepository()
+    universe = (("earnings_calendar", "AAPL"),)
+
+    outcomes = run_scheduled_refresh(
+        universe,
+        repository=repository,
+        historical_skew_repository=historical_skew_repository,
+        transport_factory=lambda _provider_id: ScriptedTransport(
+            [tradier_quote_response()]
+        ),
+    )
+
+    assert outcomes[0].signal_id == "earnings_calendar"
+    # Missing data (a scripted transport that never gets past the quote)
+    # is an expected, isolated, non-crashing outcome, not this test's own
+    # concern -- only whether the historical-skew repository was ever
+    # touched for a non-skew_momentum pair is.
+    assert historical_skew_repository.history_for_calls == []
+    assert historical_skew_repository.append_calls == []
+
+
+def test_a_conflicting_historical_observation_does_not_fail_the_pair(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """SPRINT-013 S13-04D: history-capture recording is a best-effort side
+    channel of a successful refresh() -- a genuine content conflict (a
+    real defect worth investigating, logged as an error) must never turn
+    an otherwise-successful pair into a failed PairOutcome.
+    """
+    import asa.scheduled_screening as scheduled_screening_module
+    from strategy_runtime.historical_evidence import ConflictingHistoricalObservationError
+
+    calls = []
+
+    def _raise_conflict(*args: object, **_kwargs: object) -> None:
+        calls.append(args)
+        raise ConflictingHistoricalObservationError("boom")
+
+    monkeypatch.setattr(
+        scheduled_screening_module, "record_prospective_skew_observation", _raise_conflict
+    )
+    monkeypatch.setenv("ASA_TRADIER_ENABLED", "true")
+    monkeypatch.setenv("ASA_TRADIER_ACCESS_TOKEN", "sandbox-secret-token")
+    repository = InMemoryLatestResultRepository()
+    expiration = (date.today() + timedelta(days=7)).isoformat()
+    universe = (("skew_momentum", "AAPL"),)
+
+    outcomes = run_scheduled_refresh(
+        universe,
+        repository=repository,
+        transport_factory=lambda _provider_id: ScriptedTransport(
+            _tradier_skew_capable_chain_responses(expiration)
+        ),
+    )
+
+    assert len(calls) == 1  # the monkeypatched function was actually reached
+    assert outcomes[0].error is None
+    assert outcomes[0].outcome is not None
+    assert repository.get_one("skew_momentum", "AAPL") is not None
+
+
+def test_an_unexpected_capture_failure_does_not_fail_the_pair(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import asa.scheduled_screening as scheduled_screening_module
+
+    def _raise(*_args: object, **_kwargs: object) -> None:
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(scheduled_screening_module, "capture_skew_snapshot", _raise)
+    monkeypatch.setenv("ASA_TRADIER_ENABLED", "true")
+    monkeypatch.setenv("ASA_TRADIER_ACCESS_TOKEN", "sandbox-secret-token")
+    repository = InMemoryLatestResultRepository()
+    expiration = (date.today() + timedelta(days=7)).isoformat()
+    universe = (("skew_momentum", "AAPL"),)
+
+    outcomes = run_scheduled_refresh(
+        universe,
+        repository=repository,
+        transport_factory=lambda _provider_id: ScriptedTransport(
+            _tradier_refresh_responses(expiration)
+        ),
+    )
+
+    assert outcomes[0].error is None
+    assert outcomes[0].outcome is not None
+    assert repository.get_one("skew_momentum", "AAPL") is not None
 
 
 # -- SPRINT-013 S13-03A: shared cross-pair provider rolling window ----------

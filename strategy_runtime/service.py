@@ -39,6 +39,7 @@ from market_data.temporal import (
 )
 from strategy_runtime.clock import Clock
 from strategy_runtime.execution import ExecutionStatus, run_strategies
+from strategy_runtime.historical_evidence import HistoricalSkewRepository
 from strategy_runtime.lifecycle import (
     OpportunityObservation,
     RecommendedAction,
@@ -205,10 +206,15 @@ def refresh(
     strategy_id: str,
     symbol: str,
     fulfillment_by_subject: Mapping[str, CapabilityFulfillmentService],
+    historical_skew_repository: HistoricalSkewRepository | None = None,
 ) -> UniversalScreeningResult:
     """Recompute exactly one strategy against exactly one subject via the
     existing migrated adapters, then persist and return the new state --
     never a whole-universe or whole-strategy-set refresh.
+
+    ``historical_skew_repository`` (SPRINT-013 S13-04D) is optional and
+    forwarded to run_strategies() unchanged; only a strategy contract that
+    declares a historical-evidence requirement reads it.
     """
     previous = repository.get_one(strategy_id, symbol)
     (execution_result,) = run_strategies(
@@ -217,6 +223,7 @@ def refresh(
         subjects=(symbol,),
         strategy_ids=(strategy_id,),
         fulfillment_by_subject=fulfillment_by_subject,
+        historical_skew_repository=historical_skew_repository,
     )
     if (
         execution_result.status is ExecutionStatus.ADAPTER_EXCEPTION

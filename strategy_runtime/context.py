@@ -20,6 +20,7 @@ from dataclasses import dataclass
 from market_data import CapabilityFulfillmentService
 from strategy_runtime.clock import Clock
 from strategy_runtime.contract import StrategyContract
+from strategy_runtime.historical_evidence import HistoricalSkewRepository
 
 
 @dataclass(frozen=True, slots=True)
@@ -29,3 +30,7 @@ class RuntimeContext:
     clock: Clock
     run_id: str
     fulfillment: CapabilityFulfillmentService | None = None
+    # SPRINT-013 S13-04D: None for a strategy contract that never consumes
+    # historical evidence, or when a caller runs strategies without it at
+    # all -- same optionality convention as fulfillment above.
+    historical_skew_repository: HistoricalSkewRepository | None = None

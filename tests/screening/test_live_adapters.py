@@ -41,6 +41,7 @@ from domain import (
     SecurityAssetType,
     market_observation_identity,
 )
+from domain.strategy_evidence import HistoricalSkewObservation
 from market_data import (
     CapabilityFulfillmentService,
     CapabilityRegistry,
@@ -60,8 +61,14 @@ from market_data.providers import (
 )
 from screening.adapters import TARGET_STRATEGY_REGISTRY
 from screening.live_acquisition import build_capability_registry, build_request_budget_manager
-from screening.live_adapters import _acquire_or_raise, build_live_adapters
-from screening.results import ScreeningOutcomeStatus
+from screening.live_adapters import (
+    SKEW_MINIMUM_VALID_OBSERVATIONS,
+    _acquire_or_raise,
+    build_live_adapters,
+    build_live_skew_momentum_adapter,
+    capture_skew_snapshot,
+)
+from screening.results import ScreeningOutcomeStatus, ScreeningResult
 from screening.runner import StrategyAdapterError, run_screening
 
 NOW = datetime(2026, 7, 22, 16, 0, tzinfo=UTC)
@@ -418,6 +425,117 @@ class TestSkewMomentumLiveNeedsMultipleStrikes:
             ScreeningOutcomeStatus.NO_SIGNAL,
         )
         assert result.subject_identity == f"symbol:{SYMBOL}"
+
+
+class _StubHistoricalSkewRepository:
+    """Structurally satisfies screening.live_adapters.
+    HistoricalSkewHistoryReader via duck typing -- no shared base class,
+    matching that Protocol's own file-local, zero-import-coupling design.
+    """
+
+    def __init__(self, observations: tuple[HistoricalSkewObservation, ...] = ()) -> None:
+        self._observations = observations
+
+    def history_for(
+        self,
+        instrument: CanonicalInstrumentIdentity,
+        *,
+        as_of: datetime | None = None,
+        maximum_observations: int | None = None,
+    ) -> tuple[HistoricalSkewObservation, ...]:
+        return self._observations
+
+
+def _historical_skew_observations(count: int) -> tuple[HistoricalSkewObservation, ...]:
+    instrument = CanonicalInstrumentIdentity("symbol", SYMBOL)
+    evidence = (EvidenceReference(EvidenceKind.OBSERVATION, "fixture-skew-history"),)
+    return tuple(
+        HistoricalSkewObservation(
+            instrument=instrument,
+            call_skew=Decimal("0.01") + Decimal(i) * Decimal("0.001"),
+            put_skew=Decimal("0.02") + Decimal(i) * Decimal("0.001"),
+            effective_time=NOW - timedelta(days=count - i),
+            evidence=evidence,
+        )
+        for i in range(count)
+    )
+
+
+class TestSkewMomentumHistoricalEvidenceReadPath:
+    """SPRINT-013 S13-04D: call_skew_zscore/put_skew_zscore/historical_
+    valid_observations wired from an injected repository's own history_for()
+    -- never a proxy, always UNKNOWN (None) below the approved minimum or
+    with no repository at all.
+    """
+
+    def _run(self, repository: _StubHistoricalSkewRepository | None) -> ScreeningResult:
+        fulfillment, clock = _fulfillment(MultiExpirationFixtureProvider)
+        adapters = {
+            "skew_momentum": build_live_skew_momentum_adapter(
+                SYMBOL, fulfillment, historical_skew_repository=repository
+            )
+        }
+        (result,) = run_screening(
+            TARGET_STRATEGY_REGISTRY, adapters, clock, strategy_ids=("skew_momentum",)
+        )
+        assert result.explanation is not None
+        return result
+
+    def test_no_repository_leaves_historical_evidence_unknown(self) -> None:
+        result = self._run(None)
+        assert result.explanation is not None
+        facts = dict(result.explanation.canonical_facts)
+        derived = dict(result.explanation.named_derived_facts)
+        assert facts["historical_valid_observations"] == 0
+        assert derived["call_skew_zscore"] is None
+        assert derived["put_skew_zscore"] is None
+
+    def test_below_minimum_history_leaves_zscore_unknown_but_reports_true_count(self) -> None:
+        below_minimum = SKEW_MINIMUM_VALID_OBSERVATIONS - 1
+        repository = _StubHistoricalSkewRepository(_historical_skew_observations(below_minimum))
+        result = self._run(repository)
+        assert result.explanation is not None
+        facts = dict(result.explanation.canonical_facts)
+        derived = dict(result.explanation.named_derived_facts)
+        assert facts["historical_valid_observations"] == below_minimum
+        assert derived["call_skew_zscore"] is None
+        assert derived["put_skew_zscore"] is None
+
+    def test_at_minimum_history_computes_a_real_zscore(self) -> None:
+        repository = _StubHistoricalSkewRepository(
+            _historical_skew_observations(SKEW_MINIMUM_VALID_OBSERVATIONS)
+        )
+        result = self._run(repository)
+        assert result.explanation is not None
+        facts = dict(result.explanation.canonical_facts)
+        derived = dict(result.explanation.named_derived_facts)
+        assert facts["historical_valid_observations"] == SKEW_MINIMUM_VALID_OBSERVATIONS
+        assert isinstance(derived["call_skew_zscore"], Decimal)
+        assert isinstance(derived["put_skew_zscore"], Decimal)
+
+
+class TestCaptureSkewSnapshot:
+    """SPRINT-013 S13-04D: capture_skew_snapshot is pure acquisition and
+    packaging -- it never decides whether a candidate may be recorded
+    (that is strategy_runtime.historical_evidence.record_prospective_
+    skew_observation's own, sole responsibility), and it never invents an
+    instrument scheme other than the codebase's own established "symbol"
+    convention for a live equity/ETF ticker.
+    """
+
+    def test_returns_an_observation_matching_the_live_signals_own_computed_skew(self) -> None:
+        fulfillment, clock = _fulfillment(MultiExpirationFixtureProvider)
+        now = clock.now()
+        observation = capture_skew_snapshot(fulfillment, SYMBOL, now)
+        assert observation.instrument == CanonicalInstrumentIdentity("symbol", SYMBOL)
+        assert observation.evidence
+
+    def test_effective_time_and_evidence_come_from_the_acquired_chain(self) -> None:
+        fulfillment, clock = _fulfillment(MultiExpirationFixtureProvider)
+        now = clock.now()
+        observation = capture_skew_snapshot(fulfillment, SYMBOL, now)
+        assert abs(observation.effective_time - now) < timedelta(seconds=1)
+        assert all(item.kind is EvidenceKind.OBSERVATION for item in observation.evidence)
 
 
 class TestForwardFactorAndEarningsCalendarNeedTwoExpirations:
