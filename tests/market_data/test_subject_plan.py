@@ -6,6 +6,16 @@ from datetime import UTC, datetime
 
 import pytest
 
+from market_data import (
+    BudgetScope,
+    CapabilityFulfillmentService,
+    CapabilityRegistry,
+    ProviderPriority,
+    ProviderPriorityPolicy,
+    ProviderRegistry,
+    RequestBudgetManager,
+    RequestBudgetPolicy,
+)
 from market_data.attempts import (
     AcquisitionOutcome,
     AttemptQuery,
@@ -13,9 +23,11 @@ from market_data.attempts import (
 )
 from market_data.subject_plan import SubjectAcquisitionPlan
 from tests.market_data.test_fulfillment import (
+    CAPABILITY,
     Clock,
     FixtureScenario,
     ProviderErrorCode,
+    _FailsOnceProvider,
     provider,
     request,
     service,
@@ -180,6 +192,47 @@ class TestAttemptPersistence:
         # for the one attempt recorded so far.
         rows = repository.query(AttemptQuery(screening_cycle_id="cycle-1:AAPL", limit=10))
         assert [item.sequence for item in rows] == list(range(len(rows)))
+
+    def test_an_earlier_failure_stays_queryable_after_the_plans_own_retry_succeeds(
+        self,
+    ) -> None:
+        # _FailsOnceProvider fails its first fetch, then succeeds every
+        # fetch after -- so the plan's own bounded retry (attempt 1: fails,
+        # attempt 2: succeeds) exercises exactly the "eviction and later
+        # success" half of this ticket's own acceptance criterion: the
+        # underlying CapabilityFulfillmentService evicts the failed cache
+        # entry internally before its own independent retry, but that
+        # eviction must never erase the failure's own durable attempt row.
+        flaky = _FailsOnceProvider("primary")
+        registry = ProviderRegistry((flaky,))
+        capabilities = CapabilityRegistry(
+            registry, ProviderPriorityPolicy("v1", (ProviderPriority(CAPABILITY, ("primary",)),))
+        )
+        budgets = RequestBudgetManager(
+            (RequestBudgetPolicy("primary", BudgetScope.RUNTIME, 4, 4, 0, "v1"),), Clock(NOW)
+        )
+        fulfillment = CapabilityFulfillmentService(registry, capabilities, budgets)
+        plan, repository = _plan(
+            fulfillment, plan_id="cycle-1:AAPL", maximum_attempts_per_request=2
+        )
+
+        result = plan.resolve(request(), required=False)
+
+        assert result.status.value == "fulfilled"  # the plan's own retry recovered
+        rows = repository.query(AttemptQuery(screening_cycle_id="cycle-1:AAPL", limit=10))
+        assert len(rows) == 2
+        assert rows[0].outcome is AcquisitionOutcome.TRANSPORT_FAILURE  # the earlier failure
+        assert rows[1].outcome is AcquisitionOutcome.SUCCESS  # the later, plan-owned retry
+        # Both rows independently queryable by outcome -- the failure is
+        # not erased by the later success, and a caller can distinguish
+        # "recovered on retry" from "succeeded on the first try."
+        failed_only = repository.query(
+            AttemptQuery(
+                screening_cycle_id="cycle-1:AAPL",
+                outcome=AcquisitionOutcome.TRANSPORT_FAILURE,
+            )
+        )
+        assert len(failed_only) == 1
 
 
 class TestDoesNotMutateUnderlyingService:
