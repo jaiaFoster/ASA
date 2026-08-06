@@ -9,6 +9,7 @@ Depends on nothing but itself and the standard library.
 
 from domain.canonical_fact import CanonicalFact
 from domain.capability_demand import CAPABILITY_DEMAND_CONTRACT_VERSION, CapabilityDemand
+from domain.demand_expansion import DemandExpansion, UnknownReason
 from domain.execution import (
     ExecutionPlan,
     ExecutionPlanningEvent,
@@ -108,6 +109,7 @@ from domain.provenance import Provenance, ProviderDisagreement
 from domain.provider import Provider
 from domain.references import Confidence, EvidenceKind, EvidenceReference
 from domain.replay import ExecutionReplayRecord, ReplayVerification
+from domain.resolved_evidence import EvidenceUsability, ResolvedCapabilityEvidence
 from domain.simulation import (
     SimulatedFill,
     SimulatedOrderState,
@@ -139,6 +141,10 @@ __all__ = [
     "is_normalized_value",
     "EvidenceKind",
     "EvidenceReference",
+    "EvidenceUsability",
+    "ResolvedCapabilityEvidence",
+    "DemandExpansion",
+    "UnknownReason",
     "HistoricalSkewObservation",
     "HistoricalSkewObservations",
     "ExpectedOutcomeMetrics",

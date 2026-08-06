@@ -14,6 +14,7 @@ from domain import (
     CompletenessMetadata,
     EvidenceKind,
     EvidenceReference,
+    ExpirationCycle,
     FreshnessMetadata,
     FreshnessStatus,
     MarketCapability,
@@ -26,6 +27,7 @@ from domain import (
     market_observation_identity,
 )
 from domain.financial import OptionChain
+from domain.values import DomainInvariantError
 from market_data.capability_coalescing import (
     coalesce_option_chain_results,
     combine_option_chains,
@@ -284,6 +286,85 @@ class TestCoalesceOptionChainResults:
         with pytest.raises(ValueError):
             coalesce_option_chain_results(
                 (wrong_capability_result,),
+                subject=_subject(),
+                combined_request=_request(),
+                observed_at=NOW,
+            )
+
+    def test_status_reflects_result_level_success_not_an_observation_count_comparison(
+        self,
+    ) -> None:
+        """A single CapabilityFulfillmentResult can legitimately carry more
+        than one observation (e.g. a DEGRADED multi-provider resolution
+        upstream feeding into this coalescer) -- comparing
+        len(observations) to len(results) would misclassify one fully
+        successful result carrying two observations as partial failure.
+        """
+        front = _chain_observation("tradier", date(2026, 8, 21), suffix="front")
+        back = _chain_observation("tradier", date(2026, 9, 18), suffix="back")
+        one_result_two_observations = CapabilityFulfillmentResult(
+            _request(),
+            FulfillmentStatus.FULFILLED,
+            "tradier",
+            (front, back),
+            (_successful_attempt("tradier", front), _successful_attempt("tradier", back)),
+            True,
+        )
+
+        combined = coalesce_option_chain_results(
+            (one_result_two_observations,),
+            subject=_subject(),
+            combined_request=_request(),
+            observed_at=NOW,
+        )
+
+        assert combined.status is FulfillmentStatus.FULFILLED
+
+    def test_a_non_option_chain_value_on_a_successful_observation_raises_not_silently_dropped(
+        self,
+    ) -> None:
+        """OPTION_CHAIN_V1 is a capability tag several distinct domain
+        value types can legitimately carry (OptionChain, OptionContract,
+        ExpirationCycle -- domain/market_data.py's own expected_capability
+        mapping) -- an ExpirationCycle observation (the shape
+        acquire_expirations() itself resolves under this same capability)
+        reaching this coalescer is a real, reachable upstream-wiring
+        defect, not a hypothetical one. It must raise, never be silently
+        filtered out of the combined chain.
+        """
+        front_result, _ = _successful_result("tradier", date(2026, 8, 21), suffix="front")
+        expiration_cycle = ExpirationCycle(
+            date(2026, 9, 18), 43, True, False, NOW.date(), EVIDENCE
+        )
+        provenance = ProviderProvenance("tradier", "tradier-request-wrong-shape", EVIDENCE)
+        freshness = FreshnessMetadata(NOW, NOW, 3600, 0, FreshnessStatus.FRESH)
+        completeness = CompletenessMetadata(("contracts",), ("contracts",), ())
+        wrong_value_observation = MarketObservation(
+            market_observation_identity(
+                "tradier", MarketCapability.OPTION_CHAIN_V1, _subject(), NOW, expiration_cycle, "v1"
+            ),
+            MarketCapability.OPTION_CHAIN_V1,
+            _subject(),
+            NOW,
+            NOW,
+            expiration_cycle,
+            "v1",
+            provenance,
+            freshness,
+            completeness,
+        )
+        malformed_result = CapabilityFulfillmentResult(
+            _request(expiration=date(2026, 9, 18)),
+            FulfillmentStatus.FULFILLED,
+            "tradier",
+            (wrong_value_observation,),
+            (_successful_attempt("tradier", wrong_value_observation),),
+            True,
+        )
+
+        with pytest.raises(DomainInvariantError):
+            coalesce_option_chain_results(
+                (front_result, malformed_result),
                 subject=_subject(),
                 combined_request=_request(),
                 observed_at=NOW,

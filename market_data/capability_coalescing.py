@@ -34,6 +34,7 @@ from domain.market_data import (
     market_observation_identity,
 )
 from domain.references import EvidenceKind, EvidenceReference
+from domain.values import DomainInvariantError
 from market_data.fulfillment import (
     CapabilityFulfillmentResult,
     FulfillmentStatus,
@@ -119,12 +120,16 @@ def coalesce_option_chain_results(
             combined_request, FulfillmentStatus.FAILED, None, (), attempts, True
         )
 
-    chains = tuple(
-        observation.value
-        for observation in successful_observations
-        if isinstance(observation.value, OptionChain)
-    )
-    combined_chain = combine_option_chains(chains, observed_at)
+    chains: list[OptionChain] = []
+    for observation in successful_observations:
+        if not isinstance(observation.value, OptionChain):
+            raise DomainInvariantError(
+                "coalesce_option_chain_results received a nominally successful "
+                f"OPTION_CHAIN_V1 observation whose value is {type(observation.value).__name__}, "
+                "not OptionChain -- a real defect upstream, never silently dropped"
+            )
+        chains.append(observation.value)
+    combined_chain = combine_option_chains(tuple(chains), observed_at)
     primary = successful_observations[0]
     provider_id = primary.provenance.provider_id
     observation_id = market_observation_identity(
@@ -148,9 +153,15 @@ def coalesce_option_chain_results(
         observation_id=observation_id,
         provenance=dataclasses.replace(primary.provenance, evidence=combined_evidence),
     )
+    # Result-level success, not an observation count comparison -- a
+    # single CapabilityFulfillmentResult can in principle carry more than
+    # one observation (a DEGRADED multi-provider resolution feeding into
+    # this coalescer, for instance), so comparing len(observations) to
+    # len(results) would misclassify that case as partial failure even
+    # when every source result individually succeeded.
     status = (
         FulfillmentStatus.FULFILLED
-        if len(successful_observations) == len(results)
+        if all(item.status is FulfillmentStatus.FULFILLED for item in results)
         else FulfillmentStatus.DEGRADED
     )
     return CapabilityFulfillmentResult(

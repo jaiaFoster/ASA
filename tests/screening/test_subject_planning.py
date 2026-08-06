@@ -13,14 +13,19 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from domain import CapabilityDemand, MarketCapability
+from domain import (
+    CapabilityDemand,
+    DemandExpansion,
+    EvidenceUsability,
+    MarketCapability,
+    UnknownReason,
+)
 from domain.values import DomainInvariantError
 from market_data.attempts import InMemoryAcquisitionAttemptRepository
 from market_data.fulfillment import CapabilityFulfillmentResult, FulfillmentStatus
 from market_data.resolution import ResolutionPolicy
 from market_data.subject_plan import SubjectAcquisitionPlan
 from screening.subject_planning import (
-    DemandExpansion,
     SubjectPlanConsumer,
     run_subject_plan,
 )
@@ -86,7 +91,16 @@ class TestTwoSyntheticConsumers:
 
         assert demand.demand_id in result.resolved_evidence
         assert demand.demand_id in seen_by_b
-        assert seen_by_b[demand.demand_id] is result.resolved_evidence[demand.demand_id]
+        # seen_by_b holds the *restricted* ResolvedCapabilityEvidence
+        # projection (never the raw CapabilityFulfillmentResult
+        # SubjectPlanResult.resolved_evidence itself carries) -- proven
+        # shared by content: the projection reflects the same resolved,
+        # usable evidence the raw result actually carries.
+        projected = seen_by_b[demand.demand_id]
+        raw = result.resolved_evidence[demand.demand_id]
+        assert projected.usability is EvidenceUsability.RESOLVED
+        assert projected.value == raw.observations[0].value
+        assert projected.observation_ids == (raw.observations[0].observation_id,)
 
     def test_a_phase_two_demand_identical_to_a_phase_one_demand_resolves_only_once(self) -> None:
         demand = _quote_demand()
@@ -112,8 +126,10 @@ class TestTwoSyntheticConsumers:
         assert result.demand_ids_by_consumer["consumer-b"] == (demand.demand_id,)
 
     def test_selections_and_unknown_reasons_pass_through_untouched(self) -> None:
+        reason = UnknownReason("no_data", demand_ids=(_quote_demand().demand_id,))
+
         def expand(_evidence: object) -> DemandExpansion:
-            return DemandExpansion(selections={"chosen": "x"}, unknown_reasons=("no data",))
+            return DemandExpansion(selections=(("chosen", "x"),), unknown_reasons=(reason,))
 
         fulfillment, _ = service(provider("primary"))
         plan = _plan(fulfillment)
@@ -128,8 +144,8 @@ class TestTwoSyntheticConsumers:
         )
 
         expansion = result.expansions_by_consumer["consumer-a"]
-        assert expansion.selections == {"chosen": "x"}
-        assert expansion.unknown_reasons == ("no data",)
+        assert expansion.selections == (("chosen", "x"),)
+        assert expansion.unknown_reasons == (reason,)
 
 
 class TestOrderAndCountIndependence:
@@ -205,9 +221,7 @@ class TestSharedExhaustedFailure:
         plan = _plan(fulfillment, maximum_attempts_per_request=1)
         demand = _quote_demand(required=False)
         consumer_a = SubjectPlanConsumer("consumer-a", (demand,), _no_expansion)
-        consumer_b = SubjectPlanConsumer(
-            "consumer-b", (demand,), _no_expansion
-        )
+        consumer_b = SubjectPlanConsumer("consumer-b", (demand,), _no_expansion)
 
         result = run_subject_plan(
             plan,
@@ -312,9 +326,7 @@ class TestConstructionAndErrorHandling:
         undeclared_capability_demand = CapabilityDemand(
             MarketCapability.HISTORICAL_BARS_V1, ("close",), NOW, NOW
         )
-        consumer = SubjectPlanConsumer(
-            "consumer-a", (undeclared_capability_demand,), _no_expansion
-        )
+        consumer = SubjectPlanConsumer("consumer-a", (undeclared_capability_demand,), _no_expansion)
 
         with pytest.raises(DomainInvariantError):
             run_subject_plan(

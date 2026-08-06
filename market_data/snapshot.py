@@ -122,13 +122,27 @@ class MarketSnapshotBuilder:
         ).issubset(requested):
             raise DomainInvariantError("Snapshot resolutions must be unique requested capabilities")
 
+        # SPRINT-014 S14-PR-05A (Architect review checkpoint, PR #292
+        # review 4877473757): observations come from each fulfillment's
+        # own selected/coalesced ``observations``, never a reconstruction
+        # from raw per-attempt data. For an ordinary, single-winning-
+        # provider result these are identical (CapabilityFulfillmentService
+        # .fulfill() returns on the first successful attempt, so at most
+        # one attempt in the whole list ever carries observations) -- but
+        # a capability-owned coalescer (market_data.capability_coalescing)
+        # legitimately produces one CapabilityFulfillmentResult whose own
+        # ``attempts`` includes more than one *successful* source attempt
+        # while ``observations`` already holds the one combined,
+        # resolver-ready observation. Reconstructing from ``attempts``
+        # here would silently drop that combined observation from the
+        # sealed snapshot and resurface the raw, uncombined per-source
+        # observations instead.
         observations = tuple(
             sorted(
                 {
                     observation.observation_id: observation
                     for fulfillment in fulfillments
-                    for attempt in fulfillment.attempts
-                    for observation in attempt.observations
+                    for observation in fulfillment.observations
                 }.values(),
                 key=lambda item: (
                     item.capability.value,

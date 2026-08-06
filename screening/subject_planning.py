@@ -34,33 +34,48 @@ from __future__ import annotations
 
 from collections import defaultdict
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from types import MappingProxyType
 
-from domain import CapabilityDemand, MarketCapability
+from domain import CapabilityDemand, DemandExpansion, EvidenceUsability, MarketCapability
+from domain.resolved_evidence import ResolvedCapabilityEvidence
 from market_data.fulfillment import CapabilityFulfillmentResult
 from market_data.providers import CapabilityRequest, ProviderMetadata
 from market_data.resolution import ResolutionPolicy
+from market_data.session_calendar import MarketSessionStatus, UsEquitySessionCalendar
 from market_data.snapshot import MarketSnapshot
 from market_data.subject_plan import SubjectAcquisitionPlan
 from market_data.subject_snapshot import seal_subject_snapshot
+from market_data.temporal import FreshnessRequirement, UsabilityStatus, evaluate_temporal_usability
 from screening.live_context import build_capability_subject
 
 # Read-only view over every demand this cycle has resolved so far --
-# provider-neutral CapabilityFulfillmentResult only, never the plan,
-# fulfiller, provider metadata, transport, budget, or repository that
-# produced it. Keyed by CapabilityDemand.demand_id, never by consumer.
-ResolvedEvidenceView = Mapping[str, CapabilityFulfillmentResult]
+# domain.ResolvedCapabilityEvidence only, never the raw
+# CapabilityFulfillmentResult, the plan, a fulfiller, provider metadata,
+# transport, budget, or repository. Keyed by CapabilityDemand.demand_id,
+# never by consumer. This is deliberately narrower than what the planner
+# retains internally (see RawResolvedEvidence/SubjectPlanResult.
+# resolved_evidence below) -- a pure expansion function receives only this
+# restricted projection.
+ResolvedEvidenceView = Mapping[str, ResolvedCapabilityEvidence]
 
-# A pure function: given phase-one's resolved evidence, return whatever
-# additional exact demands, selection outputs, and/or typed UNKNOWN
-# reasons this consumer's own policy determines. Registered here already
-# bound to its own strategy-specific, manifest-derived requirement (e.g.
-# via functools.partial over a strategies/-owned expansion function and
-# its own typed requirement object) by the caller -- this module never
-# sees that binding's own inputs.
-DemandExpansionFunction = Callable[[ResolvedEvidenceView], "DemandExpansion"]
+# The planner's own internal, full-fidelity view -- raw
+# CapabilityFulfillmentResult, retained for sealing and for
+# SubjectPlanResult's own diagnostics (e.g. a composition root's request/
+# attempt accounting). Never handed to a consumer's expand() function.
+RawResolvedEvidence = Mapping[str, CapabilityFulfillmentResult]
+
+# A pure function: given phase-one's resolved, restricted evidence, return
+# whatever additional exact demands, selection outputs, and/or typed
+# UNKNOWN reasons this consumer's own policy determines. Registered here
+# already bound to its own strategy-specific, manifest-derived requirement
+# (e.g. via functools.partial over a strategies/-owned expansion function
+# and its own typed requirement object) by the caller -- this module never
+# sees that binding's own inputs. Returns domain.DemandExpansion, never a
+# screening-owned type, so a strategies/-owned function can satisfy this
+# signature without importing screening/ at all.
+DemandExpansionFunction = Callable[[ResolvedEvidenceView], DemandExpansion]
 
 # Reduces N CapabilityFulfillmentResults sharing one capability (e.g.
 # Earnings Calendar's own front/back expiration-scoped option-chain
@@ -73,26 +88,6 @@ DemandExpansionFunction = Callable[[ResolvedEvidenceView], "DemandExpansion"]
 CapabilityResultReducer = Callable[
     [tuple[CapabilityFulfillmentResult, ...]], CapabilityFulfillmentResult
 ]
-
-
-@dataclass(frozen=True, slots=True)
-class DemandExpansion:
-    """One consumer's own pure phase-two output. ``selections`` and
-    ``unknown_reasons`` are opaque to the planner -- carried through
-    verbatim in SubjectPlanResult for the caller's own later use (e.g.
-    projecting canonical/derived facts), never inspected or interpreted
-    here. A consumer with nothing further to resolve, or that cannot
-    proceed at all, returns an empty ``demands`` tuple; ``unknown_reasons``
-    is where it records *why*, as typed data, never as a raised exception
-    (this module's own invariant: expected missing evidence is data,
-    never an exception -- only persistence/invariant/programming failures
-    remain exceptions, and those still propagate naturally from
-    SubjectAcquisitionPlan.resolve()/seal_subject_snapshot() below).
-    """
-
-    demands: tuple[CapabilityDemand, ...] = ()
-    selections: Mapping[str, object] = field(default_factory=dict)
-    unknown_reasons: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -123,7 +118,7 @@ class SubjectPlanResult:
     """
 
     snapshot: MarketSnapshot
-    resolved_evidence: ResolvedEvidenceView
+    resolved_evidence: RawResolvedEvidence
     expansions_by_consumer: Mapping[str, DemandExpansion]
     demand_ids_by_consumer: Mapping[str, tuple[str, ...]]
 
@@ -150,6 +145,64 @@ def _to_capability_request(
         demand.effective_end,
         demand.required_fields,
         maximum_age_seconds,
+    )
+
+
+def _project(
+    demand_id: str,
+    demand: CapabilityDemand,
+    result: CapabilityFulfillmentResult,
+    *,
+    now: datetime,
+    market_is_open: bool,
+) -> ResolvedCapabilityEvidence:
+    """Build the one restricted, provider-blind view a consumer's own
+    expansion function ever receives for one demand -- and the one place
+    a demand's own declared temporal policy (require_open_session/
+    allow_prior_session/maximum_age_seconds/maximum_input_skew_seconds)
+    is actually applied. A demand whose provider fetch technically
+    succeeded but whose evidence fails this check is projected UNKNOWN
+    here, never RESOLVED (Architect checkpoint: "before production use,
+    the generic planner must apply the declared temporal policy").
+
+    Each individual demand's own CapabilityFulfillmentResult carries at
+    most one observation at this point in the flow (CapabilityFulfillment
+    Service.fulfill() itself returns on the first successful provider
+    attempt; capability-owned coalescing into a multi-source combined
+    observation, market_data.capability_coalescing, only ever happens
+    later, at sealing time) -- so this function never needs to reconcile
+    more than one.
+    """
+    if not result.observations:
+        return ResolvedCapabilityEvidence(
+            demand_id, demand.capability, EvidenceUsability.UNKNOWN, None, (), None
+        )
+    observation = result.observations[0]
+    requirement = FreshnessRequirement(
+        require_open_session=demand.require_open_session,
+        allow_prior_session=demand.allow_prior_session,
+        maximum_age_seconds=demand.maximum_age_seconds,
+        maximum_input_skew_seconds=demand.maximum_input_skew_seconds,
+    )
+    decision = evaluate_temporal_usability(
+        observation.freshness, requirement, market_is_open=market_is_open
+    )
+    if decision.status is UsabilityStatus.REJECTED:
+        return ResolvedCapabilityEvidence(
+            demand_id,
+            demand.capability,
+            EvidenceUsability.UNKNOWN,
+            None,
+            (),
+            observation.freshness.status,
+        )
+    return ResolvedCapabilityEvidence(
+        demand_id,
+        demand.capability,
+        EvidenceUsability.RESOLVED,
+        observation.value,
+        (observation.observation_id,),
+        observation.freshness.status,
     )
 
 
@@ -268,9 +321,17 @@ def run_subject_plan(
     _resolve_new_demands(plan, symbol, now, demand_by_id, resolved)
 
     # Phase 2: each consumer's own pure expansion over the immutable,
-    # provider-neutral phase-one evidence; union again, resolve only what
-    # phase one has not already resolved.
-    read_only_evidence: ResolvedEvidenceView = MappingProxyType(dict(resolved))
+    # provider-neutral, temporal-policy-applied phase-one evidence; union
+    # again, resolve only what phase one has not already resolved.
+    market_is_open = UsEquitySessionCalendar().status_at(now) is MarketSessionStatus.OPEN
+    read_only_evidence: ResolvedEvidenceView = MappingProxyType(
+        {
+            demand_id: _project(
+                demand_id, demand_by_id[demand_id], result, now=now, market_is_open=market_is_open
+            )
+            for demand_id, result in resolved.items()
+        }
+    )
     expansions_by_consumer: dict[str, DemandExpansion] = {}
     for consumer in consumers:
         expansion = consumer.expand(read_only_evidence)
