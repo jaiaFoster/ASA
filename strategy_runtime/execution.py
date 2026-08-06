@@ -22,10 +22,10 @@ from datetime import datetime
 from enum import Enum
 from typing import Generic, TypeVar
 
+from market_data import CapabilityFulfillmentService
 from strategy_runtime.clock import Clock
 from strategy_runtime.context import RuntimeContext
 from strategy_runtime.errors import StrategyContractViolationError
-from strategy_runtime.evidence import SubjectSealedEvidence
 from strategy_runtime.historical_evidence import HistoricalSkewRepository
 from strategy_runtime.registry import StrategyRegistry
 from strategy_runtime.validation import validate_result
@@ -106,16 +106,14 @@ def _run_one(
     subject: str,
     clock: Clock,
     run_id: str,
-    sealed_evidence_by_subject: Mapping[str, SubjectSealedEvidence] | None,
+    fulfillment_by_subject: Mapping[str, CapabilityFulfillmentService] | None,
     historical_skew_repository: HistoricalSkewRepository | None,
 ) -> StrategyExecutionResult[TResult]:
     adapter = registry.adapter_for(strategy_id)
     contract = registry.contract_for(strategy_id)
-    sealed_evidence = (
-        sealed_evidence_by_subject.get(subject) if sealed_evidence_by_subject else None
-    )
+    fulfillment = fulfillment_by_subject.get(subject) if fulfillment_by_subject else None
     context = RuntimeContext(
-        contract, subject, clock, run_id, sealed_evidence, historical_skew_repository
+        contract, subject, clock, run_id, fulfillment, historical_skew_repository
     )
     started_at = clock.now()
     try:
@@ -161,7 +159,7 @@ def run_strategies(
     *,
     subjects: tuple[str, ...],
     strategy_ids: tuple[str, ...] | None = None,
-    sealed_evidence_by_subject: Mapping[str, SubjectSealedEvidence] | None = None,
+    fulfillment_by_subject: Mapping[str, CapabilityFulfillmentService] | None = None,
     historical_skew_repository: HistoricalSkewRepository | None = None,
 ) -> tuple[StrategyExecutionResult[TResult], ...]:
     """Run every requested registered strategy against every requested
@@ -177,18 +175,15 @@ def run_strategies(
     determinism guarantee screening/runner.py's own run_screening()
     already provides for its own narrower scope.
 
-    ``sealed_evidence_by_subject`` (SPRINT-014 S14-PR-05) is optional and
-    defaults to None -- every caller that never needed subject-first
-    evidence continues to work completely unmodified. When given, every
-    strategy evaluating the same subject receives the identical
-    SubjectSealedEvidence instance via RuntimeContext.sealed_evidence; a
-    strategy contract not yet migrated to the subject-first path simply
-    never reads it. Note this parameter never populates a live
-    CapabilityFulfillmentService anywhere in RuntimeContext (I-09) -- a
-    strategy not yet migrated receives its fulfillment service through
-    strategy_runtime.adapters.build_migrated_strategy_registry()'s own
-    explicitly named legacy composition binding instead, built outside
-    this function entirely.
+    ``fulfillment_by_subject`` (EPIC-3, Shared Data Planning) is optional
+    and defaults to None -- every EPIC-1 caller that never needed shared
+    market data access continues to work completely unmodified. When
+    given (typically strategy_runtime.market_data_planning.
+    build_shared_market_data_access()'s own output), every strategy
+    evaluating the same subject receives the identical
+    CapabilityFulfillmentService instance via RuntimeContext.fulfillment,
+    so an identical request any two of them make is only ever fulfilled
+    once.
 
     ``historical_skew_repository`` (SPRINT-013 S13-04D) is likewise
     optional and defaults to None; when given, every strategy receives the
@@ -214,7 +209,7 @@ def run_strategies(
             subject,
             clock,
             run_id,
-            sealed_evidence_by_subject,
+            fulfillment_by_subject,
             historical_skew_repository,
         )
         for strategy_id in requested_strategy_ids

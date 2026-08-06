@@ -51,7 +51,6 @@ from market_data import (
 )
 from market_data.budget import BudgetScope
 from market_data.finnhub import finnhub_rolling_window_policy
-from market_data.providers import ProviderMetadata
 from market_data.rolling_window import ProviderRollingWindowTracker, RollingWindowPolicy
 from market_data.tradier import tradier_rolling_window_policy
 from strategy_runtime.clock import Clock
@@ -159,35 +158,6 @@ def build_provider_rolling_window_tracker(
     """
     policies, undeclared = declared_rolling_window_policies(enabled_provider_configs(config))
     return ProviderRollingWindowTracker(policies, clock), undeclared
-
-
-def provider_metadata_for(
-    config: MarketDataConfig,
-    transport_factory: Callable[[str], object],
-    clock: Clock,
-) -> tuple[ProviderMetadata, ...]:
-    """ProviderMetadata for every enabled provider, independent of subject.
-
-    seal_subject_snapshot()'s own provider_metadata argument requires
-    bounded metadata for every provider whose observations appear in the
-    sealed snapshot (market_data/snapshot.py's
-    "Snapshot lacks bounded metadata for an included provider" invariant).
-    Providers are constructed the same way build_shared_market_data_access
-    constructs them for actual fulfillment -- a throwaway
-    RequestBudgetManager is built only because ProviderDependencies
-    requires one; metadata is fixed at construction time and never
-    depends on it or on any live request.
-    """
-    enabled_configs = enabled_provider_configs(config)
-    budget_manager = _build_request_budget_manager(enabled_configs, clock)
-    factory = _provider_factory()
-    return tuple(
-        factory.create(
-            item,
-            ProviderDependencies(transport_factory(item.provider_id), clock, budget_manager),
-        ).metadata
-        for item in enabled_configs
-    )
 
 
 @dataclass(frozen=True, slots=True)
