@@ -16,6 +16,7 @@ from __future__ import annotations
 from dataclasses import replace
 from datetime import date, datetime, timedelta
 from decimal import Decimal
+from typing import cast
 
 from analytics.atm_selection import select_atm_strike
 from domain import (
@@ -290,6 +291,29 @@ def build_capability_subject(
     )
 
 
+def normalize_expiration_response(
+    values: tuple[object, ...], as_of: date
+) -> tuple[ExpirationCycle, ...] | None:
+    """The response-shape normalization acquire_expirations() itself
+    applies once its own capability request has already been resolved
+    (SPRINT-014 S14-PR-05 factors this pure step out so a plan-backed
+    resolver can reuse it without duplicating the two accepted response
+    shapes -- Tradier's own per-expiration observations, or a single
+    OptionChain a fixture/other provider might return instead). Returns
+    None for an unrecognized shape or a result that normalizes to zero
+    expirations -- never raises, so a caller can treat it as UNKNOWN.
+    """
+    if all(isinstance(value, ExpirationCycle) for value in values):
+        cycles: tuple[ExpirationCycle, ...] = cast(tuple[ExpirationCycle, ...], values)
+    elif len(values) == 1 and isinstance(values[0], OptionChain):
+        cycles = expirations_from_chain(values[0], as_of)
+    else:
+        return None
+    unique_by_date = {cycle.expiration_date: cycle for cycle in cycles}
+    ordered = tuple(unique_by_date[expiration] for expiration in sorted(unique_by_date))
+    return ordered or None
+
+
 def acquire_expirations(
     fulfillment: CapabilityFulfillmentService,
     symbol: str,
@@ -345,23 +369,12 @@ def acquire_expirations(
             f"a valid request for live option expirations for {symbol} "
             "could not be completed or normalized",
         )
-    as_of = now.date()
     values = tuple(observation.value for observation in result.observations)
-    if all(isinstance(value, ExpirationCycle) for value in values):
-        cycles: tuple[ExpirationCycle, ...] = values  # type: ignore[assignment]
-    elif len(values) == 1 and isinstance(values[0], OptionChain):
-        cycles = expirations_from_chain(values[0], as_of)
-    else:
+    ordered = normalize_expiration_response(values, now.date())
+    if ordered is None:
         raise StrategyAdapterError(
             ScreeningOutcomeStatus.MISSING_DATA,
             f"live option expiration response for {symbol} was neither a clean "
-            "expiration list nor a single option chain",
-        )
-    unique_by_date = {cycle.expiration_date: cycle for cycle in cycles}
-    ordered = tuple(unique_by_date[expiration] for expiration in sorted(unique_by_date))
-    if not ordered:
-        raise StrategyAdapterError(
-            ScreeningOutcomeStatus.MISSING_DATA,
-            f"live provider returned zero option expirations for {symbol}",
+            "expiration list nor a single option chain, or normalized to zero expirations",
         )
     return ordered

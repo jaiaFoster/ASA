@@ -21,6 +21,7 @@ calendar evidence for the confirmed-event exclusion gate.
 from __future__ import annotations
 
 from domain import MarketCapability
+from market_data import CapabilityFulfillmentService
 from screening import run_screening
 from screening.adapters import TARGET_STRATEGY_REGISTRY
 from screening.live_adapters import build_live_forward_factor_adapter
@@ -64,15 +65,23 @@ FORWARD_FACTOR_CONTRACT = StrategyContract(
 )
 
 
-def forward_factor_adapter(context: RuntimeContext) -> UniversalScreeningResult:
-    if context.fulfillment is None:
+def forward_factor_adapter(
+    context: RuntimeContext, fulfillment: CapabilityFulfillmentService | None
+) -> UniversalScreeningResult:
+    """``fulfillment`` is Forward Factor's own legacy composition binding
+    (SPRINT-014 S14-PR-05) -- supplied by strategy_runtime.adapters.
+    build_migrated_strategy_registry()'s own registry-construction-time
+    closure, never carried on RuntimeContext (I-09). See that module's own
+    docstring for this binding's owner and deletion condition.
+    """
+    if fulfillment is None:
         raise RuntimeError(
             "forward_factor requires shared market data access "
-            "(strategy_runtime.market_data_planning, EPIC-3) -- RuntimeContext.fulfillment is None"
+            "(strategy_runtime.adapters, legacy fulfillment binding) -- fulfillment is None"
         )
     live_adapter = build_live_forward_factor_adapter(
         context.subject,
-        context.fulfillment,
+        fulfillment,
         freshness_requirement=context.contract.freshness_requirement,
     )
     (result,) = run_screening(

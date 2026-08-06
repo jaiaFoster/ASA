@@ -38,6 +38,7 @@ from market_data.temporal import (
     evaluate_temporal_usability,
 )
 from strategy_runtime.clock import Clock
+from strategy_runtime.evidence import SubjectSealedEvidence
 from strategy_runtime.execution import ExecutionStatus, run_strategies
 from strategy_runtime.historical_evidence import HistoricalSkewRepository
 from strategy_runtime.lifecycle import (
@@ -206,11 +207,28 @@ def refresh(
     strategy_id: str,
     symbol: str,
     fulfillment_by_subject: Mapping[str, CapabilityFulfillmentService],
+    sealed_evidence_by_subject: Mapping[str, SubjectSealedEvidence] | None = None,
     historical_skew_repository: HistoricalSkewRepository | None = None,
 ) -> UniversalScreeningResult:
     """Recompute exactly one strategy against exactly one subject via the
     existing migrated adapters, then persist and return the new state --
     never a whole-universe or whole-strategy-set refresh.
+
+    ``fulfillment_by_subject`` (SPRINT-014 S14-PR-05) is no longer threaded
+    into RuntimeContext (I-09) -- it is used here only to compute this
+    result's own temporal metadata (freshness/usability/age), which reads
+    whatever a subject's shared CapabilityFulfillmentService already
+    accumulated this cycle regardless of which mechanism populated it
+    (a legacy strategy's own direct fulfill() calls, or a subject-first
+    plan wrapping that same service, as Earnings Calendar's own sealed
+    evidence acquisition does -- see screening.sealed_earnings_calendar).
+    A strategy not yet migrated still receives its own fulfillment service
+    through strategy_runtime.adapters.build_migrated_strategy_registry()'s
+    own legacy composition binding, entirely outside this function.
+
+    ``sealed_evidence_by_subject`` (SPRINT-014 S14-PR-05) is optional and
+    forwarded to run_strategies() unchanged, populating RuntimeContext.
+    sealed_evidence for a migrated strategy's own subject.
 
     ``historical_skew_repository`` (SPRINT-013 S13-04D) is optional and
     forwarded to run_strategies() unchanged; only a strategy contract that
@@ -222,7 +240,7 @@ def refresh(
         clock,
         subjects=(symbol,),
         strategy_ids=(strategy_id,),
-        fulfillment_by_subject=fulfillment_by_subject,
+        sealed_evidence_by_subject=sealed_evidence_by_subject,
         historical_skew_repository=historical_skew_repository,
     )
     if (

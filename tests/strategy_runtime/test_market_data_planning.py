@@ -15,6 +15,7 @@ from datetime import UTC, datetime
 
 import pytest
 
+from analytics.features import DerivedFactSet
 from domain import (
     CanonicalInstrumentIdentity,
     EvidenceKind,
@@ -27,8 +28,23 @@ from domain import (
     MarketDataSubjectType,
     ProviderAddressProjection,
 )
-from market_data import CapabilityRequest, load_market_data_config
+from market_data import (
+    BudgetScope,
+    CapabilityFulfillmentService,
+    CapabilityRegistry,
+    CapabilityRequest,
+    ProviderPriority,
+    ProviderPriorityPolicy,
+    ProviderRegistry,
+    RequestBudgetManager,
+    RequestBudgetPolicy,
+    load_market_data_config,
+)
+from market_data.factory import ProviderDependencies
+from market_data.fixture import FIXTURE_PROVIDER_ID, DeterministicFixtureProvider
+from market_data.resolution import ResolutionPolicy
 from market_data.rolling_window import ProviderRollingWindowTracker, RollingWindowPolicy
+from market_data.subject_snapshot import seal_subject_snapshot
 from strategy_runtime import (
     NO_LIFECYCLE,
     DataRequirement,
@@ -38,12 +54,14 @@ from strategy_runtime import (
     StrategyContract,
     StrategyRegistry,
     StructureKind,
+    SubjectSealedEvidence,
     build_provider_rolling_window_tracker,
     build_shared_market_data_access,
     declared_rolling_window_policies,
     run_strategies,
 )
 from strategy_runtime.market_data_planning import enabled_provider_configs
+from tests.market_data.test_fulfillment import UnusedBudget as _UnusedBudget
 
 NOW = datetime(2026, 1, 1, tzinfo=UTC)
 CAPABILITY = MarketCapability.REAL_TIME_QUOTE_V1
@@ -107,6 +125,44 @@ class TestBuildSharedMarketDataAccess:
         assert first is second  # identical object back -- genuinely not re-fetched
 
 
+def _sealed_evidence_for(symbol: str) -> SubjectSealedEvidence:
+    # SPRINT-014 S14-PR-05: RuntimeContext no longer carries a live
+    # CapabilityFulfillmentService (I-09) -- this fixture proves
+    # run_strategies()'s replacement generic capability, sealed_evidence_by_
+    # subject, the same way the pre-cutover fulfillment_by_subject fixture
+    # once proved EPIC-3's own shared-fulfillment mechanism.
+    base = next(
+        item
+        for item in load_market_data_config({}).providers
+        if item.provider_id == FIXTURE_PROVIDER_ID
+    )
+    source = DeterministicFixtureProvider(
+        base, ProviderDependencies(object(), _FixedClock(), _UnusedBudget())
+    )
+    registry = ProviderRegistry((source,))
+    priority_policy = ProviderPriorityPolicy(
+        "v1", (ProviderPriority(CAPABILITY, (FIXTURE_PROVIDER_ID,)),)
+    )
+    capabilities = CapabilityRegistry(registry, priority_policy)
+    budgets = RequestBudgetManager(
+        (RequestBudgetPolicy(FIXTURE_PROVIDER_ID, BudgetScope.RUNTIME, 4, 4, 0, "v1"),),
+        _FixedClock(),
+    )
+    fulfillment = CapabilityFulfillmentService(registry, capabilities, budgets)
+    result = fulfillment.fulfill(_quote_request())
+    policy = ResolutionPolicy("v1", (FIXTURE_PROVIDER_ID,), 60, ("last",))
+    snapshot = seal_subject_snapshot(
+        (result,),
+        as_of=NOW,
+        required_capabilities=(CAPABILITY,),
+        resolution_policy_by_capability={CAPABILITY: policy},
+        provider_metadata=(source.metadata,),
+    )
+    return SubjectSealedEvidence(
+        snapshot=snapshot, canonical_facts=(), derived_facts=DerivedFactSet(())
+    )
+
+
 class TestRunStrategiesWithSharedMarketData:
     def _contract(self, strategy_id: str) -> StrategyContract:
         return StrategyContract(
@@ -122,43 +178,42 @@ class TestRunStrategiesWithSharedMarketData:
             outputs=(OutputKind.METRICS,),
         )
 
-    def test_two_strategies_sharing_a_subject_get_the_same_fulfillment_result_object(
+    def test_two_strategies_sharing_a_subject_get_the_same_sealed_evidence_object(
         self,
     ) -> None:
-        request = _quote_request()
-
         def _adapter(context: RuntimeContext) -> object:
-            assert context.fulfillment is not None
-            return context.fulfillment.fulfill(request)
+            assert context.sealed_evidence is not None
+            return context.sealed_evidence
 
         registry = StrategyRegistry(
             ((self._contract("alpha"), _adapter), (self._contract("beta"), _adapter))
         )
-        config = load_market_data_config({})
         clock = _FixedClock()
-        access = build_shared_market_data_access(config, _no_transport_needed, clock, ("AAPL",))
-        fulfillment_by_subject = {symbol: item.fulfillment for symbol, item in access.items()}
+        sealed_evidence_by_subject = {"AAPL": _sealed_evidence_for("AAPL")}
 
         results = run_strategies(
-            registry, clock, subjects=("AAPL",), fulfillment_by_subject=fulfillment_by_subject
+            registry,
+            clock,
+            subjects=("AAPL",),
+            sealed_evidence_by_subject=sealed_evidence_by_subject,
         )
 
         assert len(results) == 2
         alpha_result = next(item for item in results if item.strategy_id == "alpha").result
         beta_result = next(item for item in results if item.strategy_id == "beta").result
-        assert alpha_result is beta_result  # both adapters actually shared one fulfillment
+        assert alpha_result is beta_result  # both adapters actually shared one bundle
 
-    def test_no_fulfillment_by_subject_leaves_context_fulfillment_none(self) -> None:
+    def test_no_sealed_evidence_by_subject_leaves_context_sealed_evidence_none(self) -> None:
         seen: list[object] = []
 
         def _adapter(context: RuntimeContext) -> str:
-            seen.append(context.fulfillment)
+            seen.append(context.sealed_evidence)
             return "ok"
 
         registry = StrategyRegistry(((self._contract("alpha"), _adapter),))
         clock = _FixedClock()
 
-        run_strategies(registry, clock, subjects=("AAPL",))  # no fulfillment_by_subject at all
+        run_strategies(registry, clock, subjects=("AAPL",))  # no sealed_evidence_by_subject at all
 
         assert seen == [None]
 

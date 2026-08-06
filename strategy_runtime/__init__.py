@@ -20,8 +20,18 @@ lives in strategy_runtime.result: the one canonical result envelope every
 strategy's adapter returns. EPIC-3 (Shared Data Planning) lives in
 strategy_runtime.market_data_planning: one market_data.
 CapabilityFulfillmentService per subject, shared by every strategy that
-evaluates it within a run, threaded through RuntimeContext.fulfillment by
-run_strategies()'s own optional fulfillment_by_subject parameter. EPIC-4
+evaluates it within a run. SPRINT-014 (Restore Subject-First Fact
+Pipeline) removed that service from RuntimeContext entirely (I-09:
+strategy-facing code receives no provider, transport, budget, or
+fulfillment object) -- strategy_runtime.evidence.SubjectSealedEvidence
+(sealed MarketSnapshot plus projected canonical/derived facts) is the one
+read-only bundle a migrated strategy may receive instead, threaded
+through RuntimeContext.sealed_evidence by run_strategies()'s own optional
+sealed_evidence_by_subject parameter. A strategy not yet migrated to the
+subject-first path receives its own CapabilityFulfillmentService through
+strategy_runtime.adapters.build_migrated_strategy_registry()'s own
+explicitly named, temporary legacy composition binding instead -- see
+that module's own docstring for its owner and deletion condition. EPIC-4
 (Universal Options Framework) lives in strategy_runtime.options: domain's
 own already-validated OptionLeg/OptionStructure adopted directly as the
 canonical option package representation, analytics.expiration_selection's
@@ -79,6 +89,7 @@ from strategy_runtime.errors import (
     StrategyContractViolationError,
     UnknownStrategyIdError,
 )
+from strategy_runtime.evidence import SubjectSealedEvidence
 from strategy_runtime.execution import (
     ExecutionStatus,
     RuntimeExecutionSummary,
@@ -131,6 +142,7 @@ __all__ = [
     "StrategyRegistry",
     "StructureKind",
     "SubjectMarketDataAccess",
+    "SubjectSealedEvidence",
     "TypedValue",
     "UniversalScreeningResult",
     "UnknownStrategyIdError",
