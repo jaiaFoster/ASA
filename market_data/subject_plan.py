@@ -37,6 +37,9 @@ CapabilityFulfillmentService itself never owns cycle identity either).
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+from typing import Protocol
+
 from market_data.attempts import AcquisitionAttemptRepository, attempt_records_for
 from market_data.factory import Clock
 from market_data.fulfillment import (
@@ -143,3 +146,55 @@ class SubjectAcquisitionPlan:
         )
         self._sequence_offset += len(records)
         self._attempt_repository.record(records)
+
+
+class CapabilityFulfiller(Protocol):
+    """The one method every already-existing, unmodified acquisition
+    function in this codebase actually calls on whatever it is given
+    (screening/live_context.py's acquire_capability,
+    screening/live_adapters.py's _acquire_or_raise, and everything built
+    on them) -- CapabilityFulfillmentService already satisfies this
+    structurally; formalized as a Protocol here (SPRINT-014 S14-PR-05A) so
+    PlanBackedFulfillment below can be passed to the same call sites
+    without changing any of them.
+    """
+
+    def fulfill(
+        self, request: CapabilityRequest, *, required: bool = True
+    ) -> CapabilityFulfillmentResult: ...
+
+
+@dataclass(frozen=True, slots=True)
+class PlanBackedFulfillment:
+    """Adapts SubjectAcquisitionPlan.resolve() to CapabilityFulfillmentService's
+    own fulfill() interface (SPRINT-014 S14-PR-05A, Architect review
+    finding B3, PR #292 review 4877473757: "one exhausted request shared
+    across migrated and legacy same-subject consumers").
+
+    Forward Factor and Skew Momentum's own acquisition (screening/
+    live_adapters.py's build_live_forward_factor_adapter/
+    build_live_skew_momentum_adapter, unmodified) call ``.fulfill()``
+    directly on whatever CapabilityFulfiller they are given. Wrapping one
+    subject's own SubjectAcquisitionPlan in this class and passing the
+    wrapper instead of the subject's raw CapabilityFulfillmentService
+    means every one of those unmodified calls transparently routes
+    through the same plan Earnings Calendar's own generic subject
+    planning (screening/subject_planning.py) already uses for that
+    subject this cycle -- so a capability request either strategy makes
+    is resolved once, shared, and exhausted-or-successful for every
+    consumer, migrated or legacy, regardless of which one asks first.
+
+    Introduces no new persistence or identity authority of its own: every
+    call is a pure pass-through to the wrapped plan's own resolve(), which
+    already owns idempotency and durable attempt persistence (S14-PR-03).
+    Never carried on RuntimeContext (I-09) -- only closed over by the
+    legacy composition binding at registry-construction time, exactly like
+    the raw CapabilityFulfillmentService it replaces.
+    """
+
+    plan: SubjectAcquisitionPlan
+
+    def fulfill(
+        self, request: CapabilityRequest, *, required: bool = True
+    ) -> CapabilityFulfillmentResult:
+        return self.plan.resolve(request, required=required)

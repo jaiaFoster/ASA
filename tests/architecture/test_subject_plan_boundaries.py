@@ -35,7 +35,10 @@ def test_subject_plan_has_no_downstream_layer_imports() -> None:
 
 
 def test_subject_plan_only_imports_from_permitted_roots() -> None:
-    permitted = {"__future__", "market_data"}
+    # dataclasses/typing added (SPRINT-014 S14-PR-05A): PlanBackedFulfillment
+    # (a frozen dataclass) and the CapabilityFulfiller Protocol it satisfies
+    # -- both pure stdlib, no new package dependency.
+    permitted = {"__future__", "dataclasses", "market_data", "typing"}
     tree = ast.parse(_MODULE.read_text())
     roots = _imported_roots(tree)
     violations = roots - permitted

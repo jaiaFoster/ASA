@@ -21,7 +21,7 @@ from market_data.attempts import (
     AttemptQuery,
     InMemoryAcquisitionAttemptRepository,
 )
-from market_data.subject_plan import SubjectAcquisitionPlan
+from market_data.subject_plan import PlanBackedFulfillment, SubjectAcquisitionPlan
 from tests.market_data.test_fulfillment import (
     CAPABILITY,
     Clock,
@@ -247,3 +247,75 @@ class TestDoesNotMutateUnderlyingService:
 
         assert direct.status.value == "fulfilled"
         assert [decision.value for _, decision in fulfillment.call_log] == ["fresh", "reused"]
+
+
+class TestPlanBackedFulfillment:
+    """SPRINT-014 S14-PR-05A, Architect review finding B3: a legacy
+    consumer calling .fulfill() directly (exactly as
+    CapabilityFulfillmentService's own real callers already do) must
+    share the same plan-owned resolution a migrated consumer's own
+    plan.resolve() call sees -- one exhausted or successful request per
+    subject per cycle, never once per consumer.
+    """
+
+    def test_fulfill_delegates_to_the_wrapped_plans_resolve(self) -> None:
+        fulfillment, _ = service(provider("primary"))
+        plan, _ = _plan(fulfillment)
+        wrapper = PlanBackedFulfillment(plan)
+
+        via_wrapper = wrapper.fulfill(request())
+        via_plan = plan.resolve(request())
+
+        assert via_wrapper.status.value == "fulfilled"
+        assert via_wrapper is via_plan  # the exact same resolved result, not a copy
+
+    def test_a_migrated_consumers_plan_resolve_and_a_legacy_consumers_fulfill_share_one_result(
+        self,
+    ) -> None:
+        """The exact scenario B3 describes: one caller uses the plan
+        directly (as the generic planner does); another, unmodified
+        legacy caller only knows how to call .fulfill() on whatever it is
+        given. Wrapping the same plan for the second caller means both
+        see the identical resolved result and only one provider round
+        trip happens in total.
+        """
+        fulfillment, _ = service(provider("primary"))
+        plan, _ = _plan(fulfillment)
+        legacy_view: CapabilityFulfillmentService = PlanBackedFulfillment(plan)  # type: ignore[assignment]
+
+        migrated_result = plan.resolve(request())
+        legacy_result = legacy_view.fulfill(request())
+
+        assert migrated_result is legacy_result
+        assert len(fulfillment.call_log) == 1  # exactly one real provider call, not two
+
+    def test_an_exhausted_failure_is_shared_across_a_legacy_and_a_migrated_consumer(self) -> None:
+        always_fails = FixtureScenario(failures=((CAPABILITY, ProviderErrorCode.NO_DATA),))
+        fulfillment, _ = service(provider("primary", always_fails))
+        plan, repository = _plan(fulfillment, maximum_attempts_per_request=1)
+        legacy_view = PlanBackedFulfillment(plan)
+
+        migrated_result = plan.resolve(request(), required=False)
+        legacy_result = legacy_view.fulfill(request(), required=False)
+
+        assert migrated_result.status.value == "failed"
+        assert legacy_result is migrated_result
+        # Exactly one attempt was ever made and durably recorded -- the
+        # legacy caller's own later call never triggered a second one.
+        rows = repository.query(AttemptQuery(limit=10))
+        assert len(rows) == 1
+
+    def test_consumer_order_does_not_change_the_shared_result_or_call_count(self) -> None:
+        """B3's own "strategy-order and consumer-count independence"
+        requirement, proven the other way around: the legacy caller
+        resolves first this time.
+        """
+        fulfillment, _ = service(provider("primary"))
+        plan, _ = _plan(fulfillment)
+        legacy_view = PlanBackedFulfillment(plan)
+
+        legacy_result = legacy_view.fulfill(request())
+        migrated_result = plan.resolve(request())
+
+        assert legacy_result is migrated_result
+        assert len(fulfillment.call_log) == 1
