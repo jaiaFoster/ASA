@@ -1,0 +1,369 @@
+sprint:
+  schema: asa.foundational_architecture_sprint/v1
+  id: SPRINT-014
+  version: 1.0-final
+  initiative: ARCH-FACT-001
+  name: Restore Subject-First Fact Pipeline
+  class: foundational_architecture
+  status: pending_founder_merge
+  created_at: 2026-08-05T23:05:00-07:00
+
+  intent: >-
+    Replace strategy-driven acquisition with one subject-first evidence and fact
+    pipeline. Verify the production root cause, migrate Earnings Calendar to
+    sealed persisted evidence and read-only facts, prove replay, and delete the
+    superseded path.
+
+  authority:
+    precedence:
+      - architecture/CONSTITUTION.md
+      - architecture/ASA-ARCH-007-Market-Data-Platform.md
+      - architecture/ADR-010-strategy-integrity-topology.md
+      - architecture/README.md
+      - governance/amendments/GOV-AMD-001.md#amendment-013
+      - roles/shared/AUTHORITY_BOUNDARIES.md
+      - project/reports/SPRINT-013-S13-08-audit.md
+    architectural_rules:
+      - Providers gather observations; strategies never gather provider data.
+      - Sealed snapshots and canonical facts are the strategy evidence boundary.
+      - Analytics materializes named, versioned derived facts once per evidence set.
+      - Screening plans generically and never owns strategy-specific acquisition.
+      - Founder-approved bounded execution proceeds without per-PR Founder review.
+
+  delegation:
+    source: governance/amendments/GOV-AMD-001.md#amendment-013
+    mode: governed_auto_merge
+    grant: >-
+      By merging this exact artifact, the Founder approves SPRINT-014 and
+      delegates Founder merge authority, only within this sprint, to the Worker
+      instance assigned by the Manager to the applicable SPRINT-014 ticket. The
+      assigned Worker may implement, self-review, enable repository auto-merge
+      when available, and merge a qualifying PR after every required gate is PASS.
+      No separate per-PR Founder approval is required.
+    activation:
+      architect_design_gate:
+        status: PASS
+        recorded_by: ROLE-ARCH
+        recorded_at: 2026-08-05T23:05:00-07:00
+        meaning: >-
+          The sprint has bounded scope, explicit invariants, verifiable gates,
+          staged migration, rollback, deletion, and escalation. Implementation
+          PRs still require independent per-PR architecture PASS.
+      founder_action: Merge this exact artifact.
+      state_after_founder_merge: ACTIVE
+      additional_founder_activation: none
+    delegate:
+      authorized_role: Worker
+      instance_binding: Manager assignment to an exact sprint ticket
+      audit: Each PR records the assigned Worker identity and ticket ID.
+    separation:
+      founder: authorize or revoke delegation
+      architect: issue independent architecture gate; never merge
+      manager: assign, sequence, or stop; never merge
+      worker: implement, self-review, and merge qualifying assigned work
+    auto_merge:
+      enabled: true
+      meaning: Governed merge after all gates, not CI-only merge or self-approval.
+      required:
+        - Delegation is ACTIVE.
+        - PR belongs to the fixed train and dependencies are merged.
+        - Assigned Worker identity and ticket are recorded.
+        - Architect per-PR architecture gate is PASS.
+        - Manager stop status is CLEAR.
+        - Required CI, tests, migration, parity, replay, and rollback checks pass.
+        - Worker self-review packet is complete.
+        - No pause trigger or unresolved P0/P1 incident exists.
+      merge_record:
+        - sprint and PR-train IDs
+        - Worker identity
+        - Architect gate and evidence reference
+        - CI and validation references
+        - Manager stop status
+        - merge rationale
+    expires_on_first:
+      - Definition of done is accepted.
+      - Founder revokes delegation.
+      - Scope, invariant, or delegation changes.
+      - An automatic pause cannot be resolved in scope.
+    inheritance: prohibited
+
+  founder_review:
+    required_only_for:
+      - Work outside this scope or fixed PR train.
+      - New architecture, capability, or top-level subsystem.
+      - Weakened or reinterpreted invariant or acceptance criterion.
+      - Frozen governance, protected contract, or Founder-authority change.
+      - Migration of a strategy other than Earnings Calendar.
+      - Delegate-role or delegation-model change.
+      - Unresolved Architect objection or architecture ambiguity.
+      - Migration or rollback outside approved limits.
+      - Material product intent or acceptance change.
+    not_required_for:
+      - Manager assignment of Workers to existing tickets.
+      - In-scope ticket decomposition or implementation choices.
+      - Routine fixes required to satisfy approved acceptance criteria.
+      - Auto-merging a PR after every required gate is PASS.
+      - Executing the bounded rollback plan.
+      - Deleting code explicitly listed after cutover and replay gates pass.
+      - Creating bounded follow-on migration tickets after sprint closure.
+
+  philosophy:
+    root_cause_first:
+      rule: >-
+        Map symptom -> violated invariant -> owning layer -> permanent correction
+        -> red-on-baseline and green-on-head proof.
+      reject:
+        - sleeps, quota padding, or broader retries as topology fixes
+        - cache exceptions as shared planning
+        - strategy-ID or strategy-specific provider branches
+        - parallel snapshot, fact, analytics, or persistence systems
+        - compatibility shims without owner, expiry, and deletion gate
+        - lower call count without strategy-order independence
+    token_efficiency:
+      - Read authority files once; cite paths instead of repeating them.
+      - Start with each ticket read_set; expand only with a blocker reason.
+      - Put one concise evidence packet in each PR; create no duplicate report.
+      - Prefer path, invariant, test, and measurement references over narrative logs.
+      - Reuse existing owners and avoid unrelated refactors.
+      - Do not use historical chat as implementation truth.
+    blockers:
+      - Raise before workaround, scope expansion, or gate weakening.
+      - Pause affected work; independent work may continue.
+      - Report invariant, evidence, root cause, options, and decision owner.
+    entropy:
+      - Every transition has a deletion gate.
+      - Retention requires live reachability or Founder-approved exception.
+      - Deletion is required sprint work, not optional cleanup.
+
+  root_cause:
+    statement: >-
+      Production evaluates strategy-by-strategy and gives strategy-specific
+      adapters acquisition and local derivation responsibility. Exact-request
+      success caching reduces some duplicates but creates no subject-owned plan,
+      sealed evidence boundary, shared derived-fact set, or durable shared failure
+      history. Failed cache entries may be removed and repeated by later strategies.
+    verification:
+      - Trace one scheduled cycle from composition root through every provider call.
+      - Record calls by cycle, subject, request identity, expiration, and strategy.
+      - Compare equivalent strategy sets in different orders.
+      - Add a consumer of existing requirements and measure incremental calls.
+      - Trace success, retry, eviction, failure, persistence, and consumer outcome.
+      - Enumerate live strategy-facing provider or fulfillment access.
+    gate: >-
+      PR-02 and later may open in parallel but cannot merge until the Architect
+      accepts PR-01 evidence. Every correction PR records red-on-baseline and
+      green-on-head evidence; merge heads remain green.
+
+  invariants:
+    I-01: One logical acquisition plan per subject and cycle.
+    I-02: Calls depend on unique required data, not strategy count or order.
+    I-03: One call per unique planned datum or expiration, except one plan-owned bounded retry.
+    I-04: Every acquisition attempt is durable; failures are never erased.
+    I-05: Cache eviction or later success cannot delete failure evidence.
+    I-06: Every evaluation references one sealed snapshot ID and digest.
+    I-07: Derived identity includes subject, time, fact ID, version, parameters, and snapshot digest.
+    I-08: Equivalent derived facts compute once per snapshot and parameter set.
+    I-09: Strategy-facing code receives no provider, transport, budget, or fulfillment object.
+    I-10: DTE, wing, window, freshness, and optionality each have one owner.
+    I-11: Replay makes zero provider calls and reproduces the persisted result.
+    I-12: No parallel top-level evidence, snapshot, fact, analytics, or persistence subsystem.
+    I-13: Migrated transitional code is deleted after parity and cutover.
+    I-14: Architecture guards inspect live composition and the live strategy registry.
+
+  target_flow:
+    - collect active manifests
+    - project requirements by subject
+    - acquire bootstrap evidence
+    - resolve strategy-owned selections without provider access
+    - union exact field, window, and expiration demand
+    - execute one deterministic subject plan
+    - persist every attempt, including failure
+    - seal MarketSnapshot and project canonical facts
+    - materialize immutable versioned DerivedFactSet
+    - evaluate read-only strategies and persist provenance
+    - replay without providers
+
+  scope:
+    in:
+      - Live scheduled-path root-cause and call-count evidence.
+      - Earnings Calendar declarative requirements.
+      - Subject-first phased acquisition and durable attempt history.
+      - Existing snapshot, canonical-fact, derived-fact, and persistence completion.
+      - Read-only shadow migration, cutover, replay, and history query.
+      - Superseded Earnings Calendar path deletion and live architecture tests.
+    out:
+      - Any strategy migration other than Earnings Calendar.
+      - Provider replacement or unrelated provider-contract redesign.
+      - Strategy algorithm or product behavior redesign.
+      - Backtest/optimization engines or user-facing backtest UI.
+      - Historical retention, compaction, archival, or deletion policy.
+      - New top-level package where an accepted owner exists.
+      - Unrelated refactors or rate-limit tuning.
+    migration_strategy: earnings_calendar
+    substitution_requires: Founder approval
+
+  ownership_constraints:
+    acquisition_and_normalization: market_data/
+    snapshot_and_replay: market_data/snapshot.py and market_data/replay.py
+    canonical_facts: facts/
+    derived_facts: analytics/
+    declarations: strategies/
+    generic_orchestration: screening/ and strategy_runtime/ under ADR-010
+    durable_storage: existing persistence repositories and migrations
+    rule: >-
+      Extend an accepted owner. A second repository, snapshot model, fact model,
+      analytics engine, orchestration root, or top-level subsystem requires Founder review.
+
+  pr_train:
+    - id: S14-PR-01
+      title: Verify root cause
+      read_set: [architecture/, asa/scheduled_screening.py, strategy_runtime/, screening/live_adapters.py, market_data/fulfillment.py, tests/architecture/]
+      deliver: [root-cause evidence packet, current call graph, order/count/failure measurements, live-boundary test map]
+      accept:
+        - Reproduces strategy-driven acquisition on current main.
+        - Distinguishes exact-request caching from subject-first planning.
+        - Traces repeated-failure behavior.
+        - Architect records ROOT_CAUSE_ACCEPTED.
+      rollback: Remove instrumentation; production behavior is unchanged.
+
+    - id: S14-PR-02
+      title: Declare requirements
+      depends_on: [S14-PR-01]
+      read_set: [strategies/manifest.py, strategies/stonk_manifests.py, analytics/registry.py, market_data/]
+      deliver: [typed Earnings Calendar requirement projection, explicit policy ownership]
+      accept:
+        - Projection is complete, deterministic, and order-independent.
+        - No hidden acquisition constant remains in screening or adapters.
+        - Requirement code performs no provider call.
+      rollback: Revert consumers while preserving additive manifest compatibility.
+
+    - id: S14-PR-03
+      title: Plan once and persist attempts
+      depends_on: [S14-PR-02]
+      read_set: [market_data/fulfillment.py, market_data/snapshot.py, facts/, persistence/]
+      deliver: [two-phase subject plan, bounded plan-owned retry, append-only attempt records]
+      accept:
+        - Added consumers cause zero calls for already-planned evidence.
+        - Consumer order does not change plan identity or call count.
+        - Exhausted evidence yields one shared typed UNKNOWN.
+        - Failures remain queryable after eviction and later success.
+      rollback: Disable new composition root; preserve additive evidence.
+
+    - id: S14-PR-04
+      title: Seal evidence and materialize facts
+      depends_on: [S14-PR-03]
+      read_set: [market_data/snapshot.py, market_data/replay.py, analytics/, facts/]
+      deliver: [sealed MarketSnapshot, canonical projection, immutable DerivedFactSet, persisted identities]
+      accept:
+        - Every value traces to evidence or explicit UNKNOWN.
+        - Derived identity satisfies I-07 and compute-once satisfies I-08.
+        - Existing canonical types are extended, not duplicated.
+      rollback: Disable consumers; preserve persisted evidence.
+
+    - id: S14-PR-05
+      title: Shadow and cut over Earnings Calendar
+      depends_on: [S14-PR-04]
+      read_set: [strategy_runtime/context.py, strategy_runtime/execution.py, strategy_runtime/adapters/, screening/live_adapters.py, strategies/]
+      deliver: [read-only input contract, shadow comparison, parity evidence, gated cutover]
+      accept:
+        - New path performs zero strategy-owned acquisition.
+        - RuntimeContext exposes no acquisition capability.
+        - Output parity is exact or intentional difference is versioned and Architect-approved.
+        - One outage result is shared by every consumer.
+        - Architect records CUTOVER_PASS.
+      rollback: Re-enable old Earnings Calendar path with the bounded switch; retain new evidence.
+
+    - id: S14-PR-06
+      title: Prove replay and history
+      depends_on: [S14-PR-05]
+      read_set: [market_data/replay.py, facts/, analytics/, persistence/]
+      deliver: [provider-free replay test, historical fact/failure/signal query]
+      accept:
+        - Replayed output equals the original persisted evaluation.
+        - Signal evolution is reconstructible across effective times.
+        - Missing and failed evidence remains visible with provenance.
+      rollback: Remove query surface only; retain canonical records.
+
+    - id: S14-PR-07
+      title: Delete superseded path and close
+      depends_on: [S14-PR-05, S14-PR-06]
+      read_set: [screening/live_adapters.py, strategy_runtime/market_data_planning.py, strategy_runtime/adapters/, tests/architecture/, project/reports/]
+      deliver: [deletion ledger, obsolete path removal, live architecture gates, production-equivalent validation]
+      accept:
+        - Old Earnings Calendar path cannot execute.
+        - No orphan import, duplicate owner, dead demo, bridge, or unused cache scaffold remains in scope.
+        - Tests inspect live registry and composition.
+        - Full suite and production-equivalent cycle pass.
+      rollback: Revert deletion only with bounded cutover rollback; automatic pause applies.
+
+  per_pr_gate:
+    owner: ROLE-ARCH
+    required_status: PASS
+    checks:
+      - PR matches one train item and merged dependencies.
+      - Scope, ownership, invariants, and acceptance are evidenced.
+      - No hidden scope, new architecture, or governance change.
+      - Red-on-baseline and green-on-head evidence is credible.
+      - Migration, rollback, and transition deletion are bounded.
+    non_pass_effect: Auto-merge pauses; revise in scope or seek Founder decision.
+
+  worker_self_review:
+    required:
+      - ticket and changed paths
+      - symptom, verified root cause, and restored invariant IDs
+      - tests and red/green evidence
+      - architecture conformance
+      - migration and rollback status
+      - residual risk and bounded follow-up
+      - statement that scope, authority, and invariants were not expanded
+
+  pause:
+    triggers:
+      - Scope, ownership, invariant, or accepted contract is unclear.
+      - Architect gate is not PASS or Manager issues a stop.
+      - CI, migration, parity, replay, rollback, or required evidence fails.
+      - Unrelated P0/P1 incident or regression is open.
+      - Placeholder, deprecated path, or unowned transition would remain active.
+      - Delegate identity is absent or changed outside Manager assignment.
+      - Proposed fix is retry/cache/timing/compatibility treatment without root-cause proof.
+    effect:
+      - Do not enable or execute auto-merge for the affected PR.
+      - Preserve evidence and raise a blocker.
+      - Continue only independent work that cannot conceal or compound the issue.
+    resume:
+      in_scope: Architect or Manager clears the condition within unchanged scope.
+      founder: Required only for a founder_review.required_only_for condition.
+
+  blocker_format:
+    required: [PR ID, violated invariant, reproduction, evidence, root cause, options, recommendation, decision owner]
+    prohibited: [hidden fallback, silent scope change, symptom patch, unowned shim, weakened gate, merge under stop]
+
+  gates:
+    G-01: ROOT_CAUSE_ACCEPTED blocks PR-02 through PR-07 merges.
+    G-02: Declarative complete requirements block PR-03.
+    G-03: Order-independent plan and durable failures block PR-04.
+    G-04: Sealed evidence and versioned compute-once facts block PR-05.
+    G-05: Shadow parity and CUTOVER_PASS block cutover and PR-06 acceptance.
+    G-06: Provider-free replay equality blocks PR-07.
+    G-07: Superseded-path deletion blocks sprint closure.
+
+  metrics:
+    - Calls per cycle, subject, request identity, and expiration.
+    - Incremental calls from added consumers and order permutations.
+    - Attempts, retries, failures, later successes, and shared UNKNOWN outcomes.
+    - Persisted snapshots, facts, evaluations, and failures.
+    - Shadow parity and replay equality.
+    - Transitional paths added, deleted, or retained with approved expiry.
+
+  definition_of_done:
+    - Earnings Calendar runs only through the subject-first path.
+    - It receives sealed snapshot and immutable derived facts read-only.
+    - It has no provider, fulfillment, budget, transport, or acquisition access.
+    - Calls depend on the subject plan, not consumer count or order.
+    - Successes and failures are append-only and historically queryable.
+    - Replay is equal and provider-free; signal evolution is queryable.
+    - Superseded acquisition, duplicate policy, and transition code are deleted.
+    - Live architecture tests prevent reintroduction.
+    - No P0/P1 regression or unresolved pause remains.
+    - Architect records final PASS; Manager records completion.
+    - Delegation automatically revokes at accepted closure.
