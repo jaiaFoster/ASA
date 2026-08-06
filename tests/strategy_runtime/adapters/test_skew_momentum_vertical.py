@@ -136,7 +136,7 @@ class TestSkewMomentumAdapter:
             SKEW_MOMENTUM_VERTICAL_CONTRACT, "AAPL", _FixedClock(datetime.now(UTC)), "run-1"
         )
         with pytest.raises(RuntimeError, match="requires shared market data access"):
-            skew_momentum_adapter(context)
+            skew_momentum_adapter(context, None)
 
     def test_full_live_acquisition_produces_a_translated_result(
         self, monkeypatch: pytest.MonkeyPatch
@@ -165,15 +165,9 @@ class TestSkewMomentumAdapter:
         access = build_shared_market_data_access(
             config, lambda _provider_id: ScriptedTransport(responses), clock, ("AAPL",)
         )
-        context = RuntimeContext(
-            SKEW_MOMENTUM_VERTICAL_CONTRACT,
-            "AAPL",
-            clock,
-            "run-1",
-            access["AAPL"].fulfillment,
-        )
+        context = RuntimeContext(SKEW_MOMENTUM_VERTICAL_CONTRACT, "AAPL", clock, "run-1")
 
-        result = skew_momentum_adapter(context)
+        result = skew_momentum_adapter(context, access["AAPL"].fulfillment)
 
         assert result.strategy_id == "skew_momentum"
         assert result.symbol == "AAPL"

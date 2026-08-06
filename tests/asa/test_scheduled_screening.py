@@ -475,6 +475,101 @@ def test_non_skew_momentum_pairs_never_touch_the_historical_skew_repository(
     assert historical_skew_repository.append_calls == []
 
 
+# -- SPRINT-014 S14-PR-05: earnings_calendar_cutover_enabled rollback -------
+
+
+_ALWAYS_UNAVAILABLE = ReadOnlyHttpResponse(500, {}, (), 12, "always-unavailable")
+
+
+class _RoutedTransport:
+    """Endpoint-keyed transport double (mirrors tests/strategy_runtime/
+    adapters/test_earnings_calendar.py's own identical helper) -- unlike a
+    finite ScriptedTransport queue, this never runs out and never raises a
+    raw IndexError a real transport could never produce, letting Finnhub
+    receive only its own real earnings response while anything else it's
+    asked for fails over to Tradier cleanly (both declare overlapping
+    quote/historical-bars capabilities).
+    """
+
+    def __init__(self, responses_by_endpoint: dict[str, ReadOnlyHttpResponse]) -> None:
+        self._responses_by_endpoint = dict(responses_by_endpoint)
+
+    def get(self, request: object) -> ReadOnlyHttpResponse:
+        endpoint_class = getattr(request, "endpoint_class", None)
+        return self._responses_by_endpoint.get(endpoint_class, _ALWAYS_UNAVAILABLE)
+
+
+def _finnhub_earnings_response(event_date: str) -> ReadOnlyHttpResponse:
+    return ReadOnlyHttpResponse(
+        200,
+        {"earningsCalendar": [{"symbol": "AAPL", "date": event_date, "hour": "amc"}]},
+        (),
+        12,
+        "finnhub-request-earnings",
+    )
+
+
+def test_earnings_calendar_cutover_disabled_restores_the_legacy_attempt_scoping(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Proves the rollback switch actually changes which acquisition path
+    runs, without needing a full live-fixture round trip through either
+    path: SubjectAcquisitionPlan (the cutover-enabled path) stamps its own
+    plan_id onto *both* screening_cycle_id and pair_evaluation_id for its
+    internally persisted attempts (market_data/subject_plan.py -- plan_id
+    here is set to this pair's own pair_id, so its recorded
+    screening_cycle_id is *not* the cycle's real screening_cycle_id every
+    other pair shares). With the switch disabled, earnings_calendar's own
+    attempts go through the same manual per-pair recording every other
+    (non-earnings_calendar) pair uses, sharing the cycle's real
+    screening_cycle_id like everything else -- provable only if
+    earnings_calendar's own legacy acquisition actually records at least
+    one attempt, hence Finnhub is enabled and scripted here (unlike this
+    file's other earnings_calendar fixtures, which deliberately leave it
+    unconfigured to exercise the zero-attempt "no priority policy" case
+    instead).
+    """
+    monkeypatch.setenv("ASA_TRADIER_ENABLED", "true")
+    monkeypatch.setenv("ASA_TRADIER_ACCESS_TOKEN", "sandbox-secret-token")
+    monkeypatch.setenv("ASA_FINNHUB_ENABLED", "true")
+    monkeypatch.setenv("ASA_FINNHUB_API_KEY", "sandbox-secret-key")
+    repository = InMemoryLatestResultRepository()
+    attempt_repository = InMemoryAcquisitionAttemptRepository()
+    universe = (("skew_momentum", "AAPL"), ("earnings_calendar", "AAPL"))
+    expiration = (date.today() + timedelta(days=7)).isoformat()
+    earnings_date = (date.today() + timedelta(days=20)).isoformat()
+    transports = {
+        "tradier": ScriptedTransport(_tradier_refresh_responses(expiration)),
+        "finnhub": _RoutedTransport(
+            {"earnings_calendar": _finnhub_earnings_response(earnings_date)}
+        ),
+    }
+
+    outcomes = run_scheduled_refresh(
+        universe,
+        repository=repository,
+        acquisition_attempt_repository=attempt_repository,
+        transport_factory=lambda provider_id: transports[provider_id],
+        earnings_calendar_cutover_enabled=False,
+    )
+
+    assert len(outcomes) == 2
+    recorded = attempt_repository.query(AttemptQuery(limit=100))
+    assert recorded
+    cycle_ids = {item.screening_cycle_id for item in recorded}
+    # One shared cycle id across *every* pair, including earnings_calendar
+    # -- the plan-scoped identity (a different screening_cycle_id per
+    # plan_id) never appears when the switch is disabled.
+    assert len(cycle_ids) == 1
+    cycle_id = next(iter(cycle_ids))
+    earnings_calendar_pair_ids = {
+        item.pair_evaluation_id
+        for item in recorded
+        if item.pair_evaluation_id == f"{cycle_id}:earnings_calendar:AAPL"
+    }
+    assert earnings_calendar_pair_ids  # at least one real attempt was recorded
+
+
 def test_a_conflicting_historical_observation_does_not_fail_the_pair(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -934,9 +1029,27 @@ def test_evaluation_and_request_identity_stay_frozen_across_a_cycle(
     directly here by asserting the two pairs sharing symbol AAPL still
     reuse each other's requests, which is only possible if their request
     windows are byte-identical.
+
+    SPRINT-014 S14-PR-05: finnhub is now also enabled -- earnings_calendar's
+    own sealed evidence acquisition requires seal_subject_snapshot()'s
+    SnapshotRequest to have a real CapabilityFulfillmentResult (real
+    provider attempts, even a failed one) for every one of its required
+    capabilities, including EARNINGS_CALENDAR_V1 (market_data/snapshot.py's
+    "required_capabilities must be a subset of requested_capabilities"
+    invariant) -- unlike the pre-cutover live path, it cannot represent
+    "no provider was even configured for this capability" at all. With
+    only tradier enabled (this test's pre-PR-05 configuration), EARNINGS_
+    CALENDAR_V1 has zero declared providers, so plan.resolve() raises
+    before any attempt is ever recorded; enabling finnhub here (still with
+    no finnhub-shaped response scripted, so its own request still fails,
+    just as a normal, representable per-provider failure) restores this
+    test's own, unrelated purpose -- proving cross-pair request-window
+    identity -- without depending on earnings_calendar actually succeeding.
     """
     monkeypatch.setenv("ASA_TRADIER_ENABLED", "true")
     monkeypatch.setenv("ASA_TRADIER_ACCESS_TOKEN", "sandbox-secret-token")
+    monkeypatch.setenv("ASA_FINNHUB_ENABLED", "true")
+    monkeypatch.setenv("ASA_FINNHUB_API_KEY", "sandbox-secret-key")
     repository = InMemoryLatestResultRepository()
     expiration = (date.today() + timedelta(days=7)).isoformat()
     universe = (("skew_momentum", "AAPL"), ("earnings_calendar", "AAPL"))

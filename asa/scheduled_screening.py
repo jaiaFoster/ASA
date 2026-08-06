@@ -55,6 +55,7 @@ from market_data.attempts import AcquisitionAttemptRepository, attempt_records_f
 from market_data.live_transport import build_live_transport
 from market_data.session_calendar import UsEquitySessionCalendar
 from market_data.session_schedule import SessionRefreshSchedule
+from market_data.subject_plan import SubjectAcquisitionPlan
 from screening import APPROVED_LIVE_UNIVERSE, EARNINGS_CALENDAR_UNIVERSE
 from screening.cycle_identity import (
     manual_invocation_slot_id,
@@ -66,6 +67,10 @@ from screening.cycle_identity import (
 )
 from screening.live_acquisition import live_only_config
 from screening.live_adapters import capture_skew_snapshot
+from screening.sealed_earnings_calendar import (
+    acquire_sealed_earnings_calendar_evidence,
+    default_resolution_policy_by_capability,
+)
 from strategy_runtime.adapters import build_migrated_strategy_registry
 from strategy_runtime.historical_evidence import (
     ConflictingHistoricalObservationError,
@@ -78,6 +83,7 @@ from strategy_runtime.market_data_planning import (
     build_provider_rolling_window_tracker,
     build_shared_market_data_access,
     enabled_provider_configs,
+    provider_metadata_for,
 )
 from strategy_runtime.persistence import LatestResultRepository, ObservationHistoryRepository
 from strategy_runtime.service import record_opportunity_observation, refresh
@@ -204,9 +210,20 @@ def run_scheduled_refresh(
     claim_repository: RefreshScheduleClaimRepository | None = None,
     enforce_schedule: bool = False,
     now: datetime | None = None,
+    earnings_calendar_cutover_enabled: bool = True,
 ) -> tuple[PairOutcome, ...]:
     """Run one bounded refresh per pair in ``universe``, in order,
     persisting every result. One pair's failure never stops the others.
+
+    ``earnings_calendar_cutover_enabled`` (SPRINT-014 S14-PR-05's required
+    rollback switch): set False to restore the pre-cutover imperative
+    Earnings Calendar acquisition path (strategy_runtime.adapters.
+    legacy_earnings_calendar_adapter, itself unchanged reuse of screening.
+    live_adapters.build_live_earnings_calendar_adapter) without deleting
+    anything -- this cycle's own sealed-evidence acquisition is simply
+    skipped, never run, so no new evidence this switch might discard is
+    ever produced in the first place. Every other pair (forward_factor,
+    skew_momentum) is entirely unaffected either way.
 
     One CapabilityFulfillmentService (and its own request budget) is built
     per unique *subject* for the whole cycle (SPRINT-013 S13-03B) -- not
@@ -268,7 +285,6 @@ def run_scheduled_refresh(
         or PostgresHistoricalSkewRepository(create_postgres_engine(Settings().database_url))
     )
     session_calendar = UsEquitySessionCalendar()
-    registry = build_migrated_strategy_registry()
     config = live_only_config(load_market_data_config_from_environment())
     if not enabled_provider_configs(config):
         raise RuntimeError(
@@ -316,6 +332,29 @@ def run_scheduled_refresh(
     access = build_shared_market_data_access(
         config, transport_factory, clock, unique_symbols, rolling_window=rolling_window
     )
+    # SPRINT-014 S14-PR-05: access is built before registry (previously the
+    # reverse) because forward_factor/skew_momentum's own legacy
+    # composition binding (strategy_runtime/adapters/__init__.py's
+    # build_migrated_strategy_registry(legacy_fulfillment_by_subject=...))
+    # is constructed at registry-build time now, not threaded through
+    # RuntimeContext per call (I-09) -- it needs every subject's already-
+    # built SubjectMarketDataAccess.fulfillment to close over.
+    registry = build_migrated_strategy_registry(
+        legacy_fulfillment_by_subject={
+            symbol: subject_access.fulfillment for symbol, subject_access in access.items()
+        },
+        earnings_calendar_cutover_enabled=earnings_calendar_cutover_enabled,
+    )
+    # Provider metadata is independent of subject -- built once per cycle
+    # from the same enabled config and transport_factory access itself
+    # uses, so seal_subject_snapshot()'s own "bounded metadata for every
+    # included provider" invariant (market_data/snapshot.py) is always
+    # satisfied for whichever providers actually served this cycle's
+    # earnings_calendar pairs.
+    provider_metadata = provider_metadata_for(config, transport_factory, clock)
+    earnings_calendar_resolution_policy = default_resolution_policy_by_capability(
+        provider_metadata
+    )
     reuse_counts = {
         "provider_calls": 0,
         "reuse_hits": 0,
@@ -339,6 +378,68 @@ def run_scheduled_refresh(
             # a shared symbol's request_count across the pairs that share it.
             call_log_start = len(subject_access.fulfillment.call_log)
             budget_accounting_start = len(subject_access.budget_manager.accounting)
+            sealed_evidence_by_subject = None
+            if signal_id == "earnings_calendar" and earnings_calendar_cutover_enabled:
+                # SPRINT-014 S14-PR-05: the one subject-first path in this
+                # cycle. plan_id reuses this pair's own pair_id -- a plan
+                # is scoped one-per-(subject, cycle) here, and earnings_
+                # calendar has exactly one signal per symbol in this
+                # universe, so pair_id already uniquely identifies it.
+                # Known, accepted limitation inherited from S14-PR-03's own
+                # design: SubjectAcquisitionPlan stamps *both*
+                # screening_cycle_id and pair_evaluation_id on its own
+                # internally persisted attempt records with this single
+                # plan_id, not the cycle's real screening_cycle_id --
+                # still uniquely traceable (pair_id embeds screening_cycle_id
+                # as its own prefix) but not byte-identical to how every
+                # other pair in this cycle records the same field.
+                # Acquisition happens here, in the composition root, not
+                # inside strategy_runtime.service.refresh()'s own
+                # per-strategy call -- so a failure here is NOT
+                # automatically caught by screening/runner.py's generic
+                # per-adapter exception boundary the way every other
+                # strategy's own acquisition-inside-the-adapter failures
+                # are. Isolated explicitly here instead: on failure,
+                # sealed_evidence_by_subject stays None and refresh()
+                # still runs -- earnings_calendar_adapter's own existing
+                # "requires sealed subject-first evidence" RuntimeError
+                # then reaches runner.py's boundary exactly as it would
+                # for any other adapter exception, so a misconfiguration
+                # (e.g. a required provider not enabled) reports
+                # PairOutcome.error=None with an adapter_exception outcome,
+                # identical to the pre-cutover live path's own behavior for
+                # the same failure -- never a cycle-level infrastructure
+                # failure for what is, from every other pair's perspective,
+                # an ordinary strategy-evaluation failure.
+                try:
+                    plan = SubjectAcquisitionPlan(
+                        symbol,
+                        subject_access.fulfillment,
+                        attempt_repository=resolved_acquisition_attempt_repository,
+                        plan_id=pair_id,
+                        clock=clock,
+                    )
+                    sealed_evidence = acquire_sealed_earnings_calendar_evidence(
+                        symbol,
+                        plan,
+                        clock,
+                        provider_metadata=provider_metadata,
+                        resolution_policy_by_capability=earnings_calendar_resolution_policy,
+                    )
+                    sealed_evidence_by_subject = {symbol: sealed_evidence}
+                except Exception:
+                    _LOGGER.warning(
+                        "sealed earnings calendar evidence acquisition failed -- "
+                        "falling through to earnings_calendar_adapter's own "
+                        "missing-evidence handling",
+                        extra={
+                            "signal_id": signal_id,
+                            "symbol": symbol,
+                            "screening_cycle_id": screening_cycle_id,
+                            "pair_evaluation_id": pair_id,
+                        },
+                        exc_info=True,
+                    )
             result = refresh(
                 registry,
                 resolved_repository,
@@ -346,6 +447,7 @@ def run_scheduled_refresh(
                 strategy_id=signal_id,
                 symbol=symbol,
                 fulfillment_by_subject={symbol: subject_access.fulfillment},
+                sealed_evidence_by_subject=sealed_evidence_by_subject,
                 historical_skew_repository=resolved_historical_skew_repository,
             )
             pair_calls = subject_access.fulfillment.call_log[call_log_start:]
@@ -436,6 +538,21 @@ def run_scheduled_refresh(
                         reuse_counts["incomplete_cache_bypasses"] += 1
                     elif decision is ReuseDecision.FRESH_AFTER_OTHER_BYPASS:
                         reuse_counts["requests_not_eligible_for_reuse"] += 1
+                    if signal_id == "earnings_calendar" and earnings_calendar_cutover_enabled:
+                        # Already durably persisted -- SubjectAcquisitionPlan
+                        # records every attempt itself, inside
+                        # acquire_sealed_earnings_calendar_evidence() above,
+                        # before this pair ever reaches refresh(). Recording
+                        # it again here under this cycle's own
+                        # (screening_cycle_id, pair_id) keying would
+                        # duplicate the same attempt under two different
+                        # scoping identities, not add new evidence. When the
+                        # rollback switch is active, earnings_calendar runs
+                        # the legacy path instead and has made no plan-level
+                        # attempt records at all -- this pair's own calls
+                        # must be recorded normally, exactly like every
+                        # other (non-earnings_calendar) pair below.
+                        continue
                     records = attempt_records_for(
                         fulfillment_result,
                         screening_cycle_id=screening_cycle_id,

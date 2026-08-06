@@ -35,14 +35,22 @@ from asa.api.screening_models import (
     SignalCapabilityResponse,
 )
 from market_data import load_market_data_config_from_environment
+from market_data.attempts import AcquisitionAttemptRepository
 from market_data.live_transport import build_live_transport
 from market_data.session_schedule import ON_DEMAND_COOLDOWN
+from market_data.subject_plan import SubjectAcquisitionPlan
 from screening.live_acquisition import APPROVED_LIVE_UNIVERSE, live_only_config
+from screening.sealed_earnings_calendar import (
+    acquire_sealed_earnings_calendar_evidence,
+    default_resolution_policy_by_capability,
+)
+from strategy_runtime.adapters import build_migrated_strategy_registry
 from strategy_runtime.catalog import SignalCatalogEntry
 from strategy_runtime.lifecycle import RecommendedAction
 from strategy_runtime.market_data_planning import (
     build_shared_market_data_access,
     enabled_provider_configs,
+    provider_metadata_for,
 )
 from strategy_runtime.persistence import (
     LatestResultRepository,
@@ -185,6 +193,7 @@ def build_screening_router(
     *,
     capabilities_catalog: tuple[SignalCatalogEntry, ...],
     history_repository: ObservationHistoryRepository,
+    acquisition_attempt_repository: AcquisitionAttemptRepository,
 ) -> APIRouter:
     router = APIRouter(prefix="/api/v1", dependencies=[Depends(authorize)])
 
@@ -333,14 +342,59 @@ def build_screening_router(
             )
         access = build_shared_market_data_access(config, transport_factory, clock, (symbol,))
         subject_access = access[symbol]
+        # SPRINT-014 S14-PR-05: registry is rebuilt per request (never
+        # reused from the module-level one passed into this function,
+        # which registered its own legacy composition binding with no
+        # subject at all, at app startup, before any symbol was known) --
+        # forward_factor/skew_momentum's own legacy binding closure needs
+        # this exact request's subject_access.fulfillment to close over,
+        # mirroring asa/scheduled_screening.py's own identical ordering.
+        request_registry = build_migrated_strategy_registry(
+            legacy_fulfillment_by_subject={symbol: subject_access.fulfillment}
+        )
+        sealed_evidence_by_subject = None
+        if signal == "earnings_calendar":
+            try:
+                provider_metadata = provider_metadata_for(config, transport_factory, clock)
+                plan = SubjectAcquisitionPlan(
+                    symbol,
+                    subject_access.fulfillment,
+                    attempt_repository=acquisition_attempt_repository,
+                    plan_id=f"on-demand-refresh:{signal}:{symbol}:{clock.now().isoformat()}",
+                    clock=clock,
+                )
+                sealed_evidence = acquire_sealed_earnings_calendar_evidence(
+                    symbol,
+                    plan,
+                    clock,
+                    provider_metadata=provider_metadata,
+                    resolution_policy_by_capability=default_resolution_policy_by_capability(
+                        provider_metadata
+                    ),
+                )
+                sealed_evidence_by_subject = {symbol: sealed_evidence}
+            except Exception:
+                # Same isolation as the scheduled path: a failure here
+                # falls through to earnings_calendar_adapter's own
+                # existing "requires sealed subject-first evidence"
+                # handling, which strategy_runtime's generic per-adapter
+                # exception boundary already converts into a graceful
+                # ADAPTER_EXCEPTION result, not a 500.
+                _LOGGER.warning(
+                    "sealed earnings calendar evidence acquisition failed for "
+                    "on-demand refresh",
+                    extra={"signal_id": signal, "symbol": symbol},
+                    exc_info=True,
+                )
         try:
             result = refresh(
-                registry,
+                request_registry,
                 repository,
                 clock,
                 strategy_id=signal,
                 symbol=symbol,
                 fulfillment_by_subject={symbol: subject_access.fulfillment},
+                sealed_evidence_by_subject=sealed_evidence_by_subject,
             )
         except RuntimeError:
             if prior is None:
@@ -355,7 +409,7 @@ def build_screening_router(
         if result.opportunity_id is not None:
             try:
                 record_opportunity_observation(
-                    registry,
+                    request_registry,
                     history_repository,
                     result,
                     recommended_action=RecommendedAction.NO_ACTION,

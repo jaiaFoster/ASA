@@ -136,6 +136,7 @@ def build_application(
             screening_registry,
             agent_authorize,
             selected.market_data_transport_factory or build_transport_for_provider,
+            acquisition_attempt_repository=acquisition_attempt_repository,
             capabilities_catalog=build_migrated_signal_catalog(),
             history_repository=observation_history_repository,
         )

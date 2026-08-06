@@ -22,6 +22,7 @@ this.
 from __future__ import annotations
 
 from domain import MarketCapability
+from market_data import CapabilityFulfillmentService
 from screening import run_screening
 from screening.adapters import TARGET_STRATEGY_REGISTRY
 from screening.live_adapters import build_live_skew_momentum_adapter
@@ -64,15 +65,23 @@ SKEW_MOMENTUM_VERTICAL_CONTRACT = StrategyContract(
 )
 
 
-def skew_momentum_adapter(context: RuntimeContext) -> UniversalScreeningResult:
-    if context.fulfillment is None:
+def skew_momentum_adapter(
+    context: RuntimeContext, fulfillment: CapabilityFulfillmentService | None
+) -> UniversalScreeningResult:
+    """``fulfillment`` is Skew Momentum's own legacy composition binding
+    (SPRINT-014 S14-PR-05) -- supplied by strategy_runtime.adapters.
+    build_migrated_strategy_registry()'s own registry-construction-time
+    closure, never carried on RuntimeContext (I-09). See that module's own
+    docstring for this binding's owner and deletion condition.
+    """
+    if fulfillment is None:
         raise RuntimeError(
             "skew_momentum requires shared market data access "
-            "(strategy_runtime.market_data_planning, EPIC-3) -- RuntimeContext.fulfillment is None"
+            "(strategy_runtime.adapters, legacy fulfillment binding) -- fulfillment is None"
         )
     live_adapter = build_live_skew_momentum_adapter(
         context.subject,
-        context.fulfillment,
+        fulfillment,
         freshness_requirement=context.contract.freshness_requirement,
         historical_skew_repository=context.historical_skew_repository,
     )
