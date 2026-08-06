@@ -8,14 +8,19 @@ Scope per ticket: reproduce and evidence the root cause, no production behavior 
 asa/scheduled_screening.py::run_scheduled_refresh
   -> build_shared_market_data_access()            # one CapabilityFulfillmentService per unique SYMBOL in the cycle
   -> per (strategy_id, symbol) pair:
-       screening/live_adapters.py::LIVE_ADAPTER_FACTORIES[strategy_id](symbol, fulfillment)
-         -> _acquire_or_raise() / _acquire_combined_chain() / _acquire_daily_closes()  # imperative, strategy-authored sequence
-              -> screening.live_acquisition.acquire_capability()
-                   -> market_data/fulfillment.py::CapabilityFulfillmentService.fulfill(request)
-                        -> provider(s) in priority order
+       strategy_runtime/service.py::refresh()
+         -> strategy_runtime/execution.py::run_strategies()
+              -> strategy_runtime/adapters/{skew_momentum_vertical,earnings_calendar,forward_factor}.py  # per-strategy registry adapter
+                   -> screening.live_adapters.build_live_*_adapter()  # imported and called directly -- NOT via the LIVE_ADAPTER_FACTORIES dict, which has no live caller
+                        -> _acquire_or_raise() / _acquire_combined_chain() / _acquire_daily_closes()  # imperative, strategy-authored sequence
+                             -> screening.live_acquisition.acquire_capability()
+                                  -> market_data/fulfillment.py::CapabilityFulfillmentService.fulfill(request)
+                                       -> provider(s) in priority order
 ```
 
-There is no step between "per-pair adapter" and "fulfillment service" that declares a subject's full data requirement up front. Each adapter is a hand-written sequence of `_acquire_or_raise` calls; the "plan" only exists implicitly, as whatever that Python function happens to execute, in whatever order, for that one strategy.
+(Corrected after independent Architect review: the original draft of this diagram skipped the `strategy_runtime.service.refresh` / `run_strategies` / per-strategy registry-adapter hop, and implied the `LIVE_ADAPTER_FACTORIES` dict was the live call path -- each `strategy_runtime/adapters/*.py` file imports and calls its specific `build_live_*_adapter` function directly instead.)
+
+There is no step between "per-pair registry adapter" and "fulfillment service" that declares a subject's full data requirement up front. Each `screening/live_adapters.py` adapter is a hand-written sequence of `_acquire_or_raise` calls; the "plan" only exists implicitly, as whatever that Python function happens to execute, in whatever order, for that one strategy.
 
 ## 2. Confirmed: exact-request caching exists; subject-first planning does not
 
@@ -78,7 +83,7 @@ tests/asa/test_scheduled_screening.py::test_a_failed_shared_capability_gets_its_
 37 passed  (full tests/asa/test_scheduled_screening.py + tests/market_data/test_fulfillment.py)
 ```
 
-This is the same mechanism S13-08's audit (`project/reports/SPRINT-013-S13-08-audit.md`, finding #2) already flagged as `UNKNOWN_REQUIRES_ARCHITECT_OR_FOUNDER` and left as an open blocker — SPRINT-014 is the authorized resolution path for that blocker.
+This failure-eviction behavior is a distinct sub-issue from, but lives in the same file and the same underlying gap as, S13-08's audit (`project/reports/SPRINT-013-S13-08-audit.md`, finding #2) — that finding is specifically about strategy-specific acquisition/threshold constants embedded in the nominally-generic `screening/live_adapters.py` (an ownership/genericity issue), left open as `UNKNOWN_REQUIRES_ARCHITECT_OR_FOUNDER`. SPRINT-014 is the authorized resolution path for both: a real subject-owned plan removes the strategy-specific acquisition logic finding #2 flagged *and* gives failure a durable, shared home.
 
 ## 6. Order-independence: holds for identical requests, not for a real union
 
@@ -97,6 +102,8 @@ This is the same mechanism S13-08's audit (`project/reports/SPRINT-013-S13-08-au
 
 ## Conclusion
 
-Confirmed on current `main` (`docs/sprints/SPRINT-014.yaml` activation commit `04ab740`): production acquisition is strategy-driven, not subject-first. Exact-request success caching (S13-03B) measurably reduces duplicate calls for identical requests but is not a substitute for a subject-owned plan, sealed evidence boundary, or shared failure history — all three are absent from the live path today, and the standing S13-08 blocker (finding #2) is the same underlying gap. This matches SPRINT-014's `root_cause.statement` exactly; no revision to that statement is needed.
+Confirmed on current `main` (`docs/sprints/SPRINT-014.yaml` activation commit `04ab740`): production acquisition is strategy-driven, not subject-first. Exact-request success caching (S13-03B) measurably reduces duplicate calls for identical requests but is not a substitute for a subject-owned plan, sealed evidence boundary, or shared failure history — all three are absent from the live path today, and the standing S13-08 blocker (finding #2) is an adjacent, related gap in the same file. This matches SPRINT-014's `root_cause.statement` exactly; no revision to that statement is needed.
 
-**Verdict: ROOT_CAUSE_ACCEPTED** (pending independent Architect confirmation per `per_pr_gate`).
+**Verdict: ROOT_CAUSE_ACCEPTED.**
+
+Independently confirmed by a separate Architect-role review (per `per_pr_gate`, `ROLE-ARCH`): call graph, exact-request-caching-vs-subject-first-plan, I-09 violation, snapshot/facts non-use, and no-durable-shared-failure-history were each independently re-verified against current code (not merely re-read from this packet), plus the new test was independently re-run and confirmed to demonstrate the claimed `4` / `1` request-count split. Two accuracy notes from that review (call-graph completeness, S13-08 finding #2 precision) are incorporated above; neither affected the verdict.
