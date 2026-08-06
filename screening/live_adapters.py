@@ -62,6 +62,7 @@ from market_data import (
     FulfillmentStatus,
     ProviderErrorCode,
 )
+from market_data.capability_coalescing import combine_option_chains
 from market_data.session_calendar import MarketSessionStatus, UsEquitySessionCalendar
 from market_data.temporal import (
     DEFAULT_FRESHNESS_REQUIREMENT,
@@ -82,7 +83,6 @@ from screening.live_context import (
     acquire_expirations,
     build_capability_subject,
     classify_domain_invariant_error,
-    combine_option_chains,
     select_atm_strike_at_expiration,
     select_nearest_delta_contract,
 )
