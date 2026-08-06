@@ -8,6 +8,7 @@ Depends on nothing but itself and the standard library.
 """
 
 from domain.canonical_fact import CanonicalFact
+from domain.capability_demand import CAPABILITY_DEMAND_CONTRACT_VERSION, CapabilityDemand
 from domain.execution import (
     ExecutionPlan,
     ExecutionPlanningEvent,
@@ -127,7 +128,9 @@ from domain.strategy_evidence import (
 from domain.values import DomainInvariantError, is_normalized_value
 
 __all__ = [
+    "CAPABILITY_DEMAND_CONTRACT_VERSION",
     "CanonicalFact",
+    "CapabilityDemand",
     "CanonicalReturnObservation",
     "CanonicalInstrumentIdentity",
     "Confidence",
