@@ -96,6 +96,7 @@ from strategies import (
     SKEW_MOMENTUM_VERTICAL_MANIFEST,
     STONK_STRATEGY_PLUGINS,
     compile_strategy_graph,
+    earnings_calendar_requirement,
     execute_strategy_graph,
 )
 from strategies.manifest import StrategyManifest
@@ -106,20 +107,13 @@ from strategies.type_system import ComponentValues
 _COMPONENT_REGISTRY = build_plugin_registry(CORE_COMPONENTS, STONK_STRATEGY_PLUGINS)
 _NON_FAIL_VERDICTS = frozenset({"PASS", "WATCH"})
 
-# Earnings Calendar's own frozen expiration_pair_selector node parameters
-# (strategies/stonk_manifests.py) -- duplicated here for the same reason
-# FORWARD_FACTOR_DTE_POLICY is: this ticket's data still needs an
-# externally-selected pair for the parts of each manifest not connected to
-# expiration_select via a graph edge.
-EARNINGS_CALENDAR_DTE_POLICY = {
-    "front_min_dte": 7,
-    "front_max_dte": 21,
-    "back_min_dte": 22,
-    "back_max_dte": 75,
-    "target_gap_days": 30,
-    "gap_tolerance_days": 5,
-}
-EARNINGS_CALENDAR_LOOKAHEAD_DAYS = EARNINGS_CALENDAR_DTE_POLICY["back_max_dte"]
+# SPRINT-014 S14-PR-02: Earnings Calendar's own expiration_pair_selector
+# node parameters are read directly from its manifest (the manifest is the
+# only owner) via strategies.earnings_calendar_requirement() -- no second,
+# independently maintained copy. Resolves SPRINT-013 S13-08's audit finding
+# #1 (project/reports/SPRINT-013-S13-08-audit.md): this was previously a
+# hand-duplicated dict with no accessor onto the manifest's own copy.
+EARNINGS_CALENDAR_REQUIREMENT = earnings_calendar_requirement()
 MAX_FORWARD_FACTOR_PAIR_ATTEMPTS = 5
 
 
@@ -520,7 +514,7 @@ def build_live_earnings_calendar_adapter(
             MarketCapability.EARNINGS_CALENDAR_V1,
             now,
             ("earnings_date",),
-            effective_end=now + timedelta(days=EARNINGS_CALENDAR_LOOKAHEAD_DAYS),
+            effective_end=now + timedelta(days=EARNINGS_CALENDAR_REQUIREMENT.lookahead_days),
         )
         quote = _acquire_or_raise(
             fulfillment,
@@ -540,12 +534,12 @@ def build_live_earnings_calendar_adapter(
         selected = select_earnings_relative_expiration_pair(
             candidates,
             earnings_date,
-            front_min_dte=EARNINGS_CALENDAR_DTE_POLICY["front_min_dte"],
-            front_max_dte=EARNINGS_CALENDAR_DTE_POLICY["front_max_dte"],
-            back_min_dte=EARNINGS_CALENDAR_DTE_POLICY["back_min_dte"],
-            back_max_dte=EARNINGS_CALENDAR_DTE_POLICY["back_max_dte"],
-            target_gap_days=EARNINGS_CALENDAR_DTE_POLICY["target_gap_days"],
-            gap_tolerance_days=EARNINGS_CALENDAR_DTE_POLICY["gap_tolerance_days"],
+            front_min_dte=EARNINGS_CALENDAR_REQUIREMENT.expiration_policy.front_min_dte,
+            front_max_dte=EARNINGS_CALENDAR_REQUIREMENT.expiration_policy.front_max_dte,
+            back_min_dte=EARNINGS_CALENDAR_REQUIREMENT.expiration_policy.back_min_dte,
+            back_max_dte=EARNINGS_CALENDAR_REQUIREMENT.expiration_policy.back_max_dte,
+            target_gap_days=EARNINGS_CALENDAR_REQUIREMENT.expiration_policy.target_gap_days,
+            gap_tolerance_days=EARNINGS_CALENDAR_REQUIREMENT.expiration_policy.gap_tolerance_days,
         )
         if selected is None:
             raise StrategyAdapterError(
