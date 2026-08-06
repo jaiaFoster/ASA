@@ -79,7 +79,7 @@ class TestForwardFactorAdapter:
             FORWARD_FACTOR_CONTRACT, "AAPL", _FixedClock(datetime.now(UTC)), "run-1"
         )
         with pytest.raises(RuntimeError, match="requires shared market data access"):
-            forward_factor_adapter(context, None)
+            forward_factor_adapter(context)
 
     def test_full_live_acquisition_produces_a_translated_result(
         self, monkeypatch: pytest.MonkeyPatch
@@ -100,9 +100,11 @@ class TestForwardFactorAdapter:
         access = build_shared_market_data_access(
             config, lambda _provider_id: ScriptedTransport(responses), clock, ("AAPL",)
         )
-        context = RuntimeContext(FORWARD_FACTOR_CONTRACT, "AAPL", clock, "run-1")
+        context = RuntimeContext(
+            FORWARD_FACTOR_CONTRACT, "AAPL", clock, "run-1", access["AAPL"].fulfillment
+        )
 
-        result = forward_factor_adapter(context, access["AAPL"].fulfillment)
+        result = forward_factor_adapter(context)
 
         assert result.strategy_id == "forward_factor"
         assert result.symbol == "AAPL"
