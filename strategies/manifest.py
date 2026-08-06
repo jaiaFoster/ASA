@@ -519,6 +519,36 @@ def manifest_identity(manifest: StrategyManifest) -> str:
     return hashlib.sha256(_canonical_json_bytes(payload)).hexdigest()
 
 
+def node_parameter_value(
+    manifest: StrategyManifest, node_id: str, parameter_name: str
+) -> ManifestValue:
+    """Read one node's own effective parameter value directly from the
+    manifest -- the queryable manifest-parameter accessor SPRINT-013
+    S13-08's audit found missing (project/reports/SPRINT-013-S13-08-audit.md,
+    finding #1: a duplicate-ownership violation blocked on "a queryable
+    manifest-parameter accessor that does not exist today").
+
+    A strategy's own manifest is already the single canonical authority for
+    node parameters (ADR-010); this only exposes a read path onto data the
+    manifest already stores, so a consumer (e.g. strategies/requirements.py)
+    never needs its own hand-typed copy of a value the manifest already
+    declares. Deterministic and order-independent: StrategyManifest.__post_init__
+    already canonically sorts nodes and each node's own parameters, so this
+    lookup depends only on (manifest, node_id, parameter_name), never on
+    construction or iteration order.
+    """
+    for node in manifest.nodes:
+        if node.node_id != node_id:
+            continue
+        for parameter in node.parameters:
+            if parameter.name == parameter_name:
+                return parameter.value
+        raise ManifestValidationError(
+            f"node {node_id!r} has no parameter {parameter_name!r}"
+        )
+    raise ManifestValidationError(f"manifest {manifest.strategy_id!r} has no node {node_id!r}")
+
+
 def _require_object(value: object, path: str) -> dict[str, object]:
     if not isinstance(value, dict) or not all(isinstance(key, str) for key in value):
         raise ManifestSerializationError(f"{path} must be a JSON object")
