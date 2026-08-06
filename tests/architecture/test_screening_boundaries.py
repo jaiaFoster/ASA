@@ -23,8 +23,11 @@ FORBIDDEN_INFRASTRUCTURE_MODULES = {
 
 STDLIB_ALLOWED = {
     "__future__", "abc", "argparse", "collections", "dataclasses", "datetime", "decimal", "enum",
-    "hashlib", "json", "logging", "re", "sys", "typing",
+    "hashlib", "json", "logging", "re", "sys", "types", "typing",
 }
+# "types" added (SPRINT-014 S14-PR-05A): screening/subject_planning.py
+# uses types.MappingProxyType to hand out read-only views over resolved
+# evidence -- pure stdlib, no infrastructure dependency.
 # "logging" added (SPRINT-011-CLOSEOUT/CLOSE-001): pure stdlib, no network/
 # disk/process side channel FORBIDDEN_INFRASTRUCTURE_MODULES above already
 # guards against -- this module's own docstring's actual concern is a
