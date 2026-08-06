@@ -774,6 +774,63 @@ def test_a_symbol_shared_across_two_pairs_in_one_cycle_reuses_the_first_pairs_re
     assert outcomes[1].outcome == outcomes[0].outcome  # reused evidence, same evaluated outcome
 
 
+def test_a_failed_shared_capability_gets_its_own_independent_retry_not_a_shared_known_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """SPRINT-014 S14-PR-01 root-cause evidence.
+
+    market_data/fulfillment.py's CapabilityFulfillmentService deliberately
+    never reuses a cached *failed* result (see test_fulfillment.py's own
+    test_a_failed_result_is_never_reused_and_gets_its_own_independent_retry)
+    -- correct for failure *isolation* within one service instance, but it
+    also means there is no durable, shared "this datum is UNKNOWN this
+    cycle" fact that a second pair sharing the same symbol can consult:
+    it pays its own full provider round-trip for the identical failure,
+    even though both pairs run under the same frozen cycle clock and, under
+    a subject-first plan, would share one already-known negative result
+    instead. This is the concrete, measured manifestation of SPRINT-014's
+    own root-cause statement: "Failed cache entries may be removed and
+    repeated by later strategies."
+
+    The historical-bars response is deliberately replaced with Tradier's
+    documented empty-history shape (not a calendar-dependent staleness
+    failure like the reuse test above) so this failure is forced and
+    deterministic on every run, regardless of what day the suite executes.
+    """
+    monkeypatch.setenv("ASA_TRADIER_ENABLED", "true")
+    monkeypatch.setenv("ASA_TRADIER_ACCESS_TOKEN", "sandbox-secret-token")
+    repository = InMemoryLatestResultRepository()
+    expiration = (date.today() + timedelta(days=7)).isoformat()
+    universe = (("skew_momentum", "AAPL"), ("skew_momentum", "AAPL"))
+
+    def _responses_with_forced_empty_history() -> list[ReadOnlyHttpResponse]:
+        responses = _complete_skew_momentum_responses(expiration)
+        responses[3] = ReadOnlyHttpResponse(
+            200, {"history": None}, (), 12, "tradier-request-4-empty"
+        )
+        return responses
+
+    responses = _responses_with_forced_empty_history() + _responses_with_forced_empty_history()
+
+    outcomes = run_scheduled_refresh(
+        universe,
+        repository=repository,
+        acquisition_attempt_repository=InMemoryAcquisitionAttemptRepository(),
+        transport_factory=lambda _provider_id: ScriptedTransport(responses),
+    )
+
+    assert len(outcomes) == 2
+    assert outcomes[0].error is None
+    assert outcomes[1].error is None
+    # First pair: nothing cached yet -- all 4 capabilities are fresh.
+    assert outcomes[0].request_count == _SKEW_MOMENTUM_REQUESTS_PER_PAIR
+    # Second pair: quote/expirations/chain reuse from cache (0 new calls),
+    # but the failed history capability is NOT served from the first
+    # pair's already-known failure -- it gets its own fresh, counted
+    # provider call. If a shared negative result existed, this would be 0.
+    assert outcomes[1].request_count == 1
+
+
 def test_different_symbols_in_the_same_cycle_never_share_requests(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
