@@ -100,6 +100,9 @@ from strategies import (
     earnings_calendar_requirement,
     execute_strategy_graph,
 )
+from strategies.earnings_calendar_planning import (
+    HISTORICAL_LOOKBACK_DAYS as EARNINGS_CALENDAR_HISTORICAL_LOOKBACK_DAYS,
+)
 from strategies.manifest import StrategyManifest
 from strategies.plugins import build_plugin_registry
 from strategies.scoring import normalize_richness
@@ -305,6 +308,16 @@ def _spot_price(quote: Quote) -> Decimal:
 # hardcoded constants (identical for every symbol) since this ticket's
 # original authorship. See project/reports/SPRINT-011.md for the full
 # defect writeup and cited sources for each strategy's own thesis.
+#
+# SPRINT-014 S14-PR-05A (Architect checkpoint, third review): this is now
+# Skew Momentum's own value only -- Earnings Calendar's own lookback is
+# strategy-owned at strategies.earnings_calendar_planning.
+# HISTORICAL_LOOKBACK_DAYS (imported above as
+# EARNINGS_CALENDAR_HISTORICAL_LOOKBACK_DAYS and passed explicitly at
+# build_live_earnings_calendar_adapter's own _acquire_daily_closes() call
+# site), never read from here. The two values are 45 today by
+# coincidence, not by a shared source -- this module's own default below
+# exists only for Skew Momentum's still-independent policy.
 _HISTORICAL_LOOKBACK_DAYS = 45  # calendar days -- ~30 trading days
 
 # SPRINT-013 S13-04D: mirrors strategies/stonk_manifests.py's own
@@ -343,7 +356,11 @@ class HistoricalSkewHistoryReader(Protocol):
 
 
 def _acquire_daily_closes(
-    fulfillment: CapabilityFulfillmentService, symbol: str, now: datetime
+    fulfillment: CapabilityFulfillmentService,
+    symbol: str,
+    now: datetime,
+    *,
+    lookback_days: int = _HISTORICAL_LOOKBACK_DAYS,
 ) -> tuple[Decimal, ...]:
     """Oldest-first daily close series over a fixed lookback window, for
     realized-volatility and momentum computation. Unlike every other
@@ -353,8 +370,13 @@ def _acquire_daily_closes(
     skips the single-observation freshness/usability gate _acquire_or_raise
     applies elsewhere: "freshness" for a completed prior trading day's
     close is not the same concept as for a live quote or chain.
+
+    ``lookback_days`` defaults to this module's own Skew-Momentum-owned
+    constant; Earnings Calendar's own call site passes its strategy-owned
+    value explicitly instead (SPRINT-014 S14-PR-05A, Architect checkpoint,
+    third review) -- never a second, independently maintained copy.
     """
-    lookback_start = now - timedelta(days=_HISTORICAL_LOOKBACK_DAYS)
+    lookback_start = now - timedelta(days=lookback_days)
     subject = build_capability_subject(
         symbol,
         MarketCapability.HISTORICAL_BARS_V1,
@@ -371,7 +393,7 @@ def _acquire_daily_closes(
             effective_start=lookback_start,
             effective_end=now,
             required_fields=("close",),
-            maximum_age_seconds=int(timedelta(days=_HISTORICAL_LOOKBACK_DAYS + 1).total_seconds()),
+            maximum_age_seconds=int(timedelta(days=lookback_days + 1).total_seconds()),
         )
     except DomainInvariantError as exc:
         raise StrategyAdapterError(
@@ -605,7 +627,12 @@ def build_live_earnings_calendar_adapter(
         term_richness = normalize_richness(
             front_contract.implied_volatility - back_contract.implied_volatility
         )
-        closes = _acquire_daily_closes(fulfillment, symbol, now)
+        closes = _acquire_daily_closes(
+            fulfillment,
+            symbol,
+            now,
+            lookback_days=EARNINGS_CALENDAR_HISTORICAL_LOOKBACK_DAYS,
+        )
         realized_vol = compute_realized_volatility(closes)
         # iv30/rv30-style richness (same source, ~09:40): front-month IV
         # priced above what has actually realized -- the second predictor

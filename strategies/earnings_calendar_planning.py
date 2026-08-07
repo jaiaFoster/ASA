@@ -67,11 +67,16 @@ _EXPIRATIONS_REQUIRED_FIELDS = ("expirations",)
 _CHAIN_REQUIRED_FIELDS = ("contracts",)
 _HISTORICAL_BARS_REQUIRED_FIELDS = ("close",)
 
-# Mirrors screening/live_adapters.py's own pre-existing
-# _HISTORICAL_LOOKBACK_DAYS constant (45 calendar days, ~30 trading days)
-# for the same realized-volatility computation -- not manifest-derived,
-# since the manifest declares no historical-bars-specific parameter node.
-_HISTORICAL_LOOKBACK_DAYS = 45
+# The one strategy-owned source for Earnings Calendar's own historical-
+# bars lookback window (45 calendar days, ~30 trading days) used for
+# realized-volatility computation -- not manifest-derived, since the
+# manifest declares no historical-bars-specific parameter node. Public
+# (Architect checkpoint, third review) so the still-live legacy adapter
+# (screening/live_adapters.py's own build_live_earnings_calendar_adapter)
+# consumes this same value during the S14-PR-05A transition instead of
+# carrying an independently editable copy; deleting that legacy adapter
+# later removes the only other reader, never this constant's own home.
+HISTORICAL_LOOKBACK_DAYS = 45
 
 
 @dataclass(frozen=True, slots=True)
@@ -129,7 +134,7 @@ def historical_bars_demand(now: datetime) -> CapabilityDemand:
     HISTORICAL_BARS_V1 requirement that earlier revisions of this module
     omitted.
     """
-    lookback_start = now - timedelta(days=_HISTORICAL_LOOKBACK_DAYS)
+    lookback_start = now - timedelta(days=HISTORICAL_LOOKBACK_DAYS)
     return CapabilityDemand(
         MarketCapability.HISTORICAL_BARS_V1, _HISTORICAL_BARS_REQUIRED_FIELDS, lookback_start, now
     )
