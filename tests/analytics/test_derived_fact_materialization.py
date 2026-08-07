@@ -80,6 +80,63 @@ def test_the_same_feature_subject_and_snapshot_always_yields_the_same_id() -> No
     assert first.identity == second.identity
 
 
+def test_omitting_parameters_reproduces_the_original_three_argument_id() -> None:
+    # I-07's parameters component is backward compatible: the default
+    # (empty parameters) must still produce the exact same ID the
+    # original three-argument derived_fact_id shape always produced.
+    assert derived_fact_id(REALIZED_VOLATILITY, "AAPL", "digest-1") == derived_fact_id(
+        REALIZED_VOLATILITY, "AAPL", "digest-1", parameters=()
+    )
+
+
+def test_different_parameters_produce_different_ids_for_the_same_subject_and_snapshot() -> None:
+    # The exact collision this closes: two different selections (e.g. two
+    # different contracts) within the same subject/snapshot must never
+    # reuse one derived_fact_id for two different values.
+    front_selected = derived_fact_id(
+        REALIZED_VOLATILITY, "AAPL", "digest-1", parameters=(("contract_id", "front-123"),)
+    )
+    back_selected = derived_fact_id(
+        REALIZED_VOLATILITY, "AAPL", "digest-1", parameters=(("contract_id", "back-456"),)
+    )
+    unparameterized = derived_fact_id(REALIZED_VOLATILITY, "AAPL", "digest-1")
+    assert len({front_selected, back_selected, unparameterized}) == 3
+
+
+def test_parameter_identity_is_order_independent() -> None:
+    forward = derived_fact_id(
+        REALIZED_VOLATILITY,
+        "AAPL",
+        "digest-1",
+        parameters=(("a", "1"), ("b", "2")),
+    )
+    backward = derived_fact_id(
+        REALIZED_VOLATILITY,
+        "AAPL",
+        "digest-1",
+        parameters=(("b", "2"), ("a", "1")),
+    )
+    assert forward == backward
+
+
+def test_materialize_derived_fact_accepts_and_forwards_parameters() -> None:
+    fact = materialize_derived_fact(
+        DERIVED_FACT_REGISTRY,
+        REALIZED_VOLATILITY,
+        "AAPL",
+        "digest-1",
+        value=Decimal("0.42"),
+        unit="annualized_decimal",
+        effective_time=NOW,
+        input_evidence=EVIDENCE,
+        quality_status=DerivedFactQualityStatus.VALID,
+        parameters=(("contract_id", "front-123"),),
+    )
+    assert fact.derived_fact_id == derived_fact_id(
+        REALIZED_VOLATILITY, "AAPL", "digest-1", parameters=(("contract_id", "front-123"),)
+    )
+
+
 def test_an_unregistered_feature_id_is_rejected() -> None:
     with pytest.raises(UnknownFeatureIdError):
         materialize_derived_fact(

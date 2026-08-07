@@ -20,6 +20,16 @@ snapshot.resolution_results/observations (already-sealed, resolved
 evidence) and the phase-two evidence a strategy's own pure expansion
 already selected and gated as usable. No acquisition, no production
 wiring, no RuntimeContext, no composition-root change.
+
+Transitional status (Architect checkpoint, seventh review): this module
+is tolerated only as an unwired harness proving the fact/analytics
+composition mechanics for this one strategy. Sprint 14 assigns *generic*
+orchestration to screening/runtime, with strategy-specific declarations
+and evaluation living entirely under strategies/ -- an Earnings-named
+orchestration adapter that imports the Earnings evaluator and its fact
+constants by name is not that generic shape. It must never become the
+production composition path; replace or delete it once a generic
+evaluator-dispatch mechanism exists, before CUTOVER_PASS.
 """
 
 from __future__ import annotations
@@ -41,10 +51,9 @@ from domain import (
 from market_data.snapshot import MarketSnapshot
 from screening.subject_fact_projection import project_scalar_canonical_fact, resolution_for
 from strategies.earnings_calendar_evaluation import (
-    FACT_TYPE_BACK_ATM_IMPLIED_VOLATILITY,
     FACT_TYPE_EARNINGS_CONFIRMED,
     FACT_TYPE_EARNINGS_DATE,
-    FACT_TYPE_FRONT_ATM_IMPLIED_VOLATILITY,
+    FACT_TYPE_OPTION_IMPLIED_VOLATILITY,
     FACT_TYPE_SPOT_PRICE,
     evaluate_earnings_calendar,
 )
@@ -177,30 +186,54 @@ def compose_earnings_calendar_evaluation(
         subject=symbol,
         snapshot_digest=snapshot.snapshot_digest,
         effective_time=snapshot.as_of,
+        quote_demand_id=phase_two.spot_price_evidence.demand_id,
+        historical_bars_demand_id=phase_two.historical_bars_evidence.demand_id,
+        front_chain_demand_id=phase_two.front_chain_evidence.demand_id,
+        back_chain_demand_id=phase_two.back_chain_evidence.demand_id,
     )
     if isinstance(evaluation, UnknownReason):
         return evaluation
 
+    # Architect checkpoint (seventh review), item 2: an implied
+    # volatility is canonical knowledge about the exact option contract
+    # it was observed on -- fact_type is the same generic
+    # "option_implied_volatility" for both sides, and each fact's own
+    # subject is that contract's own stable identity, never the earnings
+    # subject/ticker. A different valid front/back selection within the
+    # same sealed snapshot therefore can never collide on one fact ID for
+    # two different contracts.
     canonical_facts: list[CanonicalFact] = []
-    for resolution, value, fact_type in (
-        (quote_resolution, evaluation.spot_price, FACT_TYPE_SPOT_PRICE),
-        (earnings_resolution, evaluation.earnings_date.isoformat(), FACT_TYPE_EARNINGS_DATE),
-        (earnings_resolution, evaluation.earnings_confirmed, FACT_TYPE_EARNINGS_CONFIRMED),
+    for resolution, value, fact_type, fact_subject in (
+        (quote_resolution, evaluation.spot_price, FACT_TYPE_SPOT_PRICE, symbol),
+        (
+            earnings_resolution,
+            evaluation.earnings_date.isoformat(),
+            FACT_TYPE_EARNINGS_DATE,
+            symbol,
+        ),
+        (
+            earnings_resolution,
+            evaluation.earnings_confirmed,
+            FACT_TYPE_EARNINGS_CONFIRMED,
+            symbol,
+        ),
         (
             chain_resolution,
             evaluation.front_atm_implied_volatility,
-            FACT_TYPE_FRONT_ATM_IMPLIED_VOLATILITY,
+            FACT_TYPE_OPTION_IMPLIED_VOLATILITY,
+            evaluation.front_contract_identity,
         ),
         (
             chain_resolution,
             evaluation.back_atm_implied_volatility,
-            FACT_TYPE_BACK_ATM_IMPLIED_VOLATILITY,
+            FACT_TYPE_OPTION_IMPLIED_VOLATILITY,
+            evaluation.back_contract_identity,
         ),
     ):
         fact = project_scalar_canonical_fact(
             resolution,
             value=value,
-            subject=symbol,
+            subject=fact_subject,
             fact_type=fact_type,
             snapshot_digest=snapshot.snapshot_digest,
             effective_time=snapshot.as_of,

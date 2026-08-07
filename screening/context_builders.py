@@ -25,11 +25,12 @@ from decimal import Decimal
 from analytics.expiration_selection import ExpirationCandidate, select_expiration_pair
 from analytics.forward_factor import compute_days_to_expiration, compute_option_implied_volatility
 from domain import EarningsEvent, ExpirationCollection, ExpirationCycle, OptionChain, OptionType
+from strategies.earnings_calendar_evaluation import (
+    build_earnings_calendar_context as _strategy_owned_earnings_calendar_context,
+)
 from strategies.stonk_components import (
     DATE,
-    EARNINGS_EVENT,
     EXPIRATION_COLLECTION,
-    EXPIRATION_CYCLE,
     OPTION_CHAIN,
     B,
     D,
@@ -157,28 +158,25 @@ def build_earnings_calendar_context(
     term_structure_richness: Decimal,
     iv_realized_volatility_richness: Decimal,
 ) -> ComponentValues:
-    """Build from named strategy score inputs, never a positional feature tuple.
+    """Compatibility shim (SPRINT-014 S14-PR-05A, Architect checkpoint,
+    seventh review, item 4: "do not retain two implementations").
 
-    Weights (3, 1) remain the existing strategy policy pending WS4 migration
-    into the manifest.
+    Owner: strategies/earnings_calendar_evaluation.py, which now holds
+    the one real Earnings Calendar context-construction formula.
+    Deletion gate: S14-PR-07 (delete the superseded live path) -- at that
+    point screening/live_adapters.py, this shim's only remaining caller,
+    is deleted along with it. Delegates rather than duplicating so this
+    module never drifts out of sync with the strategies-owned original.
     """
-    return _context(
-        **{
-            "event_window.event": (EARNINGS_EVENT, event),
-            "event_projection.event": (EARNINGS_EVENT, event),
-            "event_projection.as_of": (DATE, as_of),
-            "event_window.front": (EXPIRATION_CYCLE, front),
-            "event_window.back": (EXPIRATION_CYCLE, back),
-            "expiration_select.expirations": (
-                EXPIRATION_COLLECTION,
-                ExpirationCollection(as_of, (back, front)),
-            ),
-            "expiration_select.event": (EARNINGS_EVENT, event),
-            "calendar.chain": (OPTION_CHAIN, chain),
-            "calendar.target_strike": (D, target_strike),
-            "score.primary": (D, term_structure_richness),
-            "score.secondary": (D, iv_realized_volatility_richness),
-        }
+    return _strategy_owned_earnings_calendar_context(
+        chain,
+        event,
+        front,
+        back,
+        as_of,
+        target_strike=target_strike,
+        term_structure_richness=term_structure_richness,
+        iv_realized_volatility_richness=iv_realized_volatility_richness,
     )
 
 

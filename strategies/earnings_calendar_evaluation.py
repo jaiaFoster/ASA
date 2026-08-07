@@ -88,8 +88,17 @@ _CANONICAL_FACT_VERSION = 1
 FACT_TYPE_SPOT_PRICE = "spot_price"
 FACT_TYPE_EARNINGS_DATE = "earnings_date"
 FACT_TYPE_EARNINGS_CONFIRMED = "earnings_confirmed"
-FACT_TYPE_FRONT_ATM_IMPLIED_VOLATILITY = "front_atm_implied_volatility"
-FACT_TYPE_BACK_ATM_IMPLIED_VOLATILITY = "back_atm_implied_volatility"
+
+# Architect checkpoint (seventh review), item 2: an implied volatility is
+# generic canonical knowledge about the exact option contract it was
+# observed on, never a "front"/"back" strategy role -- those roles are
+# this strategy's own selection parameterization, not canonical fact
+# taxonomy. One fact_type is used for both sides; the fact's own
+# ``subject`` is the contract's own stable, structural OptionContract.identity
+# (never the earnings subject/ticker), so a different valid front/back
+# selection within the same sealed snapshot can never collide on one
+# fact ID for two different contracts' IVs.
+FACT_TYPE_OPTION_IMPLIED_VOLATILITY = "option_implied_volatility"
 
 
 @dataclass(frozen=True, slots=True)
@@ -99,6 +108,12 @@ class EarningsCalendarEvaluation:
     construction needs a market_data ResolutionResult this module cannot
     see), the DerivedFactSet analytics/ already materialized, and the
     existing, unmodified manifest/graph's own execution output.
+
+    ``front_contract_identity``/``back_contract_identity`` are each
+    selected contract's own stable OptionContract.identity -- the
+    canonical *subject* the caller projects the corresponding implied-
+    volatility CanonicalFact under (Architect checkpoint item 2), never
+    the earnings subject/ticker.
     """
 
     spot_price: Decimal
@@ -106,11 +121,13 @@ class EarningsCalendarEvaluation:
     earnings_confirmed: bool
     front_atm_implied_volatility: Decimal
     back_atm_implied_volatility: Decimal
+    front_contract_identity: str
+    back_contract_identity: str
     derived_facts: DerivedFactSet
     graph_outputs: ComponentValues
 
 
-def _build_context(
+def build_earnings_calendar_context(
     chain: OptionChain,
     event: EarningsEvent,
     front: ExpirationCycle,
@@ -121,12 +138,14 @@ def _build_context(
     term_structure_richness: Decimal,
     iv_realized_volatility_richness: Decimal,
 ) -> ComponentValues:
-    """Reimplements screening.context_builders.build_earnings_calendar_context's
-    exact ComponentValues shape locally, entirely from strategies-owned
-    types (strategies.stonk_components/type_system) -- this module cannot
-    import screening/ to reuse that function directly, and moving it
-    would touch screening/live_adapters.py's own still-live production
-    import, out of this bounded corrective commit's scope.
+    """The single-source-of-truth Earnings Calendar execution-context
+    builder (Architect checkpoint, seventh review, item 4: "do not retain
+    two implementations"). screening.context_builders.
+    build_earnings_calendar_context is now a compatibility shim that
+    delegates here -- owner: this module; deletion gate: S14-PR-07
+    (delete the superseded live path), at which point the shim itself is
+    deleted along with its only remaining caller,
+    screening/live_adapters.py.
     """
     items: dict[str, tuple[object, object]] = {
         "event_window.event": (_EARNINGS_EVENT_TYPE, event),
@@ -164,6 +183,10 @@ def evaluate_earnings_calendar(
     subject: str,
     snapshot_digest: str,
     effective_time: datetime,
+    quote_demand_id: str,
+    historical_bars_demand_id: str,
+    front_chain_demand_id: str,
+    back_chain_demand_id: str,
 ) -> EarningsCalendarEvaluation | UnknownReason:
     """Earnings Calendar's own pure, acquisition-free evaluation: ATM
     selection, analytics materialization, richness normalization, and
@@ -177,9 +200,13 @@ def evaluate_earnings_calendar(
     simply carry no calls -- select_atm_strike's own empty-strike-set
     ValueError is never let through raw), a missing implied volatility on
     the selected ATM contract, or fewer than two historical daily closes.
+    Every UnknownReason carries the exact demand_id(s) it traces back to
+    (Architect checkpoint, seventh review, item 3) -- the four
+    ``*_demand_id`` parameters exist for exactly this, never consumed for
+    any other decision this function makes.
     """
     if quote.last is None:
-        return UnknownReason("missing_spot_price")
+        return UnknownReason("missing_spot_price", demand_ids=(quote_demand_id,))
     spot_price = quote.last
 
     front_strikes = tuple(
@@ -191,7 +218,17 @@ def evaluate_earnings_calendar(
         for item in chain.find(expiration=back_expiration, option_type=OptionType.CALL)
     )
     if not front_strikes or not back_strikes:
-        return UnknownReason("no_call_contracts_at_selected_expiration")
+        no_calls_demand_ids = tuple(
+            demand_id
+            for empty, demand_id in (
+                (not front_strikes, front_chain_demand_id),
+                (not back_strikes, back_chain_demand_id),
+            )
+            if empty
+        )
+        return UnknownReason(
+            "no_call_contracts_at_selected_expiration", demand_ids=no_calls_demand_ids
+        )
     front_strike = select_atm_strike(front_strikes, spot_price)
     back_strike = select_atm_strike(back_strikes, spot_price)
     (front_contract,) = chain.find(
@@ -201,20 +238,39 @@ def evaluate_earnings_calendar(
         expiration=back_expiration, strike=back_strike, option_type=OptionType.CALL
     )
     if front_contract.implied_volatility is None or back_contract.implied_volatility is None:
-        return UnknownReason("missing_implied_volatility")
+        missing_iv_demand_ids = tuple(
+            demand_id
+            for missing, demand_id in (
+                (front_contract.implied_volatility is None, front_chain_demand_id),
+                (back_contract.implied_volatility is None, back_chain_demand_id),
+            )
+            if missing
+        )
+        return UnknownReason("missing_implied_volatility", demand_ids=missing_iv_demand_ids)
     front_iv = front_contract.implied_volatility
     back_iv = back_contract.implied_volatility
+    front_contract_identity = front_contract.identity
+    back_contract_identity = back_contract.identity
 
     try:
         realized_volatility = compute_realized_volatility(bars_closes)
     except InsufficientPriceHistoryError:
-        return UnknownReason("insufficient_historical_bars")
+        return UnknownReason(
+            "insufficient_historical_bars", demand_ids=(historical_bars_demand_id,)
+        )
 
+    # Architect checkpoint item 2: canonical knowledge about an option
+    # contract's own implied volatility is keyed by the contract's own
+    # stable identity, never by the earnings subject/ticker -- "front"
+    # and "back" are this strategy's own selection roles, expressed below
+    # only as I-07 parameter identity on the *derived* facts that
+    # actually depend on the selection, never smuggled into a canonical
+    # fact's subject.
     front_iv_fact_id = canonical_fact_id(
-        FACT_TYPE_FRONT_ATM_IMPLIED_VOLATILITY, subject, snapshot_digest
+        FACT_TYPE_OPTION_IMPLIED_VOLATILITY, front_contract_identity, snapshot_digest
     )
     back_iv_fact_id = canonical_fact_id(
-        FACT_TYPE_BACK_ATM_IMPLIED_VOLATILITY, subject, snapshot_digest
+        FACT_TYPE_OPTION_IMPLIED_VOLATILITY, back_contract_identity, snapshot_digest
     )
     front_iv_evidence = EvidenceReference(
         EvidenceKind.CANONICAL_FACT, front_iv_fact_id, _CANONICAL_FACT_VERSION
@@ -236,6 +292,16 @@ def evaluate_earnings_calendar(
         quality_status=DerivedFactQualityStatus.VALID,
     )
     term_structure_spread = compute_iv_term_structure_spread(front_iv, back_iv)
+    # I-07 parameter identity (Architect checkpoint item 1): this
+    # feature's own *value* depends on exactly which front/back contracts
+    # were selected, so its derived_fact_id must depend on them too --
+    # otherwise a different valid selection within the same
+    # subject/snapshot would silently reuse this same ID for a different
+    # value.
+    selection_parameters = (
+        ("front_contract_id", front_contract_identity),
+        ("back_contract_id", back_contract_identity),
+    )
     term_structure_fact = materialize_derived_fact(
         DERIVED_FACT_REGISTRY,
         IV_TERM_STRUCTURE_SPREAD,
@@ -246,13 +312,16 @@ def evaluate_earnings_calendar(
         effective_time=effective_time,
         input_evidence=(front_iv_evidence, back_iv_evidence),
         quality_status=DerivedFactQualityStatus.VALID,
+        parameters=selection_parameters,
     )
     # Owns its own realized-volatility computation end to end (analytics.
     # derived_facts.compute_atm_iv_vs_realized_volatility) rather than
     # reusing the realized_volatility_fact value materialized above --
     # ATM_IV_VS_REALIZED's own registered formula_version must own the
     # entire computation, never silently depend on a separately-versioned
-    # intermediate (Architect checkpoint item 3).
+    # intermediate (Architect checkpoint item 3). Also selection-
+    # dependent (front contract plus historical window), so it carries
+    # its own I-07 parameters too.
     iv_realized_spread = compute_atm_iv_vs_realized_volatility(front_iv, bars_closes)
     iv_realized_fact = materialize_derived_fact(
         DERIVED_FACT_REGISTRY,
@@ -264,12 +333,16 @@ def evaluate_earnings_calendar(
         effective_time=effective_time,
         input_evidence=(front_iv_evidence, *bars_evidence),
         quality_status=DerivedFactQualityStatus.VALID,
+        parameters=(
+            ("front_contract_id", front_contract_identity),
+            ("historical_bars_observation_id", bars_observation_id),
+        ),
     )
     derived_facts = DerivedFactSet(
         (realized_volatility_fact, term_structure_fact, iv_realized_fact)
     )
 
-    context = _build_context(
+    context = build_earnings_calendar_context(
         chain,
         event,
         front_cycle,
@@ -288,6 +361,8 @@ def evaluate_earnings_calendar(
         earnings_confirmed=event.confirmed,
         front_atm_implied_volatility=front_iv,
         back_atm_implied_volatility=back_iv,
+        front_contract_identity=front_contract_identity,
+        back_contract_identity=back_contract_identity,
         derived_facts=derived_facts,
         graph_outputs=result.outputs,
     )

@@ -83,7 +83,7 @@ from strategies import (
     compile_strategy_graph,
     execute_strategy_graph,
 )
-from strategies.earnings_calendar_evaluation import FACT_TYPE_FRONT_ATM_IMPLIED_VOLATILITY
+from strategies.earnings_calendar_evaluation import FACT_TYPE_OPTION_IMPLIED_VOLATILITY
 from strategies.earnings_calendar_planning import (
     EarningsCalendarPhaseTwoEvidence,
     chain_demand_at,
@@ -541,17 +541,61 @@ class TestComposeEarningsCalendarEvaluationParity:
         front_iv_fact = next(
             item
             for item in result.canonical_facts
-            if item.fact_type == FACT_TYPE_FRONT_ATM_IMPLIED_VOLATILITY
+            if item.fact_type == FACT_TYPE_OPTION_IMPLIED_VOLATILITY and item.value == front_iv
         )
+        # The fact's own subject is the selected contract's stable
+        # identity, never the earnings ticker (Architect checkpoint item
+        # 2) -- extracted here from the fact_id's own middle component,
+        # the same "fact_type:subject:snapshot_digest" shape
+        # canonical_fact_id() always produces.
+        front_contract_identity = front_iv_fact.fact_id.split(":")[1]
+        assert front_contract_identity != SYMBOL
         # A second, independent "consumer" projecting the identical
         # (fact_type, subject, snapshot_digest) triple -- never told
         # which strategy the first consumer was -- computes the exact
         # same ID.
         second_consumer_fact_id = canonical_fact_id(
-            FACT_TYPE_FRONT_ATM_IMPLIED_VOLATILITY, SYMBOL, snapshot.snapshot_digest
+            FACT_TYPE_OPTION_IMPLIED_VOLATILITY, front_contract_identity, snapshot.snapshot_digest
         )
         assert front_iv_fact.fact_id == second_consumer_fact_id
         assert not front_iv_fact.fact_id.startswith("earnings_calendar:")
+
+    def test_different_contract_selections_cannot_collide_on_one_fact_id(self) -> None:
+        """Architect checkpoint item 2's own required proof: the second-
+        consumer test above only shows identical inputs yield identical
+        IDs; this proves two *different* selections (two different
+        contracts, e.g. a different consumer choosing a different "front"
+        expiration from the same sealed snapshot) can never collide on
+        one canonical fact ID, since each contract's own stable identity
+        -- never the shared earnings ticker -- is the fact's subject.
+        """
+        front_iv = Decimal("0.50")
+        back_iv = Decimal("0.20")
+        snapshot, *_ = _build_snapshot(front_iv=front_iv, back_iv=back_iv)
+        phase_two = _phase_two_evidence(front_iv=front_iv, back_iv=back_iv)
+        assert isinstance(phase_two, EarningsCalendarPhaseTwoEvidence)
+
+        result = compose_earnings_calendar_evaluation(SYMBOL, snapshot, phase_two, _selections())
+        assert isinstance(result, EarningsCalendarComposition)
+
+        iv_facts = [
+            item
+            for item in result.canonical_facts
+            if item.fact_type == FACT_TYPE_OPTION_IMPLIED_VOLATILITY
+        ]
+        assert len(iv_facts) == 2
+        front_fact, back_fact = (
+            (iv_facts[0], iv_facts[1])
+            if iv_facts[0].value == front_iv
+            else (iv_facts[1], iv_facts[0])
+        )
+        assert front_fact.value == front_iv
+        assert back_fact.value == back_iv
+        # Two structurally different contracts (different expiration,
+        # generally different strike too) -> two different stable
+        # identities -> two different fact IDs, even though both share
+        # the same fact_type and the same sealed snapshot digest.
+        assert front_fact.fact_id != back_fact.fact_id
 
     def test_derived_facts_link_input_evidence_to_what_they_consumed(self) -> None:
         front_iv = Decimal("0.50")
@@ -564,6 +608,9 @@ class TestComposeEarningsCalendarEvaluationParity:
         assert isinstance(result, EarningsCalendarComposition)
 
         bars_observation_id = bars_result.observations[0].observation_id
+        # REALIZED_VOLATILITY carries no I-07 selection parameters (its
+        # own value never varies by which contract was selected), so its
+        # ID is still the unparameterized three-component shape.
         realized_vol_fact = result.derived_facts.get(
             f"{REALIZED_VOLATILITY}:{SYMBOL}:{snapshot.snapshot_digest}"
         )
@@ -575,15 +622,25 @@ class TestComposeEarningsCalendarEvaluationParity:
         front_iv_fact = next(
             item
             for item in result.canonical_facts
-            if item.fact_type == "front_atm_implied_volatility"
+            if item.fact_type == FACT_TYPE_OPTION_IMPLIED_VOLATILITY and item.value == front_iv
         )
         back_iv_fact = next(
             item
             for item in result.canonical_facts
-            if item.fact_type == "back_atm_implied_volatility"
+            if item.fact_type == FACT_TYPE_OPTION_IMPLIED_VOLATILITY and item.value == back_iv
         )
-        term_structure_fact = result.derived_facts.get(
-            f"{IV_TERM_STRUCTURE_SPREAD}:{SYMBOL}:{snapshot.snapshot_digest}"
+        # IV_TERM_STRUCTURE_SPREAD/ATM_IV_VS_REALIZED are selection-
+        # dependent (Architect checkpoint item 1) -- their own IDs now
+        # carry an I-07 parameter-identity suffix the unparameterized
+        # "{feature}:{subject}:{digest}" prefix alone no longer uniquely
+        # determines, so they are looked up by that prefix instead of an
+        # exact reconstructed ID.
+        term_structure_fact = next(
+            item
+            for item in result.derived_facts.facts
+            if item.derived_fact_id.startswith(
+                f"{IV_TERM_STRUCTURE_SPREAD}:{SYMBOL}:{snapshot.snapshot_digest}"
+            )
         )
         referenced_fact_ids = {
             item.referenced_id
@@ -592,8 +649,12 @@ class TestComposeEarningsCalendarEvaluationParity:
         }
         assert referenced_fact_ids == {front_iv_fact.fact_id, back_iv_fact.fact_id}
 
-        iv_rv_fact = result.derived_facts.get(
-            f"{ATM_IV_VS_REALIZED}:{SYMBOL}:{snapshot.snapshot_digest}"
+        iv_rv_fact = next(
+            item
+            for item in result.derived_facts.facts
+            if item.derived_fact_id.startswith(
+                f"{ATM_IV_VS_REALIZED}:{SYMBOL}:{snapshot.snapshot_digest}"
+            )
         )
         iv_rv_referenced = {item.referenced_id for item in iv_rv_fact.input_evidence}
         # ATM_IV_VS_REALIZED is a composite feature owning its own
@@ -617,6 +678,9 @@ class TestComposeEarningsCalendarEvaluationUnknownCases:
         result = compose_earnings_calendar_evaluation(SYMBOL, snapshot, phase_two, _selections())
         assert isinstance(result, UnknownReason)
         assert result.code == "insufficient_historical_bars"
+        # Architect checkpoint item 3: the outcome remains traceable to
+        # the exact resolved evidence it came from.
+        assert result.demand_ids == (phase_two.historical_bars_evidence.demand_id,)
 
     def test_missing_implied_volatility_is_unknown(self) -> None:
         snapshot, *_ = _build_snapshot(front_iv=None, back_iv=Decimal("0.20"))
@@ -626,6 +690,7 @@ class TestComposeEarningsCalendarEvaluationUnknownCases:
         result = compose_earnings_calendar_evaluation(SYMBOL, snapshot, phase_two, _selections())
         assert isinstance(result, UnknownReason)
         assert result.code == "missing_implied_volatility"
+        assert result.demand_ids == (phase_two.front_chain_evidence.demand_id,)
 
     def test_no_call_contracts_at_selected_expiration_is_unknown(self) -> None:
         """Architect checkpoint item 6: select_atm_strike()'s own empty-
@@ -646,6 +711,9 @@ class TestComposeEarningsCalendarEvaluationUnknownCases:
         result = compose_earnings_calendar_evaluation(SYMBOL, snapshot, phase_two, _selections())
         assert isinstance(result, UnknownReason)
         assert result.code == "no_call_contracts_at_selected_expiration"
+        # Architect checkpoint item 3: only the affected (front) side is
+        # named -- the back side genuinely listed CALL contracts.
+        assert result.demand_ids == (phase_two.front_chain_evidence.demand_id,)
 
 
 class TestSealedEvidenceProvenance:

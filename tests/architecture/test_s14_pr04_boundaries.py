@@ -44,5 +44,11 @@ def test_canonical_projection_boundaries() -> None:
 def test_derived_fact_materialization_boundaries() -> None:
     _check(
         "analytics/derived_fact_materialization.py",
-        {"__future__", "datetime", "domain", "analytics"},
+        # "hashlib"/"json" added (SPRINT-014 S14-PR-05A, Architect
+        # checkpoint: seventh review, I-07 parameter identity): the same
+        # canonical-json-then-sha256 hashing pattern
+        # analytics/features.py's own DerivedFact.identity already uses,
+        # now needed here too to fold a selection-dependent feature's own
+        # parameters into its derived_fact_id.
+        {"__future__", "datetime", "domain", "analytics", "hashlib", "json"},
     )
