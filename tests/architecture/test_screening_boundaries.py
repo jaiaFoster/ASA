@@ -54,25 +54,37 @@ def _screening_files() -> list[Path]:
 
 
 class TestScreeningImportScope:
-    """screening/ imports only screening, domain, strategies, analytics, and
-    market_data (SCREEN-004 adapters wrap existing strategies; ANALYTICS-003
-    context builders use analytics/ for Forward Factor's derived inputs;
-    LIVE-001 reuses market_data/'s own canonical, provider-neutral
-    acquisition pipeline instead of building a new one) -- these
-    dependencies are intentional and one-directional: none of strategies/,
-    analytics/, or market_data/ is permitted to import screening, enforced
-    separately by their own allowlists (test_strategy_boundaries.py,
-    test_analytics_boundaries.py, and market_data/'s own existing
-    boundary tests). market_data/ is the sanctioned canonical acquisition
-    layer, not a raw provider SDK -- the raw providers/ package stays
-    prohibited below; no provider-specific code may enter screening/
-    directly.
+    """screening/ imports only screening, domain, strategies, analytics,
+    market_data, and facts (SCREEN-004 adapters wrap existing strategies;
+    ANALYTICS-003 context builders use analytics/ for Forward Factor's
+    derived inputs; LIVE-001 reuses market_data/'s own canonical,
+    provider-neutral acquisition pipeline instead of building a new one)
+    -- these dependencies are intentional and one-directional: none of
+    strategies/, analytics/, market_data/, or facts/ is permitted to
+    import screening, enforced separately by their own allowlists
+    (test_strategy_boundaries.py, test_analytics_boundaries.py, and
+    market_data/'s own existing boundary tests). market_data/ is the
+    sanctioned canonical acquisition layer, not a raw provider SDK -- the
+    raw providers/ package stays prohibited below; no provider-specific
+    code may enter screening/ directly.
+
+    "facts" added (SPRINT-014 S14-PR-05A, Architect checkpoint: fact/
+    analytics composition increment): screening/earnings_calendar_facts.py
+    is the only layer with simultaneous access to market_data/ (for
+    ResolutionResult/MarketSnapshot, the sealed evidence a canonical fact
+    is projected from) and the composition-orchestration role that calls
+    facts.canonical_projection.project_canonical_fact() -- strategies/
+    can reach facts/ but not market_data/, so this reuse could not
+    otherwise happen without a second, duplicated fact-projection
+    function. facts/ itself still cannot import screening (unchanged,
+    one-directional).
     """
 
     @pytest.mark.parametrize("py_file", _screening_files())
     def test_only_permitted_roots(self, py_file: Path) -> None:
         permitted = (
-            {"screening", "domain", "strategies", "analytics", "market_data"} | STDLIB_ALLOWED
+            {"screening", "domain", "strategies", "analytics", "market_data", "facts"}
+            | STDLIB_ALLOWED
         )
         imported = _imported_roots(py_file)
         assert imported <= permitted, (

@@ -28,6 +28,7 @@ NORMALIZED_CALL_SKEW = "normalized_call_skew"
 NORMALIZED_PUT_SKEW = "normalized_put_skew"
 SKEW_HISTORICAL_PERCENTILE = "skew_historical_percentile"
 SKEW_HISTORICAL_ZSCORE = "skew_historical_zscore"
+IV_TERM_STRUCTURE_SPREAD = "iv_term_structure_spread"
 ATM_IV_VS_REALIZED = "atm_iv_vs_realized_volatility"
 CALL_WING_IV_VS_REALIZED = "call_wing_iv_vs_realized_volatility"
 PUT_WING_IV_VS_REALIZED = "put_wing_iv_vs_realized_volatility"
@@ -180,6 +181,22 @@ def compute_iv_realized_spread(
     return implied_volatility - realized_volatility
 
 
+def compute_iv_term_structure_spread(front_iv: Decimal, back_iv: Decimal) -> Decimal:
+    """Front-month implied volatility minus a later expiration's implied
+    volatility (SPRINT-014 S14-PR-05A, Architect checkpoint: fact/analytics
+    composition increment). A steep negative term-structure slope --
+    front IV meaningfully richer than the back expiration's -- is the
+    reusable financial feature Earnings Calendar's own term-structure
+    richness score input is built from; the raw spread lives here, in
+    analytics/, never as ad hoc subtraction inside screening or a
+    strategy. Richness normalization over this spread stays strategy-owned
+    (strategies/scoring.py's normalize_richness()).
+    """
+    if min(front_iv, back_iv) < 0:
+        raise ValueError("implied volatilities must be non-negative")
+    return front_iv - back_iv
+
+
 def compute_bid_ask_spread_ratio(bid: Decimal | None, ask: Decimal | None) -> Decimal:
     if bid is None or ask is None or bid < 0 or ask < bid:
         raise ValueError("valid ordered bid and ask are required")
@@ -239,6 +256,11 @@ DERIVED_FACT_DEFINITIONS = (
     _definition(
         IMPLIED_FORWARD_VOLATILITY,
         "Forward volatility implied by two canonical expiration IVs.",
+        MarketCapability.OPTION_CHAIN_V1,
+    ),
+    _definition(
+        IV_TERM_STRUCTURE_SPREAD,
+        "Front-month implied volatility minus a later expiration's implied volatility.",
         MarketCapability.OPTION_CHAIN_V1,
     ),
     _definition(
