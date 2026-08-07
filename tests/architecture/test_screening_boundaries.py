@@ -80,7 +80,7 @@ class TestScreeningImportScope:
     facts.canonical_projection.project_canonical_fact() -- strategies/
     can reach facts/ but not market_data/, so this narrow bridge exists
     once rather than being duplicated per strategy. Every other screening
-    file, including screening/earnings_calendar_facts.py, stays within
+    file, including screening/context_builders.py, stays within
     the general allowlist and reaches this bridge only through
     screening/'s own already-permitted "screening" root. facts/ itself
     still cannot import screening (unchanged, one-directional).

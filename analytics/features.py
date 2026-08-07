@@ -4,13 +4,17 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
 from enum import StrEnum
+from typing import Generic, TypeVar
 
-from domain import EvidenceReference
+from domain import CanonicalFact, CanonicalFactRequest, EvidenceReference
 from domain.values import require_tz_aware
+
+TPayload = TypeVar("TPayload")
 
 DerivedFactValue = Decimal | int | bool | date | tuple[Decimal, ...]
 
@@ -119,3 +123,36 @@ class DerivedFactSet:
             if fact.derived_fact_id == derived_fact_id:
                 return fact
         raise KeyError(derived_fact_id)
+
+
+@dataclass(frozen=True, slots=True)
+class DerivedFactRequest:
+    """One already-computed analytics value a binding wants materialized
+    into a DerivedFact (SPRINT-014 S14-PR-05A, Architect checkpoint: ninth
+    review). The binding computes ``value`` itself -- this request carries
+    only the data materialize_derived_fact() itself needs; the generic
+    orchestrator performs that one call, never the computation.
+    """
+
+    feature_id: str
+    subject: str
+    value: DerivedFactValue
+    unit: str
+    input_evidence: tuple[EvidenceReference, ...]
+    quality_status: DerivedFactQualityStatus
+    parameters: tuple[tuple[str, str], ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class KnowledgeMapping(Generic[TPayload]):
+    """A strategy-specific integration binding's complete, already-computed
+    recipe for one composition (SPRINT-014 S14-PR-05A, Architect
+    checkpoint: ninth review) -- the canonical/derived fact requests a
+    generic orchestrator must resolve, plus a callback assembling the
+    strategy-owned payload from the resolved facts. The orchestrator never
+    knows ``TPayload``'s shape.
+    """
+
+    canonical_fact_requests: tuple[CanonicalFactRequest, ...]
+    derived_fact_requests: tuple[DerivedFactRequest, ...]
+    build_payload: Callable[[tuple[CanonicalFact, ...], DerivedFactSet], TPayload]
