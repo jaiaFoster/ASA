@@ -69,6 +69,48 @@ class TestDemandExpansion:
         backward = DemandExpansion(selections=(("front", "2026-08-21"), ("back", "2026-09-18")))
         assert forward.selections == backward.selections
 
+    def test_selections_accept_normalized_scalar_and_nested_tuple_values(self) -> None:
+        expansion = DemandExpansion(
+            selections=(
+                ("front_expiration", "2026-08-21"),
+                ("front_dte", 15),
+                ("gap_days", 30.5),
+                ("legs", (("strike", "190"), ("side", "call"))),
+            )
+        )
+        assert dict(expansion.selections)["front_dte"] == 15
+
+    def test_selections_reject_a_dict_value(self) -> None:
+        with pytest.raises(DomainInvariantError, match="selections"):
+            DemandExpansion(selections=(("front", {"expiration": "2026-08-21"}),))
+
+    def test_selections_reject_a_list_value(self) -> None:
+        with pytest.raises(DomainInvariantError, match="selections"):
+            DemandExpansion(selections=(("legs", ["front", "back"]),))
+
+    def test_selections_reject_a_set_value(self) -> None:
+        with pytest.raises(DomainInvariantError, match="selections"):
+            DemandExpansion(selections=(("tags", {"front", "back"}),))
+
+    def test_selections_reject_a_nested_mutable_value(self) -> None:
+        with pytest.raises(DomainInvariantError, match="selections"):
+            DemandExpansion(selections=(("legs", (("strike", ["190"]),)),))
+
+    def test_selections_reject_a_non_finite_float(self) -> None:
+        with pytest.raises(DomainInvariantError, match="selections"):
+            DemandExpansion(selections=(("ratio", float("nan")),))
+
+    def test_selections_reject_infinity(self) -> None:
+        with pytest.raises(DomainInvariantError, match="selections"):
+            DemandExpansion(selections=(("ratio", float("inf")),))
+
+    def test_selections_reject_a_mutable_custom_object(self) -> None:
+        class _Opaque:
+            pass
+
+        with pytest.raises(DomainInvariantError, match="selections"):
+            DemandExpansion(selections=(("front", _Opaque()),))
+
     def test_unknown_reasons_pass_through_as_given(self) -> None:
         reason = UnknownReason("no_earnings_date", demand_ids=(_demand().demand_id,))
         expansion = DemandExpansion(unknown_reasons=(reason,))

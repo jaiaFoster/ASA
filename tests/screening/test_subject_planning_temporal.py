@@ -1,14 +1,13 @@
 """SPRINT-014 S14-PR-05A, Architect checkpoint item 4: the generic
 planner must actually apply a CapabilityDemand's own declared temporal
-policy (require_open_session/allow_prior_session/maximum_age_seconds/
-maximum_input_skew_seconds), producing typed RESOLVED/UNKNOWN evidence --
-not hand a consumer's expansion function raw, unvalidated evidence whose
-own demand identity claimed a policy that was never actually applied.
+policy (require_open_session/allow_prior_session/maximum_age_seconds),
+producing typed RESOLVED/UNKNOWN evidence -- not hand a consumer's
+expansion function raw, unvalidated evidence whose own demand identity
+claimed a policy that was never actually applied.
 """
 
 from __future__ import annotations
 
-import ast
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
@@ -52,7 +51,6 @@ def _quote_demand(
     require_open_session: bool = False,
     allow_prior_session: bool = True,
     maximum_age_seconds: int | None = None,
-    maximum_input_skew_seconds: int | None = None,
 ) -> CapabilityDemand:
     return CapabilityDemand(
         MarketCapability.REAL_TIME_QUOTE_V1,
@@ -62,7 +60,6 @@ def _quote_demand(
         require_open_session=require_open_session,
         allow_prior_session=allow_prior_session,
         maximum_age_seconds=maximum_age_seconds,
-        maximum_input_skew_seconds=maximum_input_skew_seconds,
     )
 
 
@@ -196,39 +193,21 @@ class TestTemporalUsabilityIsActuallyApplied:
         assert projected.value is None
 
 
-class TestInputSkewIsOwnedByEvaluateTemporalUsabilityAlone:
-    """market_data.temporal.evaluate_temporal_usability -- the module's
-    own documented "canonical freshness-to-usability policy" -- is the
-    single declared owner of every FreshnessRequirement field, including
-    maximum_input_skew_seconds. This proves screening/subject_planning.py
-    never reads that field itself to make its own separate decision; it
-    only ever forwards it into FreshnessRequirement and defers entirely
-    to that one function's own verdict, which is what "single declared
-    owner" requires -- no second, duplicate enforcement path anywhere in
-    this planner.
+class TestInputSkewHasNoUnenforcedIdentityBearingField:
+    """SPRINT-014 S14-PR-05A, Architect checkpoint (second review):
+    maximum_input_skew_seconds was removed from CapabilityDemand entirely
+    -- it contributed to demand identity but had no real enforcement
+    owner anywhere (market_data.temporal.evaluate_temporal_usability, the
+    one function that would own it, never read it either). "Do not retain
+    an identity-bearing policy field that has no behavioral effect."
+    Multi-input-skew semantics (comparing effective times across more
+    than one observation feeding one decision) has no real owner yet;
+    it belongs alongside that owner when one exists, not before.
     """
 
-    def test_maximum_input_skew_seconds_is_only_ever_forwarded_never_compared(self) -> None:
-        module = Path(__file__).resolve().parents[2] / "screening" / "subject_planning.py"
-        tree = ast.parse(module.read_text())
-        for node in ast.walk(tree):
-            if not isinstance(node, ast.Compare):
-                continue
-            for operand in (node.left, *node.comparators):
-                if (
-                    isinstance(operand, ast.Attribute)
-                    and operand.attr == "maximum_input_skew_seconds"
-                ):
-                    raise AssertionError(
-                        "subject_planning.py compares maximum_input_skew_seconds directly "
-                        f"at line {node.lineno} -- it must delegate entirely to "
-                        "evaluate_temporal_usability, never duplicate its policy"
-                    )
+    def test_capability_demand_has_no_input_skew_field(self) -> None:
+        assert "maximum_input_skew_seconds" not in CapabilityDemand.__dataclass_fields__
 
-    def test_the_field_is_forwarded_into_a_real_freshness_requirement(self) -> None:
-        demand = _quote_demand(maximum_input_skew_seconds=30)
-        result = _result_with_freshness(status=FreshnessStatus.FRESH, age_seconds=0)
-        # No assertion beyond "does not raise" -- proves the field survives
-        # construction and reaches _project without a type/attribute error,
-        # i.e. it is genuinely plumbed through, not silently dropped.
-        _project(demand.demand_id, demand, result, now=NOW, market_is_open=True)
+    def test_subject_planning_never_names_input_skew(self) -> None:
+        module = Path(__file__).resolve().parents[2] / "screening" / "subject_planning.py"
+        assert "maximum_input_skew_seconds" not in module.read_text()

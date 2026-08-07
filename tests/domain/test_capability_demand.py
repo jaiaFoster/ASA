@@ -129,7 +129,6 @@ class TestCapabilityDemandIdentity:
             {"require_open_session": True},
             {"allow_prior_session": False},
             {"maximum_age_seconds": 3600},
-            {"maximum_input_skew_seconds": 60},
         ],
     )
     def test_identity_changes_when_any_field_changes(self, vary: dict[str, object]) -> None:

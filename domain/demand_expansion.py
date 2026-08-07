@@ -17,7 +17,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from domain.capability_demand import CapabilityDemand
-from domain.values import DomainInvariantError
+from domain.values import DomainInvariantError, require_normalized
 
 
 @dataclass(frozen=True, slots=True)
@@ -50,7 +50,14 @@ class DemandExpansion:
     a tuple of unique, sorted ``(key, value)`` pairs, never a mutable
     dict) carrying whatever pure selection output a strategy's own policy
     produced (e.g. a chosen expiration pair's identities); opaque to the
-    generic planner, which only ever carries it through unread.
+    generic planner, which only ever carries it through unread. Every
+    value is validated against domain.values.require_normalized -- the
+    same recursive immutable-value contract every other domain type's own
+    ``value`` field already uses (finite scalars, tz-aware datetimes,
+    unique-keyed mapping tuples, and nested tuples of the same; never
+    list/dict/set or a mutable custom object). A chosen expiration is
+    represented as its own stable identity (a string) or an ISO-formatted
+    date string, never a live domain object.
 
     ``demands`` is deduplicated by ``CapabilityDemand.demand_id`` and
     returned in deterministic (demand_id-sorted) order regardless of the
@@ -77,6 +84,8 @@ class DemandExpansion:
             raise DomainInvariantError("DemandExpansion.selections keys must be unique")
         if any(not key or key != key.strip() for key in selection_keys):
             raise DomainInvariantError("DemandExpansion.selections keys must be normalized")
+        for key, value in self.selections:
+            require_normalized(value, "DemandExpansion", f"selections[{key!r}]")
         object.__setattr__(
             self, "selections", tuple(sorted(self.selections, key=lambda item: item[0]))
         )

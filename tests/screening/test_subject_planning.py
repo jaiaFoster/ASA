@@ -89,15 +89,15 @@ class TestTwoSyntheticConsumers:
             resolution_policy_by_capability=_RESOLUTION_POLICY,
         )
 
-        assert demand.demand_id in result.resolved_evidence
+        assert demand.demand_id in result.diagnostic_fulfillments
         assert demand.demand_id in seen_by_b
         # seen_by_b holds the *restricted* ResolvedCapabilityEvidence
         # projection (never the raw CapabilityFulfillmentResult
-        # SubjectPlanResult.resolved_evidence itself carries) -- proven
-        # shared by content: the projection reflects the same resolved,
-        # usable evidence the raw result actually carries.
+        # SubjectPlanResult.diagnostic_fulfillments itself carries) --
+        # proven shared by content: the projection reflects the same
+        # resolved, usable evidence the raw result actually carries.
         projected = seen_by_b[demand.demand_id]
-        raw = result.resolved_evidence[demand.demand_id]
+        raw = result.diagnostic_fulfillments[demand.demand_id]
         assert projected.usability is EvidenceUsability.RESOLVED
         assert projected.value == raw.observations[0].value
         assert projected.observation_ids == (raw.observations[0].observation_id,)
@@ -149,7 +149,7 @@ class TestTwoSyntheticConsumers:
 
 
 class TestOrderAndCountIndependence:
-    def test_consumer_registration_order_does_not_change_resolved_evidence_or_call_count(
+    def test_consumer_registration_order_does_not_change_diagnostic_fulfillments_or_call_count(
         self,
     ) -> None:
         demand = _quote_demand()
@@ -175,7 +175,9 @@ class TestOrderAndCountIndependence:
         forward_result, forward_fulfillment = build(("consumer-a", "consumer-b"))
         reverse_result, reverse_fulfillment = build(("consumer-b", "consumer-a"))
 
-        assert set(forward_result.resolved_evidence) == set(reverse_result.resolved_evidence)
+        assert set(forward_result.diagnostic_fulfillments) == set(
+            reverse_result.diagnostic_fulfillments
+        )
         assert len(forward_fulfillment.call_log) == len(reverse_fulfillment.call_log) == 1
 
     def test_an_extra_uninvolved_consumer_does_not_change_another_consumers_own_evidence(
@@ -206,8 +208,8 @@ class TestOrderAndCountIndependence:
         )
 
         assert (
-            with_bystander.resolved_evidence[demand.demand_id].status
-            == alone.resolved_evidence[demand.demand_id].status
+            with_bystander.diagnostic_fulfillments[demand.demand_id].status
+            == alone.diagnostic_fulfillments[demand.demand_id].status
         )
         assert with_bystander.demand_ids_by_consumer["consumer-a"] == (demand.demand_id,)
 
@@ -231,7 +233,7 @@ class TestSharedExhaustedFailure:
             resolution_policy_by_capability=_RESOLUTION_POLICY,
         )
 
-        resolved = result.resolved_evidence[demand.demand_id]
+        resolved = result.diagnostic_fulfillments[demand.demand_id]
         assert resolved.status is FulfillmentStatus.FAILED
         assert len(fulfillment.call_log) == 1
 

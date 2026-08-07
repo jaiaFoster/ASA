@@ -35,8 +35,8 @@ class EvidenceUsability(str, Enum):
     DEGRADED multi-provider fallback, not evidence usability). A demand
     whose provider fetch technically succeeded but whose evidence fails
     its own declared temporal policy (CapabilityDemand's own
-    require_open_session/allow_prior_session/maximum_age_seconds/
-    maximum_input_skew_seconds) is projected UNKNOWN here, not RESOLVED.
+    require_open_session/allow_prior_session/maximum_age_seconds) is
+    projected UNKNOWN here, not RESOLVED.
     """
 
     RESOLVED = "resolved"

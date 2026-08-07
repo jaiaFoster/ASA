@@ -56,8 +56,9 @@ from screening.live_context import build_capability_subject
 # transport, budget, or repository. Keyed by CapabilityDemand.demand_id,
 # never by consumer. This is deliberately narrower than what the planner
 # retains internally (see RawResolvedEvidence/SubjectPlanResult.
-# resolved_evidence below) -- a pure expansion function receives only this
-# restricted projection.
+# diagnostic_fulfillments below) -- a pure expansion function receives
+# only this restricted projection, and SubjectPlanResult.projected_evidence
+# is the same kind of restricted view, built fresh after phase two.
 ResolvedEvidenceView = Mapping[str, ResolvedCapabilityEvidence]
 
 # The planner's own internal, full-fidelity view -- raw
@@ -114,11 +115,24 @@ class SubjectPlanResult:
     provenance to prove which demands, and therefore which consumers,
     contributed to it -- never a strategy verdict, never fact-projection
     output (that stays consumer-owned, applied by the caller against
-    ``snapshot``/``resolved_evidence`` after this function returns).
+    ``snapshot``/``projected_evidence`` after this function returns).
+
+    ``projected_evidence`` is the final, provider-blind
+    ResolvedCapabilityEvidence view over every demand resolved across both
+    phases -- the one thing a downstream strategy-owned fact-selection
+    function may consume (Architect checkpoint: consumer expansion already
+    receives only this restricted projection during phase two; the
+    caller's own post-phase-two fact-selection step must not fall back to
+    raw fulfillment data just because phase two has already run).
+    ``diagnostic_fulfillments`` is the full-fidelity raw
+    CapabilityFulfillmentResult mapping, named explicitly as diagnostic --
+    for the composition root's own request/attempt accounting, never for
+    any strategy-owned decision.
     """
 
     snapshot: MarketSnapshot
-    resolved_evidence: RawResolvedEvidence
+    projected_evidence: ResolvedEvidenceView
+    diagnostic_fulfillments: RawResolvedEvidence
     expansions_by_consumer: Mapping[str, DemandExpansion]
     demand_ids_by_consumer: Mapping[str, tuple[str, ...]]
 
@@ -159,11 +173,11 @@ def _project(
     """Build the one restricted, provider-blind view a consumer's own
     expansion function ever receives for one demand -- and the one place
     a demand's own declared temporal policy (require_open_session/
-    allow_prior_session/maximum_age_seconds/maximum_input_skew_seconds)
-    is actually applied. A demand whose provider fetch technically
-    succeeded but whose evidence fails this check is projected UNKNOWN
-    here, never RESOLVED (Architect checkpoint: "before production use,
-    the generic planner must apply the declared temporal policy").
+    allow_prior_session/maximum_age_seconds) is actually applied. A demand
+    whose provider fetch technically succeeded but whose evidence fails
+    this check is projected UNKNOWN here, never RESOLVED (Architect
+    checkpoint: "before production use, the generic planner must apply
+    the declared temporal policy").
 
     Each individual demand's own CapabilityFulfillmentResult carries at
     most one observation at this point in the flow (CapabilityFulfillment
@@ -182,7 +196,6 @@ def _project(
         require_open_session=demand.require_open_session,
         allow_prior_session=demand.allow_prior_session,
         maximum_age_seconds=demand.maximum_age_seconds,
-        maximum_input_skew_seconds=demand.maximum_input_skew_seconds,
     )
     decision = evaluate_temporal_usability(
         observation.freshness, requirement, market_is_open=market_is_open
@@ -291,7 +304,7 @@ def run_subject_plan(
     Never raises for a capability a consumer's own pure logic declares
     (required or not) that a provider ultimately cannot fulfill -- that is
     an ordinary FAILED CapabilityFulfillmentResult, already-typed data a
-    caller reads out of ``resolved_evidence``/``snapshot.completeness``.
+    caller reads out of ``projected_evidence``/``snapshot.completeness``.
     Does raise, and lets propagate unmodified, whatever
     SubjectAcquisitionPlan.resolve() or seal_subject_snapshot() itself
     raises for a genuine persistence, domain-invariant, or configuration
@@ -350,9 +363,27 @@ def run_subject_plan(
         capability_reducer_by_capability=reducers,
     )
 
+    # Architect checkpoint (second review), item 4: a final, provider-blind
+    # projection over *every* demand resolved across both phases -- not a
+    # reuse of read_only_evidence, which is deliberately scoped to
+    # phase-one bootstrap evidence only for consumer.expand()'s own input.
+    # This is the one view a downstream strategy-owned fact-selection
+    # function may consume; diagnostic_fulfillments (the raw, full-
+    # fidelity mapping) is named explicitly as diagnostic, never for a
+    # strategy-owned decision.
+    final_projected_evidence: ResolvedEvidenceView = MappingProxyType(
+        {
+            demand_id: _project(
+                demand_id, demand_by_id[demand_id], result, now=now, market_is_open=market_is_open
+            )
+            for demand_id, result in resolved.items()
+        }
+    )
+
     return SubjectPlanResult(
         snapshot=snapshot,
-        resolved_evidence=MappingProxyType(dict(resolved)),
+        projected_evidence=final_projected_evidence,
+        diagnostic_fulfillments=MappingProxyType(dict(resolved)),
         expansions_by_consumer=MappingProxyType(expansions_by_consumer),
         demand_ids_by_consumer=MappingProxyType(
             {key: tuple(value) for key, value in demand_ids_by_consumer.items()}
