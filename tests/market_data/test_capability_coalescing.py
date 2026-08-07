@@ -6,6 +6,7 @@ B7, PR #292 review 4877473757).
 
 from __future__ import annotations
 
+import dataclasses
 from datetime import UTC, date, datetime
 
 import pytest
@@ -14,6 +15,7 @@ from domain import (
     CompletenessMetadata,
     EvidenceKind,
     EvidenceReference,
+    ExpirationCollection,
     ExpirationCycle,
     FreshnessMetadata,
     FreshnessStatus,
@@ -31,6 +33,7 @@ from domain.values import DomainInvariantError
 from market_data.capability_coalescing import (
     coalesce_option_chain_results,
     combine_option_chains,
+    reduce_option_chain_results,
 )
 from market_data.fulfillment import (
     CapabilityFulfillmentResult,
@@ -152,6 +155,72 @@ def _failed_result(provider_id: str, expiration: date) -> CapabilityFulfillmentR
         None,
         (),
         (_failed_attempt(provider_id),),
+        True,
+    )
+
+
+def _expirations_subject() -> MarketDataSubject:
+    projection = ProviderAddressProjection("tradier", "v1", "symbol", "AAPL", NOW, None, EVIDENCE)
+    return MarketDataSubject(
+        security().instrument,
+        MarketDataSubjectType.OPTION_UNDERLYING,
+        MarketCapability.OPTION_CHAIN_V1,
+        MarketDataRequestContext(NOW, NOW, ("expirations",), (projection,), EVIDENCE),
+    )
+
+
+def _expirations_request() -> CapabilityRequest:
+    return CapabilityRequest(
+        MarketCapability.OPTION_CHAIN_V1,
+        (_expirations_subject(),),
+        NOW,
+        NOW,
+        ("expirations",),
+        3600,
+    )
+
+
+def _expirations_observation(
+    provider_id: str, expirations: tuple[date, ...]
+) -> MarketObservation:
+    as_of = NOW.date()
+    cycles = tuple(
+        ExpirationCycle(item, (item - as_of).days, True, False, as_of, EVIDENCE)
+        for item in expirations
+    )
+    value = ExpirationCollection(as_of, cycles)
+    subject = _expirations_subject()
+    provenance = ProviderProvenance(provider_id, f"{provider_id}-request-expirations", EVIDENCE)
+    identity = market_observation_identity(
+        provider_id, MarketCapability.OPTION_CHAIN_V1, subject, NOW, value, "v1"
+    )
+    return MarketObservation(
+        identity,
+        MarketCapability.OPTION_CHAIN_V1,
+        subject,
+        NOW,
+        NOW,
+        value,
+        "v1",
+        provenance,
+        FreshnessMetadata(NOW, NOW, 3600, 0, FreshnessStatus.FRESH),
+        CompletenessMetadata(("expirations",), ("expirations",), ()),
+    )
+
+
+def _expirations_result(
+    provider_id: str, expirations: tuple[date, ...]
+) -> CapabilityFulfillmentResult:
+    observation = _expirations_observation(provider_id, expirations)
+    attempt = ProviderFulfillmentAttempt(
+        provider_id, 1, ProviderStatus.AVAILABLE, (observation,), None, ()
+    )
+    return CapabilityFulfillmentResult(
+        _expirations_request(),
+        FulfillmentStatus.FULFILLED,
+        provider_id,
+        (observation,),
+        (attempt,),
         True,
     )
 
@@ -369,3 +438,120 @@ class TestCoalesceOptionChainResults:
                 combined_request=_request(),
                 observed_at=NOW,
             )
+
+
+class TestReduceOptionChainResults:
+    """SPRINT-014 S14-PR-05A, Architect checkpoint (fourth review): the
+    bounded reducer that lets a subject's own mixed OPTION_CHAIN_V1
+    demands -- expiration discovery (("expirations",) -> ExpirationCollection)
+    plus per-expiration contract acquisition (("contracts",) -> OptionChain)
+    -- seal together through the generic planner's own capability
+    reduction step, which the unmodified coalesce_option_chain_results()
+    alone cannot do (it raises DomainInvariantError on a non-OptionChain
+    successful observation).
+    """
+
+    def test_requires_at_least_one_result(self) -> None:
+        with pytest.raises(ValueError):
+            reduce_option_chain_results(())
+
+    def test_lone_expiration_discovery_result_seals_unchanged(self) -> None:
+        discovery = _expirations_result("tradier", (date(2026, 8, 21), date(2026, 9, 18)))
+        reduced = reduce_option_chain_results((discovery,))
+        assert reduced is discovery
+
+    def test_mixed_discovery_and_contract_results_combine_the_chains_only(self) -> None:
+        discovery = _expirations_result("tradier", (date(2026, 8, 21), date(2026, 9, 18)))
+        front_result, _ = _successful_result("tradier", date(2026, 8, 21), suffix="front")
+        back_result, _ = _successful_result("tradier", date(2026, 9, 18), suffix="back")
+
+        reduced = reduce_option_chain_results((discovery, front_result, back_result))
+
+        assert reduced.status is FulfillmentStatus.FULFILLED
+        assert len(reduced.observations) == 1
+        combined_chain = reduced.observations[0].value
+        assert isinstance(combined_chain, OptionChain)
+        assert len(combined_chain.contracts) == 2
+        # Every raw attempt, including discovery's own, survives -- so
+        # MarketSnapshotBuilder's own union of observations/attempts still
+        # retains the ExpirationCollection downstream.
+        assert len(reduced.attempts) == 3
+        discovery_observation_ids = {
+            observation.observation_id
+            for attempt in reduced.attempts
+            for observation in attempt.observations
+            if isinstance(observation.value, ExpirationCollection)
+        }
+        assert discovery_observation_ids == {discovery.observations[0].observation_id}
+        # The combined chain is the selected/coalesced observation, never
+        # the discovery evidence.
+        assert not isinstance(reduced.observations[0].value, ExpirationCollection)
+
+    def test_a_failed_contract_side_still_combines_with_discovery_preserved(self) -> None:
+        discovery = _expirations_result("tradier", (date(2026, 8, 21), date(2026, 9, 18)))
+        front_result, _ = _successful_result("tradier", date(2026, 8, 21), suffix="front")
+        back_result = _failed_result("tradier", date(2026, 9, 18))
+
+        reduced = reduce_option_chain_results((discovery, front_result, back_result))
+
+        assert reduced.status is FulfillmentStatus.DEGRADED
+        assert len(reduced.attempts) == 3
+        combined_chain = reduced.observations[0].value
+        assert isinstance(combined_chain, OptionChain)
+        assert len(combined_chain.contracts) == 1
+
+    def test_only_option_chain_capability_is_accepted(self) -> None:
+        quote_subject = MarketDataSubject(
+            security().instrument,
+            MarketDataSubjectType.INSTRUMENT,
+            MarketCapability.REAL_TIME_QUOTE_V1,
+            MarketDataRequestContext(NOW, NOW, ("last",), (), EVIDENCE),
+        )
+        wrong_capability_request = CapabilityRequest(
+            MarketCapability.REAL_TIME_QUOTE_V1, (quote_subject,), NOW, NOW, ("last",), 3600
+        )
+        wrong_capability_result = CapabilityFulfillmentResult(
+            wrong_capability_request,
+            FulfillmentStatus.FAILED,
+            None,
+            (),
+            (_failed_attempt("tradier"),),
+            True,
+        )
+        with pytest.raises(ValueError):
+            reduce_option_chain_results((wrong_capability_result,))
+
+    def test_unexpected_required_fields_raises(self) -> None:
+        weird_subject = MarketDataSubject(
+            security().instrument,
+            MarketDataSubjectType.OPTION_UNDERLYING,
+            MarketCapability.OPTION_CHAIN_V1,
+            MarketDataRequestContext(NOW, NOW, ("greeks",), (), EVIDENCE),
+        )
+        weird_request = CapabilityRequest(
+            MarketCapability.OPTION_CHAIN_V1, (weird_subject,), NOW, NOW, ("greeks",), 3600
+        )
+        weird_result = CapabilityFulfillmentResult(
+            weird_request, FulfillmentStatus.FAILED, None, (), (_failed_attempt("tradier"),), True
+        )
+        with pytest.raises(DomainInvariantError, match="unexpected required_fields"):
+            reduce_option_chain_results((weird_result,))
+
+    def test_a_non_expiration_collection_value_on_a_nominal_discovery_result_raises(self) -> None:
+        """A nominally successful ("expirations",) result whose own
+        observation carries something other than ExpirationCollection is a
+        real, reachable upstream-wiring defect (an EXPECTED_FIELDS/value
+        mismatch), never silently accepted.
+        """
+        front_result, _ = _successful_result("tradier", date(2026, 8, 21), suffix="front")
+        mislabeled_as_discovery = dataclasses.replace(
+            front_result, request=_expirations_request()
+        )
+        with pytest.raises(DomainInvariantError, match="not ExpirationCollection"):
+            reduce_option_chain_results((mislabeled_as_discovery,))
+
+    def test_no_contract_results_and_multiple_discovery_results_raises(self) -> None:
+        first = _expirations_result("tradier", (date(2026, 8, 21),))
+        second = _expirations_result("finnhub", (date(2026, 8, 21),))
+        with pytest.raises(DomainInvariantError, match="no reduction is defined"):
+            reduce_option_chain_results((first, second))

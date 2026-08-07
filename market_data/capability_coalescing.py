@@ -27,7 +27,7 @@ import dataclasses
 from datetime import datetime
 
 from domain import MarketCapability
-from domain.financial import OptionChain, OptionContract
+from domain.financial import ExpirationCollection, OptionChain, OptionContract
 from domain.market_data import (
     MarketDataSubject,
     MarketObservation,
@@ -167,3 +167,118 @@ def coalesce_option_chain_results(
     return CapabilityFulfillmentResult(
         combined_request, status, provider_id, (combined_observation,), attempts, True
     )
+
+
+def reduce_option_chain_results(
+    results: tuple[CapabilityFulfillmentResult, ...],
+) -> CapabilityFulfillmentResult:
+    """The one OPTION_CHAIN_V1 ``capability_reducer_by_capability`` entry a
+    generic subject planner (screening.subject_planning) needs whenever a
+    subject's own phase-one/phase-two demands mix expiration discovery
+    (``("expirations",)`` -> ExpirationCollection) with per-expiration
+    contract acquisition (``("contracts",)`` -> OptionChain) -- Earnings
+    Calendar's own SPRINT-014 S14-PR-05A shape, expressed generically here:
+    this function never branches on a strategy identity, only on request
+    shape.
+
+    Matches ``screening.subject_planning.CapabilityResultReducer``'s exact
+    one-argument signature directly, so a caller registers it with no
+    adapter wrapper needed.
+
+    Expiration-discovery results are supporting evidence only: every one
+    of their own raw attempts -- successful or failed -- survives
+    unconditionally into the returned result's own ``attempts`` (so
+    MarketSnapshotBuilder's union of ``fulfillment.observations`` and
+    every raw per-attempt observation still retains the
+    ExpirationCollection in the sealed snapshot), but discovery
+    observations never feed ``combine_option_chains()`` -- only contract
+    results do, via the unmodified ``coalesce_option_chain_results()``.
+    The selected/coalesced observation used for OPTION_CHAIN_V1
+    resolution is always the combined OptionChain, never the
+    ExpirationCollection.
+
+    A lone expiration-discovery result with no contract results at all
+    (Earnings Calendar's own "expansion found no valid pair" outcome,
+    phase two never issuing chain demands) seals as its own unmodified
+    ExpirationCollection result -- there is nothing to combine it with.
+
+    Raises DomainInvariantError for a request whose ``required_fields``
+    is neither ``("expirations",)`` nor ``("contracts",)``, or whose
+    nominally successful observation's value does not match what that
+    shape demands -- an unexpected demand/value combination is a real
+    defect, never silently ignored.
+    """
+    if not results:
+        raise ValueError("reduce_option_chain_results requires at least one result")
+    if any(item.request.capability is not MarketCapability.OPTION_CHAIN_V1 for item in results):
+        raise ValueError("reduce_option_chain_results requires OPTION_CHAIN_V1 results")
+
+    discovery_results: list[CapabilityFulfillmentResult] = []
+    contract_results: list[CapabilityFulfillmentResult] = []
+    for item in results:
+        fields = item.request.required_fields
+        if fields == ("expirations",):
+            for observation in item.observations:
+                if not isinstance(observation.value, ExpirationCollection):
+                    raise DomainInvariantError(
+                        "reduce_option_chain_results received a nominally successful "
+                        "('expirations',) OPTION_CHAIN_V1 observation whose value is "
+                        f"{type(observation.value).__name__}, not ExpirationCollection"
+                    )
+            discovery_results.append(item)
+        elif fields == ("contracts",):
+            contract_results.append(item)
+        else:
+            raise DomainInvariantError(
+                "reduce_option_chain_results received an OPTION_CHAIN_V1 request with "
+                f"unexpected required_fields {fields!r} -- neither ('expirations',) nor "
+                "('contracts',)"
+            )
+
+    discovery_attempts: tuple[ProviderFulfillmentAttempt, ...] = tuple(
+        attempt for item in discovery_results for attempt in item.attempts
+    )
+
+    if not contract_results:
+        if len(discovery_results) != 1:
+            raise DomainInvariantError(
+                "reduce_option_chain_results received no ('contracts',) results and "
+                f"{len(discovery_results)} ('expirations',) results -- no reduction is "
+                "defined for that shape"
+            )
+        return discovery_results[0]
+
+    # A combined, expiration-unscoped subject/request for the merged
+    # chain -- reusing one contract result's own subject/window (both
+    # front and back already share one underlying and semantic window,
+    # coalesce_option_chain_results' own invariant), but stripping the
+    # expiration-specific address projection so the combined observation
+    # never falsely claims one specific expiration.
+    front_request = contract_results[0].request
+    front_subject = front_request.subjects[0]
+    combined_projections = tuple(
+        projection
+        for projection in front_subject.request_context.provider_address_projections
+        if projection.address_type != "expiration"
+    )
+    combined_context = dataclasses.replace(
+        front_subject.request_context,
+        required_fields=("contracts",),
+        provider_address_projections=combined_projections,
+    )
+    combined_subject = dataclasses.replace(front_subject, request_context=combined_context)
+    combined_request = CapabilityRequest(
+        MarketCapability.OPTION_CHAIN_V1,
+        (combined_subject,),
+        front_request.effective_start,
+        front_request.effective_end,
+        ("contracts",),
+        front_request.maximum_age_seconds,
+    )
+    combined = coalesce_option_chain_results(
+        tuple(contract_results),
+        subject=combined_subject,
+        combined_request=combined_request,
+        observed_at=front_request.effective_end,
+    )
+    return dataclasses.replace(combined, attempts=combined.attempts + discovery_attempts)
