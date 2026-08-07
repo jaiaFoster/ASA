@@ -1,6 +1,8 @@
 """SPRINT-014 S14-PR-05A, Earnings-specific increment (Architect
-infrastructure checkpoint PASS on 8c924e0): Earnings Calendar's own pure
-subject-planning declaration and phase-two expansion.
+infrastructure checkpoint PASS on 8c924e0; revised after the second
+checkpoint's Founder-approved bounded contract extension, f1078c7):
+Earnings Calendar's own pure subject-planning declaration and phase-two
+expansion.
 
 Every evidence value here is synthetic, constructed directly against
 domain.ResolvedCapabilityEvidence -- this module proves
@@ -11,8 +13,11 @@ increment's own explicit boundary).
 
 from __future__ import annotations
 
+import dataclasses
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
+
+import pytest
 
 from domain import (
     AnnouncementTime,
@@ -20,8 +25,12 @@ from domain import (
     EvidenceKind,
     EvidenceReference,
     EvidenceUsability,
+    ExpirationCollection,
+    ExpirationCycle,
     FreshnessStatus,
     MarketCapability,
+    OHLCVBar,
+    OHLCVSeries,
     OptionChain,
     Quote,
     ResolvedCapabilityEvidence,
@@ -31,14 +40,16 @@ from domain.market_data import MarketObservationValue
 from strategies.earnings_calendar_planning import (
     DEFAULT_EARNINGS_CALENDAR_REQUIREMENT,
     EarningsCalendarPhaseTwoEvidence,
-    bootstrap_chain_demand,
     chain_demand_at,
     earnings_calendar_bootstrap_demands,
     earnings_demand,
     expand_earnings_calendar_demands,
+    expirations_demand,
+    historical_bars_demand,
     quote_demand,
     select_earnings_calendar_phase_two_evidence,
 )
+from strategies.requirements import EarningsCalendarExpirationPolicy, EarningsCalendarRequirement
 from tests.domain.test_financial_contracts import option, security
 
 NOW = datetime(2026, 8, 6, 15, 0, tzinfo=UTC)
@@ -67,6 +78,15 @@ def _earnings_event(earnings_date: date = EARNINGS_DATE) -> EarningsEvent:
     )
 
 
+def _expiration_collection(*expirations: date) -> ExpirationCollection:
+    as_of = NOW.date()
+    cycles = tuple(
+        ExpirationCycle(expiration, (expiration - as_of).days, True, False, as_of, EVIDENCE)
+        for expiration in expirations
+    )
+    return ExpirationCollection(as_of, cycles)
+
+
 def _chain(*expirations: date) -> OptionChain:
     underlying = security()
     contracts = tuple(
@@ -80,6 +100,23 @@ def _chain(*expirations: date) -> OptionChain:
 
 def _quote() -> Quote:
     return Quote(security().instrument, None, None, Decimal("189.15"), None, None, None, "USD")
+
+
+def _historical_bars() -> OHLCVSeries:
+    instrument = security().instrument
+    start = NOW - timedelta(days=1)
+    bar = OHLCVBar(
+        instrument,
+        86400,
+        start,
+        NOW,
+        Decimal("205"),
+        Decimal("212"),
+        Decimal("204"),
+        Decimal("210"),
+        Decimal("50000000"),
+    )
+    return OHLCVSeries(instrument, 86400, NOW, (bar,))
 
 
 def _resolved(
@@ -100,28 +137,34 @@ def _phase_one_evidence(
     *, earnings_date: date | None = EARNINGS_DATE, expirations: tuple[date, ...] = ()
 ) -> dict[str, ResolvedCapabilityEvidence]:
     earnings_id = earnings_demand(NOW).demand_id
-    chain_id = bootstrap_chain_demand(NOW).demand_id
+    expirations_id = expirations_demand(NOW).demand_id
     evidence: dict[str, ResolvedCapabilityEvidence] = {}
     if earnings_date is not None:
         evidence[earnings_id] = _resolved(
             earnings_id, MarketCapability.EARNINGS_CALENDAR_V1, _earnings_event(earnings_date)
         )
     if expirations:
-        evidence[chain_id] = _resolved(
-            chain_id, MarketCapability.OPTION_CHAIN_V1, _chain(*expirations)
+        evidence[expirations_id] = _resolved(
+            expirations_id, MarketCapability.OPTION_CHAIN_V1, _expiration_collection(*expirations)
         )
     return evidence
 
 
 class TestBootstrapDemands:
-    def test_three_demands_have_distinct_capabilities(self) -> None:
+    def test_four_demands_have_distinct_capabilities(self) -> None:
         demands = earnings_calendar_bootstrap_demands(NOW)
-        assert len(demands) == 3
+        assert len(demands) == 4
         assert {demand.capability for demand in demands} == {
             MarketCapability.REAL_TIME_QUOTE_V1,
             MarketCapability.EARNINGS_CALENDAR_V1,
             MarketCapability.OPTION_CHAIN_V1,
+            MarketCapability.HISTORICAL_BARS_V1,
         }
+
+    def test_matches_the_manifest_derived_requirement_capabilities_exactly(self) -> None:
+        demands = earnings_calendar_bootstrap_demands(NOW)
+        declared = {demand.capability for demand in demands}
+        assert declared == set(DEFAULT_EARNINGS_CALENDAR_REQUIREMENT.capabilities)
 
     def test_deterministic_across_calls(self) -> None:
         first = tuple(demand.demand_id for demand in earnings_calendar_bootstrap_demands(NOW))
@@ -134,13 +177,67 @@ class TestBootstrapDemands:
             days=DEFAULT_EARNINGS_CALENDAR_REQUIREMENT.lookahead_days
         )
 
-    def test_bootstrap_chain_demand_is_expiration_unscoped(self) -> None:
-        assert bootstrap_chain_demand(NOW).expiration is None
+    def test_expirations_demand_requests_expirations_only(self) -> None:
+        demand = expirations_demand(NOW)
+        assert demand.expiration is None
+        assert demand.required_fields == ("expirations",)
+
+    def test_historical_bars_demand_covers_the_lookback_window(self) -> None:
+        demand = historical_bars_demand(NOW)
+        assert demand.required_fields == ("close",)
+        assert demand.effective_end == NOW
+        assert demand.effective_start < NOW
 
     def test_chain_demand_at_is_scoped_to_one_expiration(self) -> None:
         demand = chain_demand_at(NOW, FRONT_EXPIRATION)
         assert demand.expiration == FRONT_EXPIRATION
-        assert demand.demand_id != bootstrap_chain_demand(NOW).demand_id
+        assert demand.required_fields == ("contracts",)
+        assert demand.demand_id != expirations_demand(NOW).demand_id
+
+    def test_a_manifest_capability_set_change_invalidates_the_declaration(self) -> None:
+        """Architect checkpoint item 8: a manifest change that alters the
+        required capability set must not silently leave this module's own
+        hardcoded demand set stale -- it must make the declaration loudly
+        invalid instead.
+        """
+        policy = DEFAULT_EARNINGS_CALENDAR_REQUIREMENT.expiration_policy
+        missing_historical_bars = EarningsCalendarRequirement(
+            capabilities=(
+                MarketCapability.EARNINGS_CALENDAR_V1,
+                MarketCapability.REAL_TIME_QUOTE_V1,
+                MarketCapability.OPTION_CHAIN_V1,
+            ),
+            expiration_policy=policy,
+            lookahead_days=policy.back_max_dte,
+        )
+        with pytest.raises(ValueError, match="earnings_calendar_bootstrap_demands declares"):
+            earnings_calendar_bootstrap_demands(NOW, requirement=missing_historical_bars)
+
+    def test_an_added_manifest_capability_also_invalidates_the_declaration(self) -> None:
+        policy = DEFAULT_EARNINGS_CALENDAR_REQUIREMENT.expiration_policy
+        with_unexpected_capability = EarningsCalendarRequirement(
+            capabilities=(
+                *DEFAULT_EARNINGS_CALENDAR_REQUIREMENT.capabilities,
+                MarketCapability.TRADING_CALENDAR_V1,
+            ),
+            expiration_policy=policy,
+            lookahead_days=policy.back_max_dte,
+        )
+        with pytest.raises(ValueError, match="earnings_calendar_bootstrap_demands declares"):
+            earnings_calendar_bootstrap_demands(NOW, requirement=with_unexpected_capability)
+
+    def test_an_unchanged_capability_set_still_succeeds(self) -> None:
+        # Sanity check for the two tests above: a requirement carrying the
+        # exact same capability set (even if reconstructed independently)
+        # must not raise.
+        policy = EarningsCalendarExpirationPolicy(7, 21, 22, 75, 30, 5)
+        equivalent = EarningsCalendarRequirement(
+            capabilities=DEFAULT_EARNINGS_CALENDAR_REQUIREMENT.capabilities,
+            expiration_policy=policy,
+            lookahead_days=75,
+        )
+        demands = earnings_calendar_bootstrap_demands(NOW, requirement=equivalent)
+        assert len(demands) == 4
 
 
 class TestExpandEarningsCalendarDemands:
@@ -161,8 +258,8 @@ class TestExpandEarningsCalendarDemands:
         assert expansion.unknown_reasons[0].demand_ids == (earnings_id,)
 
     def test_no_valid_expiration_pair_is_unknown(self) -> None:
-        # Earnings resolved, but the chain lists nothing in the required
-        # front/back DTE windows at all.
+        # Earnings resolved, but the expiration collection lists nothing in
+        # the required front/back DTE windows at all.
         evidence = _phase_one_evidence(expirations=(NOW.date() + timedelta(days=200),))
         expansion = expand_earnings_calendar_demands(evidence, now=NOW)
         assert expansion.demands == ()
@@ -222,40 +319,20 @@ class TestSelectEarningsCalendarPhaseTwoEvidence:
         back = chain_demand_at(NOW, BACK_EXPIRATION)
         return {"front_demand_id": front.demand_id, "back_demand_id": back.demand_id}
 
-    def test_missing_selection_is_unknown(self) -> None:
-        result = select_earnings_calendar_phase_two_evidence({}, {}, now=NOW)
-        assert isinstance(result, UnknownReason)
-        assert result.code == "missing_expiration_pair_selection"
-
-    def test_unusable_front_chain_evidence_is_unknown(self) -> None:
+    def _fully_resolved_projected_evidence(self) -> dict[str, ResolvedCapabilityEvidence]:
         selections = self._selections()
         front_id = selections["front_demand_id"]
         back_id = selections["back_demand_id"]
         earnings_id = earnings_demand(NOW).demand_id
         the_quote_id = quote_demand(NOW).demand_id
-        projected = {
+        the_bars_id = historical_bars_demand(NOW).demand_id
+        return {
             the_quote_id: _resolved(the_quote_id, MarketCapability.REAL_TIME_QUOTE_V1, _quote()),
             earnings_id: _resolved(
                 earnings_id, MarketCapability.EARNINGS_CALENDAR_V1, _earnings_event()
             ),
-            front_id: _unknown(front_id, MarketCapability.OPTION_CHAIN_V1),
-            back_id: _resolved(
-                back_id, MarketCapability.OPTION_CHAIN_V1, _chain(BACK_EXPIRATION)
-            ),
-        }
-        result = select_earnings_calendar_phase_two_evidence(projected, selections, now=NOW)
-        assert isinstance(result, UnknownReason)
-        assert result.code == "unusable_phase_two_evidence"
-        assert front_id in result.demand_ids
-
-    def test_missing_quote_evidence_is_unknown(self) -> None:
-        selections = self._selections()
-        front_id = selections["front_demand_id"]
-        back_id = selections["back_demand_id"]
-        earnings_id = earnings_demand(NOW).demand_id
-        projected = {
-            earnings_id: _resolved(
-                earnings_id, MarketCapability.EARNINGS_CALENDAR_V1, _earnings_event()
+            the_bars_id: _resolved(
+                the_bars_id, MarketCapability.HISTORICAL_BARS_V1, _historical_bars()
             ),
             front_id: _resolved(
                 front_id, MarketCapability.OPTION_CHAIN_V1, _chain(FRONT_EXPIRATION)
@@ -264,6 +341,37 @@ class TestSelectEarningsCalendarPhaseTwoEvidence:
                 back_id, MarketCapability.OPTION_CHAIN_V1, _chain(BACK_EXPIRATION)
             ),
         }
+
+    def test_missing_selection_is_unknown(self) -> None:
+        result = select_earnings_calendar_phase_two_evidence({}, {}, now=NOW)
+        assert isinstance(result, UnknownReason)
+        assert result.code == "missing_expiration_pair_selection"
+
+    def test_unusable_front_chain_evidence_is_unknown(self) -> None:
+        selections = self._selections()
+        front_id = selections["front_demand_id"]
+        projected = self._fully_resolved_projected_evidence()
+        projected[front_id] = _unknown(front_id, MarketCapability.OPTION_CHAIN_V1)
+        result = select_earnings_calendar_phase_two_evidence(projected, selections, now=NOW)
+        assert isinstance(result, UnknownReason)
+        assert result.code == "unusable_phase_two_evidence"
+        assert front_id in result.demand_ids
+
+    def test_unusable_historical_bars_evidence_is_unknown(self) -> None:
+        selections = self._selections()
+        the_bars_id = historical_bars_demand(NOW).demand_id
+        projected = self._fully_resolved_projected_evidence()
+        projected[the_bars_id] = _unknown(the_bars_id, MarketCapability.HISTORICAL_BARS_V1)
+        result = select_earnings_calendar_phase_two_evidence(projected, selections, now=NOW)
+        assert isinstance(result, UnknownReason)
+        assert result.code == "unusable_phase_two_evidence"
+        assert the_bars_id in result.demand_ids
+
+    def test_missing_quote_evidence_is_unknown(self) -> None:
+        selections = self._selections()
+        the_quote_id = quote_demand(NOW).demand_id
+        projected = self._fully_resolved_projected_evidence()
+        del projected[the_quote_id]
         result = select_earnings_calendar_phase_two_evidence(projected, selections, now=NOW)
         assert isinstance(result, UnknownReason)
         assert result.code == "unusable_phase_two_evidence"
@@ -274,22 +382,13 @@ class TestSelectEarningsCalendarPhaseTwoEvidence:
         back_id = selections["back_demand_id"]
         earnings_id = earnings_demand(NOW).demand_id
         the_quote_id = quote_demand(NOW).demand_id
-        projected = {
-            the_quote_id: _resolved(the_quote_id, MarketCapability.REAL_TIME_QUOTE_V1, _quote()),
-            earnings_id: _resolved(
-                earnings_id, MarketCapability.EARNINGS_CALENDAR_V1, _earnings_event()
-            ),
-            front_id: _resolved(
-                front_id, MarketCapability.OPTION_CHAIN_V1, _chain(FRONT_EXPIRATION)
-            ),
-            back_id: _resolved(
-                back_id, MarketCapability.OPTION_CHAIN_V1, _chain(BACK_EXPIRATION)
-            ),
-        }
+        the_bars_id = historical_bars_demand(NOW).demand_id
+        projected = self._fully_resolved_projected_evidence()
         result = select_earnings_calendar_phase_two_evidence(projected, selections, now=NOW)
         assert isinstance(result, EarningsCalendarPhaseTwoEvidence)
         assert result.spot_price_evidence.demand_id == the_quote_id
         assert result.earnings_evidence.demand_id == earnings_id
+        assert result.historical_bars_evidence.demand_id == the_bars_id
         assert result.front_chain_evidence.demand_id == front_id
         assert result.back_chain_evidence.demand_id == back_id
 
@@ -303,3 +402,14 @@ class TestSelectEarningsCalendarPhaseTwoEvidence:
 
         parameters = inspect.signature(select_earnings_calendar_phase_two_evidence).parameters
         assert set(parameters) == {"projected_evidence", "selections", "now", "requirement"}
+
+
+def test_earnings_calendar_phase_two_evidence_is_frozen() -> None:
+    evidence = TestSelectEarningsCalendarPhaseTwoEvidence()
+    projected = evidence._fully_resolved_projected_evidence()
+    result = select_earnings_calendar_phase_two_evidence(
+        projected, evidence._selections(), now=NOW
+    )
+    assert isinstance(result, EarningsCalendarPhaseTwoEvidence)
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        result.spot_price_evidence = result.spot_price_evidence  # type: ignore[misc]

@@ -1,13 +1,18 @@
 """Earnings Calendar's own pure subject-planning declaration and phase-two
 expansion (SPRINT-014 S14-PR-05A, Architect infrastructure checkpoint PASS
-on 8c924e0 -- "proceed with the Earnings-specific increment").
+on 8c924e0 -- "proceed with the Earnings-specific increment"; revised
+after the second checkpoint's Founder-approved bounded contract extension,
+f1078c7, admitted collection-valued observations for OPTION_CHAIN_V1
+expirations and HISTORICAL_BARS_V1).
 
 Owns exactly what ADR-010 assigns to strategies/ in the subject-first
 pipeline:
 
 * the manifest-derived bootstrap ``CapabilityDemand`` declaration (phase
-  one -- quote, earnings event, and a comprehensive option chain wide
-  enough to discover every listed expiration from its own contracts);
+  one -- quote, earnings event, expiration discovery, and historical bars
+  for realized volatility, covering exactly the four capabilities
+  strategies.requirements.earnings_calendar_requirement() projects from
+  the manifest);
 * the pure phase-two expansion that selects an earnings-relative
   front/back expiration pair from phase-one evidence and declares the
   exact chain demands needed to acquire them;
@@ -47,8 +52,8 @@ from domain import (
     DemandExpansion,
     EarningsEvent,
     EvidenceUsability,
+    ExpirationCollection,
     MarketCapability,
-    OptionChain,
     ResolvedCapabilityEvidence,
     UnknownReason,
 )
@@ -58,7 +63,15 @@ DEFAULT_EARNINGS_CALENDAR_REQUIREMENT = earnings_calendar_requirement()
 
 _QUOTE_REQUIRED_FIELDS = ("last",)
 _EARNINGS_REQUIRED_FIELDS = ("earnings_date",)
+_EXPIRATIONS_REQUIRED_FIELDS = ("expirations",)
 _CHAIN_REQUIRED_FIELDS = ("contracts",)
+_HISTORICAL_BARS_REQUIRED_FIELDS = ("close",)
+
+# Mirrors screening/live_adapters.py's own pre-existing
+# _HISTORICAL_LOOKBACK_DAYS constant (45 calendar days, ~30 trading days)
+# for the same realized-volatility computation -- not manifest-derived,
+# since the manifest declares no historical-bars-specific parameter node.
+_HISTORICAL_LOOKBACK_DAYS = 45
 
 
 @dataclass(frozen=True, slots=True)
@@ -73,6 +86,7 @@ class EarningsCalendarPhaseTwoEvidence:
 
     spot_price_evidence: ResolvedCapabilityEvidence
     earnings_evidence: ResolvedCapabilityEvidence
+    historical_bars_evidence: ResolvedCapabilityEvidence
     front_chain_evidence: ResolvedCapabilityEvidence
     back_chain_evidence: ResolvedCapabilityEvidence
 
@@ -94,17 +108,31 @@ def earnings_demand(
     )
 
 
-def bootstrap_chain_demand(now: datetime) -> CapabilityDemand:
-    """A comprehensive, expiration-unscoped chain request -- expirations
-    are discovered locally from its own returned contracts (the same,
-    established technique screening.live_context.expirations_from_chain
-    already uses for a provider that does not distinguish an expirations-
-    only request from a full chain request), so this module never needs a
-    second, multi-observation-per-demand capability shape the generic
-    single-observation-per-demand planner (screening.subject_planning._project)
-    cannot represent.
+def expirations_demand(now: datetime) -> CapabilityDemand:
+    """Expiration discovery, independent of any one expiration's own
+    contracts (SPRINT-014 S14-PR-05A, Founder-approved bounded contract
+    extension, f1078c7): resolves to one ExpirationCollection observation
+    -- market_data/tradier.py's own real chain endpoint has no unscoped
+    "every expiration's contracts" request to make, so this must stay a
+    dedicated ``("expirations",)`` demand, never the comprehensive-chain
+    demand an earlier revision of this module used.
     """
-    return CapabilityDemand(MarketCapability.OPTION_CHAIN_V1, _CHAIN_REQUIRED_FIELDS, now, now)
+    return CapabilityDemand(
+        MarketCapability.OPTION_CHAIN_V1, _EXPIRATIONS_REQUIRED_FIELDS, now, now
+    )
+
+
+def historical_bars_demand(now: datetime) -> CapabilityDemand:
+    """Daily closes for realized-volatility computation (analytics/,
+    never here) -- resolves to one OHLCVSeries observation covering the
+    lookback window, matching the Earnings Calendar manifest's own
+    HISTORICAL_BARS_V1 requirement that earlier revisions of this module
+    omitted.
+    """
+    lookback_start = now - timedelta(days=_HISTORICAL_LOOKBACK_DAYS)
+    return CapabilityDemand(
+        MarketCapability.HISTORICAL_BARS_V1, _HISTORICAL_BARS_REQUIRED_FIELDS, lookback_start, now
+    )
 
 
 def chain_demand_at(now: datetime, expiration: date) -> CapabilityDemand:
@@ -118,18 +146,36 @@ def earnings_calendar_bootstrap_demands(
     *,
     requirement: EarningsCalendarRequirement = DEFAULT_EARNINGS_CALENDAR_REQUIREMENT,
 ) -> tuple[CapabilityDemand, ...]:
-    """The three demands Earnings Calendar's own phase-one evidence
-    always needs, regardless of what phase two later selects. The quote
-    is not read by ``expand_earnings_calendar_demands`` itself -- it is
-    carried only for the post-plan fact-selection step
-    (``select_earnings_calendar_phase_two_evidence``), which needs a spot
-    price alongside the front/back chains.
+    """The four demands Earnings Calendar's own phase-one evidence always
+    needs, regardless of what phase two later selects -- one per
+    capability ``requirement.capabilities`` (manifest-derived, never a
+    second, independently maintained copy) declares. The quote and
+    historical bars are not read by ``expand_earnings_calendar_demands``
+    itself -- both are carried only for the post-plan fact-selection step
+    (``select_earnings_calendar_phase_two_evidence``).
+
+    Raises ``ValueError`` if the capabilities these four hardcoded demands
+    declare ever stop matching ``requirement.capabilities`` exactly
+    (Architect checkpoint item 8): a manifest change that adds, removes,
+    or replaces a required capability must make this declaration loudly
+    invalid, never silently stale.
     """
-    return (
+    demands = (
         quote_demand(now),
         earnings_demand(now, requirement=requirement),
-        bootstrap_chain_demand(now),
+        expirations_demand(now),
+        historical_bars_demand(now),
     )
+    declared = frozenset(demand.capability for demand in demands)
+    required = frozenset(requirement.capabilities)
+    if declared != required:
+        raise ValueError(
+            "earnings_calendar_bootstrap_demands declares "
+            f"{sorted(item.value for item in declared)} but the manifest-derived requirement "
+            f"needs {sorted(item.value for item in required)} -- update the hardcoded demand "
+            "set in strategies/earnings_calendar_planning.py to match"
+        )
+    return demands
 
 
 def _resolved_earnings_date(evidence: ResolvedCapabilityEvidence | None) -> date | None:
@@ -147,13 +193,12 @@ def _expiration_candidates(
     if evidence is None or evidence.usability is not EvidenceUsability.RESOLVED:
         return ()
     value = evidence.value
-    if not isinstance(value, OptionChain):
+    if not isinstance(value, ExpirationCollection):
         return ()
-    unique_dates = sorted({contract.expiration for contract in value.contracts})
     return tuple(
-        ExpirationCandidate(expiration, (expiration - as_of).days)
-        for expiration in unique_dates
-        if expiration >= as_of
+        ExpirationCandidate(cycle.expiration_date, cycle.days_to_expiration)
+        for cycle in value.cycles
+        if cycle.expiration_date >= as_of
     )
 
 
@@ -176,7 +221,7 @@ def expand_earnings_calendar_demands(
     policy -- both ordinary, typed data a caller must handle explicitly.
     """
     the_earnings_demand = earnings_demand(now, requirement=requirement)
-    the_chain_demand = bootstrap_chain_demand(now)
+    the_expirations_demand = expirations_demand(now)
 
     earnings_date = _resolved_earnings_date(evidence.get(the_earnings_demand.demand_id))
     if earnings_date is None:
@@ -188,7 +233,9 @@ def expand_earnings_calendar_demands(
             )
         )
 
-    candidates = _expiration_candidates(evidence.get(the_chain_demand.demand_id), now.date())
+    candidates = _expiration_candidates(
+        evidence.get(the_expirations_demand.demand_id), now.date()
+    )
     policy = requirement.expiration_policy
     selected = select_earnings_relative_expiration_pair(
         candidates,
@@ -205,7 +252,10 @@ def expand_earnings_calendar_demands(
             unknown_reasons=(
                 UnknownReason(
                     "no_valid_expiration_pair",
-                    demand_ids=(the_earnings_demand.demand_id, the_chain_demand.demand_id),
+                    demand_ids=(
+                        the_earnings_demand.demand_id,
+                        the_expirations_demand.demand_id,
+                    ),
                 ),
             )
         )
@@ -243,7 +293,7 @@ def select_earnings_calendar_phase_two_evidence(
     ``DemandExpansion.selections`` view (Architect checkpoint item 6) --
     never ``diagnostic_fulfillments``. Returns a typed ``UnknownReason``,
     never raises, when the expansion recorded no selection (phase two
-    itself was unknown) or when any of the four required pieces of
+    itself was unknown) or when any of the five required pieces of
     evidence is missing or was projected UNKNOWN -- an ordinary, expected
     outcome, not a defect.
     """
@@ -254,9 +304,11 @@ def select_earnings_calendar_phase_two_evidence(
 
     the_quote_demand_id = quote_demand(now).demand_id
     the_earnings_demand_id = earnings_demand(now, requirement=requirement).demand_id
+    the_historical_bars_demand_id = historical_bars_demand(now).demand_id
     by_demand_id = {
         the_quote_demand_id: projected_evidence.get(the_quote_demand_id),
         the_earnings_demand_id: projected_evidence.get(the_earnings_demand_id),
+        the_historical_bars_demand_id: projected_evidence.get(the_historical_bars_demand_id),
         front_demand_id: projected_evidence.get(front_demand_id),
         back_demand_id: projected_evidence.get(back_demand_id),
     }
@@ -271,6 +323,9 @@ def select_earnings_calendar_phase_two_evidence(
     return EarningsCalendarPhaseTwoEvidence(
         spot_price_evidence=by_demand_id[the_quote_demand_id],  # type: ignore[arg-type]
         earnings_evidence=by_demand_id[the_earnings_demand_id],  # type: ignore[arg-type]
+        historical_bars_evidence=by_demand_id[  # type: ignore[arg-type]
+            the_historical_bars_demand_id
+        ],
         front_chain_evidence=by_demand_id[front_demand_id],  # type: ignore[arg-type]
         back_chain_evidence=by_demand_id[back_demand_id],  # type: ignore[arg-type]
     )
