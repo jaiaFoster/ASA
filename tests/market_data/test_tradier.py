@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
+from decimal import Decimal
 
 import pytest
 
@@ -9,6 +10,7 @@ from domain import (
     CanonicalInstrumentIdentity,
     EvidenceKind,
     EvidenceReference,
+    ExpirationCollection,
     FreshnessStatus,
     Instrument,
     InstrumentKind,
@@ -17,6 +19,7 @@ from domain import (
     MarketDataSubject,
     MarketDataSubjectType,
     OHLCVBar,
+    OHLCVSeries,
     OptionChain,
     ProviderAddressProjection,
     Quote,
@@ -249,6 +252,11 @@ def test_option_chain_during_open_session_is_fresh() -> None:
 
 
 def test_daily_history_normalizes_decimal_ohlcv() -> None:
+    # SPRINT-014 S14-PR-05A (Founder-approved bounded contract extension):
+    # one historical-bars request normalizes into exactly one observation
+    # wrapping a provider-neutral OHLCVSeries, never one observation per
+    # trading day -- so a generic single-observation-per-demand consumer
+    # can resolve this capability at all.
     transport = Transport(
         (
             response(
@@ -273,8 +281,79 @@ def test_daily_history_normalizes_decimal_ohlcv() -> None:
         request(MarketCapability.HISTORICAL_BARS_V1, ("open", "high", "low", "close", "volume")),
         authorization(),
     )
-    assert result.error is None and isinstance(result.observations[0].value, OHLCVBar)
+    assert result.error is None
+    assert len(result.observations) == 1
+    series = result.observations[0].value
+    assert isinstance(series, OHLCVSeries)
+    assert len(series.bars) == 1
+    assert isinstance(series.bars[0], OHLCVBar)
+    assert series.bars[0].close == Decimal("210")
     assert transport.requests[0].path == "/v1/markets/history"
+
+
+def test_multi_day_history_normalizes_into_one_series_observation() -> None:
+    transport = Transport(
+        (
+            response(
+                {
+                    "history": {
+                        "day": [
+                            {
+                                "date": "2026-07-19",
+                                "open": "200.00",
+                                "high": "206",
+                                "low": "199",
+                                "close": "205",
+                                "volume": 40000000,
+                            },
+                            {
+                                "date": "2026-07-20",
+                                "open": "205.00",
+                                "high": "212",
+                                "low": "204",
+                                "close": "210",
+                                "volume": 50000000,
+                            },
+                        ]
+                    }
+                }
+            ),
+        )
+    )
+    result = provider(transport).fetch(
+        request(MarketCapability.HISTORICAL_BARS_V1, ("open", "high", "low", "close", "volume")),
+        authorization(),
+    )
+    assert result.error is None
+    assert len(result.observations) == 1
+    series = result.observations[0].value
+    assert isinstance(series, OHLCVSeries)
+    assert [bar.close for bar in series.bars] == [Decimal("205"), Decimal("210")]
+    # Oldest-first, regardless of the provider's own response order.
+    assert series.bars[0].start_at < series.bars[1].start_at
+
+
+def test_expirations_only_normalizes_into_one_collection_observation() -> None:
+    # SPRINT-014 S14-PR-05A (Founder-approved bounded contract extension):
+    # Tradier's real expirations-only endpoint lists many dates in one
+    # response -- normalized into one observation wrapping a provider-
+    # neutral ExpirationCollection, never one observation per date.
+    transport = Transport(
+        (response({"expirations": {"date": ["2026-09-18", "2026-08-21"]}}),)
+    )
+    result = provider(transport).fetch(
+        request(MarketCapability.OPTION_CHAIN_V1, ("expirations",)), authorization()
+    )
+    assert result.error is None
+    assert len(result.observations) == 1
+    collection = result.observations[0].value
+    assert isinstance(collection, ExpirationCollection)
+    # Canonically ordered regardless of the provider's own response order.
+    assert [cycle.expiration_date for cycle in collection.cycles] == [
+        date(2026, 8, 21),
+        date(2026, 9, 18),
+    ]
+    assert transport.requests[0].path == "/v1/markets/options/expirations"
 
 
 def test_option_chain_preserves_greeks_iv_and_liquidity() -> None:

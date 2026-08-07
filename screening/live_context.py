@@ -22,6 +22,7 @@ from domain import (
     DomainInvariantError,
     EvidenceKind,
     EvidenceReference,
+    ExpirationCollection,
     ExpirationCycle,
     Instrument,
     InstrumentKind,
@@ -299,8 +300,18 @@ def acquire_expirations(
         )
     as_of = now.date()
     values = tuple(observation.value for observation in result.observations)
-    if all(isinstance(value, ExpirationCycle) for value in values):
-        cycles: tuple[ExpirationCycle, ...] = values  # type: ignore[assignment]
+    # SPRINT-014 S14-PR-05A (Founder-approved bounded contract extension):
+    # a provider-neutral, single-observation ExpirationCollection is now
+    # the preferred normalized shape (market_data/tradier.py's own
+    # expirations-only response). The two older shapes -- N sibling
+    # ExpirationCycle observations, or one full OptionChain a provider
+    # doesn't distinguish from a full chain request -- remain supported
+    # unchanged for any provider/fixture not yet updated to emit the new
+    # collection value.
+    if len(values) == 1 and isinstance(values[0], ExpirationCollection):
+        cycles: tuple[ExpirationCycle, ...] = values[0].cycles
+    elif all(isinstance(value, ExpirationCycle) for value in values):
+        cycles = values  # type: ignore[assignment]
     elif len(values) == 1 and isinstance(values[0], OptionChain):
         cycles = expirations_from_chain(values[0], as_of)
     else:

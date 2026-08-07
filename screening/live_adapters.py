@@ -53,6 +53,7 @@ from domain import (
     HistoricalSkewObservations,
     MarketCapability,
     OHLCVBar,
+    OHLCVSeries,
     OptionChain,
     OptionType,
     Quote,
@@ -383,8 +384,18 @@ def _acquire_daily_closes(
             f"a valid request for live {MarketCapability.HISTORICAL_BARS_V1.value} for "
             f"{symbol} could not be completed or normalized",
         )
-    ordered = sorted(result.observations, key=lambda item: item.effective_time)
-    closes = tuple(cast(OHLCVBar, item.value).close for item in ordered)
+    # SPRINT-014 S14-PR-05A (Founder-approved bounded contract extension):
+    # a provider-neutral, single-observation OHLCVSeries is now the
+    # preferred normalized shape (market_data/tradier.py's own
+    # historical-bars response). The older shape -- one OHLCVBar per
+    # observation -- remains supported unchanged for any provider/fixture
+    # not yet updated to emit the new series value.
+    if len(result.observations) == 1 and isinstance(result.observations[0].value, OHLCVSeries):
+        bars = result.observations[0].value.bars
+    else:
+        ordered = sorted(result.observations, key=lambda item: item.effective_time)
+        bars = tuple(cast(OHLCVBar, item.value) for item in ordered)
+    closes = tuple(bar.close for bar in bars)
     if len(closes) < 2:
         raise StrategyAdapterError(
             ScreeningOutcomeStatus.MISSING_DATA,
