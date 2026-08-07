@@ -125,6 +125,39 @@ class TestTwoSyntheticConsumers:
         assert result.demand_ids_by_consumer["consumer-a"] == (demand.demand_id,)
         assert result.demand_ids_by_consumer["consumer-b"] == (demand.demand_id,)
 
+    def test_a_phase_two_only_demand_appears_in_final_projected_evidence(self) -> None:
+        """Architect checkpoint (second review), item 4's own invariant
+        made executable: projected_evidence is built *after* phase two
+        completes, over the complete resolved demand set -- never a reuse
+        of the phase-one-only evidence view consumer.expand() itself
+        received -- so a demand that exists only because phase two
+        declared it must still appear in the final projected_evidence a
+        downstream fact-selection function reads.
+        """
+        phase_two_only_demand = CapabilityDemand(
+            CAPABILITY, ("last",), NOW, NOW + timedelta(seconds=1)
+        )
+
+        def expand(_evidence: object) -> DemandExpansion:
+            return DemandExpansion(demands=(phase_two_only_demand,))
+
+        fulfillment, _ = service(provider("primary"))
+        plan = _plan(fulfillment)
+        consumer = SubjectPlanConsumer("consumer-a", (), expand)
+
+        result = run_subject_plan(
+            plan,
+            NOW,
+            (consumer,),
+            provider_metadata=(provider("primary").metadata,),
+            resolution_policy_by_capability=_RESOLUTION_POLICY,
+        )
+
+        assert phase_two_only_demand.demand_id in result.projected_evidence
+        projected = result.projected_evidence[phase_two_only_demand.demand_id]
+        assert projected.demand_id == phase_two_only_demand.demand_id
+        assert projected.capability == CAPABILITY
+
     def test_selections_and_unknown_reasons_pass_through_untouched(self) -> None:
         reason = UnknownReason("no_data", demand_ids=(_quote_demand().demand_id,))
 
