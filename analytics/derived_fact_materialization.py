@@ -26,6 +26,7 @@ import hashlib
 import json
 from datetime import datetime
 
+from analytics.errors import MalformedDerivedFactParametersError
 from analytics.features import DerivedFact, DerivedFactQualityStatus, DerivedFactValue
 from analytics.registry import AnalyticsRegistry
 from domain import EvidenceReference
@@ -33,10 +34,36 @@ from domain import EvidenceReference
 DerivedFactParameters = tuple[tuple[str, str], ...]
 
 
+def _validate_parameters(parameters: DerivedFactParameters) -> None:
+    keys = tuple(key for key, _ in parameters)
+    if len(set(keys)) != len(keys):
+        raise MalformedDerivedFactParametersError(
+            f"derived_fact_id parameters must have unique keys, got {keys!r}"
+        )
+    for key, value in parameters:
+        if not key or key != key.strip():
+            raise MalformedDerivedFactParametersError(
+                f"derived_fact_id parameter key {key!r} must be non-empty and normalized"
+            )
+        if not value or value != value.strip():
+            raise MalformedDerivedFactParametersError(
+                f"derived_fact_id parameter value {value!r} for key {key!r} must be "
+                "non-empty and normalized"
+            )
+
+
 def _parameter_identity(parameters: DerivedFactParameters) -> str:
+    """Full, untruncated SHA-256 hex digest of the canonicalized
+    (order-independent) parameter set (Architect checkpoint: eighth
+    review -- "I will not approve a deliberately truncated 64-bit
+    parameter discriminator"). A collision here would let two different
+    parameter sets share one derived_fact_id, defeating the exact
+    invariant I-07/I-08 require this component to restore.
+    """
+    _validate_parameters(parameters)
     ordered = tuple(sorted(parameters))
     payload = json.dumps(ordered, sort_keys=True, separators=(",", ":"))
-    return hashlib.sha256(payload.encode()).hexdigest()[:16]
+    return hashlib.sha256(payload.encode()).hexdigest()
 
 
 def derived_fact_id(
@@ -64,9 +91,13 @@ def derived_fact_id(
     for every feature whose value cannot vary within one subject/snapshot)
     reproduces the exact same ID the original three-argument form always
     produced. When supplied, ``parameters`` must already be normalized,
-    orderable key/value text pairs -- the same convention
+    unique-keyed, orderable key/value text pairs -- the same convention
     DemandExpansion.selections already establishes -- never carried inside
-    ``subject`` itself.
+    ``subject`` itself. Raises MalformedDerivedFactParametersError for a
+    duplicate key or any empty/non-stripped key or value -- rejected
+    rather than silently normalized, since ambiguous input here would
+    undermine the very identity guarantee this parameter exists to
+    provide.
     """
     if not parameters:
         return f"{feature_id}:{subject}:{snapshot_digest}"

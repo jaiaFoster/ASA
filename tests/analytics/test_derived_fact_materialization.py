@@ -9,7 +9,7 @@ import pytest
 
 from analytics.derived_fact_materialization import derived_fact_id, materialize_derived_fact
 from analytics.derived_facts import DERIVED_FACT_REGISTRY, REALIZED_VOLATILITY
-from analytics.errors import UnknownFeatureIdError
+from analytics.errors import MalformedDerivedFactParametersError, UnknownFeatureIdError
 from analytics.features import DerivedFact, DerivedFactQualityStatus
 from domain import EvidenceKind, EvidenceReference
 
@@ -117,6 +117,53 @@ def test_parameter_identity_is_order_independent() -> None:
         parameters=(("b", "2"), ("a", "1")),
     )
     assert forward == backward
+
+
+def test_parameter_identity_uses_the_full_sha256_digest_not_a_truncation() -> None:
+    # Architect checkpoint (eighth review): a deliberately truncated 64-bit
+    # discriminator was rejected as an unsafe collision risk for a durable
+    # I-07/I-08 identity -- the parameterized suffix must be a full,
+    # untruncated SHA-256 hex digest (64 hex characters).
+    parameterized = derived_fact_id(
+        REALIZED_VOLATILITY, "AAPL", "digest-1", parameters=(("contract_id", "front-123"),)
+    )
+    suffix = parameterized.rsplit(":", 1)[-1]
+    assert len(suffix) == 64
+    int(suffix, 16)  # must be valid hex
+
+
+def test_duplicate_parameter_keys_are_rejected() -> None:
+    with pytest.raises(MalformedDerivedFactParametersError):
+        derived_fact_id(
+            REALIZED_VOLATILITY,
+            "AAPL",
+            "digest-1",
+            parameters=(("contract_id", "front-123"), ("contract_id", "back-456")),
+        )
+
+
+def test_blank_parameter_key_is_rejected() -> None:
+    with pytest.raises(MalformedDerivedFactParametersError):
+        derived_fact_id(REALIZED_VOLATILITY, "AAPL", "digest-1", parameters=((" ", "front-123"),))
+
+
+def test_unnormalized_parameter_key_is_rejected() -> None:
+    with pytest.raises(MalformedDerivedFactParametersError):
+        derived_fact_id(
+            REALIZED_VOLATILITY, "AAPL", "digest-1", parameters=((" contract_id ", "front-123"),)
+        )
+
+
+def test_blank_parameter_value_is_rejected() -> None:
+    with pytest.raises(MalformedDerivedFactParametersError):
+        derived_fact_id(REALIZED_VOLATILITY, "AAPL", "digest-1", parameters=(("contract_id", ""),))
+
+
+def test_unnormalized_parameter_value_is_rejected() -> None:
+    with pytest.raises(MalformedDerivedFactParametersError):
+        derived_fact_id(
+            REALIZED_VOLATILITY, "AAPL", "digest-1", parameters=(("contract_id", " front-123 "),)
+        )
 
 
 def test_materialize_derived_fact_accepts_and_forwards_parameters() -> None:

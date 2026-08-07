@@ -40,3 +40,12 @@ class NoMatchingContractError(AnalyticsError):
         super().__init__(
             f"no contract found matching expiration={expiration!r} strike={strike!r}"
         )
+
+
+class MalformedDerivedFactParametersError(AnalyticsError):
+    """derived_fact_id()'s own I-07 parameters were duplicate-keyed or
+    contained an unnormalized (empty or non-stripped) key/value -- rejected
+    rather than silently normalized, since this identity component feeds a
+    durable derived_fact_id (SPRINT-014 S14-PR-05A, Architect checkpoint:
+    eighth review).
+    """
