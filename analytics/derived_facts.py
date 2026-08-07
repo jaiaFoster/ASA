@@ -181,6 +181,28 @@ def compute_iv_realized_spread(
     return implied_volatility - realized_volatility
 
 
+def compute_atm_iv_vs_realized_volatility(
+    implied_volatility: Decimal, closes: Sequence[Decimal]
+) -> Decimal:
+    """Front-month ATM implied volatility minus realized volatility over
+    an already-canonical daily close series -- a single registered
+    composite calculation (SPRINT-014 S14-PR-05A, Architect checkpoint:
+    sixth review, "ATM_IV_VS_REALIZED hides a versioned derived
+    dependency"). Computes realized volatility internally rather than
+    accepting an already-materialized realized_volatility DerivedFact as
+    an input: EvidenceKind has no derived-fact reference kind, and this
+    feature's own registered formula_version must own the entire
+    computation end to end, not silently depend on a separately-versioned
+    intermediate a caller happened to materialize first. A caller that
+    also wants realized_volatility on its own (for reuse elsewhere)
+    materializes REALIZED_VOLATILITY separately, from the same closes.
+    """
+    from analytics.realized_volatility import compute_realized_volatility
+
+    realized_volatility = compute_realized_volatility(closes)
+    return compute_iv_realized_spread(implied_volatility, realized_volatility)
+
+
 def compute_iv_term_structure_spread(front_iv: Decimal, back_iv: Decimal) -> Decimal:
     """Front-month implied volatility minus a later expiration's implied
     volatility (SPRINT-014 S14-PR-05A, Architect checkpoint: fact/analytics
@@ -324,6 +346,15 @@ DERIVED_FACT_DEFINITIONS = (
             SKEW_HISTORICAL_ZSCORE,
         )
     ),
+    _definition(
+        ATM_IV_VS_REALIZED,
+        "Front-month ATM implied volatility minus realized volatility -- a "
+        "composite calculation owning its own realized-volatility computation "
+        "internally (compute_atm_iv_vs_realized_volatility), not a thin wrapper "
+        "over a separately-versioned intermediate.",
+        MarketCapability.OPTION_CHAIN_V1,
+        MarketCapability.HISTORICAL_BARS_V1,
+    ),
     *(
         _definition(
             identifier,
@@ -332,7 +363,6 @@ DERIVED_FACT_DEFINITIONS = (
             MarketCapability.HISTORICAL_BARS_V1,
         )
         for identifier in (
-            ATM_IV_VS_REALIZED,
             CALL_WING_IV_VS_REALIZED,
             PUT_WING_IV_VS_REALIZED,
         )

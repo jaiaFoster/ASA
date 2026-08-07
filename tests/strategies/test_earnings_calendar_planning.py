@@ -326,6 +326,7 @@ class TestSelectEarningsCalendarPhaseTwoEvidence:
         earnings_id = earnings_demand(NOW).demand_id
         the_quote_id = quote_demand(NOW).demand_id
         the_bars_id = historical_bars_demand(NOW).demand_id
+        the_expirations_id = expirations_demand(NOW).demand_id
         return {
             the_quote_id: _resolved(the_quote_id, MarketCapability.REAL_TIME_QUOTE_V1, _quote()),
             earnings_id: _resolved(
@@ -333,6 +334,11 @@ class TestSelectEarningsCalendarPhaseTwoEvidence:
             ),
             the_bars_id: _resolved(
                 the_bars_id, MarketCapability.HISTORICAL_BARS_V1, _historical_bars()
+            ),
+            the_expirations_id: _resolved(
+                the_expirations_id,
+                MarketCapability.OPTION_CHAIN_V1,
+                _expiration_collection(FRONT_EXPIRATION, BACK_EXPIRATION),
             ),
             front_id: _resolved(
                 front_id, MarketCapability.OPTION_CHAIN_V1, _chain(FRONT_EXPIRATION)
@@ -367,6 +373,18 @@ class TestSelectEarningsCalendarPhaseTwoEvidence:
         assert result.code == "unusable_phase_two_evidence"
         assert the_bars_id in result.demand_ids
 
+    def test_unusable_expiration_discovery_evidence_is_unknown(self) -> None:
+        selections = self._selections()
+        the_expirations_id = expirations_demand(NOW).demand_id
+        projected = self._fully_resolved_projected_evidence()
+        projected[the_expirations_id] = _unknown(
+            the_expirations_id, MarketCapability.OPTION_CHAIN_V1
+        )
+        result = select_earnings_calendar_phase_two_evidence(projected, selections, now=NOW)
+        assert isinstance(result, UnknownReason)
+        assert result.code == "unusable_phase_two_evidence"
+        assert the_expirations_id in result.demand_ids
+
     def test_missing_quote_evidence_is_unknown(self) -> None:
         selections = self._selections()
         the_quote_id = quote_demand(NOW).demand_id
@@ -383,12 +401,14 @@ class TestSelectEarningsCalendarPhaseTwoEvidence:
         earnings_id = earnings_demand(NOW).demand_id
         the_quote_id = quote_demand(NOW).demand_id
         the_bars_id = historical_bars_demand(NOW).demand_id
+        the_expirations_id = expirations_demand(NOW).demand_id
         projected = self._fully_resolved_projected_evidence()
         result = select_earnings_calendar_phase_two_evidence(projected, selections, now=NOW)
         assert isinstance(result, EarningsCalendarPhaseTwoEvidence)
         assert result.spot_price_evidence.demand_id == the_quote_id
         assert result.earnings_evidence.demand_id == earnings_id
         assert result.historical_bars_evidence.demand_id == the_bars_id
+        assert result.expiration_discovery_evidence.demand_id == the_expirations_id
         assert result.front_chain_evidence.demand_id == front_id
         assert result.back_chain_evidence.demand_id == back_id
 

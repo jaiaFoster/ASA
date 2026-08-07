@@ -46,6 +46,24 @@ _CONFIDENCE_SCORE_BY_CLASSIFICATION = {
 }
 
 
+def canonical_fact_id(fact_type: str, subject: str, snapshot_digest: str) -> str:
+    """Deterministic identity for one projected canonical fact (SPRINT-014
+    S14-PR-05A, Architect checkpoint: sixth review, "canonical fact IDs are
+    strategy-owned" -- they are not; a fact's identity is a function of
+    what it represents (fact_type), which subject it is about, and which
+    sealed evidence it was projected from (snapshot_digest), never of
+    which strategy happened to be the caller that projected it. Mirrors
+    analytics.derived_fact_materialization.derived_fact_id()'s own exact
+    shape and argument order -- the two identity schemes are siblings.
+
+    Two different consumers projecting the same fact_type for the same
+    subject from the same sealed snapshot always receive the same ID, so
+    a later consumer can detect and reuse an already-projected fact
+    instead of silently duplicating it under a strategy-scoped name.
+    """
+    return f"{fact_type}:{subject}:{snapshot_digest}"
+
+
 def project_canonical_fact(
     resolution: ResolutionResult,
     *,

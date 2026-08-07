@@ -1,5 +1,8 @@
 """SPRINT-014 S14-PR-05A, Architect checkpoint: read-only Earnings
-Calendar fact/analytics composition increment.
+Calendar fact/analytics composition increment (sixth review's corrective
+refactor: strategy-owned evaluation, generic canonical fact identity,
+composite ATM_IV_VS_REALIZED, replay-safe temporal identity, immutable
+selections, and verified evidence provenance).
 
 Proves screening.earnings_calendar_facts.compose_earnings_calendar_evaluation
 end-to-end -- canonical facts, an immutable DerivedFactSet, and the
@@ -13,6 +16,8 @@ from __future__ import annotations
 import dataclasses
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
+
+import pytest
 
 from analytics.atm_selection import select_atm_strike
 from analytics.derived_facts import (
@@ -49,6 +54,7 @@ from domain import (
 )
 from domain.financial import OptionChain
 from domain.market_data import MarketObservationValue
+from facts.canonical_projection import canonical_fact_id
 from market_data.capability_coalescing import reduce_option_chain_results
 from market_data.fulfillment import (
     CapabilityFulfillmentResult,
@@ -67,6 +73,7 @@ from market_data.subject_snapshot import seal_subject_snapshot
 from screening.context_builders import build_earnings_calendar_context
 from screening.earnings_calendar_facts import (
     EarningsCalendarComposition,
+    SealedEvidenceProvenanceError,
     compose_earnings_calendar_evaluation,
 )
 from strategies import (
@@ -76,10 +83,12 @@ from strategies import (
     compile_strategy_graph,
     execute_strategy_graph,
 )
+from strategies.earnings_calendar_evaluation import FACT_TYPE_FRONT_ATM_IMPLIED_VOLATILITY
 from strategies.earnings_calendar_planning import (
     EarningsCalendarPhaseTwoEvidence,
     chain_demand_at,
     earnings_demand,
+    expirations_demand,
     historical_bars_demand,
     quote_demand,
     select_earnings_calendar_phase_two_evidence,
@@ -171,27 +180,30 @@ def _historical_bars(count: int = 30) -> OHLCVSeries:
     return OHLCVSeries(security().instrument, 86400, NOW, bars)
 
 
-def _chain(front_iv: Decimal | None, back_iv: Decimal | None) -> OptionChain:
+def _chain(
+    front_iv: Decimal | None, back_iv: Decimal | None, *, no_calls_at: date | None = None
+) -> OptionChain:
     underlying = security()
     dates = (FRONT_EXPIRATION, BACK_EXPIRATION)
     contracts = []
     for index, expiration in enumerate(dates):
+        option_type = OptionType.PUT if expiration == no_calls_at else OptionType.CALL
+        iv = front_iv if expiration == FRONT_EXPIRATION else back_iv
         contract = option(
             expiration=expiration,
             strike=SPOT_PRICE,
-            option_type=OptionType.CALL,
+            option_type=option_type,
             observed_at=NOW,
             underlying=underlying,
             suffix=f"atm-{expiration.isoformat()}",
         )
-        iv = front_iv if expiration == FRONT_EXPIRATION else back_iv
         contracts.append(dataclasses.replace(contract, implied_volatility=iv))
         # An off-the-money contract too, so ATM selection genuinely
         # chooses among more than one strike.
         off_strike = option(
             expiration=expiration,
             strike=SPOT_PRICE + Decimal("20"),
-            option_type=OptionType.CALL,
+            option_type=option_type,
             observed_at=NOW,
             underlying=underlying,
             suffix=f"otm-{expiration.isoformat()}-{index}",
@@ -273,11 +285,16 @@ _SealedSnapshotFixture = tuple[
     CapabilityFulfillmentResult,
     CapabilityFulfillmentResult,
     CapabilityFulfillmentResult,
+    CapabilityFulfillmentResult,
 ]
 
 
 def _build_snapshot(
-    *, front_iv: Decimal | None, back_iv: Decimal | None, bars_count: int = 30
+    *,
+    front_iv: Decimal | None,
+    back_iv: Decimal | None,
+    bars_count: int = 30,
+    no_calls_at: date | None = None,
 ) -> _SealedSnapshotFixture:
     quote_result = _single_result(MarketCapability.REAL_TIME_QUOTE_V1, ("last",), _quote())
     earnings_result = _single_result(
@@ -289,7 +306,7 @@ def _build_snapshot(
     discovery_result = _single_result(
         MarketCapability.OPTION_CHAIN_V1, ("expirations",), _expiration_collection()
     )
-    combined_chain = _chain(front_iv, back_iv)
+    combined_chain = _chain(front_iv, back_iv, no_calls_at=no_calls_at)
     front_result = _chain_result(FRONT_EXPIRATION, combined_chain)
     back_result = _chain_result(BACK_EXPIRATION, combined_chain)
     reduced_chain_result = reduce_option_chain_results(
@@ -303,54 +320,83 @@ def _build_snapshot(
         resolution_policy_by_capability=_RESOLUTION_POLICY,
         provider_metadata=_PROVIDER_METADATA,
     )
-    return snapshot, quote_result, earnings_result, bars_result
+    return snapshot, quote_result, earnings_result, bars_result, discovery_result
 
 
-def _selections() -> dict[str, object]:
+def _selections() -> tuple[tuple[str, object], ...]:
     front = chain_demand_at(NOW, FRONT_EXPIRATION)
     back = chain_demand_at(NOW, BACK_EXPIRATION)
-    return {
-        "front_expiration": FRONT_EXPIRATION.isoformat(),
-        "back_expiration": BACK_EXPIRATION.isoformat(),
-        "front_demand_id": front.demand_id,
-        "back_demand_id": back.demand_id,
-    }
+    return (
+        ("front_expiration", FRONT_EXPIRATION.isoformat()),
+        ("back_expiration", BACK_EXPIRATION.isoformat()),
+        ("front_demand_id", front.demand_id),
+        ("back_demand_id", back.demand_id),
+    )
 
 
 def _resolved_evidence(
-    demand_id: str, capability: MarketCapability, value: MarketObservationValue
+    demand_id: str,
+    capability: MarketCapability,
+    required_fields: tuple[str, ...],
+    value: MarketObservationValue,
 ) -> ResolvedCapabilityEvidence:
+    # Uses the exact same _observation() construction _build_snapshot()'s
+    # own _single_result()/_chain_result() helpers use, so the
+    # observation_id embedded here is content-identical to what actually
+    # lands in the sealed snapshot -- required for
+    # _verify_evidence_belongs_to_snapshot's own provenance check to pass
+    # against real (not placeholder) observation ids.
+    observation_id = _observation(capability, required_fields, value).observation_id
     return ResolvedCapabilityEvidence(
-        demand_id, capability, EvidenceUsability.RESOLVED, value, ("obs-1",), FreshnessStatus.FRESH
+        demand_id,
+        capability,
+        EvidenceUsability.RESOLVED,
+        value,
+        (observation_id,),
+        FreshnessStatus.FRESH,
     )
 
 
 def _phase_two_evidence(
-    *, front_iv: Decimal | None, back_iv: Decimal | None, bars_count: int = 30
+    *,
+    front_iv: Decimal | None,
+    back_iv: Decimal | None,
+    bars_count: int = 30,
+    no_calls_at: date | None = None,
 ) -> EarningsCalendarPhaseTwoEvidence | UnknownReason:
-    selections = _selections()
+    selections = dict(_selections())
     front_demand_id = selections["front_demand_id"]
     back_demand_id = selections["back_demand_id"]
     assert isinstance(front_demand_id, str)
     assert isinstance(back_demand_id, str)
-    chain = _chain(front_iv, back_iv)
+    chain = _chain(front_iv, back_iv, no_calls_at=no_calls_at)
     projected = {
         quote_demand(NOW).demand_id: _resolved_evidence(
-            quote_demand(NOW).demand_id, MarketCapability.REAL_TIME_QUOTE_V1, _quote()
+            quote_demand(NOW).demand_id, MarketCapability.REAL_TIME_QUOTE_V1, ("last",), _quote()
         ),
         earnings_demand(NOW).demand_id: _resolved_evidence(
-            earnings_demand(NOW).demand_id, MarketCapability.EARNINGS_CALENDAR_V1, _earnings_event()
+            earnings_demand(NOW).demand_id,
+            MarketCapability.EARNINGS_CALENDAR_V1,
+            ("earnings_date",),
+            _earnings_event(),
         ),
         historical_bars_demand(NOW).demand_id: _resolved_evidence(
             historical_bars_demand(NOW).demand_id,
             MarketCapability.HISTORICAL_BARS_V1,
+            ("close",),
             _historical_bars(bars_count),
         ),
+        expirations_demand(NOW).demand_id: _resolved_evidence(
+            expirations_demand(NOW).demand_id,
+            MarketCapability.OPTION_CHAIN_V1,
+            ("expirations",),
+            _expiration_collection(),
+        ),
         front_demand_id: _resolved_evidence(
-            front_demand_id, MarketCapability.OPTION_CHAIN_V1, chain
+            front_demand_id, MarketCapability.OPTION_CHAIN_V1, ("contracts",), chain
         ),
         back_demand_id: _resolved_evidence(
-            back_demand_id, MarketCapability.OPTION_CHAIN_V1, chain
+            back_demand_id, MarketCapability.OPTION_CHAIN_V1, ("contracts",), chain
         ),
     }
     return select_earnings_calendar_phase_two_evidence(projected, selections, now=NOW)
@@ -415,9 +461,7 @@ class TestComposeEarningsCalendarEvaluationParity:
         phase_two = _phase_two_evidence(front_iv=front_iv, back_iv=back_iv)
         assert isinstance(phase_two, EarningsCalendarPhaseTwoEvidence)
 
-        result = compose_earnings_calendar_evaluation(
-            SYMBOL, snapshot, phase_two, _selections(), as_of=AS_OF, created_time=NOW
-        )
+        result = compose_earnings_calendar_evaluation(SYMBOL, snapshot, phase_two, _selections())
         assert isinstance(result, EarningsCalendarComposition)
 
         legacy_verdict, legacy_score = _legacy_baseline(
@@ -427,6 +471,36 @@ class TestComposeEarningsCalendarEvaluationParity:
         assert result.graph_outputs.get("score").value == legacy_score
         assert legacy_verdict in {"PASS", "WATCH"}
 
+    def test_replay_of_the_same_snapshot_is_byte_identical_regardless_of_wall_clock(self) -> None:
+        """Architect checkpoint item 4: temporal identity is derived from
+        snapshot.as_of, never from wall-clock invocation time -- there is
+        no wall-clock parameter to vary at all, so two calls (made at
+        genuinely different real times, since this test itself runs at
+        one real wall-clock moment either way) must produce byte-
+        identical evidence.
+        """
+        front_iv = Decimal("0.50")
+        back_iv = Decimal("0.20")
+        snapshot, *_ = _build_snapshot(front_iv=front_iv, back_iv=back_iv)
+        phase_two = _phase_two_evidence(front_iv=front_iv, back_iv=back_iv)
+        assert isinstance(phase_two, EarningsCalendarPhaseTwoEvidence)
+
+        first = compose_earnings_calendar_evaluation(SYMBOL, snapshot, phase_two, _selections())
+        second = compose_earnings_calendar_evaluation(SYMBOL, snapshot, phase_two, _selections())
+        assert isinstance(first, EarningsCalendarComposition)
+        assert isinstance(second, EarningsCalendarComposition)
+
+        assert first.canonical_facts == second.canonical_facts
+        assert first.derived_facts.facts == second.derived_facts.facts
+        assert tuple(item.identity for item in first.derived_facts.facts) == tuple(
+            item.identity for item in second.derived_facts.facts
+        )
+        for fact in first.canonical_facts:
+            assert fact.created_time == snapshot.as_of
+            assert fact.effective_time == snapshot.as_of
+        for derived_fact in first.derived_facts.facts:
+            assert derived_fact.effective_time == snapshot.as_of
+
     def test_deterministic_fact_ids_and_derived_fact_set_ordering(self) -> None:
         front_iv = Decimal("0.50")
         back_iv = Decimal("0.20")
@@ -434,33 +508,59 @@ class TestComposeEarningsCalendarEvaluationParity:
         phase_two = _phase_two_evidence(front_iv=front_iv, back_iv=back_iv)
         assert isinstance(phase_two, EarningsCalendarPhaseTwoEvidence)
 
-        first = compose_earnings_calendar_evaluation(
-            SYMBOL, snapshot, phase_two, _selections(), as_of=AS_OF, created_time=NOW
-        )
-        second = compose_earnings_calendar_evaluation(
-            SYMBOL, snapshot, phase_two, _selections(), as_of=AS_OF, created_time=NOW
-        )
+        first = compose_earnings_calendar_evaluation(SYMBOL, snapshot, phase_two, _selections())
+        second = compose_earnings_calendar_evaluation(SYMBOL, snapshot, phase_two, _selections())
         assert isinstance(first, EarningsCalendarComposition)
         assert isinstance(second, EarningsCalendarComposition)
         assert tuple(item.fact_id for item in first.canonical_facts) == tuple(
             item.fact_id for item in second.canonical_facts
         )
-        assert first.derived_facts.facts == second.derived_facts.facts
         # DerivedFactSet's own deterministic ordering: sorted by
         # derived_fact_id regardless of construction order.
-        reversed_set_ids = tuple(item.derived_fact_id for item in first.derived_facts.facts)
-        assert reversed_set_ids == tuple(sorted(reversed_set_ids))
+        ordered_ids = tuple(item.derived_fact_id for item in first.derived_facts.facts)
+        assert ordered_ids == tuple(sorted(ordered_ids))
+
+    def test_canonical_fact_id_is_generic_not_strategy_scoped(self) -> None:
+        """Architect checkpoint item 2: two different "consumers"
+        projecting the same fact_type for the same subject from the same
+        sealed evidence must receive the same fact ID -- proven directly
+        against the generic facts.canonical_projection.canonical_fact_id
+        helper, independent of which strategy happened to call it, and
+        cross-checked against what compose_earnings_calendar_evaluation
+        actually produced.
+        """
+        front_iv = Decimal("0.50")
+        back_iv = Decimal("0.20")
+        snapshot, *_ = _build_snapshot(front_iv=front_iv, back_iv=back_iv)
+        phase_two = _phase_two_evidence(front_iv=front_iv, back_iv=back_iv)
+        assert isinstance(phase_two, EarningsCalendarPhaseTwoEvidence)
+
+        result = compose_earnings_calendar_evaluation(SYMBOL, snapshot, phase_two, _selections())
+        assert isinstance(result, EarningsCalendarComposition)
+
+        front_iv_fact = next(
+            item
+            for item in result.canonical_facts
+            if item.fact_type == FACT_TYPE_FRONT_ATM_IMPLIED_VOLATILITY
+        )
+        # A second, independent "consumer" projecting the identical
+        # (fact_type, subject, snapshot_digest) triple -- never told
+        # which strategy the first consumer was -- computes the exact
+        # same ID.
+        second_consumer_fact_id = canonical_fact_id(
+            FACT_TYPE_FRONT_ATM_IMPLIED_VOLATILITY, SYMBOL, snapshot.snapshot_digest
+        )
+        assert front_iv_fact.fact_id == second_consumer_fact_id
+        assert not front_iv_fact.fact_id.startswith("earnings_calendar:")
 
     def test_derived_facts_link_input_evidence_to_what_they_consumed(self) -> None:
         front_iv = Decimal("0.50")
         back_iv = Decimal("0.20")
-        snapshot, _, _, bars_result = _build_snapshot(front_iv=front_iv, back_iv=back_iv)
+        snapshot, _, _, bars_result, _ = _build_snapshot(front_iv=front_iv, back_iv=back_iv)
         phase_two = _phase_two_evidence(front_iv=front_iv, back_iv=back_iv)
         assert isinstance(phase_two, EarningsCalendarPhaseTwoEvidence)
 
-        result = compose_earnings_calendar_evaluation(
-            SYMBOL, snapshot, phase_two, _selections(), as_of=AS_OF, created_time=NOW
-        )
+        result = compose_earnings_calendar_evaluation(SYMBOL, snapshot, phase_two, _selections())
         assert isinstance(result, EarningsCalendarComposition)
 
         bars_observation_id = bars_result.observations[0].observation_id
@@ -496,8 +596,14 @@ class TestComposeEarningsCalendarEvaluationParity:
             f"{ATM_IV_VS_REALIZED}:{SYMBOL}:{snapshot.snapshot_digest}"
         )
         iv_rv_referenced = {item.referenced_id for item in iv_rv_fact.input_evidence}
+        # ATM_IV_VS_REALIZED is a composite feature owning its own
+        # realized-volatility computation -- its input_evidence never
+        # references the separately-materialized REALIZED_VOLATILITY
+        # DerivedFact (EvidenceKind has no derived-fact reference kind),
+        # only the canonical front IV and the raw bars observation.
         assert front_iv_fact.fact_id in iv_rv_referenced
         assert bars_observation_id in iv_rv_referenced
+        assert realized_vol_fact.derived_fact_id not in iv_rv_referenced
 
 
 class TestComposeEarningsCalendarEvaluationUnknownCases:
@@ -508,9 +614,7 @@ class TestComposeEarningsCalendarEvaluationUnknownCases:
         phase_two = _phase_two_evidence(front_iv=front_iv, back_iv=back_iv, bars_count=1)
         assert isinstance(phase_two, EarningsCalendarPhaseTwoEvidence)
 
-        result = compose_earnings_calendar_evaluation(
-            SYMBOL, snapshot, phase_two, _selections(), as_of=AS_OF, created_time=NOW
-        )
+        result = compose_earnings_calendar_evaluation(SYMBOL, snapshot, phase_two, _selections())
         assert isinstance(result, UnknownReason)
         assert result.code == "insufficient_historical_bars"
 
@@ -519,8 +623,48 @@ class TestComposeEarningsCalendarEvaluationUnknownCases:
         phase_two = _phase_two_evidence(front_iv=None, back_iv=Decimal("0.20"))
         assert isinstance(phase_two, EarningsCalendarPhaseTwoEvidence)
 
-        result = compose_earnings_calendar_evaluation(
-            SYMBOL, snapshot, phase_two, _selections(), as_of=AS_OF, created_time=NOW
-        )
+        result = compose_earnings_calendar_evaluation(SYMBOL, snapshot, phase_two, _selections())
         assert isinstance(result, UnknownReason)
         assert result.code == "missing_implied_volatility"
+
+    def test_no_call_contracts_at_selected_expiration_is_unknown(self) -> None:
+        """Architect checkpoint item 6: select_atm_strike()'s own empty-
+        strike-set ValueError must never escape raw -- a resolved chain
+        that simply lists no CALL contracts at the selected front
+        expiration is a genuine, typed data gap.
+        """
+        front_iv = Decimal("0.50")
+        back_iv = Decimal("0.20")
+        snapshot, *_ = _build_snapshot(
+            front_iv=front_iv, back_iv=back_iv, no_calls_at=FRONT_EXPIRATION
+        )
+        phase_two = _phase_two_evidence(
+            front_iv=front_iv, back_iv=back_iv, no_calls_at=FRONT_EXPIRATION
+        )
+        assert isinstance(phase_two, EarningsCalendarPhaseTwoEvidence)
+
+        result = compose_earnings_calendar_evaluation(SYMBOL, snapshot, phase_two, _selections())
+        assert isinstance(result, UnknownReason)
+        assert result.code == "no_call_contracts_at_selected_expiration"
+
+
+class TestSealedEvidenceProvenance:
+    def test_phase_two_evidence_referencing_an_unknown_observation_id_raises(self) -> None:
+        """Architect checkpoint item 6: a mismatched evidence bundle is
+        an invariant/provenance failure, never ordinary UNKNOWN.
+        """
+        front_iv = Decimal("0.50")
+        back_iv = Decimal("0.20")
+        snapshot, *_ = _build_snapshot(front_iv=front_iv, back_iv=back_iv)
+        phase_two = _phase_two_evidence(front_iv=front_iv, back_iv=back_iv)
+        assert isinstance(phase_two, EarningsCalendarPhaseTwoEvidence)
+
+        forged = dataclasses.replace(
+            phase_two,
+            historical_bars_evidence=dataclasses.replace(
+                phase_two.historical_bars_evidence, observation_ids=("not-in-the-snapshot",)
+            ),
+        )
+
+        with pytest.raises(SealedEvidenceProvenanceError):
+            compose_earnings_calendar_evaluation(SYMBOL, snapshot, forged, _selections())

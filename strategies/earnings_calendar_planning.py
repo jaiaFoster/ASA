@@ -87,11 +87,20 @@ class EarningsCalendarPhaseTwoEvidence:
     item 6). Carries the resolved evidence values themselves, never a
     computed richness/volatility/score -- that computation stays in
     analytics/ (item 7).
+
+    ``expiration_discovery_evidence`` (added at the sixth-review
+    checkpoint) is the exact ExpirationCollection evidence phase-two
+    expansion itself selected the front/back pair from -- carried
+    forward here so a downstream consumer never has to guess which of
+    possibly several ExpirationCollection observations in a sealed
+    snapshot belongs to this evaluation; it binds this evidence bundle to
+    one specific, provenance-checkable demand_id.
     """
 
     spot_price_evidence: ResolvedCapabilityEvidence
     earnings_evidence: ResolvedCapabilityEvidence
     historical_bars_evidence: ResolvedCapabilityEvidence
+    expiration_discovery_evidence: ResolvedCapabilityEvidence
     front_chain_evidence: ResolvedCapabilityEvidence
     back_chain_evidence: ResolvedCapabilityEvidence
 
@@ -310,10 +319,12 @@ def select_earnings_calendar_phase_two_evidence(
     the_quote_demand_id = quote_demand(now).demand_id
     the_earnings_demand_id = earnings_demand(now, requirement=requirement).demand_id
     the_historical_bars_demand_id = historical_bars_demand(now).demand_id
+    the_expirations_demand_id = expirations_demand(now).demand_id
     by_demand_id = {
         the_quote_demand_id: projected_evidence.get(the_quote_demand_id),
         the_earnings_demand_id: projected_evidence.get(the_earnings_demand_id),
         the_historical_bars_demand_id: projected_evidence.get(the_historical_bars_demand_id),
+        the_expirations_demand_id: projected_evidence.get(the_expirations_demand_id),
         front_demand_id: projected_evidence.get(front_demand_id),
         back_demand_id: projected_evidence.get(back_demand_id),
     }
@@ -330,6 +341,9 @@ def select_earnings_calendar_phase_two_evidence(
         earnings_evidence=by_demand_id[the_earnings_demand_id],  # type: ignore[arg-type]
         historical_bars_evidence=by_demand_id[  # type: ignore[arg-type]
             the_historical_bars_demand_id
+        ],
+        expiration_discovery_evidence=by_demand_id[  # type: ignore[arg-type]
+            the_expirations_demand_id
         ],
         front_chain_evidence=by_demand_id[front_demand_id],  # type: ignore[arg-type]
         back_chain_evidence=by_demand_id[back_demand_id],  # type: ignore[arg-type]
