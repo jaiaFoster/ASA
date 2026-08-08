@@ -25,10 +25,10 @@ exists here; that remains S14-PR-06/07's own separate, still-paused work.
 Generic, registry/callback-driven throughout: this module imports no
 strategy-owned adapter module and contains no ``if strategy_id ==`` branch
 of any kind -- ``shadow_registry: SubjectPreparationRegistry`` is the one
-extension point a strategy registers itself into (today, only Earnings
-Calendar does, via strategy_runtime.adapters.earnings_calendar_subject_first
-.build_earnings_calendar_subject_preparation_binding()); a strategy that
-never registers there is simply never shadowed, with zero code change here.
+extension point a strategy registers itself into (today, only one migrated
+strategy does, via its own adapter module's binding-builder function); a
+strategy that never registers there is simply never shadowed, with zero
+code change here.
 """
 
 from __future__ import annotations
@@ -58,6 +58,7 @@ from strategy_runtime.subject_preparation import (
     SubjectPreparationRegistry,
     prepare_strategy_knowledge,
 )
+from strategy_runtime.validation import validate_result
 
 
 @dataclass(frozen=True, slots=True)
@@ -141,12 +142,21 @@ def prepare_subject_shadow_knowledge(
     }
 
 
-# The semantic fields two UniversalScreeningResults for the same
-# (strategy, symbol) must agree on for the shadow path to be considered a
-# match against legacy (Architect checkpoint: fourteenth review, "shadow
-# comparison contract"). Provenance is deliberately excluded -- richer
-# subject-first provenance is expected, not a parity failure.
+# The envelope/pair identity fields plus the semantic fields two
+# UniversalScreeningResults for the same (strategy, symbol) must agree on
+# for the shadow path to be considered a match against legacy (Architect
+# checkpoint: fourteenth review "shadow comparison contract"; fifteenth
+# review corrective item 4: "additionally require pair/envelope identity
+# to agree ... a malformed shadow result could theoretically compare as
+# match against the wrong pair"). ``observation_id`` is deliberately
+# excluded -- the shadow intentionally carries its own run identity
+# (_shadow_run_id), never legacy's. Provenance is also excluded --
+# richer subject-first provenance is expected, not a parity failure.
 _COMPARED_SCALAR_FIELDS: tuple[str, ...] = (
+    "strategy_id",
+    "strategy_version",
+    "symbol",
+    "row_type",
     "verdict",
     "evaluation_state",
     "opportunity_id",
@@ -157,14 +167,15 @@ _COMPARED_SCALAR_FIELDS: tuple[str, ...] = (
 
 
 def _compare_metrics(legacy: UniversalScreeningResult, shadow: UniversalScreeningResult) -> bool:
-    """Native score and every graph-derived metric key both results
-    carry must agree; a metric key present on only one side is not
-    itself a mismatch (the shadow path's own richer provenance carve-out
-    extends to metrics keys neither manifest execution shares), but any
-    key present on *both* sides must encode the same TypedValue.
+    """Native score and every graph-derived metric key must match exactly
+    (Architect checkpoint: fifteenth review, corrective item 1): a metric
+    present on only one side is a parity failure, never silently allowed
+    through -- the provenance richer-shadow carve-out does not extend to
+    metrics, so a subject-first path that silently drops
+    strategy_native_score or a graph-derived metric key is caught here,
+    not masked by an intersection-only comparison.
     """
-    shared_keys = set(legacy.metrics) & set(shadow.metrics)
-    return all(legacy.metrics[key] == shadow.metrics[key] for key in shared_keys)
+    return legacy.metrics == shadow.metrics
 
 
 @dataclass(frozen=True, slots=True)
@@ -192,6 +203,7 @@ class ShadowParityDiagnostic:
     legacy_verdict: str | None = None
     shadow_verdict: str | None = None
     shadow_unknown_code: str | None = None
+    shadow_unknown_demand_ids: tuple[str, ...] = ()
     shadow_error_detail: str | None = None
     shadow_snapshot_id: str | None = None
     shadow_snapshot_digest: str | None = None
@@ -213,17 +225,15 @@ def _shadow_diagnostic_for_result(
     if not _compare_metrics(legacy_result, shadow_result):
         mismatched = (*mismatched, "metrics")
     return ShadowParityDiagnostic(
-        legacy_result.strategy_id,
-        legacy_result.symbol,
-        "match" if not mismatched else "mismatch",
-        mismatched,
-        legacy_result.verdict,
-        shadow_result.verdict,
-        None,
-        None,
-        _snapshot_id_from_provenance(shadow_result.provenance),
-        _snapshot_digest_from_provenance(shadow_result.provenance),
-        shadow_result.provenance,
+        strategy_id=legacy_result.strategy_id,
+        symbol=legacy_result.symbol,
+        status="match" if not mismatched else "mismatch",
+        mismatched_fields=mismatched,
+        legacy_verdict=legacy_result.verdict,
+        shadow_verdict=shadow_result.verdict,
+        shadow_snapshot_id=_snapshot_id_from_provenance(shadow_result.provenance),
+        shadow_snapshot_digest=_snapshot_digest_from_provenance(shadow_result.provenance),
+        shadow_provenance=shadow_result.provenance,
     )
 
 
@@ -260,37 +270,38 @@ def _run_shadow(
 ) -> ShadowParityDiagnostic:
     knowledge_or_unknown = shadow_knowledge_by_subject.get(strategy_id)
     if knowledge_or_unknown is None:
-        return ShadowParityDiagnostic(strategy_id, symbol, "not_shadowed")
+        return ShadowParityDiagnostic(strategy_id=strategy_id, symbol=symbol, status="not_shadowed")
     if isinstance(knowledge_or_unknown, UnknownReason):
         return ShadowParityDiagnostic(
-            strategy_id,
-            symbol,
-            "shadow_unknown",
-            (),
-            legacy_result.verdict,
-            None,
-            knowledge_or_unknown.code,
+            strategy_id=strategy_id,
+            symbol=symbol,
+            status="shadow_unknown",
+            legacy_verdict=legacy_result.verdict,
+            shadow_unknown_code=knowledge_or_unknown.code,
+            shadow_unknown_demand_ids=knowledge_or_unknown.demand_ids,
         )
+    contract = legacy_registry.contract_for(strategy_id)
     binding = shadow_registry.binding_for(strategy_id)
     shadow_adapter = binding.build_shadow_adapter({symbol: knowledge_or_unknown})
     context = RuntimeContext(
-        legacy_registry.contract_for(strategy_id),
-        symbol,
-        clock,
-        _shadow_run_id(strategy_id, symbol, now),
+        contract, symbol, clock, _shadow_run_id(strategy_id, symbol, now)
     )
     try:
         shadow_result = shadow_adapter(context)
+        # Architect checkpoint: fifteenth review, corrective item 4 --
+        # reuse the same generic "declared outputs emitted" check every
+        # legacy adapter's own execution already goes through
+        # (strategy_runtime.execution._run_one), rather than duplicating
+        # it here. A shadow result that fails it is isolated exactly like
+        # any other shadow failure, never propagated.
+        validate_result(contract, shadow_result)
     except Exception as exc:  # noqa: BLE001 -- isolated shadow failure, never propagated
         return ShadowParityDiagnostic(
-            strategy_id,
-            symbol,
-            "shadow_error",
-            (),
-            legacy_result.verdict,
-            None,
-            None,
-            f"{type(exc).__name__}: {exc}",
+            strategy_id=strategy_id,
+            symbol=symbol,
+            status="shadow_error",
+            legacy_verdict=legacy_result.verdict,
+            shadow_error_detail=f"{type(exc).__name__}: {exc}",
         )
     return _shadow_diagnostic_for_result(shadow_result, legacy_result=legacy_result)
 

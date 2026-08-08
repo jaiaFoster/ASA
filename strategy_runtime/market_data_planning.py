@@ -39,6 +39,7 @@ from market_data import (
     ProviderConfig,
     ProviderDependencies,
     ProviderFactory,
+    ProviderMetadata,
     ProviderPriority,
     ProviderPriorityPolicy,
     ProviderRegistry,
@@ -172,6 +173,14 @@ class SubjectMarketDataAccess:
     # constructed ProviderRegistry/CapabilityRegistry, and never a
     # hand-copied provider-priority list in asa/ or a strategy adapter.
     capability_registry: CapabilityRegistry
+    # Architect checkpoint: fifteenth review, corrective item 3 --
+    # prepare_subject_shadow_knowledge()'s own provider_metadata argument
+    # (consumed by screening.subject_planning.run_subject_plan while
+    # sealing) needs this subject's own real ProviderMetadata tuple.
+    # CapabilityRegistry itself exposes no public metadata() of its own;
+    # the ProviderRegistry already built alongside it does -- populated
+    # from that exact same registry below, never reconstructed in asa/.
+    provider_metadata: tuple[ProviderMetadata, ...]
 
 
 def build_shared_market_data_access(
@@ -215,7 +224,9 @@ def build_shared_market_data_access(
         fulfillment = CapabilityFulfillmentService(
             provider_registry, capability_registry, budget_manager
         )
-        result[subject] = SubjectMarketDataAccess(fulfillment, budget_manager, capability_registry)
+        result[subject] = SubjectMarketDataAccess(
+            fulfillment, budget_manager, capability_registry, provider_registry.metadata()
+        )
     return result
 
 

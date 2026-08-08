@@ -51,7 +51,10 @@ from market_data.resolution import ResolutionPolicy
 from market_data.subject_plan import PlanBackedFulfillment, SubjectAcquisitionPlan
 from screening.live_acquisition import build_capability_registry, build_request_budget_manager
 from screening.subject_planning import ResolvedEvidenceView, SubjectPlanConsumer
-from strategies.earnings_calendar_planning import earnings_calendar_resolved_field_requirements
+from strategies.earnings_calendar_planning import (
+    earnings_calendar_resolved_field_requirements,
+    earnings_demand,
+)
 from strategies.knowledge_contracts import KnowledgeMapping
 from strategy_runtime.adapters import build_migrated_strategy_registry
 from strategy_runtime.adapters.earnings_calendar_subject_first import (
@@ -173,7 +176,10 @@ def _synthetic_contract() -> StrategyContract:
 
 
 def _synthetic_legacy_result(
-    *, verdict: str = "PASS", symbol: str = "AAPL"
+    *,
+    verdict: str = "PASS",
+    symbol: str = "AAPL",
+    metrics: dict[str, TypedValue] | None = None,
 ) -> UniversalScreeningResult:
     return UniversalScreeningResult(
         strategy_id=_SYNTHETIC_STRATEGY_ID,
@@ -187,7 +193,9 @@ def _synthetic_legacy_result(
         lifecycle_stage=None,
         recommendation_state=None,
         data_quality=None,
-        metrics={"synthetic_metric": TypedValue.of_string(verdict)},
+        metrics=(
+            metrics if metrics is not None else {"synthetic_metric": TypedValue.of_string(verdict)}
+        ),
         economics={},
         blockers=(),
         warnings=(),
@@ -333,6 +341,80 @@ def _shadow_adapter_raises(
     return _adapter
 
 
+def _shadow_adapter_with_metric_legacy_lacks(
+    _knowledge_by_subject: Mapping[str, ReadOnlyStrategyInput[object]],
+) -> Callable[[RuntimeContext], UniversalScreeningResult]:
+    """Legacy's own single ``synthetic_metric`` key survives unchanged,
+    but the shadow result carries one extra key legacy never emitted --
+    the old intersection-only metrics comparison would have called this a
+    match; exact equality (Architect checkpoint: fifteenth review,
+    corrective item 1) must not.
+    """
+
+    def _adapter(context: RuntimeContext) -> UniversalScreeningResult:
+        return _synthetic_legacy_result(
+            symbol=context.subject,
+            metrics={
+                "synthetic_metric": TypedValue.of_string("PASS"),
+                "shadow_only_metric": TypedValue.of_string("extra"),
+            },
+        )
+
+    return _adapter
+
+
+def _shadow_adapter_missing_metric_legacy_has(
+    _knowledge_by_subject: Mapping[str, ReadOnlyStrategyInput[object]],
+) -> Callable[[RuntimeContext], UniversalScreeningResult]:
+    """The shadow result carries a non-empty metrics namespace (so
+    validate_result's own "declared outputs emitted" check still passes),
+    but never the specific key legacy emitted -- a silently dropped
+    metric, which exact equality must catch as a mismatch rather than
+    letting an intersection-only comparison treat an entirely
+    non-overlapping metrics dict as agreement-by-omission.
+    """
+
+    def _adapter(context: RuntimeContext) -> UniversalScreeningResult:
+        return _synthetic_legacy_result(
+            symbol=context.subject,
+            metrics={"unrelated_metric": TypedValue.of_string("x")},
+        )
+
+    return _adapter
+
+
+def _shadow_adapter_wrong_symbol(
+    _knowledge_by_subject: Mapping[str, ReadOnlyStrategyInput[object]],
+) -> Callable[[RuntimeContext], UniversalScreeningResult]:
+    """A malformed shadow adapter that reports a *different* subject than
+    the one it was asked to evaluate -- exactly the "compares as match
+    against the wrong pair" failure mode Architect checkpoint (fifteenth
+    review, corrective item 4) named.
+    """
+
+    def _adapter(_context: RuntimeContext) -> UniversalScreeningResult:
+        return _synthetic_legacy_result(symbol="MSFT")
+
+    return _adapter
+
+
+def _shadow_adapter_empty_metrics(
+    _knowledge_by_subject: Mapping[str, ReadOnlyStrategyInput[object]],
+) -> Callable[[RuntimeContext], UniversalScreeningResult]:
+    """A malformed shadow adapter that never populates its declared
+    OutputKind.METRICS namespace at all -- validate_result() must catch
+    this exactly as strategy_runtime.execution's own generic runtime
+    validation already would for a legacy adapter (Architect checkpoint:
+    fifteenth review, corrective item 4: "reuse it rather than
+    duplicating them").
+    """
+
+    def _adapter(context: RuntimeContext) -> UniversalScreeningResult:
+        return _synthetic_legacy_result(symbol=context.subject, metrics={})
+
+    return _adapter
+
+
 def _synthetic_shadow_registry(
     build_shadow_adapter: Callable[
         [Mapping[str, ReadOnlyStrategyInput[object]]],
@@ -451,10 +533,59 @@ class TestRefreshWithShadowDispatch:
         assert diagnostic.legacy_verdict == "PASS" == result.verdict
         assert diagnostic.shadow_verdict == "WATCH"
 
+    def test_shadow_metric_legacy_lacks_is_a_mismatch_not_a_silent_match(self) -> None:
+        """Architect checkpoint: fifteenth review, corrective item 1 --
+        the old intersection-only comparison would have called this a
+        match (legacy's own one shared key agrees); exact equality must
+        not, since the shadow result silently carries a metric legacy
+        never emitted.
+        """
+        shadow_registry = _synthetic_shadow_registry(_shadow_adapter_with_metric_legacy_lacks)
+        knowledge = {_SYNTHETIC_STRATEGY_ID: _synthetic_knowledge_input("AAPL")}
+        _result, diagnostic = refresh_with_shadow(
+            _synthetic_legacy_registry(),
+            _repository(),
+            _FrozenClock(NOW),
+            strategy_id=_SYNTHETIC_STRATEGY_ID,
+            symbol="AAPL",
+            observations=tuple,
+            shadow_registry=shadow_registry,
+            shadow_knowledge_by_subject=knowledge,
+            now=NOW,
+        )
+        assert diagnostic is not None
+        assert diagnostic.status == "mismatch"
+        assert "metrics" in diagnostic.mismatched_fields
+
+    def test_legacy_metric_shadow_lacks_is_a_mismatch_not_a_silent_match(self) -> None:
+        """The reverse direction of the same corrective fix: a legacy
+        metric key the shadow result never emits at all (the shadow's own
+        metrics dict is entirely disjoint from legacy's) must also be
+        caught, never treated as agreement-by-omission.
+        """
+        shadow_registry = _synthetic_shadow_registry(_shadow_adapter_missing_metric_legacy_has)
+        knowledge = {_SYNTHETIC_STRATEGY_ID: _synthetic_knowledge_input("AAPL")}
+        _result, diagnostic = refresh_with_shadow(
+            _synthetic_legacy_registry(),
+            _repository(),
+            _FrozenClock(NOW),
+            strategy_id=_SYNTHETIC_STRATEGY_ID,
+            symbol="AAPL",
+            observations=tuple,
+            shadow_registry=shadow_registry,
+            shadow_knowledge_by_subject=knowledge,
+            now=NOW,
+        )
+        assert diagnostic is not None
+        assert diagnostic.status == "mismatch"
+        assert "metrics" in diagnostic.mismatched_fields
+
     def test_shadow_unknown_reason_is_recorded_not_converted_to_an_exception(self) -> None:
         shadow_registry = _synthetic_shadow_registry(_shadow_adapter_matching_legacy)
         knowledge: dict[str, ReadOnlyStrategyInput[object] | UnknownReason] = {
-            _SYNTHETIC_STRATEGY_ID: UnknownReason("synthetic_gap")
+            _SYNTHETIC_STRATEGY_ID: UnknownReason(
+                "synthetic_gap", demand_ids=("demand-a", "demand-b")
+            )
         }
         result, diagnostic = refresh_with_shadow(
             _synthetic_legacy_registry(),
@@ -470,7 +601,61 @@ class TestRefreshWithShadowDispatch:
         assert diagnostic is not None
         assert diagnostic.status == "shadow_unknown"
         assert diagnostic.shadow_unknown_code == "synthetic_gap"
+        # Architect checkpoint: fifteenth review, corrective item 2 --
+        # demand_ids must survive unchanged, not just the reason code.
+        assert diagnostic.shadow_unknown_demand_ids == ("demand-a", "demand-b")
         # The legacy, authoritative result is entirely unaffected.
+        assert result.verdict == "PASS"
+
+    def test_wrong_symbol_shadow_result_is_a_mismatch_never_a_false_match(self) -> None:
+        """Architect checkpoint: fifteenth review, corrective item 4 --
+        a malformed shadow result reporting a different pair's own
+        identity must never compare as a match; envelope identity
+        (strategy_id/strategy_version/symbol/row_type) is part of the
+        same comparison every other semantic field goes through.
+        """
+        shadow_registry = _synthetic_shadow_registry(_shadow_adapter_wrong_symbol)
+        knowledge = {_SYNTHETIC_STRATEGY_ID: _synthetic_knowledge_input("AAPL")}
+        _result, diagnostic = refresh_with_shadow(
+            _synthetic_legacy_registry(),
+            _repository(),
+            _FrozenClock(NOW),
+            strategy_id=_SYNTHETIC_STRATEGY_ID,
+            symbol="AAPL",
+            observations=tuple,
+            shadow_registry=shadow_registry,
+            shadow_knowledge_by_subject=knowledge,
+            now=NOW,
+        )
+        assert diagnostic is not None
+        assert diagnostic.status == "mismatch"
+        assert "symbol" in diagnostic.mismatched_fields
+
+    def test_shadow_result_failing_declared_output_validation_is_a_shadow_error(self) -> None:
+        """Architect checkpoint: fifteenth review, corrective item 4 --
+        the shadow result is run through the same generic
+        strategy_runtime.validation.validate_result() every legacy
+        adapter's own execution already goes through; a shadow adapter
+        that never populates its declared OutputKind.METRICS namespace is
+        isolated as shadow_error, exactly like an unexpected exception,
+        never silently compared or propagated.
+        """
+        shadow_registry = _synthetic_shadow_registry(_shadow_adapter_empty_metrics)
+        knowledge = {_SYNTHETIC_STRATEGY_ID: _synthetic_knowledge_input("AAPL")}
+        result, diagnostic = refresh_with_shadow(
+            _synthetic_legacy_registry(),
+            _repository(),
+            _FrozenClock(NOW),
+            strategy_id=_SYNTHETIC_STRATEGY_ID,
+            symbol="AAPL",
+            observations=tuple,
+            shadow_registry=shadow_registry,
+            shadow_knowledge_by_subject=knowledge,
+            now=NOW,
+        )
+        assert diagnostic is not None
+        assert diagnostic.status == "shadow_error"
+        assert diagnostic.shadow_error_detail is not None
         assert result.verdict == "PASS"
 
     def test_shadow_adapter_exception_is_isolated_never_propagated(self) -> None:
@@ -725,7 +910,10 @@ class TestEarningsCalendarSharedPlanEndToEnd:
         )
         # A missing confirmed earnings date is a genuine, expected data
         # gap -- typed UnknownReason, never an exception.
-        assert isinstance(knowledge["earnings_calendar"], UnknownReason)
+        earnings_unknown = knowledge["earnings_calendar"]
+        assert isinstance(earnings_unknown, UnknownReason)
+        assert earnings_unknown.code == "missing_earnings_date"
+        assert earnings_unknown.demand_ids == (earnings_demand(NOW).demand_id,)
         calls_after_subject_first_prep = len(fixture.fulfillment.call_log)
 
         legacy_registry = build_migrated_strategy_registry(fixture.access.plan_backed_fulfillment)
@@ -748,16 +936,21 @@ class TestEarningsCalendarSharedPlanEndToEnd:
         )
         assert diagnostic is not None
         assert diagnostic.status == "shadow_unknown"
+        assert diagnostic.shadow_unknown_code == "missing_earnings_date"
+        assert diagnostic.shadow_unknown_demand_ids == (earnings_demand(NOW).demand_id,)
 
         # The plan's own bounded retry (maximum_attempts_per_request=2,
-        # the default) is the only source of EARNINGS_CALENDAR_V1 attempts
-        # -- never doubled across the two evaluators sharing this plan.
+        # the default) is the *exact* source of EARNINGS_CALENDAR_V1
+        # attempts -- never doubled across the two evaluators sharing this
+        # plan, and never fewer than the configured bound either
+        # (Architect checkpoint: fifteenth review, corrective test
+        # hardening: an exact count, not merely an upper bound).
         earnings_calls = [
             fulfillment_result
             for fulfillment_result, _decision in fixture.fulfillment.call_log
             if fulfillment_result.request.capability is MarketCapability.EARNINGS_CALENDAR_V1
         ]
-        assert len(earnings_calls) <= 2
+        assert len(earnings_calls) == 2
 
     def test_forward_factor_and_skew_momentum_share_the_same_plan(self) -> None:
         """FF and Skew remain unmigrated legacy adapters, executing
