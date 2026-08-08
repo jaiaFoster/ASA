@@ -142,10 +142,27 @@ def historical_bars_demand(now: datetime) -> CapabilityDemand:
     lookback window, matching the Earnings Calendar manifest's own
     HISTORICAL_BARS_V1 requirement that earlier revisions of this module
     omitted.
+
+    ``maximum_age_seconds`` is set explicitly to the lookback window plus
+    one day (SPRINT-014 S14-PR-05A, Architect checkpoint: twelfth review
+    -- "a request-identity mismatch to fix, not acceptable shadow
+    overhead"), matching screening/live_adapters.py's own
+    _acquire_daily_closes() formula exactly: leaving this at the generic
+    3600-second default (right for a near-real-time quote/chain, wrong
+    for a 45-day daily-close series that does not go stale hour to hour)
+    made the subject-first CapabilityRequest for this capability compare
+    unequal to the legacy adapter's own request for the identical window,
+    so PlanBackedFulfillment reuse would silently trigger a second live
+    provider call for this one capability instead of sharing the plan's
+    already-resolved result.
     """
     lookback_start = now - timedelta(days=HISTORICAL_LOOKBACK_DAYS)
     return CapabilityDemand(
-        MarketCapability.HISTORICAL_BARS_V1, _HISTORICAL_BARS_REQUIRED_FIELDS, lookback_start, now
+        MarketCapability.HISTORICAL_BARS_V1,
+        _HISTORICAL_BARS_REQUIRED_FIELDS,
+        lookback_start,
+        now,
+        maximum_age_seconds=int(timedelta(days=HISTORICAL_LOOKBACK_DAYS + 1).total_seconds()),
     )
 
 

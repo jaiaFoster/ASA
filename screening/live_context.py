@@ -35,7 +35,8 @@ from domain import (
     OptionType,
     ProviderAddressProjection,
 )
-from market_data import CapabilityFulfillmentService, FulfillmentStatus
+from market_data import FulfillmentStatus
+from market_data.subject_plan import CapabilityFulfiller
 from screening.live_acquisition import acquire_capability
 from screening.results import ScreeningOutcomeStatus
 from screening.runner import StrategyAdapterError
@@ -244,7 +245,7 @@ def build_capability_subject(
 
 
 def acquire_expirations(
-    fulfillment: CapabilityFulfillmentService,
+    fulfillment: CapabilityFulfiller,
     symbol: str,
     now: datetime,
 ) -> tuple[ExpirationCycle, ...]:

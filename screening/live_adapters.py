@@ -7,12 +7,15 @@ screening/fixtures.py to screening/live_acquisition.py. No strategy logic
 is reimplemented here, same as SCREEN-004/ANALYTICS-003.
 
 Each factory function closes over one symbol and one already-constructed
-CapabilityFulfillmentService, returning a StrategyAdapter-conforming
-callable. A missing or unfulfillable live capability, or no expiration
-pair satisfying a strategy's DTE policy, raises StrategyAdapterError with
-MISSING_DATA -- an expected, isolated, non-crashing outcome (SCREEN-003),
-never a raw exception escaping to the runner's more generic
-STRATEGY_EXCEPTION handling.
+CapabilityFulfiller (market_data.subject_plan.CapabilityFulfiller --
+either a raw CapabilityFulfillmentService or a PlanBackedFulfillment
+wrapping one subject's own SubjectAcquisitionPlan, SPRINT-014 S14-PR-05A,
+Architect checkpoint: twelfth review), returning a StrategyAdapter-
+conforming callable. A missing or unfulfillable live capability, or no
+expiration pair satisfying a strategy's DTE policy, raises
+StrategyAdapterError with MISSING_DATA -- an expected, isolated,
+non-crashing outcome (SCREEN-003), never a raw exception escaping to the
+runner's more generic STRATEGY_EXCEPTION handling.
 
 Option-chain acquisition is a two-step flow (TRADIER-PATCH-003, #156):
 Tradier's real endpoint is scoped to one expiration per request, so a
@@ -58,13 +61,10 @@ from domain import (
     OptionType,
     Quote,
 )
-from market_data import (
-    CapabilityFulfillmentService,
-    FulfillmentStatus,
-    ProviderErrorCode,
-)
+from market_data import FulfillmentStatus, ProviderErrorCode
 from market_data.capability_coalescing import combine_option_chains
 from market_data.session_calendar import MarketSessionStatus, UsEquitySessionCalendar
+from market_data.subject_plan import CapabilityFulfiller
 from market_data.temporal import (
     DEFAULT_FRESHNESS_REQUIREMENT,
     FreshnessRequirement,
@@ -160,7 +160,7 @@ def _live_result(
 
 
 def _acquire_or_raise(
-    fulfillment: CapabilityFulfillmentService,
+    fulfillment: CapabilityFulfiller,
     symbol: str,
     capability: MarketCapability,
     now: datetime,
@@ -228,7 +228,7 @@ def _acquire_or_raise(
 
 
 def _acquire_combined_chain(
-    fulfillment: CapabilityFulfillmentService,
+    fulfillment: CapabilityFulfiller,
     symbol: str,
     now: datetime,
     expirations: tuple[date, ...],
@@ -254,7 +254,7 @@ def _acquire_combined_chain(
 
 
 def _acquire_optional_earnings(
-    fulfillment: CapabilityFulfillmentService,
+    fulfillment: CapabilityFulfiller,
     symbol: str,
     now: datetime,
     back_expiration: date,
@@ -356,7 +356,7 @@ class HistoricalSkewHistoryReader(Protocol):
 
 
 def _acquire_daily_closes(
-    fulfillment: CapabilityFulfillmentService,
+    fulfillment: CapabilityFulfiller,
     symbol: str,
     now: datetime,
     *,
@@ -428,7 +428,7 @@ def _acquire_daily_closes(
 
 def build_live_forward_factor_adapter(
     symbol: str,
-    fulfillment: CapabilityFulfillmentService,
+    fulfillment: CapabilityFulfiller,
     *,
     freshness_requirement: FreshnessRequirement = DEFAULT_FRESHNESS_REQUIREMENT,
 ) -> StrategyAdapter:
@@ -534,7 +534,7 @@ def build_live_forward_factor_adapter(
 
 def build_live_earnings_calendar_adapter(
     symbol: str,
-    fulfillment: CapabilityFulfillmentService,
+    fulfillment: CapabilityFulfiller,
     *,
     freshness_requirement: FreshnessRequirement = DEFAULT_FRESHNESS_REQUIREMENT,
 ) -> StrategyAdapter:
@@ -678,7 +678,7 @@ class _SkewSnapshot(NamedTuple):
 
 
 def _acquire_skew_snapshot(
-    fulfillment: CapabilityFulfillmentService,
+    fulfillment: CapabilityFulfiller,
     symbol: str,
     now: datetime,
     *,
@@ -785,7 +785,7 @@ def _acquire_skew_snapshot(
 
 
 def capture_skew_snapshot(
-    fulfillment: CapabilityFulfillmentService,
+    fulfillment: CapabilityFulfiller,
     symbol: str,
     now: datetime,
 ) -> HistoricalSkewObservation:
@@ -820,7 +820,7 @@ def capture_skew_snapshot(
 
 def build_live_skew_momentum_adapter(
     symbol: str,
-    fulfillment: CapabilityFulfillmentService,
+    fulfillment: CapabilityFulfiller,
     *,
     freshness_requirement: FreshnessRequirement = DEFAULT_FRESHNESS_REQUIREMENT,
     historical_skew_repository: HistoricalSkewHistoryReader | None = None,
@@ -913,7 +913,7 @@ LIVE_ADAPTER_FACTORIES = {
 
 
 def build_live_adapters(
-    symbol: str, fulfillment: CapabilityFulfillmentService
+    symbol: str, fulfillment: CapabilityFulfiller
 ) -> dict[str, StrategyAdapter]:
     """One live-driven adapter per target strategy, all bound to the same
     symbol and fulfillment service -- the live counterpart of

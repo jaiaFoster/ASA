@@ -21,6 +21,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal
+from functools import partial
 from typing import Literal
 
 from fastapi import APIRouter, Depends, Query, Request
@@ -38,6 +39,7 @@ from market_data import load_market_data_config_from_environment
 from market_data.live_transport import build_live_transport
 from market_data.session_schedule import ON_DEMAND_COOLDOWN
 from screening.live_acquisition import APPROVED_LIVE_UNIVERSE, live_only_config
+from strategy_runtime.adapters import build_migrated_strategy_registry
 from strategy_runtime.catalog import SignalCatalogEntry
 from strategy_runtime.lifecycle import RecommendedAction
 from strategy_runtime.market_data_planning import (
@@ -51,7 +53,12 @@ from strategy_runtime.persistence import (
 )
 from strategy_runtime.registry import StrategyRegistry
 from strategy_runtime.result import EvaluationState, UniversalScreeningResult
-from strategy_runtime.service import get_state, record_opportunity_observation, refresh
+from strategy_runtime.service import (
+    get_state,
+    observations_from_fulfillment,
+    record_opportunity_observation,
+    refresh,
+)
 
 DEFAULT_LIMIT = 100
 MAX_LIMIT = 500
@@ -333,14 +340,22 @@ def build_screening_router(
             )
         access = build_shared_market_data_access(config, transport_factory, clock, (symbol,))
         subject_access = access[symbol]
+        # SPRINT-014 S14-PR-05A (Architect checkpoint: twelfth review, item
+        # 3): acquisition is bound into each adapter by closure, never read
+        # from RuntimeContext -- ``registry`` (closed over from bootstrap,
+        # built with UNBOUND_FULFILLMENT) is only ever used above for
+        # _require_registered_signal's own membership check; a real
+        # evaluation always rebuilds a fresh, subject-scoped registry
+        # closed over this request's own real fulfillment first.
+        subject_registry = build_migrated_strategy_registry(subject_access.fulfillment)
         try:
             result = refresh(
-                registry,
+                subject_registry,
                 repository,
                 clock,
                 strategy_id=signal,
                 symbol=symbol,
-                fulfillment_by_subject={symbol: subject_access.fulfillment},
+                observations=partial(observations_from_fulfillment, subject_access.fulfillment),
             )
         except RuntimeError:
             if prior is None:
@@ -355,7 +370,7 @@ def build_screening_router(
         if result.opportunity_id is not None:
             try:
                 record_opportunity_observation(
-                    registry,
+                    subject_registry,
                     history_repository,
                     result,
                     recommended_action=RecommendedAction.NO_ACTION,

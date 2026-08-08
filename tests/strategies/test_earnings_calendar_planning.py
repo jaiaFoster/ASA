@@ -39,6 +39,7 @@ from domain import (
 from domain.market_data import MarketObservationValue
 from strategies.earnings_calendar_planning import (
     DEFAULT_EARNINGS_CALENDAR_REQUIREMENT,
+    HISTORICAL_LOOKBACK_DAYS,
     EarningsCalendarPhaseTwoEvidence,
     chain_demand_at,
     earnings_calendar_bootstrap_demands,
@@ -187,6 +188,24 @@ class TestBootstrapDemands:
         assert demand.required_fields == ("close",)
         assert demand.effective_end == NOW
         assert demand.effective_start < NOW
+
+    def test_historical_bars_demand_maximum_age_matches_the_legacy_live_adapter(self) -> None:
+        """Architect checkpoint, twelfth review: a request-identity
+        mismatch, not acceptable shadow overhead. screening/
+        live_adapters.py's own _acquire_daily_closes() builds its
+        CapabilityRequest with
+        maximum_age_seconds=int(timedelta(days=lookback_days + 1).total_seconds())
+        -- this demand's own declared maximum_age_seconds must equal that
+        exact value, so a SubjectAcquisitionPlan already holding this
+        demand's resolved result answers the legacy adapter's own request
+        for the identical window with zero additional provider calls,
+        rather than silently missing the plan's cache on a
+        CapabilityRequest field mismatch.
+        """
+        demand = historical_bars_demand(NOW)
+        assert demand.maximum_age_seconds == int(
+            timedelta(days=HISTORICAL_LOOKBACK_DAYS + 1).total_seconds()
+        )
 
     def test_chain_demand_at_is_scoped_to_one_expiration(self) -> None:
         demand = chain_demand_at(NOW, FRONT_EXPIRATION)

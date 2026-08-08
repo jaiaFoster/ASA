@@ -149,11 +149,7 @@ def test_historical_coverage_does_not_become_current_age_or_input_skew() -> None
         effective_time=EVALUATED - timedelta(seconds=2),
         observation_id="quote",
     )
-    fulfillment = SimpleNamespace(
-        completed_results=(
-            SimpleNamespace(observations=(oldest_bar, latest_bar, quote)),
-        )
-    )
+    observations = (oldest_bar, latest_bar, quote)
     registry = SimpleNamespace(
         contract_for=lambda _strategy_id: SimpleNamespace(
             freshness_requirement=DEFAULT_FRESHNESS_REQUIREMENT
@@ -164,7 +160,7 @@ def test_historical_coverage_does_not_become_current_age_or_input_skew() -> None
         registry,
         "alpha",
         EVALUATED,
-        fulfillment,
+        observations,
         previous=None,
     )
 
@@ -208,11 +204,9 @@ def test_stale_latest_historical_bar_is_not_masked_as_live() -> None:
         effective_time=EVALUATED - timedelta(seconds=2),
         observation_id="quote",
     )
-    fulfillment = SimpleNamespace(
-        completed_results=(SimpleNamespace(observations=(stale_latest_bar, quote)),)
-    )
+    observations = (stale_latest_bar, quote)
 
-    temporal = _temporal_metadata(_registry(), "alpha", EVALUATED, fulfillment, previous=None)
+    temporal = _temporal_metadata(_registry(), "alpha", EVALUATED, observations, previous=None)
 
     assert temporal is not None
     assert temporal.freshness_status == "stale"
@@ -242,13 +236,9 @@ def test_each_subject_provider_group_keeps_its_own_latest_bar() -> None:
         observation_id="msft-recent",
         subject_id="MSFT",
     )
-    fulfillment = SimpleNamespace(
-        completed_results=(
-            SimpleNamespace(observations=(aapl_old, aapl_recent, msft_recent)),
-        )
-    )
+    observations = (aapl_old, aapl_recent, msft_recent)
 
-    temporal = _temporal_metadata(_registry(), "alpha", EVALUATED, fulfillment, previous=None)
+    temporal = _temporal_metadata(_registry(), "alpha", EVALUATED, observations, previous=None)
 
     assert temporal is not None
     # Oldest surviving effective_time is MSFT's own latest bar (10 minutes
@@ -270,11 +260,9 @@ def test_effective_times_stay_utc_normalized_across_timezone_input() -> None:
         effective_time=(EVALUATED - timedelta(seconds=2)).astimezone(minus_five),
         observation_id="quote-est",
     )
-    fulfillment = SimpleNamespace(
-        completed_results=(SimpleNamespace(observations=(quote_in_est,)),)
-    )
+    observations = (quote_in_est,)
 
-    temporal = _temporal_metadata(_registry(), "alpha", EVALUATED, fulfillment, previous=None)
+    temporal = _temporal_metadata(_registry(), "alpha", EVALUATED, observations, previous=None)
 
     assert temporal is not None
     assert temporal.age_seconds == 2

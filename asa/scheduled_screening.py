@@ -37,6 +37,7 @@ import time
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from functools import partial
 from typing import Protocol
 
 from asa.config import Settings
@@ -80,7 +81,11 @@ from strategy_runtime.market_data_planning import (
     enabled_provider_configs,
 )
 from strategy_runtime.persistence import LatestResultRepository, ObservationHistoryRepository
-from strategy_runtime.service import record_opportunity_observation, refresh
+from strategy_runtime.service import (
+    observations_from_fulfillment,
+    record_opportunity_observation,
+    refresh,
+)
 
 # The production screening universe (project/reports/SPRINT-008D-SCREENING-
 # UNIVERSE.md, PROD-001; expanded SPRINT-011/UNI-001-UNI-002): all three
@@ -268,7 +273,6 @@ def run_scheduled_refresh(
         or PostgresHistoricalSkewRepository(create_postgres_engine(Settings().database_url))
     )
     session_calendar = UsEquitySessionCalendar()
-    registry = build_migrated_strategy_registry()
     config = live_only_config(load_market_data_config_from_environment())
     if not enabled_provider_configs(config):
         raise RuntimeError(
@@ -316,6 +320,17 @@ def run_scheduled_refresh(
     access = build_shared_market_data_access(
         config, transport_factory, clock, unique_symbols, rolling_window=rolling_window
     )
+    # SPRINT-014 S14-PR-05A (Architect checkpoint: twelfth review, item 3):
+    # acquisition is bound into each adapter by closure, never read from
+    # RuntimeContext -- one registry per unique symbol, each one's three
+    # adapters closed over that symbol's own already-built
+    # CapabilityFulfillmentService, built once here alongside ``access``
+    # (pure closure construction, no provider call of its own) and reused
+    # by every pair below that shares that symbol.
+    registries = {
+        symbol: build_migrated_strategy_registry(subject_access.fulfillment)
+        for symbol, subject_access in access.items()
+    }
     reuse_counts = {
         "provider_calls": 0,
         "reuse_hits": 0,
@@ -340,12 +355,12 @@ def run_scheduled_refresh(
             call_log_start = len(subject_access.fulfillment.call_log)
             budget_accounting_start = len(subject_access.budget_manager.accounting)
             result = refresh(
-                registry,
+                registries[symbol],
                 resolved_repository,
                 clock,
                 strategy_id=signal_id,
                 symbol=symbol,
-                fulfillment_by_subject={symbol: subject_access.fulfillment},
+                observations=partial(observations_from_fulfillment, subject_access.fulfillment),
                 historical_skew_repository=resolved_historical_skew_repository,
             )
             pair_calls = subject_access.fulfillment.call_log[call_log_start:]
@@ -401,7 +416,7 @@ def run_scheduled_refresh(
             if result.opportunity_id is not None:
                 try:
                     record_opportunity_observation(
-                        registry,
+                        registries[symbol],
                         resolved_history_repository,
                         result,
                         recommended_action=RecommendedAction.NO_ACTION,

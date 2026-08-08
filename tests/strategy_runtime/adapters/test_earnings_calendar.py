@@ -25,7 +25,7 @@ from domain import MarketCapability
 from market_data import load_market_data_config
 from strategy_runtime.adapters.earnings_calendar import (
     EARNINGS_CALENDAR_CONTRACT,
-    earnings_calendar_adapter,
+    build_earnings_calendar_adapter,
 )
 from strategy_runtime.context import RuntimeContext
 from strategy_runtime.contract import LifecycleModel
@@ -55,13 +55,6 @@ class TestEarningsCalendarContract:
 
 
 class TestEarningsCalendarAdapter:
-    def test_requires_shared_fulfillment(self) -> None:
-        context = RuntimeContext(
-            EARNINGS_CALENDAR_CONTRACT, "AAPL", _FixedClock(datetime.now(UTC)), "run-1"
-        )
-        with pytest.raises(RuntimeError, match="requires shared market data access"):
-            earnings_calendar_adapter(context)
-
     def test_a_non_success_outcome_assigns_no_lifecycle_stage_or_opportunity_id(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -83,11 +76,12 @@ class TestEarningsCalendarAdapter:
         access = build_shared_market_data_access(
             config, lambda _provider_id: ScriptedTransport([]), clock, ("AAPL",)
         )
-        context = RuntimeContext(
-            EARNINGS_CALENDAR_CONTRACT, "AAPL", clock, "run-1", access["AAPL"].fulfillment
-        )
+        # SPRINT-014 S14-PR-05A (Architect checkpoint: twelfth review, item
+        # 3): acquisition is bound by closure, not carried on RuntimeContext.
+        context = RuntimeContext(EARNINGS_CALENDAR_CONTRACT, "AAPL", clock, "run-1")
+        adapter = build_earnings_calendar_adapter(access["AAPL"].fulfillment)
 
-        result = earnings_calendar_adapter(context)
+        result = adapter(context)
 
         assert result.strategy_id == "earnings_calendar"
         assert result.evaluation_state is not EvaluationState.PASS

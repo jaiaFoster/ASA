@@ -24,7 +24,7 @@ sprint's own explicit non_goal, deliberately never invented here).
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Callable
 from dataclasses import replace
 from datetime import UTC, datetime
 
@@ -68,6 +68,27 @@ _USABILITY_PRIORITY = {
 }
 
 
+def observations_from_fulfillment(
+    fulfillment: CapabilityFulfillmentService,
+) -> tuple[MarketObservation, ...]:
+    """Flatten every observation a CapabilityFulfillmentService's own
+    completed_results accumulated during a run into one provider-neutral
+    tuple (SPRINT-014 S14-PR-05A, Architect checkpoint: twelfth review,
+    item 7) -- the exact shape refresh()'s own ``observations`` parameter
+    needs to compute ResultTemporalMetadata, extracted here once so a
+    transitional-legacy caller (still driving acquisition through a raw
+    CapabilityFulfillmentService, not yet a sealed MarketSnapshot) never
+    reimplements this traversal itself. A caller already holding a sealed
+    MarketSnapshot passes its own ``.observations`` directly instead --
+    this helper exists only for the fulfillment-service-shaped case.
+    """
+    return tuple(
+        observation
+        for completed in fulfillment.completed_results
+        for observation in completed.observations
+    )
+
+
 def _current_temporal_observations(
     observations: tuple[MarketObservation, ...],
 ) -> tuple[MarketObservation, ...]:
@@ -109,15 +130,10 @@ def _temporal_metadata(
     registry: StrategyRegistry[UniversalScreeningResult],
     strategy_id: str,
     evaluated_at: datetime,
-    fulfillment: CapabilityFulfillmentService,
+    observations: tuple[MarketObservation, ...],
     previous: UniversalSignalRow | None,
 ) -> ResultTemporalMetadata | None:
     evaluated = evaluated_at.astimezone(UTC)
-    observations: tuple[MarketObservation, ...] = tuple(
-        observation
-        for completed in fulfillment.completed_results
-        for observation in completed.observations
-    )
     if not observations:
         return None
     current_observations = _current_temporal_observations(observations)
@@ -205,12 +221,30 @@ def refresh(
     *,
     strategy_id: str,
     symbol: str,
-    fulfillment_by_subject: Mapping[str, CapabilityFulfillmentService],
+    observations: Callable[[], tuple[MarketObservation, ...]] = tuple,
     historical_skew_repository: HistoricalSkewRepository | None = None,
 ) -> UniversalScreeningResult:
     """Recompute exactly one strategy against exactly one subject via the
     existing migrated adapters, then persist and return the new state --
     never a whole-universe or whole-strategy-set refresh.
+
+    ``registry`` must already have its own adapter(s) bound to whatever
+    CapabilityFulfiller this refresh should acquire through (SPRINT-014
+    S14-PR-05A, Architect checkpoint: twelfth review, item 7) -- this
+    function itself has no fulfillment dependency of any kind.
+    ``observations`` is a callback returning the provider-neutral evidence
+    the caller's own orchestration acquired for this subject this cycle
+    (sealed MarketSnapshot.observations for the subject-first path, or
+    strategy_runtime.service.observations_from_fulfillment's own flattened
+    tuple for transitional legacy execution) -- used only to compute
+    ResultTemporalMetadata, never to drive execution itself. A *callback*,
+    not an already-computed tuple: the underlying evidence a legacy
+    CapabilityFulfillmentService accumulates does not exist until the
+    adapter this function's own run_strategies() call below actually
+    invokes has finished acquiring it, so this is called only after that
+    completes, never before. The default (an empty tuple, called eagerly)
+    means no temporal metadata is attached, matching the prior behavior
+    when no fulfillment was supplied.
 
     ``historical_skew_repository`` (SPRINT-013 S13-04D) is optional and
     forwarded to run_strategies() unchanged; only a strategy contract that
@@ -222,7 +256,6 @@ def refresh(
         clock,
         subjects=(symbol,),
         strategy_ids=(strategy_id,),
-        fulfillment_by_subject=fulfillment_by_subject,
         historical_skew_repository=historical_skew_repository,
     )
     if (
@@ -234,13 +267,8 @@ def refresh(
             f"{execution_result.error_detail}"
         )
     result = execution_result.result
-    fulfillment = fulfillment_by_subject.get(symbol)
-    temporal = (
-        None
-        if fulfillment is None
-        else _temporal_metadata(
-            registry, strategy_id, result.observed_at, fulfillment, previous
-        )
+    temporal = _temporal_metadata(
+        registry, strategy_id, result.observed_at, observations(), previous
     )
     if temporal is not None:
         result = replace(result, temporal=temporal)

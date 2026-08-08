@@ -14,7 +14,7 @@ from market_data.transport import ReadOnlyHttpResponse
 from screening.live_acquisition import live_only_config
 from strategy_runtime.adapters.skew_momentum_vertical import (
     SKEW_MOMENTUM_VERTICAL_CONTRACT,
-    skew_momentum_adapter,
+    build_skew_momentum_adapter,
 )
 from strategy_runtime.context import RuntimeContext
 from strategy_runtime.market_data_planning import build_shared_market_data_access
@@ -131,13 +131,6 @@ class TestSkewMomentumVerticalContract:
 
 
 class TestSkewMomentumAdapter:
-    def test_requires_shared_fulfillment(self) -> None:
-        context = RuntimeContext(
-            SKEW_MOMENTUM_VERTICAL_CONTRACT, "AAPL", _FixedClock(datetime.now(UTC)), "run-1"
-        )
-        with pytest.raises(RuntimeError, match="requires shared market data access"):
-            skew_momentum_adapter(context)
-
     def test_full_live_acquisition_produces_a_translated_result(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -165,15 +158,12 @@ class TestSkewMomentumAdapter:
         access = build_shared_market_data_access(
             config, lambda _provider_id: ScriptedTransport(responses), clock, ("AAPL",)
         )
-        context = RuntimeContext(
-            SKEW_MOMENTUM_VERTICAL_CONTRACT,
-            "AAPL",
-            clock,
-            "run-1",
-            access["AAPL"].fulfillment,
-        )
+        # SPRINT-014 S14-PR-05A (Architect checkpoint: twelfth review, item
+        # 3): acquisition is bound by closure, not carried on RuntimeContext.
+        context = RuntimeContext(SKEW_MOMENTUM_VERTICAL_CONTRACT, "AAPL", clock, "run-1")
+        adapter = build_skew_momentum_adapter(access["AAPL"].fulfillment)
 
-        result = skew_momentum_adapter(context)
+        result = adapter(context)
 
         assert result.strategy_id == "skew_momentum"
         assert result.symbol == "AAPL"
