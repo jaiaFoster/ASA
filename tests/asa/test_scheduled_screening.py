@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import UTC, date, datetime, timedelta
 
 import pytest
@@ -15,6 +16,7 @@ from domain.strategy_evidence import HistoricalSkewObservation
 from market_data.attempts import AttemptQuery, InMemoryAcquisitionAttemptRepository
 from market_data.transport import ReadOnlyHttpResponse
 from screening import APPROVED_LIVE_UNIVERSE, EARNINGS_CALENDAR_UNIVERSE
+from strategy_runtime.orchestration import ShadowParityDiagnostic
 from tests.asa.fakes import InMemoryLatestResultRepository
 from tests.asa.market_data_ops.fakes import ScriptedTransport, tradier_quote_response
 
@@ -293,9 +295,20 @@ def test_duplicate_cron_delivery_executes_slot_once(
 # -- SPRINT-013 S13-02: acquisition attempt recording -----------------------
 
 
-def test_attempts_are_recorded_under_one_shared_cycle_id_for_every_pair(
+def test_attempts_are_recorded_under_one_shared_plan_id_per_subject(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """SPRINT-014 S14-PR-05A (Architect checkpoint: sixteenth review, "final
+    wiring increment"): attempt identity is now subject-scoped, not
+    pair-scoped -- each unique symbol's own SubjectAcquisitionPlan is the
+    single durable attempt owner for every pair sharing that symbol this
+    cycle, retiring this module's own prior per-pair
+    attempt_records_for()/repository.record() block. The plan supplies its
+    own plan_id as BOTH the recorded screening_cycle_id and
+    pair_evaluation_id (market_data/subject_plan.py's own established
+    contract) -- never the per-(strategy, symbol) pair_evaluation_id the
+    retired block used to derive.
+    """
     monkeypatch.setenv("ASA_TRADIER_ENABLED", "true")
     monkeypatch.setenv("ASA_TRADIER_ACCESS_TOKEN", "sandbox-secret-token")
     repository = InMemoryLatestResultRepository()
@@ -315,14 +328,15 @@ def test_attempts_are_recorded_under_one_shared_cycle_id_for_every_pair(
     assert all(item.attempts_recorded for item in outcomes)
     recorded = attempt_repository.query(AttemptQuery(limit=100))
     assert recorded  # at least one provider attempt was actually persisted
-    cycle_ids = {item.screening_cycle_id for item in recorded}
-    assert len(cycle_ids) == 1  # one cycle spans the whole invocation
-    pair_ids = {item.pair_evaluation_id for item in recorded}
-    cycle_id = next(iter(cycle_ids))
-    assert pair_ids <= {
-        f"{cycle_id}:skew_momentum:AAPL",
-        f"{cycle_id}:skew_momentum:MSFT",
-    }
+    plan_ids = {item.screening_cycle_id for item in recorded}
+    # One plan per unique symbol this cycle -- never one shared across
+    # symbols, and never one per (strategy, symbol) pair.
+    assert len(plan_ids) == 2
+    cycle_prefix = next(iter(plan_ids)).rsplit(":", 1)[0]
+    assert plan_ids == {f"{cycle_prefix}:AAPL", f"{cycle_prefix}:MSFT"}
+    # plan_id serves as both screening_cycle_id and pair_evaluation_id for
+    # every attempt a plan records.
+    assert {item.pair_evaluation_id for item in recorded} == plan_ids
 
 
 def test_manual_invocation_uses_a_different_cycle_id_each_call(
@@ -774,23 +788,35 @@ def test_a_symbol_shared_across_two_pairs_in_one_cycle_reuses_the_first_pairs_re
     assert outcomes[1].outcome == outcomes[0].outcome  # reused evidence, same evaluated outcome
 
 
-def test_a_failed_shared_capability_gets_its_own_independent_retry_not_a_shared_known_failure(
+def test_a_failed_shared_capability_becomes_a_durably_shared_known_failure(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """SPRINT-014 S14-PR-01 root-cause evidence.
+    """SPRINT-014 S14-PR-01 root-cause, now closed at the production root
+    (Architect checkpoint: sixteenth review, "final wiring increment").
 
-    market_data/fulfillment.py's CapabilityFulfillmentService deliberately
-    never reuses a cached *failed* result (see test_fulfillment.py's own
+    market_data/fulfillment.py's own CapabilityFulfillmentService
+    deliberately never reuses a cached *failed* result on its own (see
+    test_fulfillment.py's own
     test_a_failed_result_is_never_reused_and_gets_its_own_independent_retry)
-    -- correct for failure *isolation* within one service instance, but it
-    also means there is no durable, shared "this datum is UNKNOWN this
-    cycle" fact that a second pair sharing the same symbol can consult:
-    it pays its own full provider round-trip for the identical failure,
-    even though both pairs run under the same frozen cycle clock and, under
-    a subject-first plan, would share one already-known negative result
-    instead. This is the concrete, measured manifestation of SPRINT-014's
-    own root-cause statement: "Failed cache entries may be removed and
+    -- correct for failure *isolation* within one bare service instance,
+    but it used to also mean there was no durable, shared "this datum is
+    UNKNOWN this cycle" fact a second pair sharing the same symbol could
+    consult: it paid its own full provider round-trip for the identical
+    failure, even though both pairs ran under the same frozen cycle clock.
+    This was the concrete, measured manifestation of SPRINT-014's own
+    root-cause statement: "Failed cache entries may be removed and
     repeated by later strategies."
+
+    Now that skew_momentum's own legacy adapter is registered against this
+    symbol's shared PlanBackedFulfillment (not the raw fulfillment service
+    directly), SubjectAcquisitionPlan itself provides that durable shared
+    fact: the plan's own bounded retry (market_data/subject_plan.py,
+    maximum_attempts_per_request=2 by default) makes one extra attempt at
+    the failing request before freezing it, and every later resolve() for
+    that exact same (request, required) key -- from any pair sharing this
+    symbol, including this test's own second, identical
+    ("skew_momentum", "AAPL") pair -- returns that frozen result with zero
+    further provider calls, success or failure alike.
 
     The historical-bars response is deliberately replaced with Tradier's
     documented empty-history shape (not a calendar-dependent staleness
@@ -803,14 +829,15 @@ def test_a_failed_shared_capability_gets_its_own_independent_retry_not_a_shared_
     expiration = (date.today() + timedelta(days=7)).isoformat()
     universe = (("skew_momentum", "AAPL"), ("skew_momentum", "AAPL"))
 
-    def _responses_with_forced_empty_history() -> list[ReadOnlyHttpResponse]:
-        responses = _complete_skew_momentum_responses(expiration)
-        responses[3] = ReadOnlyHttpResponse(
-            200, {"history": None}, (), 12, "tradier-request-4-empty"
-        )
-        return responses
+    def _empty_history_response(request_id: str) -> ReadOnlyHttpResponse:
+        return ReadOnlyHttpResponse(200, {"history": None}, (), 12, request_id)
 
-    responses = _responses_with_forced_empty_history() + _responses_with_forced_empty_history()
+    responses = _complete_skew_momentum_responses(expiration)
+    responses[3] = _empty_history_response("tradier-request-4-empty-attempt-1")
+    # The plan's own bounded retry means exactly one more scripted response
+    # is consumed for the SAME failing request -- never a second full
+    # 4-request burst for the second, identical pair.
+    responses.append(_empty_history_response("tradier-request-4-empty-attempt-2"))
 
     outcomes = run_scheduled_refresh(
         universe,
@@ -822,13 +849,13 @@ def test_a_failed_shared_capability_gets_its_own_independent_retry_not_a_shared_
     assert len(outcomes) == 2
     assert outcomes[0].error is None
     assert outcomes[1].error is None
-    # First pair: nothing cached yet -- all 4 capabilities are fresh.
-    assert outcomes[0].request_count == _SKEW_MOMENTUM_REQUESTS_PER_PAIR
-    # Second pair: quote/expirations/chain reuse from cache (0 new calls),
-    # but the failed history capability is NOT served from the first
-    # pair's already-known failure -- it gets its own fresh, counted
-    # provider call. If a shared negative result existed, this would be 0.
-    assert outcomes[1].request_count == 1
+    # First pair: 3 fresh successes (quote/expirations/chain) plus the
+    # plan's own 2 bounded-retry attempts at the one failing capability.
+    assert outcomes[0].request_count == _SKEW_MOMENTUM_REQUESTS_PER_PAIR + 1
+    # Second pair: every one of its four capability requests -- including
+    # the now-exhausted, durably shared failure -- is served entirely from
+    # this symbol's shared plan. Zero new provider calls.
+    assert outcomes[1].request_count == 0
 
 
 def test_different_symbols_in_the_same_cycle_never_share_requests(
@@ -1055,3 +1082,199 @@ def test_a_long_running_cycle_regains_provider_capacity_after_elapsed_time(
     assert outcomes[0].request_count == _SKEW_MOMENTUM_REQUESTS_PER_PAIR
     assert outcomes[1].error is None
     assert outcomes[1].request_count == _SKEW_MOMENTUM_REQUESTS_PER_PAIR
+
+
+# -- SPRINT-014 S14-PR-05A: production-root shadow wiring (Architect
+# checkpoint: sixteenth review, "final wiring increment") -------------------
+
+
+def test_shadow_subject_preparation_failure_never_aborts_the_cycle(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A shadow-preparation failure (here: Finnhub is not enabled, so
+    Earnings' own capability has no registered provider policy at all --
+    a genuine misconfiguration, real production always enables Finnhub
+    alongside Tradier for exactly this reason) is isolated exactly like
+    this module's other best-effort side channels: it never aborts the
+    cycle and never affects any pair's own legacy evaluation, including
+    the shadowed strategy's own legacy pair.
+    """
+    monkeypatch.setenv("ASA_TRADIER_ENABLED", "true")
+    monkeypatch.setenv("ASA_TRADIER_ACCESS_TOKEN", "sandbox-secret-token")
+    repository = InMemoryLatestResultRepository()
+    expiration = (date.today() + timedelta(days=7)).isoformat()
+    universe = (("skew_momentum", "AAPL"), ("earnings_calendar", "AAPL"))
+    caplog.set_level(logging.WARNING, logger="asa.scheduled_screening")
+
+    outcomes = run_scheduled_refresh(
+        universe,
+        repository=repository,
+        acquisition_attempt_repository=InMemoryAcquisitionAttemptRepository(),
+        transport_factory=lambda _provider_id: ScriptedTransport(
+            _complete_skew_momentum_responses(expiration)
+        ),
+    )
+
+    assert len(outcomes) == 2
+    assert all(item.error is None for item in outcomes)
+    failures = [
+        record
+        for record in caplog.records
+        if record.message == "shadow_subject_preparation_failed"
+    ]
+    assert len(failures) == 1
+    assert failures[0].symbol == "AAPL"
+
+
+def test_ff_and_skew_results_are_unaffected_by_whether_earnings_shares_the_cycle(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Architect checkpoint: sixteenth review, "add a before/after
+    regression for FF and Skew result/temporal fields ... if the existing
+    broad observations callback causes cross-strategy shadow evidence to
+    contaminate their temporal metadata, fix that at the generic
+    orchestration/evidence boundary." Fixed in
+    strategy_runtime/orchestration.py's own _observations_relevant_to --
+    see tests/strategy_runtime/test_orchestration.py's own
+    TestObservationsRelevantToFilter for the precise, isolated proof of
+    that filter itself, using synthetic observations of a capability no
+    other strategy declares.
+
+    This is the production-root-level companion, using only real
+    fixtures already established in this file: two symbols evaluated in
+    the SAME cycle (same frozen clock, identical scripted response
+    content reused verbatim for both -- the established pattern
+    test_different_symbols_in_the_same_cycle_never_share_requests already
+    uses). AAPL also has earnings_calendar in this cycle's own universe
+    (attempting subject-first shadow preparation, which shares AAPL's own
+    plan); MSFT does not (the control). skew_momentum's own outcome, full
+    persisted metrics, verdict, evaluation_state, and temporal metadata
+    for both symbols must be identical -- merely adding an (here,
+    Finnhub-less-and-failing -- see the isolation test above) shadow
+    strategy to the universe must never perturb an unrelated strategy's
+    own result.
+    """
+    monkeypatch.setenv("ASA_TRADIER_ENABLED", "true")
+    monkeypatch.setenv("ASA_TRADIER_ACCESS_TOKEN", "sandbox-secret-token")
+    repository = InMemoryLatestResultRepository()
+    expiration = (date.today() + timedelta(days=7)).isoformat()
+    universe = (
+        ("skew_momentum", "AAPL"),
+        ("earnings_calendar", "AAPL"),
+        ("skew_momentum", "MSFT"),
+    )
+    responses = _complete_skew_momentum_responses(expiration) + _complete_skew_momentum_responses(
+        expiration
+    )
+
+    outcomes = run_scheduled_refresh(
+        universe,
+        repository=repository,
+        acquisition_attempt_repository=InMemoryAcquisitionAttemptRepository(),
+        transport_factory=lambda _provider_id: ScriptedTransport(responses),
+    )
+
+    aapl_skew = next(
+        item for item in outcomes if item.signal_id == "skew_momentum" and item.symbol == "AAPL"
+    )
+    msft_skew = next(
+        item for item in outcomes if item.signal_id == "skew_momentum" and item.symbol == "MSFT"
+    )
+    assert aapl_skew.error is None
+    assert msft_skew.error is None
+    assert aapl_skew.outcome == msft_skew.outcome
+    assert aapl_skew.request_count == msft_skew.request_count
+
+    aapl_result = repository.get_one("skew_momentum", "AAPL")
+    msft_result = repository.get_one("skew_momentum", "MSFT")
+    assert aapl_result is not None
+    assert msft_result is not None
+    assert aapl_result.verdict == msft_result.verdict
+    assert aapl_result.evaluation_state == msft_result.evaluation_state
+    assert aapl_result.metrics == msft_result.metrics
+    # Every temporal field is derived from the SAME scripted market data,
+    # evaluated under the SAME frozen cycle clock -- they must agree
+    # exactly, or Earnings' own shared-plan presence contaminated it.
+    assert aapl_result.temporal == msft_result.temporal
+
+
+def test_shadow_parity_diagnostic_is_logged_with_sanitized_fields(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Architect checkpoint: sixteenth review, "log/record shadow
+    diagnostics internally. At minimum retain status, mismatched fields,
+    UNKNOWN code+demand IDs, and shadow snapshot ID/digest without
+    provider payloads." refresh_with_shadow() itself is replaced here so
+    this test exercises exactly this module's own logging call site,
+    decoupled from real acquisition or the (separately, exhaustively
+    tested in tests/strategy_runtime/test_orchestration.py) correctness
+    of the diagnostic's own content.
+    """
+    import asa.scheduled_screening as scheduled_screening_module
+    from strategy_runtime.result import EvaluationState, RowType, UniversalScreeningResult
+
+    legacy_result = UniversalScreeningResult(
+        strategy_id="forward_factor",
+        strategy_version="1.0.0",
+        symbol="AAPL",
+        observation_id="legacy-obs",
+        opportunity_id=None,
+        row_type=RowType.RESULT,
+        verdict="PASS",
+        evaluation_state=EvaluationState.PASS,
+        lifecycle_stage=None,
+        recommendation_state=None,
+        data_quality=None,
+        metrics={},
+        economics={},
+        blockers=(),
+        warnings=(),
+        provenance=(),
+        observed_at=datetime.now(UTC),
+    )
+    diagnostic = ShadowParityDiagnostic(
+        strategy_id="forward_factor",
+        symbol="AAPL",
+        status="mismatch",
+        mismatched_fields=("verdict",),
+        legacy_verdict="PASS",
+        shadow_verdict="WATCH",
+        shadow_unknown_code="synthetic_gap",
+        shadow_unknown_demand_ids=("demand-a",),
+        shadow_snapshot_id="snapshot-1",
+        shadow_snapshot_digest="digest-1",
+    )
+
+    def _fake_refresh_with_shadow(
+        *_args: object, **_kwargs: object
+    ) -> tuple[UniversalScreeningResult, ShadowParityDiagnostic]:
+        return legacy_result, diagnostic
+
+    monkeypatch.setattr(
+        scheduled_screening_module, "refresh_with_shadow", _fake_refresh_with_shadow
+    )
+    monkeypatch.setenv("ASA_TRADIER_ENABLED", "true")
+    monkeypatch.setenv("ASA_TRADIER_ACCESS_TOKEN", "sandbox-secret-token")
+    caplog.set_level(logging.INFO, logger="asa.scheduled_screening")
+
+    outcomes = run_scheduled_refresh(
+        (("forward_factor", "AAPL"),),
+        repository=InMemoryLatestResultRepository(),
+        acquisition_attempt_repository=InMemoryAcquisitionAttemptRepository(),
+        transport_factory=lambda _provider_id: ScriptedTransport([]),
+    )
+
+    assert outcomes[0].error is None
+    entries = [
+        record for record in caplog.records if record.message == "shadow_parity_diagnostic"
+    ]
+    assert len(entries) == 1
+    entry = entries[0]
+    assert entry.signal_id == "forward_factor"
+    assert entry.symbol == "AAPL"
+    assert entry.shadow_status == "mismatch"
+    assert entry.shadow_mismatched_fields == ("verdict",)
+    assert entry.shadow_unknown_code == "synthetic_gap"
+    assert entry.shadow_unknown_demand_ids == ("demand-a",)
+    assert entry.shadow_snapshot_id == "snapshot-1"
+    assert entry.shadow_snapshot_digest == "digest-1"

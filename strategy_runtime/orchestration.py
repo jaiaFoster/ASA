@@ -306,6 +306,57 @@ def _run_shadow(
     return _shadow_diagnostic_for_result(shadow_result, legacy_result=legacy_result)
 
 
+def _observations_relevant_to(
+    strategy_id: str,
+    legacy_registry: StrategyRegistry[UniversalScreeningResult],
+    observations: Callable[[], tuple[MarketObservation, ...]],
+) -> Callable[[], tuple[MarketObservation, ...]]:
+    """Scope a caller-supplied observations callback down to only the
+    MarketCapability values ``strategy_id`` itself declares in its own
+    StrategyContract.requirements (Architect checkpoint: sixteenth review,
+    "if the existing broad observations callback causes cross-strategy
+    shadow evidence to contaminate their temporal metadata, fix that at
+    the generic orchestration/evidence boundary").
+
+    Both production roots share one raw CapabilityFulfillmentService per
+    subject across every consumer this cycle/invocation -- every legacy
+    pair AND, now, subject-first shadow preparation -- and their own
+    ``observations`` callback (typically
+    market_data.observations_from_fulfillment) flattens *everything* that
+    service has ever completed, unscoped by who asked for it.
+    strategy_runtime.service._temporal_metadata is deliberately generic
+    and applies no relevance filter of its own (it takes max/min effective
+    times and per-observation freshness decisions over whatever tuple it
+    is given), so an unfiltered callback would let one strategy's own
+    irrelevant evidence -- e.g. one migrated strategy's own single-purpose
+    calendar-event observation, of a capability no other strategy declares
+    -- silently shift a completely unrelated strategy's own
+    observed_at/age/freshness/usability. Filtering here, once, at this
+    shared seam, is correct for every caller rather than requiring each
+    production root to duplicate it.
+
+    Filters by *capability relevance*, never by *when* an observation was
+    actually resolved -- a plan-cache hit reused from an earlier pair or
+    from shadow preparation remains included exactly like a freshly
+    acquired one, which a "since this pair started" slice would wrongly
+    exclude.
+    """
+    declared_capabilities = frozenset(
+        capability
+        for requirement in legacy_registry.contract_for(strategy_id).requirements
+        for capability in requirement.capabilities
+    )
+
+    def _scoped() -> tuple[MarketObservation, ...]:
+        return tuple(
+            observation
+            for observation in observations()
+            if observation.capability in declared_capabilities
+        )
+
+    return _scoped
+
+
 def refresh_with_shadow(
     legacy_registry: StrategyRegistry[UniversalScreeningResult],
     repository: LatestResultRepository,
@@ -329,7 +380,12 @@ def refresh_with_shadow(
     build_subject_acquisition_access(), used identically to how a raw
     CapabilityFulfillmentService was closed over before), so legacy FF/
     Skew/Earnings execute unchanged through the same plan subject-first
-    preparation already populated.
+    preparation already populated. ``observations`` itself is scoped down
+    to ``strategy_id``'s own declared capabilities before being forwarded
+    to refresh() (see _observations_relevant_to) so another strategy's own
+    evidence sharing this same subject's plan this cycle -- including
+    subject-first shadow preparation's own contribution -- never shifts
+    this result's own temporal metadata.
 
     If (and only if) ``shadow_registry`` is supplied and ``strategy_id``
     is registered in it, and ``shadow_knowledge_by_subject`` (built once
@@ -348,7 +404,7 @@ def refresh_with_shadow(
         clock,
         strategy_id=strategy_id,
         symbol=symbol,
-        observations=observations,
+        observations=_observations_relevant_to(strategy_id, legacy_registry, observations),
         historical_skew_repository=historical_skew_repository,
     )
     if (

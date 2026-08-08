@@ -146,6 +146,7 @@ def build_application(
             selected.market_data_transport_factory or build_transport_for_provider,
             capabilities_catalog=build_migrated_signal_catalog(),
             history_repository=observation_history_repository,
+            acquisition_attempt_repository=acquisition_attempt_repository,
         )
     )
     mount_ui(app)

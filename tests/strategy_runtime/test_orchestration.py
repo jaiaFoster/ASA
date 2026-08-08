@@ -33,6 +33,8 @@ import dataclasses
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from types import SimpleNamespace
+from typing import cast
 
 from analytics.features import DerivedFactRequest, DerivedFactSet
 from domain import (
@@ -40,6 +42,7 @@ from domain import (
     CapabilityDemand,
     DemandExpansion,
     MarketCapability,
+    MarketObservation,
     UnknownReason,
 )
 from market_data import CapabilityFulfillmentService, FixtureScenario, ProviderDependencies
@@ -73,6 +76,7 @@ from strategy_runtime.knowledge import ReadOnlyStrategyInput
 from strategy_runtime.market_data_planning import resolution_policy_for_capabilities
 from strategy_runtime.orchestration import (
     SubjectAcquisitionAccess,
+    _observations_relevant_to,
     build_subject_acquisition_access,
     prepare_subject_shadow_knowledge,
     refresh_with_shadow,
@@ -226,6 +230,118 @@ def _plan(fulfillment: CapabilityFulfillmentService) -> SubjectAcquisitionPlan:
         clock=_FrozenClock(NOW),
         maximum_attempts_per_request=2,
     )
+
+
+def _fake_observation(
+    *,
+    capability: MarketCapability,
+    effective_time: datetime = NOW,
+    observation_id: str = "obs-1",
+) -> MarketObservation:
+    """A lightweight duck-typed stand-in (mirrors tests/strategy_runtime/
+    test_refresh_integrity_regressions.py's own ``_observation`` helper)
+    -- _observations_relevant_to only ever reads ``.capability`` off each
+    element, so nothing else needs to be real.
+    """
+    return cast(
+        MarketObservation,
+        SimpleNamespace(
+            capability=capability, effective_time=effective_time, observation_id=observation_id
+        ),
+    )
+
+
+def _single_capability_registry(
+    strategy_id: str, capability: MarketCapability
+) -> StrategyRegistry[UniversalScreeningResult]:
+    contract = StrategyContract(
+        strategy_id=strategy_id,
+        version="1.0.0",
+        category="synthetic",
+        description="capability-scoped synthetic strategy for the observations filter test",
+        requirements=(
+            DataRequirement(RequirementCategory.MARKET_DATA, capabilities=(capability,)),
+        ),
+        lifecycle=NO_LIFECYCLE,
+        structure=StructureKind.NONE,
+        outputs=(OutputKind.METRICS,),
+    )
+    def _unused_adapter(_context: RuntimeContext) -> UniversalScreeningResult:
+        raise NotImplementedError("adapter unused by this test")
+
+    return StrategyRegistry(((contract, _unused_adapter),))
+
+
+class TestObservationsRelevantToFilter:
+    """Architect checkpoint: sixteenth review, "if the existing broad
+    observations callback causes cross-strategy shadow evidence to
+    contaminate their temporal metadata, fix that at the generic
+    orchestration/evidence boundary rather than accepting the
+    difference." refresh_with_shadow() now scopes the caller-supplied
+    ``observations`` callback to only the capabilities ``strategy_id``
+    itself declares before forwarding it into refresh() -- both
+    production roots' own shared raw fulfillment service means an
+    unfiltered callback would otherwise let a different strategy's own
+    irrelevant evidence (e.g. subject-first shadow preparation's own
+    contribution for an entirely different, unrequested strategy) shift
+    this strategy's own temporal metadata.
+    """
+
+    def test_irrelevant_capability_observations_are_excluded(self) -> None:
+        registry = _single_capability_registry("scoped", MarketCapability.REAL_TIME_QUOTE_V1)
+        relevant = _fake_observation(
+            capability=MarketCapability.REAL_TIME_QUOTE_V1, observation_id="relevant"
+        )
+        irrelevant = _fake_observation(
+            capability=MarketCapability.OPTION_CHAIN_V1, observation_id="irrelevant"
+        )
+
+        scoped = _observations_relevant_to("scoped", registry, lambda: (relevant, irrelevant))
+
+        assert scoped() == (relevant,)
+
+    def test_relevant_observations_pass_through_unchanged_regardless_of_order(self) -> None:
+        registry = _single_capability_registry("scoped", MarketCapability.REAL_TIME_QUOTE_V1)
+        first = _fake_observation(
+            capability=MarketCapability.REAL_TIME_QUOTE_V1, observation_id="first"
+        )
+        second = _fake_observation(
+            capability=MarketCapability.REAL_TIME_QUOTE_V1, observation_id="second"
+        )
+
+        scoped = _observations_relevant_to("scoped", registry, lambda: (first, second))
+
+        assert scoped() == (first, second)
+
+    def test_no_relevant_observations_yields_an_empty_tuple(self) -> None:
+        registry = _single_capability_registry("scoped", MarketCapability.REAL_TIME_QUOTE_V1)
+        irrelevant = _fake_observation(capability=MarketCapability.OPTION_CHAIN_V1)
+
+        scoped = _observations_relevant_to("scoped", registry, lambda: (irrelevant,))
+
+        assert scoped() == ()
+
+    def test_filter_is_re_evaluated_on_every_call_not_cached(self) -> None:
+        """observations() is a callback, not an already-computed tuple
+        (strategy_runtime.service.refresh's own docstring reason: the
+        underlying evidence does not exist until the adapter has actually
+        run) -- the wrapped, scoped callback must preserve that, calling
+        the caller's own ``observations`` fresh every time it is invoked,
+        never caching a first result.
+        """
+        registry = _single_capability_registry("scoped", MarketCapability.REAL_TIME_QUOTE_V1)
+        calls = 0
+
+        def _observations() -> tuple[MarketObservation, ...]:
+            nonlocal calls
+            calls += 1
+            return (_fake_observation(capability=MarketCapability.REAL_TIME_QUOTE_V1),)
+
+        scoped = _observations_relevant_to("scoped", registry, _observations)
+        scoped()
+        scoped()
+
+        assert calls == 2
 
 
 class TestBuildSubjectAcquisitionAccess:

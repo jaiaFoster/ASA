@@ -33,17 +33,28 @@ immediately beforehand.
 
 from __future__ import annotations
 
+from datetime import datetime
+
+from domain import MarketCapability
+from market_data import CapabilityRegistry
+from market_data.capability_coalescing import reduce_option_chain_results
 from market_data.fulfillment import CapabilityFulfillmentResult
 from market_data.providers import CapabilityRequest
+from market_data.resolution import ResolutionPolicy
 from market_data.subject_plan import CapabilityFulfiller
+from screening.subject_planning import CapabilityResultReducer
 from strategies import (
     EARNINGS_CALENDAR_MANIFEST,
     FORWARD_FACTOR_CALENDAR_MANIFEST,
     SKEW_MOMENTUM_VERTICAL_MANIFEST,
 )
+from strategies.earnings_calendar_planning import earnings_calendar_resolved_field_requirements
 from strategy_runtime.adapters.earnings_calendar import (
     EARNINGS_CALENDAR_CONTRACT,
     build_earnings_calendar_adapter,
+)
+from strategy_runtime.adapters.earnings_calendar_subject_first import (
+    build_earnings_calendar_subject_preparation_binding,
 )
 from strategy_runtime.adapters.forward_factor import (
     FORWARD_FACTOR_CONTRACT,
@@ -55,13 +66,18 @@ from strategy_runtime.adapters.skew_momentum_vertical import (
 )
 from strategy_runtime.catalog import SignalCatalogEntry
 from strategy_runtime.manifest_contract import validate_manifest_contract
+from strategy_runtime.market_data_planning import resolution_policy_for_capabilities
 from strategy_runtime.registry import StrategyRegistry
 from strategy_runtime.result import UniversalScreeningResult
+from strategy_runtime.subject_preparation import SubjectPreparationRegistry
 
 __all__ = [
     "UNBOUND_FULFILLMENT",
+    "build_migrated_shadow_registry",
     "build_migrated_signal_catalog",
     "build_migrated_strategy_registry",
+    "migrated_shadow_capability_reducers",
+    "migrated_shadow_resolution_policy",
 ]
 
 
@@ -112,6 +128,57 @@ def build_migrated_strategy_registry(
             (SKEW_MOMENTUM_VERTICAL_CONTRACT, build_skew_momentum_adapter(fulfillment)),
             (EARNINGS_CALENDAR_CONTRACT, build_earnings_calendar_adapter(fulfillment)),
         )
+    )
+
+
+def build_migrated_shadow_registry(now: datetime) -> SubjectPreparationRegistry[object]:
+    """Every migrated strategy with a registered subject-first shadow
+    binding, assembled once per invocation/cycle (SPRINT-014 S14-PR-05A,
+    Architect checkpoint: sixteenth review, "both roots must use the same
+    new orchestration primitives"). Today, only Earnings Calendar has one;
+    strategy_runtime.orchestration's own shared seam looks strategy_ids up
+    here generically by registry membership, never by a hand-written
+    if-branch -- a strategy with no entry here is simply never shadowed.
+
+    Rebuilt fresh per caller invocation, never cached across cycles/
+    requests, because build_earnings_calendar_subject_preparation_binding
+    itself closes its own bootstrap demands and phase-two expansion over
+    this exact ``now``.
+    """
+    return SubjectPreparationRegistry(
+        (
+            (
+                EARNINGS_CALENDAR_CONTRACT.strategy_id,
+                build_earnings_calendar_subject_preparation_binding(now),
+            ),
+        )
+    )
+
+
+def migrated_shadow_capability_reducers() -> dict[MarketCapability, CapabilityResultReducer]:
+    """Generic multi-result capability reducers any registered shadow
+    binding's own subject plan might need while sealing -- currently just
+    OPTION_CHAIN_V1 (Earnings Calendar's own discovery-then-per-expiration-
+    contract acquisition shape), forwarded unchanged into
+    strategy_runtime.orchestration.prepare_subject_shadow_knowledge by
+    both production roots.
+    """
+    return {MarketCapability.OPTION_CHAIN_V1: reduce_option_chain_results}
+
+
+def migrated_shadow_resolution_policy(
+    capability_registry: CapabilityRegistry,
+) -> dict[MarketCapability, ResolutionPolicy]:
+    """Resolution policies for every capability today's one registered
+    shadow binding (Earnings Calendar) needs sealed, built from this
+    subject's own already-built CapabilityRegistry -- never a second,
+    hand-copied provider-priority list in asa/ (Architect checkpoint:
+    fourteenth review, "provider metadata and resolution policies must be
+    constructed from existing market-data configuration/registry
+    ownership").
+    """
+    return resolution_policy_for_capabilities(
+        capability_registry, earnings_calendar_resolved_field_requirements()
     )
 
 

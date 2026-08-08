@@ -235,6 +235,49 @@ class TestAttemptPersistence:
         assert len(failed_only) == 1
 
 
+class _AlwaysFailingAttemptRepository(InMemoryAcquisitionAttemptRepository):
+    """A repository whose record() always raises, standing in for a real
+    persistence outage (SPRINT-014 S14-PR-05A production-root wiring)."""
+
+    def record(self, records: object) -> None:
+        raise RuntimeError("attempt repository unavailable")
+
+
+class TestAttemptRecordingResilience:
+    """SPRINT-014 S14-PR-05A: this plan is now the single durable attempt
+    owner for asa/scheduled_screening.py and asa/api/screening_routes.py,
+    replacing their own now-retired per-pair recording block -- so it also
+    owns that block's own resilience guarantee (SPRINT-013 S13-02: "a
+    persistence outage for the attempt side-channel must never abort or
+    corrupt the pair's own strategy evaluation").
+    """
+
+    def test_a_persistence_outage_never_raises_out_of_resolve(self) -> None:
+        fulfillment, _ = service(provider("primary"))
+        plan, _ = _plan(fulfillment, attempt_repository=_AlwaysFailingAttemptRepository())
+
+        result = plan.resolve(request())  # must not raise
+
+        assert result.status.value == "fulfilled"
+
+    def test_a_persistence_outage_is_honestly_flagged_degraded(self) -> None:
+        fulfillment, _ = service(provider("primary"))
+        plan, _ = _plan(fulfillment, attempt_repository=_AlwaysFailingAttemptRepository())
+
+        assert plan.attempt_recording_degraded is False  # nothing attempted yet
+        plan.resolve(request())
+
+        assert plan.attempt_recording_degraded is True
+
+    def test_a_healthy_repository_never_flags_degraded(self) -> None:
+        fulfillment, _ = service(provider("primary"))
+        plan, _ = _plan(fulfillment)
+
+        plan.resolve(request())
+
+        assert plan.attempt_recording_degraded is False
+
+
 class TestDoesNotMutateUnderlyingService:
     def test_the_wrapped_fulfillment_service_still_reflects_its_own_reuse_semantics(self) -> None:
         # SubjectAcquisitionPlan wraps CapabilityFulfillmentService; it must

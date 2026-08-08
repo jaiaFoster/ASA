@@ -34,6 +34,19 @@ _SAFE_EXTRA_FIELDS = (
     "safe_error_code",
     "diagnostic_code",
     "signal_id",
+    # SPRINT-014 S14-PR-05A (Architect checkpoint: sixteenth review,
+    # "log/record shadow diagnostics internally. At minimum retain
+    # status, mismatched fields, UNKNOWN code+demand IDs, and shadow
+    # snapshot ID/digest without provider payloads") -- without these,
+    # both production roots' own shadow_parity_diagnostic log calls would
+    # have every one of these fields silently dropped by this same
+    # allowlist, defeating the entire point of logging them.
+    "shadow_status",
+    "shadow_mismatched_fields",
+    "shadow_unknown_code",
+    "shadow_unknown_demand_ids",
+    "shadow_snapshot_id",
+    "shadow_snapshot_digest",
 )
 _MAX_FIELD_LENGTH = 500
 _MAX_TRACEBACK_FRAMES = 5
