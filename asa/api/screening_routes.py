@@ -35,7 +35,7 @@ from asa.api.screening_models import (
     ScreeningResultsEnvelope,
     SignalCapabilityResponse,
 )
-from market_data import load_market_data_config_from_environment
+from market_data import load_market_data_config_from_environment, observations_from_fulfillment
 from market_data.live_transport import build_live_transport
 from market_data.session_schedule import ON_DEMAND_COOLDOWN
 from screening.live_acquisition import APPROVED_LIVE_UNIVERSE, live_only_config
@@ -53,12 +53,7 @@ from strategy_runtime.persistence import (
 )
 from strategy_runtime.registry import StrategyRegistry
 from strategy_runtime.result import EvaluationState, UniversalScreeningResult
-from strategy_runtime.service import (
-    get_state,
-    observations_from_fulfillment,
-    record_opportunity_observation,
-    refresh,
-)
+from strategy_runtime.service import get_state, record_opportunity_observation, refresh
 
 DEFAULT_LIMIT = 100
 MAX_LIMIT = 500

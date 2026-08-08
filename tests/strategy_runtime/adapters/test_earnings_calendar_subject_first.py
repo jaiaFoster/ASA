@@ -41,6 +41,7 @@ from domain import (
     CanonicalFact,
     CapabilityDemand,
     DemandExpansion,
+    EvidenceUsability,
     MarketCapability,
     Quote,
     ResolvedCapabilityEvidence,
@@ -72,6 +73,7 @@ from strategy_runtime.context import RuntimeContext
 from strategy_runtime.knowledge import ReadOnlyStrategyInput
 from strategy_runtime.knowledge_composition import compose_strategy_knowledge
 from strategy_runtime.knowledge_registry import KnowledgeCompositionRegistry
+from strategy_runtime.lifecycle import compute_opportunity_id
 from strategy_runtime.result import EvaluationState, UniversalScreeningResult
 from strategy_runtime.subject_preparation import (
     DuplicateSubjectPreparationBindingError,
@@ -234,6 +236,59 @@ class TestPrepareEarningsCalendarKnowledgeMapping:
         with pytest.raises(SealedEvidenceProvenanceError):
             _prepare_earnings_calendar_knowledge_mapping(
                 other_snapshot, projected, _selections(), SYMBOL
+            )
+
+    def test_wrong_domain_type_for_discovery_evidence_raises_not_unknown(self) -> None:
+        """Architect checkpoint: thirteenth review, corrective item 3 --
+        "an unexpected resolved value type" is an internal inconsistency,
+        never a genuine data gap, so it must raise
+        SealedEvidenceProvenanceError, not downgrade to a typed
+        UnknownReason.
+        """
+        front_iv = Decimal("0.50")
+        back_iv = Decimal("0.20")
+        snapshot, *_ = _build_snapshot(front_iv=front_iv, back_iv=back_iv)
+        projected = dict(_projected_evidence(front_iv=front_iv, back_iv=back_iv))
+        expirations_id = expirations_demand(NOW).demand_id
+        # Built directly (not via _resolved_evidence's own MarketObservation-
+        # backed helper): MarketObservation.__post_init__ already enforces
+        # value/capability type matching as a domain invariant, so a
+        # malformed observation can never even be constructed -- but
+        # ResolvedCapabilityEvidence (a lighter, provider-blind projection)
+        # carries no such check, which is exactly the gap this test proves
+        # _prepare_earnings_calendar_knowledge_mapping itself must guard.
+        projected[expirations_id] = ResolvedCapabilityEvidence(
+            expirations_id,
+            MarketCapability.OPTION_CHAIN_V1,
+            EvidenceUsability.RESOLVED,
+            _quote(),
+            (),
+            None,
+        )
+
+        with pytest.raises(SealedEvidenceProvenanceError):
+            _prepare_earnings_calendar_knowledge_mapping(
+                snapshot, projected, _selections(), SYMBOL
+            )
+
+    def test_selected_expiration_not_in_discovery_collection_raises_not_unknown(self) -> None:
+        """Architect checkpoint: thirteenth review, corrective item 3 --
+        "a selected expiration missing from the discovery collection" is
+        an impossible internal inconsistency (both the selection and the
+        discovery collection are computed from the same evidence), never
+        a genuine data gap.
+        """
+        front_iv = Decimal("0.50")
+        back_iv = Decimal("0.20")
+        snapshot, *_ = _build_snapshot(front_iv=front_iv, back_iv=back_iv)
+        projected = _projected_evidence(front_iv=front_iv, back_iv=back_iv)
+        selections_by_key = dict(_selections())
+        selections_by_key["front_expiration"] = date(2099, 1, 1).isoformat()
+        bad_selections = tuple(selections_by_key.items())
+
+        with pytest.raises(SealedEvidenceProvenanceError):
+            _prepare_earnings_calendar_knowledge_mapping(
+                snapshot, projected, bad_selections, SYMBOL
             )
 
 
@@ -428,7 +483,16 @@ class TestEarningsCalendarSubjectFirstAdapter:
     """build_earnings_calendar_subject_first_adapter, proven bound only to
     an already-computed ReadOnlyStrategyInput -- no route back to plan,
     fulfillment, provider, transport, budget, repository, or raw
-    acquisition diagnostics.
+    acquisition diagnostics -- and, Architect checkpoint (thirteenth
+    review, corrective item 2), proven to preserve legacy Earnings runtime
+    semantics exactly: pinned PASS and WATCH fixtures, each compared
+    against strategy_runtime/adapters/earnings_calendar.py's own
+    documented mapping rules (_NON_FAIL_VERDICTS / _STAGE_BY_OUTCOME /
+    compute_opportunity_id) for verdict, evaluation_state, opportunity
+    identity, lifecycle stage, score/metrics, warnings, and observed time.
+    Provenance is intentionally richer on the subject-first path (bullet
+    2's own explicit carve-out) and is asserted separately, not folded
+    into the legacy-parity comparison.
     """
 
     def _knowledge_input(
@@ -447,47 +511,128 @@ class TestEarningsCalendarSubjectFirstAdapter:
         assert not isinstance(knowledge_input, UnknownReason)
         return snapshot, knowledge_input
 
-    def test_pass_or_watch_projects_a_correct_universal_screening_result(self) -> None:
-        snapshot, knowledge_input = self._knowledge_input(
-            front_iv=Decimal("0.50"), back_iv=Decimal("0.20")
-        )
+    def _run(
+        self, *, front_iv: Decimal, back_iv: Decimal, run_id: str = "run-1"
+    ) -> tuple[
+        MarketSnapshot, ReadOnlyStrategyInput[EarningsCalendarPayload], UniversalScreeningResult
+    ]:
+        snapshot, knowledge_input = self._knowledge_input(front_iv=front_iv, back_iv=back_iv)
         adapter = build_earnings_calendar_subject_first_adapter({SYMBOL: knowledge_input})
         context = RuntimeContext(
             contract=EARNINGS_CALENDAR_CONTRACT,
             subject=SYMBOL,
             clock=_FixedClock(NOW),
-            run_id="run-1",
+            run_id=run_id,
         )
+        return snapshot, knowledge_input, adapter(context)
 
-        result = adapter(context)
+    def _assert_full_legacy_semantic_parity(
+        self, result: UniversalScreeningResult, *, front_iv: Decimal, back_iv: Decimal
+    ) -> None:
+        """Compares every semantic field the Architect's own checkpoint
+        named against legacy's own documented rules
+        (strategy_runtime/adapters/earnings_calendar.py):
+        ``_NON_FAIL_VERDICTS = {"PASS", "WATCH"}`` maps to
+        ``ScreeningOutcomeStatus.PASS`` -> ``EvaluationState.PASS``;
+        ``_STAGE_BY_OUTCOME`` maps that same successful outcome to
+        ``"confirmed"`` (everything else to ``"watching"``), with
+        ``compute_opportunity_id("earnings_calendar", symbol)`` always
+        assigned alongside a stage. verdict/score parity itself reuses
+        ``_legacy_baseline()`` -- the same acquisition-free formula-chain
+        replay already proven correct against the live path in
+        TestGenericCompositionParity.
+        """
+        legacy_verdict, legacy_score = _legacy_baseline(
+            _chain(front_iv, back_iv), _earnings_event(), _daily_closes(30)
+        )
+        is_successful = legacy_verdict in {"PASS", "WATCH"}
+        assert result.verdict == legacy_verdict
+        assert result.evaluation_state is (
+            EvaluationState.PASS if is_successful else EvaluationState.NO_SIGNAL
+        )
+        assert result.lifecycle_stage == ("confirmed" if is_successful else "watching")
+        assert result.opportunity_id == compute_opportunity_id(STRATEGY_ID, SYMBOL)
+        assert result.metrics["strategy_native_score"].native() == legacy_score
+        assert result.warnings == ()
 
-        assert isinstance(result, UniversalScreeningResult)
+    def test_pass_matches_legacy_semantics(self) -> None:
+        front_iv, back_iv = Decimal("0.50"), Decimal("0.20")
+        snapshot, knowledge_input, result = self._run(front_iv=front_iv, back_iv=back_iv)
+
+        assert result.verdict == "PASS"
+        self._assert_full_legacy_semantic_parity(result, front_iv=front_iv, back_iv=back_iv)
         assert result.strategy_id == STRATEGY_ID
         assert result.strategy_version == EARNINGS_CALENDAR_CONTRACT.version
         assert result.symbol == SYMBOL
-        assert result.verdict in {"PASS", "WATCH"}
-        assert result.evaluation_state is EvaluationState.PASS
         assert result.observed_at == snapshot.as_of
-        assert "strategy_native_score" in result.metrics
 
-        # provenance is built only from the knowledge input's own fact
-        # identities -- never a raw acquisition diagnostic.
-        expected_provenance = {fact.fact_id for fact in knowledge_input.canonical_facts} | {
-            fact.derived_fact_id for fact in knowledge_input.derived_facts.facts
+        self._assert_richer_than_legacy_provenance(result, knowledge_input)
+
+    def test_watch_matches_legacy_semantics(self) -> None:
+        """The corrective fix under direct test: legacy treats WATCH as a
+        successful, lifecycle-confirmed observation (via
+        _NON_FAIL_VERDICTS), not a bare NO_SIGNAL with no opportunity
+        identity -- the first draft of this adapter got this wrong.
+        """
+        front_iv, back_iv = Decimal("0.33"), Decimal("0.24")
+        snapshot, knowledge_input, result = self._run(front_iv=front_iv, back_iv=back_iv)
+
+        assert result.verdict == "WATCH"
+        self._assert_full_legacy_semantic_parity(result, front_iv=front_iv, back_iv=back_iv)
+        assert result.evaluation_state is EvaluationState.PASS
+        assert result.lifecycle_stage == "confirmed"
+        assert result.opportunity_id is not None
+
+        self._assert_richer_than_legacy_provenance(result, knowledge_input)
+
+    def _assert_richer_than_legacy_provenance(
+        self,
+        result: UniversalScreeningResult,
+        knowledge_input: ReadOnlyStrategyInput[EarningsCalendarPayload],
+    ) -> None:
+        """Provenance is deliberately richer than legacy's own bare-id
+        tuple (Architect checkpoint: thirteenth review, corrective
+        hardening 2) -- snapshot identity plus every fact's own version/
+        formula_version, explicit rather than accidental.
+        """
+        assert result.provenance[0] == f"snapshot_id:{knowledge_input.snapshot_id}"
+        assert result.provenance[1] == f"snapshot_digest:{knowledge_input.snapshot_digest}"
+        expected_canonical = {
+            f"canonical_fact:{fact.fact_id}@{fact.version}"
+            for fact in knowledge_input.canonical_facts
         }
-        assert set(result.provenance) == expected_provenance
+        expected_derived = {
+            f"derived_fact:{fact.derived_fact_id}@{fact.formula_version}"
+            for fact in knowledge_input.derived_facts.facts
+        }
+        assert set(result.provenance[2:]) == expected_canonical | expected_derived
 
     def test_looks_up_only_by_context_subject(self) -> None:
+        _snapshot, _knowledge_input, result = self._run(
+            front_iv=Decimal("0.50"), back_iv=Decimal("0.20"), run_id="run-2"
+        )
+        assert result.observation_id != ""
+
+    def test_knowledge_by_subject_is_frozen_at_construction(self) -> None:
+        """Architect checkpoint: thirteenth review, corrective hardening
+        1 -- the adapter must not trust an externally mutable Mapping.
+        """
         _snapshot, knowledge_input = self._knowledge_input(
             front_iv=Decimal("0.50"), back_iv=Decimal("0.20")
         )
-        adapter = build_earnings_calendar_subject_first_adapter({SYMBOL: knowledge_input})
+        mutable: dict[str, ReadOnlyStrategyInput[EarningsCalendarPayload]] = {
+            SYMBOL: knowledge_input
+        }
+        adapter = build_earnings_calendar_subject_first_adapter(mutable)
+        mutable.clear()
         context = RuntimeContext(
             contract=EARNINGS_CALENDAR_CONTRACT,
             subject=SYMBOL,
             clock=_FixedClock(NOW),
-            run_id="run-2",
+            run_id="run-3",
         )
 
         result = adapter(context)
-        assert result.observation_id != ""
+
+        assert result.symbol == SYMBOL
+        assert result.verdict == "PASS"

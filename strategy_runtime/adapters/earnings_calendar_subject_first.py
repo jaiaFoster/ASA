@@ -30,6 +30,20 @@ subject_preparation.py, must stay strategy-blind, never this binding):
    provider, transport, budget, repository, or raw acquisition
    diagnostic of any kind -- everything it touches was already resolved
    before this adapter is ever called.
+
+Corrective pass (Architect checkpoint: thirteenth review, HOLD): the
+adapter now preserves legacy Earnings runtime semantics exactly (a "PASS"
+or "WATCH" verdict is a successful, lifecycle-confirmed observation with a
+real opportunity_id, matching strategy_runtime/adapters/earnings_calendar.py's
+own build_earnings_calendar_adapter()); the binding callback now raises
+SealedEvidenceProvenanceError for genuine internal inconsistencies (wrong
+resolved-value type, an impossible selected expiration, an unresolved
+capability contradicting phase_two's own RESOLVED check) instead of
+downgrading them to a typed UnknownReason; the runtime adapter freezes its
+own ``knowledge_by_subject`` into an immutable mapping at construction
+time; and its provenance now deterministically carries the sealed
+snapshot's own id/digest plus every canonical/derived fact's id and
+version/formula_version, not bare ids.
 """
 
 from __future__ import annotations
@@ -38,6 +52,7 @@ from collections.abc import Mapping
 from datetime import date, datetime
 from decimal import Decimal
 from functools import partial
+from types import MappingProxyType
 
 from domain import (
     EarningsEvent,
@@ -51,6 +66,7 @@ from domain import (
 from market_data.snapshot import MarketSnapshot
 from screening.explanations import build_graph_explanation
 from screening.subject_fact_projection import (
+    SealedEvidenceProvenanceError,
     resolution_for,
     verify_resolved_evidence_belongs_to_snapshot,
 )
@@ -72,6 +88,7 @@ from strategy_runtime.adapters._screening_bridge import explanation_metrics
 from strategy_runtime.adapters.earnings_calendar import EARNINGS_CALENDAR_CONTRACT
 from strategy_runtime.context import RuntimeContext
 from strategy_runtime.knowledge import ReadOnlyStrategyInput
+from strategy_runtime.lifecycle import compute_opportunity_id, validate_lifecycle_stage
 from strategy_runtime.registry import StrategyAdapter
 from strategy_runtime.result import (
     EvaluationState,
@@ -84,6 +101,17 @@ from strategy_runtime.values import TypedValue
 
 _STRATEGY_ID = "earnings_calendar"
 
+# The legacy live path (screening/live_adapters.py's own _NON_FAIL_VERDICTS)
+# treats both a "PASS" and a "WATCH" earnings-calendar verdict as a
+# successful, lifecycle-confirmed observation -- only a genuine failure to
+# find a valid structure is not. Duplicated here, not imported, because
+# _NON_FAIL_VERDICTS is module-private to screening/live_adapters.py and
+# this adapter never builds a ScreeningResult/ScreeningOutcomeStatus to key
+# off of in the first place (Architect checkpoint: thirteenth review,
+# corrective item 2 -- "legacy Earnings maps both PASS and WATCH into
+# successful EvaluationState.PASS").
+_SUCCESSFUL_VERDICTS = frozenset({"PASS", "WATCH"})
+
 
 def _prepare_earnings_calendar_knowledge_mapping(
     snapshot: MarketSnapshot,
@@ -95,6 +123,17 @@ def _prepare_earnings_calendar_knowledge_mapping(
     DTE/ATM/analytics decision here is strategy-owned; the generic
     orchestrator that calls this (strategy_runtime/subject_preparation.py)
     never sees any of it.
+
+    Returns a typed UnknownReason only for the two genuine, expected-gap
+    cases already represented by demand/selection semantics: phase-two
+    evidence selection itself failing (missing evidence, no valid
+    expiration pair), or the strategy's own pure structural selection
+    finding a genuine financial-data gap (e.g. missing implied volatility,
+    insufficient historical bars). Every other failure here -- a wrong
+    normalized domain type, an impossible selected expiration, or any
+    other sealed-evidence internal inconsistency -- raises
+    SealedEvidenceProvenanceError instead (Architect checkpoint:
+    thirteenth review, corrective item 3).
     """
     phase_two = select_earnings_calendar_phase_two_evidence(
         projected_evidence, dict(selections), now=snapshot.as_of
@@ -116,9 +155,24 @@ def _prepare_earnings_calendar_knowledge_mapping(
     front_expiration = date.fromisoformat(str(selections_by_key["front_expiration"]))
     back_expiration = date.fromisoformat(str(selections_by_key["back_expiration"]))
 
+    # Everything below is checked against a phase_two selection that
+    # select_earnings_calendar_phase_two_evidence and
+    # verify_resolved_evidence_belongs_to_snapshot (above) have already
+    # confirmed is RESOLVED and genuinely belongs to this sealed snapshot.
+    # A mismatch here therefore means this composition's own pipeline is
+    # internally inconsistent -- a wrong normalized domain type, an
+    # impossible selected expiration, or an unresolved capability the
+    # snapshot's own resolution should already guarantee is resolved --
+    # never a genuine, expected market-data gap (Architect checkpoint:
+    # thirteenth review, corrective item 3). Raise, don't downgrade to a
+    # typed UnknownReason.
     discovery_value = phase_two.expiration_discovery_evidence.value
     if not isinstance(discovery_value, ExpirationCollection):
-        return UnknownReason("unexpected_resolved_value_shape")
+        raise SealedEvidenceProvenanceError(
+            f"expiration discovery evidence (demand_id="
+            f"{phase_two.expiration_discovery_evidence.demand_id!r}) resolved to "
+            f"{type(discovery_value).__name__}, not ExpirationCollection"
+        )
     front_cycle = next(
         (item for item in discovery_value.cycles if item.expiration_date == front_expiration),
         None,
@@ -128,7 +182,11 @@ def _prepare_earnings_calendar_knowledge_mapping(
         None,
     )
     if front_cycle is None or back_cycle is None:
-        return UnknownReason("selected_expiration_not_in_discovery_collection")
+        raise SealedEvidenceProvenanceError(
+            f"selected expiration pair ({front_expiration.isoformat()}, "
+            f"{back_expiration.isoformat()}) is not present in the expiration "
+            "discovery collection this same phase-two selection was computed from"
+        )
 
     quote_resolution = resolution_for(snapshot, MarketCapability.REAL_TIME_QUOTE_V1)
     earnings_resolution = resolution_for(snapshot, MarketCapability.EARNINGS_CALENDAR_V1)
@@ -140,7 +198,10 @@ def _prepare_earnings_calendar_knowledge_mapping(
         or bars_resolution.selected_observation is None
         or chain_resolution.selected_observation is None
     ):
-        return UnknownReason("unresolved_earnings_calendar_capability")
+        raise SealedEvidenceProvenanceError(
+            "a capability phase_two already verified RESOLVED has no "
+            "selected_observation in the sealed snapshot's own resolution"
+        )
 
     quote = quote_resolution.selected_observation.value
     event = earnings_resolution.selected_observation.value
@@ -152,7 +213,10 @@ def _prepare_earnings_calendar_knowledge_mapping(
         or not isinstance(bars, OHLCVSeries)
         or not isinstance(chain, OptionChain)
     ):
-        return UnknownReason("unexpected_resolved_value_shape")
+        raise SealedEvidenceProvenanceError(
+            "a resolved capability's own selected observation value carries the "
+            "wrong normalized domain type"
+        )
 
     structural = select_earnings_calendar_structure(
         quote=quote,
@@ -199,6 +263,30 @@ def build_earnings_calendar_subject_preparation_binding(
     )
 
 
+def _knowledge_provenance(
+    knowledge: ReadOnlyStrategyInput[EarningsCalendarPayload],
+) -> tuple[str, ...]:
+    """Deterministic provenance for the subject-first result/shadow
+    diagnostics (Architect checkpoint: thirteenth review, corrective
+    hardening 2): the sealed snapshot's own identity, plus every canonical
+    fact's id+version and every derived fact's id+formula_version -- never
+    merely bare ids. Intentionally richer than the legacy ScreeningResult-
+    shaped path's own provenance (strategy_runtime/adapters/
+    _screening_bridge.py's own ``_provenance()``); shadow diagnostics
+    compare the two paths on identity fields both carry, not on
+    byte-identical provenance tuples.
+    """
+    return (
+        f"snapshot_id:{knowledge.snapshot_id}",
+        f"snapshot_digest:{knowledge.snapshot_digest}",
+        *(f"canonical_fact:{fact.fact_id}@{fact.version}" for fact in knowledge.canonical_facts),
+        *(
+            f"derived_fact:{fact.derived_fact_id}@{fact.formula_version}"
+            for fact in knowledge.derived_facts.facts
+        ),
+    )
+
+
 def build_earnings_calendar_subject_first_adapter(
     knowledge_by_subject: Mapping[str, ReadOnlyStrategyInput[EarningsCalendarPayload]],
 ) -> StrategyAdapter[UniversalScreeningResult]:
@@ -207,40 +295,58 @@ def build_earnings_calendar_subject_first_adapter(
     adapter only ever reads by ``context.subject`` -- it never touches a
     plan, fulfillment, provider, transport, budget, repository, or raw
     acquisition diagnostic.
+
+    ``knowledge_by_subject`` is copied into an immutable ``MappingProxyType``
+    once, here, rather than trusted as an externally mutable ``Mapping``
+    (Architect checkpoint: thirteenth review, corrective hardening 1) -- a
+    caller mutating its own dict after construction can never change what
+    this adapter's closure sees.
+
+    A successful verdict ("PASS" or "WATCH", mirroring the legacy live
+    path's own screening.live_adapters._NON_FAIL_VERDICTS) always carries a
+    real opportunity_id and lifecycle_stage, exactly like
+    strategy_runtime/adapters/earnings_calendar.py's own
+    build_earnings_calendar_adapter() (Architect checkpoint: thirteenth
+    review, corrective item 2) -- this adapter never emits a bare None for
+    either field.
     """
+    frozen_knowledge_by_subject: Mapping[str, ReadOnlyStrategyInput[EarningsCalendarPayload]] = (
+        MappingProxyType(dict(knowledge_by_subject))
+    )
 
     def _adapter(context: RuntimeContext) -> UniversalScreeningResult:
-        knowledge = knowledge_by_subject[context.subject]
+        knowledge = frozen_knowledge_by_subject[context.subject]
         outputs = evaluate_earnings_calendar(knowledge.derived_facts, knowledge.payload)
         verdict = outputs.get("verdict").value
         score = outputs.get("score").value
         verdict_text = str(verdict)
-        metrics = explanation_metrics(build_graph_explanation(EARNINGS_CALENDAR_MANIFEST, outputs))
+        is_successful = verdict_text in _SUCCESSFUL_VERDICTS
+        explanation = build_graph_explanation(EARNINGS_CALENDAR_MANIFEST, outputs)
+        metrics = explanation_metrics(explanation)
         if isinstance(score, Decimal):
             metrics["strategy_native_score"] = TypedValue.of_decimal(score)
         observation_id = compute_observation_id(context.run_id, _STRATEGY_ID, context.subject)
+        stage = "confirmed" if is_successful else "watching"
+        validate_lifecycle_stage(EARNINGS_CALENDAR_CONTRACT, stage)
         return UniversalScreeningResult(
             strategy_id=_STRATEGY_ID,
             strategy_version=EARNINGS_CALENDAR_CONTRACT.version,
             symbol=context.subject,
             observation_id=observation_id,
-            opportunity_id=None,
+            opportunity_id=compute_opportunity_id(_STRATEGY_ID, context.subject),
             row_type=RowType.RESULT,
             verdict=verdict_text,
             evaluation_state=(
-                EvaluationState.PASS if verdict_text == "PASS" else EvaluationState.NO_SIGNAL
+                EvaluationState.PASS if is_successful else EvaluationState.NO_SIGNAL
             ),
-            lifecycle_stage=None,
+            lifecycle_stage=stage,
             recommendation_state=None,
             data_quality=None,
             metrics=metrics,
             economics={},
             blockers=(),
-            warnings=(),
-            provenance=(
-                tuple(fact.fact_id for fact in knowledge.canonical_facts)
-                + tuple(fact.derived_fact_id for fact in knowledge.derived_facts.facts)
-            ),
+            warnings=explanation.warnings,
+            provenance=_knowledge_provenance(knowledge),
             observed_at=knowledge.effective_time,
         )
 

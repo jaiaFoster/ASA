@@ -36,13 +36,22 @@ from market_data.snapshot import MarketSnapshot
 
 
 class SealedEvidenceProvenanceError(ValueError):
-    """Raised when a ResolvedCapabilityEvidence bundle references at
-    least one observation id absent from the sealed snapshot it is being
-    composed against (SPRINT-014 S14-PR-05A, Architect checkpoint: tenth
-    review, item 4). A generic invariant/provenance failure -- never a
-    typed UnknownReason -- because a mismatched evidence bundle means a
-    caller is composing two different snapshots together, not that a
-    genuine data gap exists in either one.
+    """Raised for a sealed-evidence internal-consistency violation -- most
+    narrowly, when a ResolvedCapabilityEvidence bundle references at least
+    one observation id absent from the sealed snapshot it is being composed
+    against (SPRINT-014 S14-PR-05A, Architect checkpoint: tenth review, item
+    4), but reused generically by every generic composition/preparation
+    seam in this sprint (strategy_runtime/knowledge_composition.py,
+    strategy_runtime/adapters/earnings_calendar_subject_first.py) for the
+    whole family of "this composition already established some fact about
+    the sealed evidence -- a claimed observation id, a resolved value's own
+    domain type, a selection computed from this same evidence -- and the
+    snapshot's own resolution now contradicts it" failures. A generic
+    invariant/provenance failure -- never a typed UnknownReason -- because
+    every one of these means the caller's own composition pipeline is
+    internally inconsistent (composing mismatched snapshots, or evidence
+    that violates an invariant the pipeline itself already relied on), not
+    that a genuine, expected data gap exists.
     """
 
 

@@ -29,7 +29,6 @@ from dataclasses import replace
 from datetime import UTC, datetime
 
 from domain import FreshnessStatus, MarketCapability, MarketObservation
-from market_data import CapabilityFulfillmentService
 from market_data.session_calendar import NEW_YORK, UsEquitySessionCalendar
 from market_data.session_schedule import SessionRefreshSchedule
 from market_data.temporal import (
@@ -66,27 +65,6 @@ _USABILITY_PRIORITY = {
     UsabilityStatus.USABLE_WITH_WARNING: 1,
     UsabilityStatus.REJECTED: 2,
 }
-
-
-def observations_from_fulfillment(
-    fulfillment: CapabilityFulfillmentService,
-) -> tuple[MarketObservation, ...]:
-    """Flatten every observation a CapabilityFulfillmentService's own
-    completed_results accumulated during a run into one provider-neutral
-    tuple (SPRINT-014 S14-PR-05A, Architect checkpoint: twelfth review,
-    item 7) -- the exact shape refresh()'s own ``observations`` parameter
-    needs to compute ResultTemporalMetadata, extracted here once so a
-    transitional-legacy caller (still driving acquisition through a raw
-    CapabilityFulfillmentService, not yet a sealed MarketSnapshot) never
-    reimplements this traversal itself. A caller already holding a sealed
-    MarketSnapshot passes its own ``.observations`` directly instead --
-    this helper exists only for the fulfillment-service-shaped case.
-    """
-    return tuple(
-        observation
-        for completed in fulfillment.completed_results
-        for observation in completed.observations
-    )
 
 
 def _current_temporal_observations(
@@ -235,7 +213,7 @@ def refresh(
     ``observations`` is a callback returning the provider-neutral evidence
     the caller's own orchestration acquired for this subject this cycle
     (sealed MarketSnapshot.observations for the subject-first path, or
-    strategy_runtime.service.observations_from_fulfillment's own flattened
+    market_data.fulfillment.observations_from_fulfillment's own flattened
     tuple for transitional legacy execution) -- used only to compute
     ResultTemporalMetadata, never to drive execution itself. A *callback*,
     not an already-computed tuple: the underlying evidence a legacy

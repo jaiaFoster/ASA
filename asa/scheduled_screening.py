@@ -51,7 +51,11 @@ from asa.integrations.screening_acquisition_attempts_postgres import (
     PostgresAcquisitionAttemptRepository,
 )
 from asa.integrations.universal_screening_postgres import PostgresLatestResultRepository
-from market_data import ReuseDecision, load_market_data_config_from_environment
+from market_data import (
+    ReuseDecision,
+    load_market_data_config_from_environment,
+    observations_from_fulfillment,
+)
 from market_data.attempts import AcquisitionAttemptRepository, attempt_records_for
 from market_data.live_transport import build_live_transport
 from market_data.session_calendar import UsEquitySessionCalendar
@@ -81,11 +85,7 @@ from strategy_runtime.market_data_planning import (
     enabled_provider_configs,
 )
 from strategy_runtime.persistence import LatestResultRepository, ObservationHistoryRepository
-from strategy_runtime.service import (
-    observations_from_fulfillment,
-    record_opportunity_observation,
-    refresh,
-)
+from strategy_runtime.service import record_opportunity_observation, refresh
 
 # The production screening universe (project/reports/SPRINT-008D-SCREENING-
 # UNIVERSE.md, PROD-001; expanded SPRINT-011/UNI-001-UNI-002): all three
