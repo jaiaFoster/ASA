@@ -36,13 +36,13 @@ from __future__ import annotations
 import hashlib
 import json
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 
 from domain import MarketCapability, MarketObservation, UnknownReason
 from market_data.attempts import AcquisitionAttemptRepository
-from market_data.fulfillment import CapabilityFulfillmentService
-from market_data.providers import ProviderMetadata
+from market_data.fulfillment import CapabilityFulfillmentResult, CapabilityFulfillmentService
+from market_data.providers import CapabilityRequest, ProviderMetadata
 from market_data.resolution import ResolutionPolicy
 from market_data.subject_plan import PlanBackedFulfillment, SubjectAcquisitionPlan
 from screening.subject_planning import CapabilityResultReducer
@@ -98,6 +98,64 @@ def build_subject_acquisition_access(
         maximum_attempts_per_request=maximum_attempts_per_request,
     )
     return SubjectAcquisitionAccess(plan, PlanBackedFulfillment(plan))
+
+
+@dataclass(slots=True)
+class TouchedResultFulfillment:
+    """Wraps one pair's own PlanBackedFulfillment, recording every
+    CapabilityFulfillmentResult it itself returns -- freshly resolved or
+    an already-resolved plan-cache hit alike -- into ``touched`` (Architect
+    checkpoint: seventeenth review, "record the provider-neutral
+    CapabilityFulfillmentResult returned for each PlanBackedFulfillment.
+    fulfill() invocation, including plan-cache hits").
+
+    Both production roots share one raw CapabilityFulfillmentService per
+    subject across every consumer this cycle/invocation -- every legacy
+    pair AND subject-first shadow preparation, which resolves directly
+    through SubjectAcquisitionPlan.resolve(), never through a
+    PlanBackedFulfillment wrapper at all. A caller builds one fresh
+    instance of this class per pair, closes that pair's own legacy
+    strategy registry over THIS wrapper (never the raw
+    PlanBackedFulfillment or CapabilityFulfillmentService directly), and
+    derives that pair's own observations callback from ``touched`` via
+    touched_observations() below -- so temporal metadata for one
+    strategy's own result reflects only capability requests that
+    strategy's own legacy execution itself actually resolved or reused,
+    never evidence some OTHER consumer sharing the same underlying plan
+    (shadow preparation, or an earlier/later pair sharing this subject)
+    separately acquired for itself. strategy_runtime.orchestration.
+    _observations_relevant_to's own capability filter still applies on
+    top of this -- narrower provenance, not a replacement for it.
+
+    Deliberately not frozen: a per-call-site accumulator, not an
+    identity-bearing value object the way PlanBackedFulfillment itself is.
+    Never carried on RuntimeContext (I-09) and never branches on strategy
+    identity -- built once per pair by the caller, exactly like
+    PlanBackedFulfillment itself already is.
+    """
+
+    plan_backed_fulfillment: PlanBackedFulfillment
+    touched: list[CapabilityFulfillmentResult] = field(default_factory=list)
+
+    def fulfill(
+        self, request: CapabilityRequest, *, required: bool = True
+    ) -> CapabilityFulfillmentResult:
+        result = self.plan_backed_fulfillment.fulfill(request, required=required)
+        self.touched.append(result)
+        return result
+
+
+def touched_observations(tracker: TouchedResultFulfillment) -> tuple[MarketObservation, ...]:
+    """The provider-neutral observations flattened from exactly what
+    ``tracker`` itself returned to its own caller(s) -- see
+    TouchedResultFulfillment's own docstring for why this, not
+    market_data.observations_from_fulfillment's own whole-service flatten,
+    is what an observations callback passed into refresh_with_shadow
+    should be built from.
+    """
+    return tuple(
+        observation for result in tracker.touched for observation in result.observations
+    )
 
 
 def prepare_subject_shadow_knowledge(

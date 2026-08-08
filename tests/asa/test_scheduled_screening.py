@@ -17,6 +17,7 @@ from market_data.attempts import AttemptQuery, InMemoryAcquisitionAttemptReposit
 from market_data.transport import ReadOnlyHttpResponse
 from screening import APPROVED_LIVE_UNIVERSE, EARNINGS_CALENDAR_UNIVERSE
 from strategy_runtime.orchestration import ShadowParityDiagnostic
+from tests.asa._fixture_market_data_access import build_fixture_market_data_access_factory
 from tests.asa.fakes import InMemoryLatestResultRepository
 from tests.asa.market_data_ops.fakes import ScriptedTransport, tradier_quote_response
 
@@ -1278,3 +1279,81 @@ def test_shadow_parity_diagnostic_is_logged_with_sanitized_fields(
     assert entry.shadow_unknown_demand_ids == ("demand-a",)
     assert entry.shadow_snapshot_id == "snapshot-1"
     assert entry.shadow_snapshot_digest == "digest-1"
+
+
+def test_forward_factor_temporal_metadata_is_unaffected_by_a_successful_shadow_chain(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Architect checkpoint: seventeenth review, corrective item 2, "add
+    one successful-shadow production-root before/after case for Skew or
+    FF. The current irrelevant-capability unit tests are useful but
+    insufficient because they deliberately test distinct capability
+    types." tests/strategy_runtime/test_orchestration.py's own
+    TestObservationsRelevantToFilter proves the capability-relevance
+    filter in isolation using two DIFFERENT MarketCapability values;
+    this proves the harder, same-capability case at a real production
+    root: Earnings' own subject-first shadow preparation genuinely
+    SUCCEEDS here (reusing tests/screening/test_live_adapters.py's own
+    MultiExpirationFixtureProvider, monkeypatched in place of
+    build_shared_market_data_access -- zero network, zero new HTTP
+    fixture work), resolving its own front/back-month OPTION_CHAIN_V1
+    option-chain observations -- a different request than, but the exact
+    same MarketCapability as, forward_factor's own OPTION_CHAIN_V1 need.
+    TouchedResultFulfillment (never the capability filter alone) is what
+    keeps those out of forward_factor's own temporal metadata.
+
+    Same-cycle, two-symbol comparison (the established pattern this file
+    already uses for the Tradier-only isolation-failure case above): AAPL
+    also has earnings_calendar in this cycle's own universe (a real,
+    successful shared shadow chain); MSFT does not (the control). Both
+    symbols get identical fixture-generated market data (the fixture
+    provider's own values are keyed off the requested subject generically,
+    not hardcoded per symbol), so forward_factor's own verdict, native
+    score, and -- the property under test -- full temporal metadata must
+    agree exactly between the two.
+    """
+    import asa.scheduled_screening as scheduled_screening_module
+
+    monkeypatch.setattr(
+        scheduled_screening_module,
+        "build_shared_market_data_access",
+        build_fixture_market_data_access_factory(),
+    )
+    monkeypatch.setenv("ASA_TRADIER_ENABLED", "true")
+    monkeypatch.setenv("ASA_TRADIER_ACCESS_TOKEN", "sandbox-secret-token")
+    repository = InMemoryLatestResultRepository()
+    universe = (
+        ("forward_factor", "AAPL"),
+        ("earnings_calendar", "AAPL"),
+        ("forward_factor", "MSFT"),
+    )
+
+    outcomes = run_scheduled_refresh(
+        universe,
+        repository=repository,
+        acquisition_attempt_repository=InMemoryAcquisitionAttemptRepository(),
+    )
+
+    aapl_ff = next(
+        item for item in outcomes if item.symbol == "AAPL" and item.signal_id == "forward_factor"
+    )
+    msft_ff = next(
+        item for item in outcomes if item.symbol == "MSFT" and item.signal_id == "forward_factor"
+    )
+    assert aapl_ff.error is None
+    assert msft_ff.error is None
+
+    aapl_result = repository.get_one("forward_factor", "AAPL")
+    msft_result = repository.get_one("forward_factor", "MSFT")
+    assert aapl_result is not None
+    assert msft_result is not None
+    assert aapl_result.verdict == msft_result.verdict
+    assert aapl_result.evaluation_state == msft_result.evaluation_state
+    assert (
+        aapl_result.metrics["strategy_native_score"] == msft_result.metrics["strategy_native_score"]
+    )
+    # The property under test: shadow's own successful, same-capability
+    # chain evidence for AAPL never entered forward_factor's own temporal
+    # metadata -- identical to MSFT's own, which never shared a plan with
+    # any shadowed strategy at all.
+    assert aapl_result.temporal == msft_result.temporal

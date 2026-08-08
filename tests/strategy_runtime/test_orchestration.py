@@ -76,10 +76,12 @@ from strategy_runtime.knowledge import ReadOnlyStrategyInput
 from strategy_runtime.market_data_planning import resolution_policy_for_capabilities
 from strategy_runtime.orchestration import (
     SubjectAcquisitionAccess,
+    TouchedResultFulfillment,
     _observations_relevant_to,
     build_subject_acquisition_access,
     prepare_subject_shadow_knowledge,
     refresh_with_shadow,
+    touched_observations,
 )
 from strategy_runtime.persistence import LatestResultRepository
 from strategy_runtime.registry import StrategyRegistry
@@ -94,7 +96,7 @@ from strategy_runtime.subject_preparation import (
     SubjectPreparationRegistry,
 )
 from strategy_runtime.values import TypedValue
-from tests.market_data.test_fulfillment import CAPABILITY, provider, service
+from tests.market_data.test_fulfillment import CAPABILITY, provider, request, service
 from tests.screening.test_live_adapters import MultiExpirationFixtureProvider
 from tests.strategy_runtime.test_service import InMemoryLatestResultRepository
 
@@ -342,6 +344,71 @@ class TestObservationsRelevantToFilter:
         scoped()
 
         assert calls == 2
+
+
+class TestTouchedResultFulfillment:
+    """Architect checkpoint: seventeenth review -- a tracker records only
+    what it itself returns to its own caller, including a plan-cache hit,
+    never anything a DIFFERENT consumer sharing the same underlying plan
+    separately resolved. Subject-first shadow preparation resolves
+    directly through SubjectAcquisitionPlan.resolve() (screening.
+    subject_planning.run_subject_plan's own call path), never through any
+    PlanBackedFulfillment/tracker at all -- so a tracker built for one
+    pair's own legacy execution never sees shadow preparation's own
+    contribution, by construction, regardless of capability overlap.
+    """
+
+    def test_records_nothing_a_different_consumer_resolved_directly_through_the_plan(
+        self,
+    ) -> None:
+        fulfillment, _ = service(provider("primary"))
+        plan = _plan(fulfillment)
+        tracker = TouchedResultFulfillment(PlanBackedFulfillment(plan))
+
+        plan.resolve(request())  # a different consumer's own direct resolve()
+
+        assert tracker.touched == []
+
+    def test_records_its_own_fresh_resolve(self) -> None:
+        fulfillment, _ = service(provider("primary"))
+        plan = _plan(fulfillment)
+        tracker = TouchedResultFulfillment(PlanBackedFulfillment(plan))
+
+        result = tracker.fulfill(request())
+
+        assert tracker.touched == [result]
+
+    def test_records_a_plan_cache_hit_too(self) -> None:
+        fulfillment, budgets = service(provider("primary"))
+        plan = _plan(fulfillment)
+        tracker = TouchedResultFulfillment(PlanBackedFulfillment(plan))
+        # Already resolved by a different consumer sharing this plan (an
+        # earlier pair, or shadow preparation) before this tracker's own
+        # first call.
+        already_resolved = plan.resolve(request())
+
+        via_tracker = tracker.fulfill(request())
+
+        assert via_tracker is already_resolved
+        assert tracker.touched == [already_resolved]
+        assert len(budgets.accounting) == 1  # confirms this really was a cache hit
+
+    def test_touched_observations_flattens_every_recorded_results_own_observations(
+        self,
+    ) -> None:
+        fulfillment, _ = service(provider("primary"))
+        plan = _plan(fulfillment)
+        tracker = TouchedResultFulfillment(PlanBackedFulfillment(plan))
+        result = tracker.fulfill(request())
+
+        assert touched_observations(tracker) == result.observations
+
+    def test_touched_observations_is_empty_when_nothing_was_ever_touched(self) -> None:
+        fulfillment, _ = service(provider("primary"))
+        plan = _plan(fulfillment)
+        tracker = TouchedResultFulfillment(PlanBackedFulfillment(plan))
+
+        assert touched_observations(tracker) == ()
 
 
 class TestBuildSubjectAcquisitionAccess:

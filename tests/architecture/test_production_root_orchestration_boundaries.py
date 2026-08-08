@@ -43,17 +43,49 @@ def _registry_builder_call_sites(tree: ast.Module) -> list[ast.Call]:
     ]
 
 
-def _argument_attribute_name(call: ast.Call) -> str | None:
-    """The final ``.attr`` of the call's one positional argument, e.g.
-    "plan_backed_fulfillment" for ``item.plan_backed_fulfillment`` -- None
-    for a bare Name argument (e.g. UNBOUND_FULFILLMENT, permitted only at
-    a metadata-only composition root, never at a live evaluation path).
+def _local_call_assignments(tree: ast.Module) -> dict[str, ast.Call]:
+    """Map every simple ``name = Call(...)`` assignment's own target name
+    to that Call node -- lets _wraps_plan_backed_fulfillment resolve a
+    registry-builder argument through one level of local-variable
+    indirection (e.g. ``tracker = TouchedResultFulfillment(item.
+    plan_backed_fulfillment)`` then ``build_migrated_strategy_registry
+    (tracker)``), never by trusting a bare Name at face value.
     """
-    assert len(call.args) == 1, "build_migrated_strategy_registry takes exactly one argument"
-    argument = call.args[0]
-    if isinstance(argument, ast.Attribute):
-        return argument.attr
-    return None
+    assignments: dict[str, ast.Call] = {}
+    for node in ast.walk(tree):
+        if (
+            isinstance(node, ast.Assign)
+            and len(node.targets) == 1
+            and isinstance(node.targets[0], ast.Name)
+            and isinstance(node.value, ast.Call)
+        ):
+            assignments[node.targets[0].id] = node.value
+    return assignments
+
+
+def _ends_in_plan_backed_fulfillment(node: ast.expr) -> bool:
+    return isinstance(node, ast.Attribute) and node.attr == "plan_backed_fulfillment"
+
+
+def _wraps_plan_backed_fulfillment(argument: ast.expr, assignments: dict[str, ast.Call]) -> bool:
+    """True if ``argument`` is either .plan_backed_fulfillment directly,
+    or a local name assigned from ``TouchedResultFulfillment(<something
+    ending in .plan_backed_fulfillment>)`` -- the one permitted level of
+    indirection a per-pair provenance tracker introduces. Never resolves
+    through any other function/wrapper, and never trusts a bare Name on
+    its own -- an untraceable Name (e.g. UNBOUND_FULFILLMENT, or a
+    variable assigned some other way) fails.
+    """
+    if _ends_in_plan_backed_fulfillment(argument):
+        return True
+    if not isinstance(argument, ast.Name):
+        return False
+    assigned = assignments.get(argument.id)
+    if assigned is None or not isinstance(assigned.func, ast.Name):
+        return False
+    if assigned.func.id != "TouchedResultFulfillment" or len(assigned.args) != 1:
+        return False
+    return _ends_in_plan_backed_fulfillment(assigned.args[0])
 
 
 class TestNoRawFulfillmentStrategyBindingAtLiveRoots:
@@ -62,28 +94,36 @@ class TestNoRawFulfillmentStrategyBindingAtLiveRoots:
     sixteenth review, "then build the legacy registry over that
     PlanBackedFulfillment, never the raw fulfillment service") -- never
     the bare ``.fulfillment`` a SubjectMarketDataAccess also exposes.
+    Resolved through at most one local TouchedResultFulfillment wrapper
+    (Architect checkpoint: seventeenth review, provenance tracking).
     """
 
     def test_scheduled_screening_binds_only_plan_backed_fulfillment(self) -> None:
-        call_sites = _registry_builder_call_sites(_tree(_SCHEDULED))
+        tree = _tree(_SCHEDULED)
+        assignments = _local_call_assignments(tree)
+        call_sites = _registry_builder_call_sites(tree)
         assert call_sites, "expected at least one build_migrated_strategy_registry call"
         for call in call_sites:
-            attribute = _argument_attribute_name(call)
-            assert attribute == "plan_backed_fulfillment", (
-                f"scheduled_screening.py binds a live strategy registry to "
-                f".{attribute} at line {call.lineno} -- expected "
-                f".plan_backed_fulfillment, never the raw fulfillment service"
+            assert len(call.args) == 1
+            assert _wraps_plan_backed_fulfillment(call.args[0], assignments), (
+                f"scheduled_screening.py binds a live strategy registry at line "
+                f"{call.lineno} to something other than .plan_backed_fulfillment "
+                f"(directly, or via one TouchedResultFulfillment wrapper) -- "
+                f"never the raw fulfillment service"
             )
 
     def test_screening_routes_binds_only_plan_backed_fulfillment_or_unbound(self) -> None:
-        call_sites = _registry_builder_call_sites(_tree(_API))
+        tree = _tree(_API)
+        assignments = _local_call_assignments(tree)
+        call_sites = _registry_builder_call_sites(tree)
         assert call_sites, "expected at least one build_migrated_strategy_registry call"
         for call in call_sites:
-            attribute = _argument_attribute_name(call)
-            assert attribute == "plan_backed_fulfillment", (
-                f"screening_routes.py binds a live strategy registry to "
-                f".{attribute} at line {call.lineno} -- expected "
-                f".plan_backed_fulfillment, never the raw fulfillment service"
+            assert len(call.args) == 1
+            assert _wraps_plan_backed_fulfillment(call.args[0], assignments), (
+                f"screening_routes.py binds a live strategy registry at line "
+                f"{call.lineno} to something other than .plan_backed_fulfillment "
+                f"(directly, or via one TouchedResultFulfillment wrapper) -- "
+                f"never the raw fulfillment service"
             )
 
 

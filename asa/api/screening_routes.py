@@ -42,7 +42,7 @@ from asa.api.screening_models import (
     SignalCapabilityResponse,
 )
 from domain import UnknownReason
-from market_data import load_market_data_config_from_environment, observations_from_fulfillment
+from market_data import load_market_data_config_from_environment
 from market_data.attempts import AcquisitionAttemptRepository
 from market_data.live_transport import build_live_transport
 from market_data.session_schedule import ON_DEMAND_COOLDOWN
@@ -66,9 +66,11 @@ from strategy_runtime.market_data_planning import (
     enabled_provider_configs,
 )
 from strategy_runtime.orchestration import (
+    TouchedResultFulfillment,
     build_subject_acquisition_access,
     prepare_subject_shadow_knowledge,
     refresh_with_shadow,
+    touched_observations,
 )
 from strategy_runtime.persistence import (
     LatestResultRepository,
@@ -86,9 +88,32 @@ _LOGGER = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
-class _SystemClock:
+class _FrozenRequestClock:
+    """One fixed ``now``, captured once at the start of this on-demand
+    refresh -- not a fresh wall-clock reading on every call (Architect
+    checkpoint: seventeenth review, "the API root still constructs
+    _SystemClock, then independently calls clock.now() when building the
+    shadow registry, preparing shadow knowledge, generating the plan ID,
+    executing legacy Earnings, and later generating the shadow
+    diagnostic").
+
+    Mirrors asa/scheduled_screening.py's own _FrozenCycleClock rationale
+    (SPRINT-013 S13-03B): subject-first shadow preparation and legacy
+    execution must construct byte-identical request-window timestamps
+    (effective_start/effective_end embedded in every CapabilityRequest via
+    MarketDataRequestContext) for the shared plan's own request-identity
+    de-duplication to actually work -- an advancing clock silently defeats
+    that, producing distinct CapabilityRequest objects for what should be
+    the exact same demand, which can both miss the plan's cache and let
+    parity comparisons report a false temporal mismatch (legacy's own
+    result.observed_at differs from the shadow's own sealed-snapshot
+    as_of purely because of clock drift, not real evidence disagreement).
+    """
+
+    value: datetime
+
     def now(self) -> datetime:
-        return datetime.now(UTC)
+        return self.value
 
 
 def _paginate(
@@ -336,7 +361,7 @@ def build_screening_router(
                 f"Refresh is bounded to the approved live universe {APPROVED_LIVE_UNIVERSE}, "
                 f"not {symbol!r}",
             )
-        clock = _SystemClock()
+        clock = _FrozenRequestClock(datetime.now(UTC))
         prior = repository.get_one(signal, symbol)
         if (
             prior is not None
@@ -382,7 +407,18 @@ def build_screening_router(
             ),
             clock=clock,
         )
-        subject_registry = build_migrated_strategy_registry(acquisition.plan_backed_fulfillment)
+        # SPRINT-014 S14-PR-05A (Architect checkpoint: seventeenth review,
+        # corrective item 2): this request's own legacy registry is bound
+        # to a fresh TouchedResultFulfillment wrapping the plan-backed
+        # fulfillment above -- this request's own observations callback is
+        # then derived from exactly what it itself recorded (a fresh call
+        # or a plan-cache hit alike), never from every observation the
+        # subject's raw fulfillment service ever accumulated, so evidence
+        # subject-first shadow preparation acquired for itself can never
+        # enter this request's own temporal metadata, even when it shares
+        # the same declared capability.
+        tracker = TouchedResultFulfillment(acquisition.plan_backed_fulfillment)
+        subject_registry = build_migrated_strategy_registry(tracker)
         # Generic shadow-preparation seam (Architect checkpoint: sixteenth
         # review, "do not eagerly acquire shadow-only data for an
         # unshadowed API request ... shadow preparation must be limited to
@@ -424,7 +460,7 @@ def build_screening_router(
                 clock,
                 strategy_id=signal,
                 symbol=symbol,
-                observations=partial(observations_from_fulfillment, subject_access.fulfillment),
+                observations=partial(touched_observations, tracker),
                 shadow_registry=shadow_registry,
                 shadow_knowledge_by_subject=shadow_knowledge_by_subject,
             )

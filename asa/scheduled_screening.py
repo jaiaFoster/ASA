@@ -55,11 +55,7 @@ from asa.integrations.screening_acquisition_attempts_postgres import (
 )
 from asa.integrations.universal_screening_postgres import PostgresLatestResultRepository
 from domain import UnknownReason
-from market_data import (
-    ReuseDecision,
-    load_market_data_config_from_environment,
-    observations_from_fulfillment,
-)
+from market_data import ReuseDecision, load_market_data_config_from_environment
 from market_data.attempts import AcquisitionAttemptRepository
 from market_data.live_transport import build_live_transport
 from market_data.session_calendar import UsEquitySessionCalendar
@@ -95,9 +91,11 @@ from strategy_runtime.market_data_planning import (
     enabled_provider_configs,
 )
 from strategy_runtime.orchestration import (
+    TouchedResultFulfillment,
     build_subject_acquisition_access,
     prepare_subject_shadow_knowledge,
     refresh_with_shadow,
+    touched_observations,
 )
 from strategy_runtime.persistence import LatestResultRepository, ObservationHistoryRepository
 from strategy_runtime.service import record_opportunity_observation
@@ -362,10 +360,6 @@ def run_scheduled_refresh(
         )
         for symbol, subject_access in access.items()
     }
-    registries = {
-        symbol: build_migrated_strategy_registry(item.plan_backed_fulfillment)
-        for symbol, item in acquisition_access.items()
-    }
     reuse_counts = {
         "provider_calls": 0,
         "reuse_hits": 0,
@@ -459,13 +453,30 @@ def run_scheduled_refresh(
             # that share it.
             budget_accounting_start = len(subject_access.budget_manager.accounting)
             call_log_start = len(subject_access.fulfillment.call_log)
+            # SPRINT-014 S14-PR-05A (Architect checkpoint: seventeenth
+            # review, corrective item 2): one fresh TouchedResultFulfillment
+            # per pair, wrapping this symbol's own shared PlanBackedFulfillment
+            # -- this pair's own legacy registry is bound to it (never the
+            # raw plan-backed wrapper directly), and this pair's own
+            # observations callback is derived from exactly what it itself
+            # recorded (a fresh call or a plan-cache hit alike), never from
+            # every observation the subject's raw fulfillment service ever
+            # accumulated cycle-wide -- so evidence subject-first shadow
+            # preparation (or a different pair sharing this symbol) acquired
+            # for itself, and this pair's own legacy execution never asked
+            # for or reused, can never enter this pair's own temporal
+            # metadata, even when it shares the same declared capability
+            # (e.g. a shadow-only OPTION_CHAIN_V1 front/back-month pair FF/
+            # Skew never touched).
+            tracker = TouchedResultFulfillment(acquisition_access[symbol].plan_backed_fulfillment)
+            pair_registry = build_migrated_strategy_registry(tracker)
             result, shadow_diagnostic = refresh_with_shadow(
-                registries[symbol],
+                pair_registry,
                 resolved_repository,
                 clock,
                 strategy_id=signal_id,
                 symbol=symbol,
-                observations=partial(observations_from_fulfillment, subject_access.fulfillment),
+                observations=partial(touched_observations, tracker),
                 historical_skew_repository=resolved_historical_skew_repository,
                 shadow_registry=shadow_registry,
                 shadow_knowledge_by_subject=shadow_knowledge_by_symbol.get(symbol),
@@ -546,7 +557,7 @@ def run_scheduled_refresh(
             if result.opportunity_id is not None:
                 try:
                     record_opportunity_observation(
-                        registries[symbol],
+                        pair_registry,
                         resolved_history_repository,
                         result,
                         recommended_action=RecommendedAction.NO_ACTION,

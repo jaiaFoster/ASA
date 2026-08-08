@@ -12,10 +12,17 @@ from pydantic import SecretStr
 
 from asa.bootstrap import DependencyOverrides, build_application
 from asa.config import Settings
+from domain import MarketCapability
+from market_data import FixtureScenario, ProviderErrorCode
+from market_data.attempts import InMemoryAcquisitionAttemptRepository
 from market_data.transport import ReadOnlyHttpResponse
 from strategy_runtime.orchestration import ShadowParityDiagnostic
 from strategy_runtime.persistence import UniversalSignalRow
 from strategy_runtime.result import EvaluationState, ResultTemporalMetadata, RowType
+from tests.asa._fixture_market_data_access import (
+    build_fixture_market_data_access_factory,
+    shadow_alone_call_count,
+)
 from tests.asa.fakes import InMemoryLatestResultRepository
 from tests.asa.market_data_ops.fakes import ScriptedTransport, tradier_quote_response
 
@@ -393,3 +400,92 @@ class TestShadowWiring:
         assert entry.shadow_status == "shadow_unknown"
         assert entry.shadow_unknown_code == "synthetic_gap"
         assert entry.shadow_unknown_demand_ids == ("demand-a",)
+
+
+class TestRealEarningsShadowAgainstFixtureProvider:
+    """Architect checkpoint: seventeenth review, "add a real Earnings
+    API-root regression -- not a monkeypatched refresh_with_shadow()
+    test." Reuses tests/screening/test_live_adapters.py's own proven
+    MultiExpirationFixtureProvider, monkeypatched in at
+    build_shared_market_data_access (never a new Tradier/Finnhub HTTP
+    fixture), so the real route handler -- frozen request clock, plan
+    construction, subject-first shadow preparation, legacy execution,
+    shadow comparison, and logging -- executes completely end-to-end.
+    """
+
+    def _client(
+        self, monkeypatch: pytest.MonkeyPatch, factory: object
+    ) -> TestClient:
+        import asa.api.screening_routes as screening_routes_module
+
+        monkeypatch.setattr(screening_routes_module, "build_shared_market_data_access", factory)
+        monkeypatch.setenv("ASA_TRADIER_ENABLED", "true")
+        monkeypatch.setenv("ASA_TRADIER_ACCESS_TOKEN", "sandbox-secret-token")
+        return TestClient(
+            build_application(
+                Settings(agent_api_token=SecretStr("correct-token"), _env_file=None),
+                DependencyOverrides(
+                    latest_result_repository=InMemoryLatestResultRepository(),
+                    acquisition_attempt_repository=InMemoryAcquisitionAttemptRepository(),
+                ),
+            )
+        )
+
+    def test_successful_shadow_reports_match_and_adds_zero_provider_calls(
+        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """"subject-first -> legacy produces zero additional equivalent
+        provider calls; legacy and shadow observed_at agree; a successful
+        parity case reports match." The correct baseline for "zero
+        additional calls" is subject-first shadow preparation's own
+        isolated cost (see shadow_alone_call_count's own docstring for
+        why legacy-alone is not a valid baseline here) -- the real
+        request's own total must equal it exactly, never more.
+        """
+
+        client = self._client(monkeypatch, build_fixture_market_data_access_factory())
+        caplog.set_level(logging.INFO)
+        logging.getLogger().addHandler(caplog.handler)
+        baseline = shadow_alone_call_count("AAPL", datetime.now(UTC))
+
+        response = client.post("/api/v1/screening/earnings_calendar/AAPL/refresh", headers=_auth())
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["outcome"] == "pass"
+        assert body["request_count"] == baseline
+        entries = [
+            record for record in caplog.records if record.message == "shadow_parity_diagnostic"
+        ]
+        assert len(entries) == 1
+        entry = entries[0]
+        assert entry.shadow_status == "match"
+        # mismatched_fields includes observed_at -- an empty tuple here is
+        # exactly "legacy and shadow observed_at agree" (and every other
+        # compared scalar field, verdict included).
+        assert entry.shadow_mismatched_fields == ()
+
+    def test_a_shared_failure_is_bounded_retried_once_not_independently_by_both_paths(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """"the same failed request is bounded-retried once by the plan,
+        not separately by both paths." If legacy independently retried
+        the already-exhausted, shared EARNINGS_CALENDAR_V1 failure rather
+        than reusing the plan's own frozen result, this request's own
+        total would exceed subject-first preparation's own isolated cost
+        for the identical scenario -- equality is the proof it does not.
+        """
+
+        scenario = FixtureScenario(
+            failures=((MarketCapability.EARNINGS_CALENDAR_V1, ProviderErrorCode.NO_DATA),)
+        )
+        factory = build_fixture_market_data_access_factory({"AAPL": scenario})
+        client = self._client(monkeypatch, factory)
+        baseline = shadow_alone_call_count("AAPL", datetime.now(UTC), scenario)
+
+        response = client.post("/api/v1/screening/earnings_calendar/AAPL/refresh", headers=_auth())
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["outcome"] == "missing_data"
+        assert body["request_count"] == baseline
