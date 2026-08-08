@@ -58,6 +58,7 @@ def test_only_permitted_roots() -> None:
         "dataclasses",
         "datetime",
         "domain",
+        "facts",
         "market_data",
         "screening",
         "strategy_runtime",
@@ -103,6 +104,30 @@ def test_no_conditional_branches_on_a_string_literal_at_all() -> None:
                         f"{operand.value!r} at line {node.lineno} -- the generic "
                         "composition seam must never branch on strategy identity"
                     )
+
+
+def test_composition_accepts_no_caller_controlled_temporal_input() -> None:
+    """Architect checkpoint, tenth review, item 1: compose_strategy_
+    knowledge must not accept an ``effective_time`` (or any other
+    caller-supplied temporal value) it could use instead of the sealed
+    snapshot's own ``as_of`` -- a future production caller passing
+    wall-clock time could otherwise recreate the same-snapshot/different-
+    identity defect this closed. Checked directly against the function's
+    own signature, not by convention.
+    """
+    import inspect
+
+    from strategy_runtime.knowledge_composition import compose_strategy_knowledge
+
+    signature = inspect.signature(compose_strategy_knowledge)
+    assert "effective_time" not in signature.parameters
+    for name, parameter in signature.parameters.items():
+        annotation = str(parameter.annotation)
+        assert "datetime" not in annotation, (
+            f"compose_strategy_knowledge's parameter {name!r} carries a datetime-typed "
+            "annotation -- every fact's own effective_time must come from the sealed "
+            "snapshot's own as_of, never a caller-supplied value"
+        )
 
 
 def test_orchestrator_never_compares_against_strategy_id() -> None:

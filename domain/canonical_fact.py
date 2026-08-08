@@ -7,7 +7,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 
-from domain.market_data import MarketCapability
 from domain.provenance import Provenance
 from domain.references import Confidence
 from domain.values import require_normalized, require_positive, require_tz_aware
@@ -38,22 +37,3 @@ class CanonicalFact:
         require_normalized(self.value, "CanonicalFact", "value")
         require_tz_aware(self.effective_time, "CanonicalFact", "effective_time")
         require_tz_aware(self.created_time, "CanonicalFact", "created_time")
-
-
-@dataclass(frozen=True, slots=True)
-class CanonicalFactRequest:
-    """One scalar a strategy-owned structural selection/binding wants
-    projected into a CanonicalFact (SPRINT-014 S14-PR-05A, Architect
-    checkpoint: ninth review, generic read-only knowledge composition).
-    Pure data -- no market_data/facts dependency needed to construct one,
-    so a strategy-owned binding (which cannot import either) can build
-    these directly. ``capability`` names which sealed resolution grounds
-    this fact's own provenance; a generic orchestrator elsewhere looks
-    that resolution up by capability and never needs to know why a
-    binding chose it.
-    """
-
-    capability: MarketCapability
-    value: object
-    subject: str
-    fact_type: str

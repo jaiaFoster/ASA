@@ -34,17 +34,11 @@ from analytics.derived_facts import (
     REALIZED_VOLATILITY,
     compute_iv_realized_spread,
 )
-from analytics.features import (
-    DerivedFactQualityStatus,
-    DerivedFactRequest,
-    DerivedFactSet,
-    KnowledgeMapping,
-)
+from analytics.features import DerivedFactQualityStatus, DerivedFactRequest, DerivedFactSet
 from analytics.realized_volatility import compute_realized_volatility
 from domain import (
     AnnouncementTime,
     CanonicalFact,
-    CanonicalFactRequest,
     CompletenessMetadata,
     EarningsEvent,
     EvidenceKind,
@@ -70,7 +64,7 @@ from domain import (
 )
 from domain.financial import OptionChain
 from domain.market_data import MarketObservationValue
-from facts.canonical_projection import canonical_fact_id
+from facts.canonical_projection import CanonicalFactRequest, canonical_fact_id
 from market_data.capability_coalescing import reduce_option_chain_results
 from market_data.fulfillment import (
     CapabilityFulfillmentResult,
@@ -87,7 +81,11 @@ from market_data.resolution import ResolutionPolicy
 from market_data.snapshot import MarketSnapshot
 from market_data.subject_snapshot import seal_subject_snapshot
 from screening.context_builders import build_earnings_calendar_context
-from screening.subject_fact_projection import resolution_for
+from screening.subject_fact_projection import (
+    SealedEvidenceProvenanceError,
+    resolution_for,
+    verify_resolved_evidence_belongs_to_snapshot,
+)
 from strategies import (
     CORE_COMPONENTS,
     EARNINGS_CALENDAR_MANIFEST,
@@ -113,6 +111,7 @@ from strategies.earnings_calendar_structure import (
     EarningsCalendarStructuralSelection,
     select_earnings_calendar_structure,
 )
+from strategies.knowledge_contracts import KnowledgeMapping
 from strategies.plugins import build_plugin_registry
 from strategies.scoring import normalize_richness
 from strategies.type_system import ComponentValues
@@ -382,6 +381,7 @@ def _phase_two_evidence(
     back_iv: Decimal | None,
     bars_count: int = 30,
     no_calls_at: date | None = None,
+    quote: Quote | None = None,
 ) -> EarningsCalendarPhaseTwoEvidence | UnknownReason:
     selections = dict(_selections())
     front_demand_id = selections["front_demand_id"]
@@ -389,9 +389,13 @@ def _phase_two_evidence(
     assert isinstance(front_demand_id, str)
     assert isinstance(back_demand_id, str)
     chain = _chain(front_iv, back_iv, no_calls_at=no_calls_at)
+    resolved_quote = quote if quote is not None else _quote()
     projected = {
         quote_demand(NOW).demand_id: _resolved_evidence(
-            quote_demand(NOW).demand_id, MarketCapability.REAL_TIME_QUOTE_V1, ("last",), _quote()
+            quote_demand(NOW).demand_id,
+            MarketCapability.REAL_TIME_QUOTE_V1,
+            ("last",),
+            resolved_quote,
         ),
         earnings_demand(NOW).demand_id: _resolved_evidence(
             earnings_demand(NOW).demand_id,
@@ -478,12 +482,30 @@ def _select_structure(
     selections: tuple[tuple[str, object], ...],
 ) -> EarningsCalendarStructuralSelection | UnknownReason:
     """Test-harness-only glue standing in for a future composition root
-    (Architect checkpoint item 8: no production wiring in this
-    increment): extract plain domain values from an already-sealed
+    (Architect checkpoint, ninth review, item 8: no production wiring in
+    this increment): extract plain domain values from an already-sealed
     snapshot's own resolutions, then hand them to Earnings Calendar's own
     pure structural selection. Never itself computes richness, volatility,
     or a verdict.
+
+    Verifies every one of ``phase_two``'s own evidence fields genuinely
+    belongs to ``snapshot`` before doing anything else (Architect
+    checkpoint: tenth review, item 4 -- the generic primitive
+    screening.subject_fact_projection.verify_resolved_evidence_belongs_to_snapshot
+    restores the cross-snapshot provenance check the deleted
+    screening/earnings_calendar_facts.py used to perform as an
+    Earnings-named check).
     """
+    for evidence in (
+        phase_two.spot_price_evidence,
+        phase_two.earnings_evidence,
+        phase_two.historical_bars_evidence,
+        phase_two.expiration_discovery_evidence,
+        phase_two.front_chain_evidence,
+        phase_two.back_chain_evidence,
+    ):
+        verify_resolved_evidence_belongs_to_snapshot(snapshot, evidence)
+
     selections_by_key = dict(selections)
     front_expiration = date.fromisoformat(str(selections_by_key["front_expiration"]))
     back_expiration = date.fromisoformat(str(selections_by_key["back_expiration"]))
@@ -521,6 +543,9 @@ def _select_structure(
         chain=chain,
         bars_closes=tuple(bar.close for bar in bars.bars),
         bars_observation_id=bars_resolution.selected_observation.observation_id,
+        quote_observation_id=quote_resolution.selected_observation.observation_id,
+        earnings_observation_id=earnings_resolution.selected_observation.observation_id,
+        chain_observation_id=chain_resolution.selected_observation.observation_id,
         front_expiration=front_expiration,
         back_expiration=back_expiration,
         front_cycle=front_cycle,
@@ -562,15 +587,11 @@ def _compose_via_generic_seam(
     mapping = build_earnings_calendar_knowledge_mapping(
         structural, subject=symbol, snapshot_digest=snapshot.snapshot_digest
     )
-    if isinstance(mapping, UnknownReason):
-        return mapping
 
     registry: KnowledgeCompositionRegistry[EarningsCalendarPayload] = KnowledgeCompositionRegistry(
         ((STRATEGY_ID, mapping),)
     )
-    knowledge_input = compose_strategy_knowledge(
-        snapshot, registry, STRATEGY_ID, subject=symbol, effective_time=snapshot.as_of
-    )
+    knowledge_input = compose_strategy_knowledge(snapshot, registry, STRATEGY_ID, subject=symbol)
     if isinstance(knowledge_input, UnknownReason):
         return knowledge_input
 
@@ -837,13 +858,40 @@ class TestGenericCompositionUnknownCases:
             resolution_policy_by_capability=_RESOLUTION_POLICY,
             provider_metadata=_PROVIDER_METADATA,
         )
-        phase_two = _phase_two_evidence(front_iv=front_iv, back_iv=back_iv)
+        phase_two = _phase_two_evidence(front_iv=front_iv, back_iv=back_iv, quote=blank_quote)
         assert isinstance(phase_two, EarningsCalendarPhaseTwoEvidence)
 
         result = _compose_via_generic_seam(SYMBOL, blank_snapshot, phase_two, _selections())
         assert isinstance(result, UnknownReason)
         assert result.code == "missing_spot_price"
         assert result.demand_ids == (phase_two.spot_price_evidence.demand_id,)
+
+
+class TestSealedEvidenceProvenance:
+    """Architect checkpoint, tenth review, item 4: restores the forged/
+    mismatched-evidence regression test that disappeared with the deleted
+    screening/earnings_calendar_facts.py -- now proven against the
+    generic screening.subject_fact_projection.
+    verify_resolved_evidence_belongs_to_snapshot primitive
+    _select_structure calls, not against an Earnings-named harness.
+    """
+
+    def test_phase_two_evidence_referencing_an_unknown_observation_id_raises(self) -> None:
+        front_iv = Decimal("0.50")
+        back_iv = Decimal("0.20")
+        snapshot, *_ = _build_snapshot(front_iv=front_iv, back_iv=back_iv)
+        phase_two = _phase_two_evidence(front_iv=front_iv, back_iv=back_iv)
+        assert isinstance(phase_two, EarningsCalendarPhaseTwoEvidence)
+
+        forged = dataclasses.replace(
+            phase_two,
+            historical_bars_evidence=dataclasses.replace(
+                phase_two.historical_bars_evidence, observation_ids=("not-in-the-snapshot",)
+            ),
+        )
+
+        with pytest.raises(SealedEvidenceProvenanceError):
+            _select_structure(snapshot, forged, _selections())
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -859,28 +907,54 @@ class _SyntheticPayload:
 
 
 def _build_synthetic_knowledge_mapping(
-    *, subject: str
+    snapshot: MarketSnapshot, *, subject: str
 ) -> KnowledgeMapping[_SyntheticPayload]:
+    """Architect checkpoint, tenth review, item 3's own required proof:
+    a synthetic binding must extract a real scalar from its sealed input
+    and execute a real registered analytics computation, never invent
+    output values merely to demonstrate dispatch genericity. This binding
+    reuses REALIZED_VOLATILITY (an already-registered analytics feature --
+    registering a brand new one is analytics/'s own concern, out of scope
+    here) computed for real over the snapshot's own real historical bars,
+    and projects the snapshot's own real quote price as its canonical
+    fact -- both traceable back to real observations, not fabricated.
+    """
+    quote_resolution = resolution_for(snapshot, MarketCapability.REAL_TIME_QUOTE_V1)
+    bars_resolution = resolution_for(snapshot, MarketCapability.HISTORICAL_BARS_V1)
+    assert quote_resolution.selected_observation is not None
+    assert bars_resolution.selected_observation is not None
+    quote_value = quote_resolution.selected_observation.value
+    bars_value = bars_resolution.selected_observation.value
+    assert isinstance(quote_value, Quote)
+    assert isinstance(bars_value, OHLCVSeries)
+    assert quote_value.last is not None
+
     canonical_fact_requests = (
         CanonicalFactRequest(
-            MarketCapability.REAL_TIME_QUOTE_V1, "synthetic-value", subject, "synthetic_fact_type"
-        ),
-    )
-    # Reuses an already-registered analytics feature id (REALIZED_VOLATILITY)
-    # rather than inventing a new one -- registering a brand new analytics
-    # feature is analytics/'s own concern, out of scope for this proof.
-    # This binding's own point is that dispatch reaches the right
-    # KnowledgeMapping/payload, not that it defines new analytics.
-    derived_fact_requests = (
-        DerivedFactRequest(
-            REALIZED_VOLATILITY,
+            MarketCapability.REAL_TIME_QUOTE_V1,
+            quote_resolution.selected_observation.observation_id,
+            quote_value.last,
             subject,
-            Decimal("1"),
-            "unitless",
-            (),
-            DerivedFactQualityStatus.VALID,
+            "synthetic_spot_price",
         ),
     )
+    bars_closes = tuple(bar.close for bar in bars_value.bars)
+    bars_observation_id = bars_resolution.selected_observation.observation_id
+
+    def _compute_derived_fact_requests(
+        canonical_facts: tuple[CanonicalFact, ...],
+    ) -> tuple[DerivedFactRequest, ...] | UnknownReason:
+        realized_volatility = compute_realized_volatility(bars_closes)
+        return (
+            DerivedFactRequest(
+                REALIZED_VOLATILITY,
+                subject,
+                realized_volatility,
+                "annualized_stdev",
+                (EvidenceReference(EvidenceKind.OBSERVATION, bars_observation_id),),
+                DerivedFactQualityStatus.VALID,
+            ),
+        )
 
     def _build_payload(
         canonical_facts: tuple[CanonicalFact, ...], derived_facts: DerivedFactSet
@@ -892,7 +966,7 @@ def _build_synthetic_knowledge_mapping(
 
     return KnowledgeMapping(
         canonical_fact_requests=canonical_fact_requests,
-        derived_fact_requests=derived_fact_requests,
+        compute_derived_fact_requests=_compute_derived_fact_requests,
         build_payload=_build_payload,
     )
 
@@ -915,8 +989,7 @@ class TestSyntheticSecondBindingGenericity:
         earnings_mapping = build_earnings_calendar_knowledge_mapping(
             structural, subject=SYMBOL, snapshot_digest=snapshot.snapshot_digest
         )
-        assert not isinstance(earnings_mapping, UnknownReason)
-        synthetic_mapping = _build_synthetic_knowledge_mapping(subject="SYNTH")
+        synthetic_mapping = _build_synthetic_knowledge_mapping(snapshot, subject="SYNTH")
 
         # Deliberately mixed payload types in one registry -- proves the
         # registry/orchestrator is payload-shape-blind, never just tested
@@ -939,24 +1012,24 @@ class TestSyntheticSecondBindingGenericity:
 
         for registry in (registry_earnings_first, registry_synthetic_first):
             earnings_result = compose_strategy_knowledge(
-                snapshot, registry, STRATEGY_ID, subject=SYMBOL, effective_time=snapshot.as_of
+                snapshot, registry, STRATEGY_ID, subject=SYMBOL
             )
             synthetic_result = compose_strategy_knowledge(
-                snapshot,
-                registry,
-                "synthetic_consumer",
-                subject="SYNTH",
-                effective_time=snapshot.as_of,
+                snapshot, registry, "synthetic_consumer", subject="SYNTH"
             )
             assert isinstance(earnings_result, ReadOnlyStrategyInput)
             assert isinstance(earnings_result.payload, EarningsCalendarPayload)
             assert isinstance(synthetic_result, ReadOnlyStrategyInput)
             assert isinstance(synthetic_result.payload, _SyntheticPayload)
             assert synthetic_result.payload.marker == "synthetic"
-            assert synthetic_result.payload.fact_value == "synthetic-value"
+            # The real spot price the sealed snapshot's own quote
+            # observation carries (Architect checkpoint, tenth review,
+            # item 3) -- never a fabricated literal.
+            assert synthetic_result.payload.fact_value == str(SPOT_PRICE)
 
     def test_unregistered_strategy_id_raises_regardless_of_what_else_is_registered(self) -> None:
-        synthetic_mapping = _build_synthetic_knowledge_mapping(subject="SYNTH")
+        snapshot, *_ = _build_snapshot(front_iv=Decimal("0.50"), back_iv=Decimal("0.20"))
+        synthetic_mapping = _build_synthetic_knowledge_mapping(snapshot, subject="SYNTH")
         registry: KnowledgeCompositionRegistry[_SyntheticPayload] = KnowledgeCompositionRegistry(
             (("synthetic_consumer", synthetic_mapping),)
         )

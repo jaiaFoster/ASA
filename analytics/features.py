@@ -4,17 +4,13 @@ from __future__ import annotations
 
 import hashlib
 import json
-from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
 from enum import StrEnum
-from typing import Generic, TypeVar
 
-from domain import CanonicalFact, CanonicalFactRequest, EvidenceReference
+from domain import EvidenceReference
 from domain.values import require_tz_aware
-
-TPayload = TypeVar("TPayload")
 
 DerivedFactValue = Decimal | int | bool | date | tuple[Decimal, ...]
 
@@ -127,11 +123,20 @@ class DerivedFactSet:
 
 @dataclass(frozen=True, slots=True)
 class DerivedFactRequest:
-    """One already-computed analytics value a binding wants materialized
-    into a DerivedFact (SPRINT-014 S14-PR-05A, Architect checkpoint: ninth
-    review). The binding computes ``value`` itself -- this request carries
+    """One analytics value a binding wants materialized into a DerivedFact
+    (SPRINT-014 S14-PR-05A, Architect checkpoint: tenth review -- "keep
+    computation owned by analytics/"). ``value`` must be the result of a
+    registered analytics computation the binding ran *after* the canonical
+    facts it depends on were projected -- never a value computed ahead of
+    canonical projection and merely wrapped here. This request carries
     only the data materialize_derived_fact() itself needs; the generic
-    orchestrator performs that one call, never the computation.
+    orchestrator performs that one mechanical call, never the computation.
+
+    ``input_evidence`` must be non-empty (Architect checkpoint tenth
+    review, item 3): a derived fact with no cited evidence at all cannot
+    be genuine registered analytics output, so the type itself refuses to
+    exist in that shape rather than relying on every caller to remember
+    to populate it.
     """
 
     feature_id: str
@@ -142,17 +147,6 @@ class DerivedFactRequest:
     quality_status: DerivedFactQualityStatus
     parameters: tuple[tuple[str, str], ...] = ()
 
-
-@dataclass(frozen=True, slots=True)
-class KnowledgeMapping(Generic[TPayload]):
-    """A strategy-specific integration binding's complete, already-computed
-    recipe for one composition (SPRINT-014 S14-PR-05A, Architect
-    checkpoint: ninth review) -- the canonical/derived fact requests a
-    generic orchestrator must resolve, plus a callback assembling the
-    strategy-owned payload from the resolved facts. The orchestrator never
-    knows ``TPayload``'s shape.
-    """
-
-    canonical_fact_requests: tuple[CanonicalFactRequest, ...]
-    derived_fact_requests: tuple[DerivedFactRequest, ...]
-    build_payload: Callable[[tuple[CanonicalFact, ...], DerivedFactSet], TPayload]
+    def __post_init__(self) -> None:
+        if not self.input_evidence:
+            raise ValueError("DerivedFactRequest.input_evidence must be non-empty")

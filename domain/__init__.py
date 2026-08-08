@@ -7,7 +7,7 @@ definitions only; no business logic lives in this package (ASA-CORE-001).
 Depends on nothing but itself and the standard library.
 """
 
-from domain.canonical_fact import CanonicalFact, CanonicalFactRequest
+from domain.canonical_fact import CanonicalFact
 from domain.capability_demand import CAPABILITY_DEMAND_CONTRACT_VERSION, CapabilityDemand
 from domain.demand_expansion import DemandExpansion, UnknownReason
 from domain.execution import (
@@ -133,7 +133,6 @@ from domain.values import DomainInvariantError, is_normalized_value
 __all__ = [
     "CAPABILITY_DEMAND_CONTRACT_VERSION",
     "CanonicalFact",
-    "CanonicalFactRequest",
     "CapabilityDemand",
     "CanonicalReturnObservation",
     "CanonicalInstrumentIdentity",

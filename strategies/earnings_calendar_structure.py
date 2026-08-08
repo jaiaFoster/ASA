@@ -43,6 +43,15 @@ from domain import (
 class EarningsCalendarStructuralSelection:
     """Earnings Calendar's own selected structural evidence -- never a
     computed richness/volatility/score.
+
+    ``quote_observation_id``/``earnings_observation_id``/
+    ``chain_observation_id`` (added at the tenth-review checkpoint) are
+    the exact observation ids the spot price, earnings event, and both
+    selected option contracts were actually observed on -- a knowledge
+    binding threads these into each CanonicalFactRequest it builds so the
+    generic composer can verify the request's claimed provenance against
+    the sealed snapshot's own resolution, rather than trusting a bare
+    capability name (Architect checkpoint: tenth review, item 3).
     """
 
     spot_price: Decimal
@@ -58,6 +67,9 @@ class EarningsCalendarStructuralSelection:
     back_implied_volatility: Decimal
     bars_closes: tuple[Decimal, ...]
     bars_observation_id: str
+    quote_observation_id: str
+    earnings_observation_id: str
+    chain_observation_id: str
     quote_demand_id: str
     historical_bars_demand_id: str
     front_chain_demand_id: str
@@ -71,6 +83,9 @@ def select_earnings_calendar_structure(
     chain: OptionChain,
     bars_closes: tuple[Decimal, ...],
     bars_observation_id: str,
+    quote_observation_id: str,
+    earnings_observation_id: str,
+    chain_observation_id: str,
     front_expiration: date,
     back_expiration: date,
     front_cycle: ExpirationCycle,
@@ -150,6 +165,9 @@ def select_earnings_calendar_structure(
         back_implied_volatility=back_contract.implied_volatility,
         bars_closes=bars_closes,
         bars_observation_id=bars_observation_id,
+        quote_observation_id=quote_observation_id,
+        earnings_observation_id=earnings_observation_id,
+        chain_observation_id=chain_observation_id,
         quote_demand_id=quote_demand_id,
         historical_bars_demand_id=historical_bars_demand_id,
         front_chain_demand_id=front_chain_demand_id,

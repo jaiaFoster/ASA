@@ -14,21 +14,55 @@ module can do this bridging itself.
 
 No strategy identity, no manifest, no scoring, no richness normalization,
 no context construction lives here -- those stay entirely strategy-owned
-(e.g. strategies/earnings_calendar_evaluation.py). This module only
-answers two generic questions any sealed-snapshot consumer needs: "which
-ResolutionResult resolved this capability" and "project this scalar,
+(e.g. strategies/earnings_calendar_evaluation.py). This module answers
+three generic questions any sealed-snapshot consumer needs: "which
+ResolutionResult resolved this capability", "project this scalar,
 already extracted by the caller, into a CanonicalFact with a
-subject/fact_type/snapshot-derived, strategy-independent identity."
+subject/fact_type/snapshot-derived, strategy-independent identity", and
+(added at the tenth-review checkpoint, restoring an invariant the
+now-deleted screening/earnings_calendar_facts.py used to enforce as an
+Earnings-named check) "does this already-resolved evidence bundle
+genuinely belong to this sealed snapshot at all."
 """
 
 from __future__ import annotations
 
 from datetime import datetime
 
-from domain import CanonicalFact, MarketCapability
+from domain import CanonicalFact, MarketCapability, ResolvedCapabilityEvidence
 from facts.canonical_projection import canonical_fact_id, project_canonical_fact
 from market_data.resolution import ResolutionResult
 from market_data.snapshot import MarketSnapshot
+
+
+class SealedEvidenceProvenanceError(ValueError):
+    """Raised when a ResolvedCapabilityEvidence bundle references at
+    least one observation id absent from the sealed snapshot it is being
+    composed against (SPRINT-014 S14-PR-05A, Architect checkpoint: tenth
+    review, item 4). A generic invariant/provenance failure -- never a
+    typed UnknownReason -- because a mismatched evidence bundle means a
+    caller is composing two different snapshots together, not that a
+    genuine data gap exists in either one.
+    """
+
+
+def verify_resolved_evidence_belongs_to_snapshot(
+    snapshot: MarketSnapshot, evidence: ResolvedCapabilityEvidence
+) -> None:
+    """Verify every observation id ``evidence`` cites is actually present
+    in ``snapshot``'s own observations. Generic across every capability
+    and every consumer -- callers loop over whichever evidence fields
+    their own typed bundle carries (e.g. a strategy's own PhaseTwoEvidence
+    dataclass) and call this once per field, before doing anything with
+    the evidence's own resolved value.
+    """
+    known_observation_ids = {item.observation_id for item in snapshot.observations}
+    missing = set(evidence.observation_ids) - known_observation_ids
+    if missing:
+        raise SealedEvidenceProvenanceError(
+            f"resolved evidence for demand {evidence.demand_id!r} references "
+            f"observation id(s) {sorted(missing)} absent from the supplied sealed snapshot"
+        )
 
 
 def resolution_for(snapshot: MarketSnapshot, capability: MarketCapability) -> ResolutionResult:
