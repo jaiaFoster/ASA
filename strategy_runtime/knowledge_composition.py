@@ -29,7 +29,14 @@ against the snapshot's own resolution for that capability, and a
 DerivedFactRequest's own input_evidence is checked against the facts this
 composition actually just projected and the snapshot's own observations --
 never merely against a plausible-looking capability or an empty evidence
-tuple. Every mismatch raises SealedEvidenceProvenanceError, the same
+tuple. A CANONICAL_FACT evidence reference must match this composition's
+own projected fact by both id *and* version (Architect checkpoint:
+eleventh review -- EvidenceReference is a pinned reference to a specific
+version, not merely an id); an OBSERVATION reference must exist in the
+sealed snapshot and carry no version (observations are unversioned,
+append-only); any other evidence kind (currently INDICATOR) is rejected
+outright -- this seam validates two kinds, never passes a third through
+unchecked. Every mismatch raises SealedEvidenceProvenanceError, the same
 invariant/provenance failure screening.subject_fact_projection's own
 sealed-evidence check raises -- never a typed UnknownReason.
 
@@ -107,26 +114,46 @@ def compose_strategy_knowledge(
     if isinstance(derived_requests, UnknownReason):
         return derived_requests
 
-    projected_fact_ids = {fact.fact_id for fact in canonical_facts_tuple}
+    # Keyed by fact_id -> version, not merely a set of ids (Architect
+    # checkpoint: eleventh review): EvidenceReference is a pinned
+    # reference to a *specific version* (domain/references.py's own
+    # contract), so a CANONICAL_FACT evidence reference must match this
+    # composition's own projected version exactly, never just its id.
+    projected_fact_versions = {fact.fact_id: fact.version for fact in canonical_facts_tuple}
     known_observation_ids = {item.observation_id for item in snapshot.observations}
     for derived_request in derived_requests:
         for evidence in derived_request.input_evidence:
-            if (
-                evidence.kind is EvidenceKind.CANONICAL_FACT
-                and evidence.referenced_id not in projected_fact_ids
-            ):
+            if evidence.kind is EvidenceKind.CANONICAL_FACT:
+                projected_version = projected_fact_versions.get(evidence.referenced_id)
+                if projected_version is None or evidence.version != projected_version:
+                    raise SealedEvidenceProvenanceError(
+                        f"derived fact request {derived_request.feature_id!r} cites "
+                        f"canonical fact {evidence.referenced_id!r} version "
+                        f"{evidence.version!r}, which does not match this composition's "
+                        "own just-projected canonical facts"
+                    )
+            elif evidence.kind is EvidenceKind.OBSERVATION:
+                # Observations are unversioned, append-only records
+                # (domain/references.py's own EvidenceReference contract);
+                # a versioned OBSERVATION reference is itself malformed,
+                # never merely an id lookup.
+                unversioned = evidence.version is None
+                if evidence.referenced_id not in known_observation_ids or not unversioned:
+                    raise SealedEvidenceProvenanceError(
+                        f"derived fact request {derived_request.feature_id!r} cites "
+                        f"observation {evidence.referenced_id!r} (version="
+                        f"{evidence.version!r}), which is either absent from the supplied "
+                        "sealed snapshot or carries a version (observations are unversioned)"
+                    )
+            else:
+                # Fail closed for any evidence kind this generic
+                # composition path does not itself validate (currently
+                # EvidenceKind.INDICATOR) -- an unrecognized kind must
+                # never pass through unchecked.
                 raise SealedEvidenceProvenanceError(
-                    f"derived fact request {derived_request.feature_id!r} cites canonical "
-                    f"fact {evidence.referenced_id!r}, which is not among this "
-                    "composition's own just-projected canonical facts"
-                )
-            if (
-                evidence.kind is EvidenceKind.OBSERVATION
-                and evidence.referenced_id not in known_observation_ids
-            ):
-                raise SealedEvidenceProvenanceError(
-                    f"derived fact request {derived_request.feature_id!r} cites observation "
-                    f"{evidence.referenced_id!r}, absent from the supplied sealed snapshot"
+                    f"derived fact request {derived_request.feature_id!r} cites evidence "
+                    f"kind {evidence.kind.value!r}, which this composition seam does not "
+                    "validate and therefore does not accept"
                 )
 
     derived_facts = tuple(

@@ -894,6 +894,155 @@ class TestSealedEvidenceProvenance:
             _select_structure(snapshot, forged, _selections())
 
 
+def _probe_snapshot_and_canonical_fact_requests() -> tuple[
+    MarketSnapshot, tuple[CanonicalFactRequest, ...]
+]:
+    """A minimal, real (never fabricated) canonical fact request -- the
+    sealed snapshot's own real quote price, projected under a probe-only
+    fact_type -- used below purely as a vehicle to exercise
+    compose_strategy_knowledge's own derived-fact evidence validation in
+    isolation from Earnings' own real binding.
+    """
+    snapshot, *_ = _build_snapshot(front_iv=Decimal("0.50"), back_iv=Decimal("0.20"))
+    quote_resolution = resolution_for(snapshot, MarketCapability.REAL_TIME_QUOTE_V1)
+    assert quote_resolution.selected_observation is not None
+    quote_value = quote_resolution.selected_observation.value
+    assert isinstance(quote_value, Quote)
+    assert quote_value.last is not None
+    canonical_fact_requests = (
+        CanonicalFactRequest(
+            MarketCapability.REAL_TIME_QUOTE_V1,
+            quote_resolution.selected_observation.observation_id,
+            quote_value.last,
+            SYMBOL,
+            "probe_spot_price",
+        ),
+    )
+    return snapshot, canonical_fact_requests
+
+
+class TestDerivedFactEvidenceReferenceValidation:
+    """Architect checkpoint, eleventh review: EvidenceReference is a
+    pinned reference to a *specific version* (domain/references.py's own
+    contract) -- a derived fact's own input_evidence must match this
+    composition's just-projected canonical facts by id AND version, an
+    OBSERVATION reference must be unversioned, and any other evidence
+    kind (currently INDICATOR) must be rejected outright, never passed
+    through unchecked.
+    """
+
+    def test_canonical_fact_evidence_with_wrong_version_is_rejected(self) -> None:
+        snapshot, canonical_fact_requests = _probe_snapshot_and_canonical_fact_requests()
+
+        def _compute_derived_fact_requests(
+            canonical_facts: tuple[CanonicalFact, ...],
+        ) -> tuple[DerivedFactRequest, ...]:
+            real_fact = canonical_facts[0]
+            wrong_version_evidence = EvidenceReference(
+                EvidenceKind.CANONICAL_FACT, real_fact.fact_id, real_fact.version + 1
+            )
+            return (
+                DerivedFactRequest(
+                    REALIZED_VOLATILITY,
+                    SYMBOL,
+                    Decimal("1"),
+                    "unitless",
+                    (wrong_version_evidence,),
+                    DerivedFactQualityStatus.VALID,
+                ),
+            )
+
+        mapping: KnowledgeMapping[None] = KnowledgeMapping(
+            canonical_fact_requests=canonical_fact_requests,
+            compute_derived_fact_requests=_compute_derived_fact_requests,
+            build_payload=lambda canonical_facts, derived_facts: None,
+        )
+        registry: KnowledgeCompositionRegistry[None] = KnowledgeCompositionRegistry(
+            ((STRATEGY_ID, mapping),)
+        )
+        with pytest.raises(SealedEvidenceProvenanceError):
+            compose_strategy_knowledge(snapshot, registry, STRATEGY_ID, subject=SYMBOL)
+
+    def test_versioned_observation_evidence_is_rejected(self) -> None:
+        snapshot, canonical_fact_requests = _probe_snapshot_and_canonical_fact_requests()
+
+        def _compute_derived_fact_requests(
+            canonical_facts: tuple[CanonicalFact, ...],
+        ) -> tuple[DerivedFactRequest, ...]:
+            bars_resolution = resolution_for(snapshot, MarketCapability.HISTORICAL_BARS_V1)
+            assert bars_resolution.selected_observation is not None
+            versioned_observation_evidence = EvidenceReference(
+                EvidenceKind.OBSERVATION,
+                bars_resolution.selected_observation.observation_id,
+                1,
+            )
+            return (
+                DerivedFactRequest(
+                    REALIZED_VOLATILITY,
+                    SYMBOL,
+                    Decimal("1"),
+                    "unitless",
+                    (versioned_observation_evidence,),
+                    DerivedFactQualityStatus.VALID,
+                ),
+            )
+
+        mapping: KnowledgeMapping[None] = KnowledgeMapping(
+            canonical_fact_requests=canonical_fact_requests,
+            compute_derived_fact_requests=_compute_derived_fact_requests,
+            build_payload=lambda canonical_facts, derived_facts: None,
+        )
+        registry: KnowledgeCompositionRegistry[None] = KnowledgeCompositionRegistry(
+            ((STRATEGY_ID, mapping),)
+        )
+        with pytest.raises(SealedEvidenceProvenanceError):
+            compose_strategy_knowledge(snapshot, registry, STRATEGY_ID, subject=SYMBOL)
+
+    def test_unsupported_evidence_kind_is_rejected(self) -> None:
+        snapshot, canonical_fact_requests = _probe_snapshot_and_canonical_fact_requests()
+
+        def _compute_derived_fact_requests(
+            canonical_facts: tuple[CanonicalFact, ...],
+        ) -> tuple[DerivedFactRequest, ...]:
+            indicator_evidence = EvidenceReference(EvidenceKind.INDICATOR, "some-indicator-id", 1)
+            return (
+                DerivedFactRequest(
+                    REALIZED_VOLATILITY,
+                    SYMBOL,
+                    Decimal("1"),
+                    "unitless",
+                    (indicator_evidence,),
+                    DerivedFactQualityStatus.VALID,
+                ),
+            )
+
+        mapping: KnowledgeMapping[None] = KnowledgeMapping(
+            canonical_fact_requests=canonical_fact_requests,
+            compute_derived_fact_requests=_compute_derived_fact_requests,
+            build_payload=lambda canonical_facts, derived_facts: None,
+        )
+        registry: KnowledgeCompositionRegistry[None] = KnowledgeCompositionRegistry(
+            ((STRATEGY_ID, mapping),)
+        )
+        with pytest.raises(SealedEvidenceProvenanceError):
+            compose_strategy_knowledge(snapshot, registry, STRATEGY_ID, subject=SYMBOL)
+
+    def test_existing_valid_earnings_evidence_still_composes(self) -> None:
+        """Architect checkpoint, eleventh review: "keep the existing valid
+        Earnings evidence unchanged" -- the real binding's own version-
+        pinned CANONICAL_FACT references and unversioned OBSERVATION
+        reference must still compose cleanly under the hardened checks.
+        """
+        front_iv = Decimal("0.50")
+        back_iv = Decimal("0.20")
+        snapshot, *_ = _build_snapshot(front_iv=front_iv, back_iv=back_iv)
+        phase_two = _phase_two_evidence(front_iv=front_iv, back_iv=back_iv)
+        assert isinstance(phase_two, EarningsCalendarPhaseTwoEvidence)
+
+        result = _compose_via_generic_seam(SYMBOL, snapshot, phase_two, _selections())
+        assert isinstance(result, _GenericComposition)
+
+
 @dataclasses.dataclass(frozen=True, slots=True)
 class _SyntheticPayload:
     """A deliberately trivial, non-Earnings payload proving composition
