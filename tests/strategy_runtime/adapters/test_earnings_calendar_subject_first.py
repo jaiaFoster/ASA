@@ -30,6 +30,7 @@ asa/scheduled_screening.py or asa/api/screening_routes.py yet.
 
 from __future__ import annotations
 
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
@@ -362,6 +363,12 @@ def _synthetic_prepare_knowledge_mapping(
     )
 
 
+def _synthetic_build_shadow_adapter(
+    _knowledge_by_subject: Mapping[str, ReadOnlyStrategyInput[_SyntheticPayload]],
+) -> Callable[[RuntimeContext], UniversalScreeningResult]:
+    raise AssertionError("synthetic binding's shadow adapter is never exercised by this test")
+
+
 def _plan(fulfillment: CapabilityFulfillmentService) -> SubjectAcquisitionPlan:
     return SubjectAcquisitionPlan(
         "AAPL",
@@ -403,7 +410,9 @@ class TestPrepareStrategyKnowledgeGenericMechanics:
             "synthetic-strategy", (_synthetic_demand(),), lambda _evidence: DemandExpansion()
         )
         binding: SubjectPreparationBinding[_SyntheticPayload] = SubjectPreparationBinding(
-            consumer=consumer, prepare_knowledge_mapping=_synthetic_prepare_knowledge_mapping
+            consumer=consumer,
+            prepare_knowledge_mapping=_synthetic_prepare_knowledge_mapping,
+            build_shadow_adapter=_synthetic_build_shadow_adapter,
         )
         registry: SubjectPreparationRegistry[_SyntheticPayload] = SubjectPreparationRegistry(
             (("synthetic-strategy", binding),)
@@ -455,10 +464,12 @@ class TestPrepareStrategyKnowledgeGenericMechanics:
         consumer = SubjectPlanConsumer(
             "synthetic-strategy", (_synthetic_demand(),), _expand_with_gap
         )
-        binding: SubjectPreparationBinding[object] = SubjectPreparationBinding(
-            consumer=consumer, prepare_knowledge_mapping=_never_called
+        binding: SubjectPreparationBinding[_SyntheticPayload] = SubjectPreparationBinding(
+            consumer=consumer,
+            prepare_knowledge_mapping=_never_called,
+            build_shadow_adapter=_synthetic_build_shadow_adapter,
         )
-        registry: SubjectPreparationRegistry[object] = SubjectPreparationRegistry(
+        registry: SubjectPreparationRegistry[_SyntheticPayload] = SubjectPreparationRegistry(
             (("synthetic-strategy", binding),)
         )
         fulfillment, _ = service(provider("primary"))

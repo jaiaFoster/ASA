@@ -26,12 +26,14 @@ from domain import (
     EarningsEvent,
     EvidenceKind,
     EvidenceReference,
+    ExpirationCollection,
     ExpirationCycle,
     FreshnessMetadata,
     FreshnessStatus,
     MarketCapability,
     MarketObservation,
     OHLCVBar,
+    OHLCVSeries,
     OptionChain,
     OptionContract,
     OptionType,
@@ -126,14 +128,22 @@ _EXPIRATIONS_DAYS_OUT_AND_IV = (
 
 
 def _synthetic_daily_bars_fetch_result(provider, request):  # noqa: ANN001
-    """SPRINT-011-CLOSEOUT/CLOSE-002: a HISTORICAL_BARS_V1 request fulfils
-    as one MarketObservation per day (matching market_data/tradier.py's
-    own real shape) -- DeterministicFixtureProvider.fetch() returns
-    exactly one observation per request regardless of capability, not
-    enough for realized-volatility/momentum computation. Shared by every
-    fixture provider in this module that needs to serve a real,
-    non-constant close series instead of the base provider's single fixed
-    bar.
+    """SPRINT-014 S14-PR-05A (Founder-approved bounded contract extension):
+    one historical-bars request legitimately covers many trading days, but
+    -- like market_data/tradier.py's own current _normalize() -- bundles
+    every bar into one OHLCVSeries value, sealed into exactly one
+    MarketObservation, so a generic, single-observation-per-demand
+    consumer (screening.subject_planning/market_data.subject_snapshot's
+    own ObservationResolver, which requires at most one observation per
+    provider per capability) can resolve this capability at all. Updated
+    from this fixture's own original SPRINT-011-CLOSEOUT/CLOSE-002 shape
+    (one MarketObservation per day) once market_data/tradier.py's real
+    shape moved to the OHLCVSeries contract -- DeterministicFixtureProvider
+    .fetch() returns exactly one observation per request regardless of
+    capability, not enough for realized-volatility/momentum computation,
+    so this still needs its own real, non-constant close series instead of
+    the base provider's single fixed bar. Shared by every fixture provider
+    in this module that needs one.
     """
     received_at = provider._dependencies.clock.now().astimezone(UTC)  # noqa: SLF001
     reference = provider._request_reference(request)  # noqa: SLF001
@@ -149,56 +159,50 @@ def _synthetic_daily_bars_fetch_result(provider, request):  # noqa: ANN001
     attempt = ProviderAttemptMetadata(provider.provider_id, request.capability, 1, 1, response)
     (subject,) = request.subjects
     instrument = subject.canonical_instrument
-    observations = []
+    bars = []
     for day_offset in range(29, -1, -1):
         observed_at = received_at - timedelta(days=day_offset)
         # Deterministic drift + oscillation, never a flat series, so
         # realized volatility and trailing momentum are both genuinely
         # non-zero.
         close = Decimal("200") + Decimal(day_offset % 5) + Decimal(str((29 - day_offset) * 0.15))
-        bar = OHLCVBar(
-            instrument,
-            86400,
-            observed_at - timedelta(days=1),
-            observed_at,
-            close - Decimal("2"),
-            close + Decimal("2"),
-            close - Decimal("3"),
-            close,
-            Decimal("50000000"),
-        )
-        evidence = (EvidenceReference(EvidenceKind.OBSERVATION, f"fixture-bars-{day_offset}"),)
-        identity = market_observation_identity(
-            provider.provider_id, request.capability, subject, observed_at, bar, "v1"
-        )
-        age_seconds = day_offset * 86400
-        observations.append(
-            MarketObservation(
-                identity,
-                request.capability,
-                subject,
+        bars.append(
+            OHLCVBar(
+                instrument,
+                86400,
+                observed_at - timedelta(days=1),
                 observed_at,
-                received_at,
-                bar,
-                "v1",
-                ProviderProvenance(provider.provider_id, reference, evidence),
-                FreshnessMetadata(
-                    received_at,
-                    observed_at,
-                    request.maximum_age_seconds,
-                    age_seconds,
-                    FreshnessStatus.FRESH
-                    if age_seconds <= request.maximum_age_seconds
-                    else FreshnessStatus.STALE,
-                ),
-                CompletenessMetadata(
-                    subject.request_context.required_fields,
-                    subject.request_context.required_fields,
-                    (),
-                ),
+                close - Decimal("2"),
+                close + Decimal("2"),
+                close - Decimal("3"),
+                close,
+                Decimal("50000000"),
             )
         )
-    return ProviderFetchResult(tuple(observations), None, (attempt,))
+    series = OHLCVSeries(instrument, 86400, received_at, tuple(bars))
+    evidence = (EvidenceReference(EvidenceKind.OBSERVATION, "fixture-bars-series"),)
+    identity = market_observation_identity(
+        provider.provider_id, request.capability, subject, received_at, series, "v1"
+    )
+    observation = MarketObservation(
+        identity,
+        request.capability,
+        subject,
+        received_at,
+        received_at,
+        series,
+        "v1",
+        ProviderProvenance(provider.provider_id, reference, evidence),
+        FreshnessMetadata(
+            received_at, received_at, request.maximum_age_seconds, 0, FreshnessStatus.FRESH
+        ),
+        CompletenessMetadata(
+            subject.request_context.required_fields,
+            subject.request_context.required_fields,
+            (),
+        ),
+    )
+    return ProviderFetchResult((observation,), None, (attempt,))
 
 
 class MultiExpirationFixtureProvider(DeterministicFixtureProvider):
@@ -249,6 +253,33 @@ class MultiExpirationFixtureProvider(DeterministicFixtureProvider):
                 Decimal("204"),
                 Decimal("210"),
                 Decimal("50000000"),
+            )
+        required_fields = subject.request_context.required_fields
+        if "expirations" in required_fields and "contracts" not in required_fields:
+            # SPRINT-014 S14-PR-05A (Founder-approved bounded contract
+            # extension): matches market_data/tradier.py's own real
+            # discrimination -- an expirations-only OPTION_CHAIN_V1
+            # request normalizes to one ExpirationCollection, never a full
+            # chain, so a generic subject-first consumer resolving this
+            # capability's own discovery demand sees the same shape a real
+            # provider returns, not a fixture-only special case.
+            as_of = observed_at.date()
+            unique_dates = sorted(
+                {as_of + timedelta(days=days_out) for days_out, _ in _EXPIRATIONS_DAYS_OUT_AND_IV}
+            )
+            return ExpirationCollection(
+                as_of,
+                tuple(
+                    ExpirationCycle(
+                        expiration,
+                        (expiration - as_of).days,
+                        expiration.weekday() == 4 and 15 <= expiration.day <= 21,
+                        not (expiration.weekday() == 4 and 15 <= expiration.day <= 21),
+                        as_of,
+                        evidence,
+                    )
+                    for expiration in unique_dates
+                ),
             )
         contracts = tuple(
             OptionContract(

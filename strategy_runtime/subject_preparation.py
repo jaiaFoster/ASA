@@ -43,6 +43,8 @@ from screening.subject_planning import (
 from strategy_runtime.knowledge import ReadOnlyStrategyInput, TPayload
 from strategy_runtime.knowledge_composition import compose_strategy_knowledge
 from strategy_runtime.knowledge_registry import KnowledgeBinding, KnowledgeCompositionRegistry
+from strategy_runtime.registry import StrategyAdapter
+from strategy_runtime.result import UniversalScreeningResult
 
 # A strategy-owned callback: given the sealed snapshot, the final
 # provider-neutral projected evidence, this consumer's own phase-two
@@ -58,17 +60,30 @@ PrepareKnowledgeMapping = Callable[
     "KnowledgeBinding[TPayload] | UnknownReason",
 ]
 
+# A strategy-owned callback (SPRINT-014 S14-PR-05A, Architect checkpoint:
+# fourteenth review): given a subject -> already-prepared-knowledge
+# mapping (typically one entry, this subject's own), returns a
+# StrategyAdapter ready to project that knowledge into a
+# UniversalScreeningResult -- the one piece strategy_runtime/
+# orchestration.py needs to build a shadow result generically, without
+# importing any strategy-owned adapter module by name.
+BuildShadowAdapter = Callable[
+    [Mapping[str, "ReadOnlyStrategyInput[TPayload]"]], StrategyAdapter[UniversalScreeningResult]
+]
+
 
 @dataclass(frozen=True, slots=True)
 class SubjectPreparationBinding(Generic[TPayload]):
     """One strategy's own subject-first preparation declaration: what to
     plan/demand (a SubjectPlanConsumer, screening-owned but built from
-    this strategy's own pure demand/expansion functions) and what to do
-    with the plan's own resolved evidence once it seals.
+    this strategy's own pure demand/expansion functions), what to do with
+    the plan's own resolved evidence once it seals, and how to turn that
+    resolved knowledge into a runtime-evaluable shadow adapter.
     """
 
     consumer: SubjectPlanConsumer
     prepare_knowledge_mapping: PrepareKnowledgeMapping[TPayload]
+    build_shadow_adapter: BuildShadowAdapter[TPayload]
 
 
 class UnknownSubjectPreparationBindingError(KeyError):

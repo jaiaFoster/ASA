@@ -260,6 +260,7 @@ def build_earnings_calendar_subject_preparation_binding(
     return SubjectPreparationBinding(
         consumer=consumer,
         prepare_knowledge_mapping=_prepare_earnings_calendar_knowledge_mapping,
+        build_shadow_adapter=build_earnings_calendar_subject_first_adapter,
     )
 
 

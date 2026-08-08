@@ -51,6 +51,7 @@ from market_data import (
 )
 from market_data.budget import BudgetScope
 from market_data.finnhub import finnhub_rolling_window_policy
+from market_data.resolution import ResolutionPolicy
 from market_data.rolling_window import ProviderRollingWindowTracker, RollingWindowPolicy
 from market_data.tradier import tradier_rolling_window_policy
 from strategy_runtime.clock import Clock
@@ -164,6 +165,13 @@ def build_provider_rolling_window_tracker(
 class SubjectMarketDataAccess:
     fulfillment: CapabilityFulfillmentService
     budget_manager: RequestBudgetManager
+    # SPRINT-014 S14-PR-05A (Architect checkpoint: fourteenth review):
+    # exposed so a subject-first caller can build a SubjectAcquisitionPlan's
+    # own provider_metadata/resolution_policy_by_capability arguments from
+    # this SAME already-built registry -- never a second, independently
+    # constructed ProviderRegistry/CapabilityRegistry, and never a
+    # hand-copied provider-priority list in asa/ or a strategy adapter.
+    capability_registry: CapabilityRegistry
 
 
 def build_shared_market_data_access(
@@ -207,5 +215,47 @@ def build_shared_market_data_access(
         fulfillment = CapabilityFulfillmentService(
             provider_registry, capability_registry, budget_manager
         )
-        result[subject] = SubjectMarketDataAccess(fulfillment, budget_manager)
+        result[subject] = SubjectMarketDataAccess(fulfillment, budget_manager, capability_registry)
     return result
+
+
+def resolution_policy_for_capabilities(
+    capability_registry: CapabilityRegistry,
+    field_requirements: dict[MarketCapability, tuple[tuple[str, ...], int]],
+) -> dict[MarketCapability, ResolutionPolicy]:
+    """Build one ResolutionPolicy per capability in ``field_requirements``,
+    reading ``provider_priority``/``policy_version`` from this subject's
+    own already-built CapabilityRegistry -- never a second, hand-copied
+    provider-priority list (SPRINT-014 S14-PR-05A, Architect checkpoint:
+    fourteenth review, "provider metadata and resolution policies must be
+    constructed from existing market-data configuration/registry
+    ownership").
+
+    ``field_requirements`` supplies only what a market-data registry
+    cannot know on its own -- each capability's own required_fields and
+    freshness_threshold_seconds for a *sealed, resolved* observation of
+    that capability (not necessarily every field any one raw demand for it
+    requests: strategies/earnings_calendar_planning.py's own
+    earnings_calendar_resolved_field_requirements() is the one example
+    today, documenting why OPTION_CHAIN_V1 uses its chain demand's own
+    ("contracts",) here, never the expiration-discovery demand's
+    ("expirations",) -- market_data.capability_coalescing.
+    reduce_option_chain_results() always seals the combined OptionChain,
+    never the discovery-only ExpirationCollection, so a resolution policy
+    checking for "expirations" here would never be satisfiable). This
+    function itself never branches on or imports a strategy identity --
+    ``field_requirements`` is caller-supplied data, not a lookup.
+    """
+    policy = capability_registry.policy
+    return {
+        capability: ResolutionPolicy(
+            policy.policy_version,
+            policy.for_capability(capability).provider_ids,
+            freshness_threshold_seconds,
+            required_fields,
+        )
+        for capability, (
+            required_fields,
+            freshness_threshold_seconds,
+        ) in field_requirements.items()
+    }

@@ -54,6 +54,7 @@ from domain import (
     EvidenceUsability,
     ExpirationCollection,
     MarketCapability,
+    OptionChain,
     ResolvedCapabilityEvidence,
     UnknownReason,
 )
@@ -172,6 +173,49 @@ def chain_demand_at(now: datetime, expiration: date) -> CapabilityDemand:
     )
 
 
+def earnings_calendar_resolved_field_requirements() -> dict[
+    MarketCapability, tuple[tuple[str, ...], int]
+]:
+    """This strategy's own declaration of what a *sealed, resolved*
+    observation of each capability it demands must look like (required
+    fields, freshness threshold in seconds) -- the one piece a generic
+    market-data resolution-policy builder cannot derive on its own
+    (SPRINT-014 S14-PR-05A, Architect checkpoint: fourteenth review,
+    "resolution policies must be constructed from existing market-data
+    configuration/registry ownership ... do not copy ... field policy
+    into asa/ or the Earnings adapter"). Reuses this module's own
+    already-canonical per-demand constants directly -- never a second,
+    independently maintained copy -- so
+    strategy_runtime.market_data_planning.resolution_policy_for_capabilities()
+    only ever has to combine this with a subject's own CapabilityRegistry
+    for provider_priority/policy_version.
+
+    OPTION_CHAIN_V1 uses ``_CHAIN_REQUIRED_FIELDS`` (the chain demand's
+    own shape), never ``_EXPIRATIONS_REQUIRED_FIELDS`` (the discovery
+    demand's own shape): market_data.capability_coalescing.
+    reduce_option_chain_results() always seals the combined OptionChain a
+    chain demand resolves, never the discovery-only ExpirationCollection,
+    so a resolution policy requiring the discovery demand's own fields
+    here would never be satisfiable.
+
+    HISTORICAL_BARS_V1's own freshness threshold matches
+    historical_bars_demand()'s own ``maximum_age_seconds`` exactly, for
+    the same request-identity reason that demand's own docstring
+    documents (a mismatched freshness threshold would either wrongly
+    unresolve a genuinely fresh 45-day lookback series, or wrongly accept
+    an intraday-stale one).
+    """
+    return {
+        MarketCapability.REAL_TIME_QUOTE_V1: (_QUOTE_REQUIRED_FIELDS, 3600),
+        MarketCapability.EARNINGS_CALENDAR_V1: (_EARNINGS_REQUIRED_FIELDS, 3600),
+        MarketCapability.OPTION_CHAIN_V1: (_CHAIN_REQUIRED_FIELDS, 3600),
+        MarketCapability.HISTORICAL_BARS_V1: (
+            _HISTORICAL_BARS_REQUIRED_FIELDS,
+            int(timedelta(days=HISTORICAL_LOOKBACK_DAYS + 1).total_seconds()),
+        ),
+    }
+
+
 def earnings_calendar_bootstrap_demands(
     now: datetime,
     *,
@@ -224,13 +268,27 @@ def _expiration_candidates(
     if evidence is None or evidence.usability is not EvidenceUsability.RESOLVED:
         return ()
     value = evidence.value
-    if not isinstance(value, ExpirationCollection):
-        return ()
-    return tuple(
-        ExpirationCandidate(cycle.expiration_date, cycle.days_to_expiration)
-        for cycle in value.cycles
-        if cycle.expiration_date >= as_of
-    )
+    if isinstance(value, ExpirationCollection):
+        return tuple(
+            ExpirationCandidate(cycle.expiration_date, cycle.days_to_expiration)
+            for cycle in value.cycles
+            if cycle.expiration_date >= as_of
+        )
+    if isinstance(value, OptionChain):
+        # A provider/fixture that does not distinguish an expirations-only
+        # request from a full chain request (screening/live_context.py's
+        # own acquire_expirations() documents and handles this same
+        # fallback for the legacy path, via its own expirations_from_chain
+        # helper -- reimplemented here, not imported, since strategies/
+        # cannot import screening/) returns one complete OptionChain
+        # instead; derive the distinct expirations actually present in it.
+        unique_dates = sorted({contract.expiration for contract in value.contracts})
+        return tuple(
+            ExpirationCandidate(expiration, (expiration - as_of).days)
+            for expiration in unique_dates
+            if expiration >= as_of
+        )
+    return ()
 
 
 def expand_earnings_calendar_demands(
