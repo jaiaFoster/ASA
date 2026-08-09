@@ -75,6 +75,7 @@ from strategy_runtime.contract import (
 from strategy_runtime.knowledge import ReadOnlyStrategyInput
 from strategy_runtime.market_data_planning import resolution_policy_for_capabilities
 from strategy_runtime.orchestration import (
+    CutoverPolicy,
     SubjectAcquisitionAccess,
     TouchedResultFulfillment,
     _observations_relevant_to,
@@ -885,6 +886,267 @@ class TestRefreshWithShadowDispatch:
         persisted = repository.get_one(_SYNTHETIC_STRATEGY_ID, "AAPL")
         assert persisted is not None
         assert persisted.to_result().verdict == result.verdict == "PASS"
+
+
+def _raising_legacy_adapter(_context: RuntimeContext) -> UniversalScreeningResult:
+    raise AssertionError("legacy adapter must never execute when cutover is authoritative")
+
+
+def _raising_legacy_registry() -> StrategyRegistry[UniversalScreeningResult]:
+    """A legacy registry that fails the test loudly if its own adapter is
+    ever actually invoked -- the direct proof that a cut-over strategy's
+    authoritative evaluation performs zero legacy execution (Architect
+    checkpoint: nineteenth review, "when cutover is enabled, Earnings
+    authoritative evaluation must come from the already-prepared ...
+    adapter. It must perform zero acquisition of its own").
+    """
+    return StrategyRegistry(((_synthetic_contract(), _raising_legacy_adapter),))
+
+
+class TestCutoverPolicy:
+    """CutoverPolicy's own membership semantics in isolation (Architect
+    checkpoint: nineteenth review, CUTOVER_PASS)."""
+
+    def test_default_empty_policy_is_never_cut_over(self) -> None:
+        assert CutoverPolicy().is_cut_over(_SYNTHETIC_STRATEGY_ID) is False
+
+    def test_absent_strategy_id_defaults_to_not_cut_over(self) -> None:
+        policy = CutoverPolicy({"some-other-strategy": True})
+        assert policy.is_cut_over(_SYNTHETIC_STRATEGY_ID) is False
+
+    def test_registered_true_is_cut_over(self) -> None:
+        policy = CutoverPolicy({_SYNTHETIC_STRATEGY_ID: True})
+        assert policy.is_cut_over(_SYNTHETIC_STRATEGY_ID) is True
+
+    def test_registered_false_is_the_rollback_state_not_cut_over(self) -> None:
+        policy = CutoverPolicy({_SYNTHETIC_STRATEGY_ID: False})
+        assert policy.is_cut_over(_SYNTHETIC_STRATEGY_ID) is False
+
+
+class TestCutoverDispatch:
+    """SPRINT-014 S14-PR-05, Architect checkpoint: nineteenth review
+    ("CUTOVER_PASS ... implement the already-approved PR-05 cutover
+    mechanism") -- refresh_with_shadow()'s own new cutover-authoritative
+    branch, proven against the same synthetic registries/adapters
+    TestRefreshWithShadowDispatch already established, so this layer's
+    control flow is proven independently of any real financial data.
+    """
+
+    def test_cut_over_strategy_is_authoritative_from_already_prepared_knowledge(
+        self,
+    ) -> None:
+        # The shadow adapter reports WATCH; the (never-invoked) legacy
+        # adapter would report PASS if it ran at all -- proving the
+        # returned result really came from the already-prepared knowledge,
+        # not from legacy.
+        shadow_registry = _synthetic_shadow_registry(_shadow_adapter_mismatched_verdict)
+        knowledge = {_SYNTHETIC_STRATEGY_ID: _synthetic_knowledge_input("AAPL")}
+        cutover_policy = CutoverPolicy({_SYNTHETIC_STRATEGY_ID: True})
+
+        result, diagnostic = refresh_with_shadow(
+            _raising_legacy_registry(),
+            _repository(),
+            _FrozenClock(NOW),
+            strategy_id=_SYNTHETIC_STRATEGY_ID,
+            symbol="AAPL",
+            observations=tuple,
+            shadow_registry=shadow_registry,
+            shadow_knowledge_by_subject=knowledge,
+            cutover_policy=cutover_policy,
+            now=NOW,
+        )
+
+        assert result.verdict == "WATCH"
+        # No shadow comparison runs once cutover is authoritative --
+        # there is nothing left to compare against (Architect checkpoint:
+        # nineteenth review, "do not run both authoritative paths after
+        # cutover merely to preserve shadowing").
+        assert diagnostic is None
+
+    def test_cut_over_result_is_the_only_thing_persisted(self) -> None:
+        shadow_registry = _synthetic_shadow_registry(_shadow_adapter_mismatched_verdict)
+        knowledge = {_SYNTHETIC_STRATEGY_ID: _synthetic_knowledge_input("AAPL")}
+        cutover_policy = CutoverPolicy({_SYNTHETIC_STRATEGY_ID: True})
+        repository = _repository()
+
+        result, _diagnostic = refresh_with_shadow(
+            _raising_legacy_registry(),
+            repository,
+            _FrozenClock(NOW),
+            strategy_id=_SYNTHETIC_STRATEGY_ID,
+            symbol="AAPL",
+            observations=tuple,
+            shadow_registry=shadow_registry,
+            shadow_knowledge_by_subject=knowledge,
+            cutover_policy=cutover_policy,
+            now=NOW,
+        )
+
+        persisted = repository.get_one(_SYNTHETIC_STRATEGY_ID, "AAPL")
+        assert persisted is not None
+        assert persisted.to_result().verdict == result.verdict == "WATCH"
+
+    def test_cutover_authoritative_path_never_calls_the_observations_callback(self) -> None:
+        """The cutover-authoritative path performs zero acquisition of its
+        own -- proven directly by supplying an observations callback that
+        fails the test if it is ever invoked, rather than asserting on a
+        downstream side effect.
+        """
+        shadow_registry = _synthetic_shadow_registry(_shadow_adapter_matching_legacy)
+        knowledge = {_SYNTHETIC_STRATEGY_ID: _synthetic_knowledge_input("AAPL")}
+        cutover_policy = CutoverPolicy({_SYNTHETIC_STRATEGY_ID: True})
+
+        def _observations() -> tuple[MarketObservation, ...]:
+            raise AssertionError(
+                "cutover-authoritative evaluation must never call the caller's "
+                "own observations callback"
+            )
+
+        result, _diagnostic = refresh_with_shadow(
+            _raising_legacy_registry(),
+            _repository(),
+            _FrozenClock(NOW),
+            strategy_id=_SYNTHETIC_STRATEGY_ID,
+            symbol="AAPL",
+            observations=_observations,
+            shadow_registry=shadow_registry,
+            shadow_knowledge_by_subject=knowledge,
+            cutover_policy=cutover_policy,
+            now=NOW,
+        )
+
+        assert result.temporal is None
+
+    def test_unknown_reason_under_cutover_yields_missing_data_never_legacy_execution(
+        self,
+    ) -> None:
+        shadow_registry = _synthetic_shadow_registry(_shadow_adapter_matching_legacy)
+        knowledge: dict[str, ReadOnlyStrategyInput[object] | UnknownReason] = {
+            _SYNTHETIC_STRATEGY_ID: UnknownReason("synthetic_gap", demand_ids=("demand-a",))
+        }
+        cutover_policy = CutoverPolicy({_SYNTHETIC_STRATEGY_ID: True})
+
+        result, diagnostic = refresh_with_shadow(
+            _raising_legacy_registry(),
+            _repository(),
+            _FrozenClock(NOW),
+            strategy_id=_SYNTHETIC_STRATEGY_ID,
+            symbol="AAPL",
+            observations=tuple,
+            shadow_registry=shadow_registry,
+            shadow_knowledge_by_subject=knowledge,
+            cutover_policy=cutover_policy,
+            now=NOW,
+        )
+
+        assert diagnostic is None
+        assert result.evaluation_state == EvaluationState.MISSING_DATA
+        assert result.verdict is None
+        assert result.opportunity_id is None
+        assert result.lifecycle_stage is None
+        assert any("synthetic_gap" in blocker for blocker in result.blockers)
+
+    def test_rollback_false_entry_keeps_legacy_authoritative_and_shadow_comparison(
+        self,
+    ) -> None:
+        """A registered-but-False CutoverPolicy entry (the operationally
+        reversible rollback state) behaves identically to no cutover_policy
+        at all -- legacy stays authoritative and shadow comparison still
+        runs, with zero data migration required to reach this state.
+        """
+        shadow_registry = _synthetic_shadow_registry(_shadow_adapter_matching_legacy)
+        knowledge = {_SYNTHETIC_STRATEGY_ID: _synthetic_knowledge_input("AAPL")}
+        cutover_policy = CutoverPolicy({_SYNTHETIC_STRATEGY_ID: False})
+
+        result, diagnostic = refresh_with_shadow(
+            _synthetic_legacy_registry(),
+            _repository(),
+            _FrozenClock(NOW),
+            strategy_id=_SYNTHETIC_STRATEGY_ID,
+            symbol="AAPL",
+            observations=tuple,
+            shadow_registry=shadow_registry,
+            shadow_knowledge_by_subject=knowledge,
+            cutover_policy=cutover_policy,
+            now=NOW,
+        )
+
+        assert result.verdict == "PASS"
+        assert diagnostic is not None
+        assert diagnostic.status == "match"
+
+    def test_cut_over_but_no_shadow_knowledge_prepared_falls_back_to_legacy(self) -> None:
+        """Cutover is enabled and the strategy is shadow-registered, but
+        this subject's own knowledge was never actually prepared for it --
+        refresh_with_shadow() falls back to its existing legacy(+optional
+        shadow) behavior rather than fabricating an authoritative result
+        from nothing.
+        """
+        shadow_registry = _synthetic_shadow_registry(_shadow_adapter_matching_legacy)
+        cutover_policy = CutoverPolicy({_SYNTHETIC_STRATEGY_ID: True})
+
+        result, diagnostic = refresh_with_shadow(
+            _synthetic_legacy_registry(),
+            _repository(),
+            _FrozenClock(NOW),
+            strategy_id=_SYNTHETIC_STRATEGY_ID,
+            symbol="AAPL",
+            observations=tuple,
+            shadow_registry=shadow_registry,
+            shadow_knowledge_by_subject={},
+            cutover_policy=cutover_policy,
+            now=NOW,
+        )
+
+        assert result.verdict == "PASS"
+        assert diagnostic is not None
+        assert diagnostic.status == "not_shadowed"
+
+    def test_cut_over_but_not_shadow_registered_falls_back_to_legacy(self) -> None:
+        """Cutover policy names a strategy_id that has no shadow_registry
+        binding at all -- there is no already-prepared knowledge to be
+        authoritative from, so legacy stays authoritative, exactly as if
+        cutover_policy had never been supplied.
+        """
+        cutover_policy = CutoverPolicy({_SYNTHETIC_STRATEGY_ID: True})
+
+        result, diagnostic = refresh_with_shadow(
+            _synthetic_legacy_registry(),
+            _repository(),
+            _FrozenClock(NOW),
+            strategy_id=_SYNTHETIC_STRATEGY_ID,
+            symbol="AAPL",
+            observations=tuple,
+            cutover_policy=cutover_policy,
+            now=NOW,
+        )
+
+        assert result.verdict == "PASS"
+        assert diagnostic is None
+
+    def test_no_cutover_policy_is_identical_to_todays_pre_cutover_behavior(self) -> None:
+        """The absent-cutover_policy default (both production roots always
+        pass one, but the parameter itself defaults to None) behaves
+        identically to an empty/rollback policy.
+        """
+        shadow_registry = _synthetic_shadow_registry(_shadow_adapter_matching_legacy)
+        knowledge = {_SYNTHETIC_STRATEGY_ID: _synthetic_knowledge_input("AAPL")}
+
+        result, diagnostic = refresh_with_shadow(
+            _synthetic_legacy_registry(),
+            _repository(),
+            _FrozenClock(NOW),
+            strategy_id=_SYNTHETIC_STRATEGY_ID,
+            symbol="AAPL",
+            observations=tuple,
+            shadow_registry=shadow_registry,
+            shadow_knowledge_by_subject=knowledge,
+            now=NOW,
+        )
+
+        assert result.verdict == "PASS"
+        assert diagnostic is not None
+        assert diagnostic.status == "match"
 
 
 # ---------------------------------------------------------------------------

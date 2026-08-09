@@ -1515,3 +1515,230 @@ def test_scheduled_earnings_outage_shadow_unknown_and_bounded_once_not_doubled(
     assert entry.shadow_unknown_code == "missing_earnings_date"
     assert entry.shadow_unknown_demand_ids != ()
     assert len(captured["AAPL"].budget_manager.accounting) == baseline
+
+
+# ---------------------------------------------------------------------------
+# SPRINT-014 S14-PR-05, Architect checkpoint: nineteenth review
+# ("CUTOVER_PASS ... implement the already-approved PR-05 cutover
+# mechanism") -- real scheduled-root evidence that the cutover switch
+# itself, not just the underlying subject-first evaluation, behaves
+# correctly: authoritative when enabled with zero added legacy calls,
+# legacy again on rollback, PASS/WATCH/UNKNOWN preserved, and FF
+# unaffected.
+# ---------------------------------------------------------------------------
+
+
+def test_scheduled_earnings_cutover_pass_is_authoritative_with_zero_legacy_calls(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """With the cutover flag enabled, Earnings Calendar's already-prepared
+    subject-first knowledge becomes authoritative -- legacy never executes
+    (no shadow_parity_diagnostic is ever logged, since there is nothing
+    left to compare against once cutover is authoritative), and the
+    cycle's own total provider-call count for AAPL equals subject-first
+    preparation's own isolated cost exactly, proving legacy added zero
+    calls of its own.
+    """
+    import asa.scheduled_screening as scheduled_screening_module
+
+    factory, captured = capturing_market_data_access_factory(
+        build_fixture_market_data_access_factory()
+    )
+    monkeypatch.setattr(scheduled_screening_module, "build_shared_market_data_access", factory)
+    monkeypatch.setenv("ASA_TRADIER_ENABLED", "true")
+    monkeypatch.setenv("ASA_TRADIER_ACCESS_TOKEN", "sandbox-secret-token")
+    monkeypatch.setenv("ASA_EARNINGS_CALENDAR_CUTOVER_ENABLED", "true")
+    repository = InMemoryLatestResultRepository()
+    caplog.set_level(logging.INFO)
+    baseline = shadow_alone_call_count("AAPL", datetime.now(UTC))
+
+    outcomes = run_scheduled_refresh(
+        (("earnings_calendar", "AAPL"),),
+        repository=repository,
+        acquisition_attempt_repository=InMemoryAcquisitionAttemptRepository(),
+    )
+
+    assert len(outcomes) == 1
+    assert outcomes[0].error is None
+    assert outcomes[0].outcome == "pass"
+    entries = [
+        record for record in caplog.records if record.message == "shadow_parity_diagnostic"
+    ]
+    assert entries == []
+    persisted = repository.get_one("earnings_calendar", "AAPL")
+    assert persisted is not None
+    assert persisted.verdict == "PASS"
+    assert persisted.evaluation_state == "pass"
+    assert len(captured["AAPL"].budget_manager.accounting) == baseline
+
+
+def test_scheduled_earnings_cutover_watch_is_authoritative(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    import asa.scheduled_screening as scheduled_screening_module
+
+    monkeypatch.setattr(
+        scheduled_screening_module,
+        "build_shared_market_data_access",
+        build_fixture_market_data_access_factory(
+            provider_cls_by_symbol={"AAPL": WatchEarningsFixtureProvider}
+        ),
+    )
+    monkeypatch.setenv("ASA_TRADIER_ENABLED", "true")
+    monkeypatch.setenv("ASA_TRADIER_ACCESS_TOKEN", "sandbox-secret-token")
+    monkeypatch.setenv("ASA_EARNINGS_CALENDAR_CUTOVER_ENABLED", "true")
+    repository = InMemoryLatestResultRepository()
+    caplog.set_level(logging.INFO)
+
+    outcomes = run_scheduled_refresh(
+        (("earnings_calendar", "AAPL"),),
+        repository=repository,
+        acquisition_attempt_repository=InMemoryAcquisitionAttemptRepository(),
+    )
+
+    assert len(outcomes) == 1
+    assert outcomes[0].error is None
+    assert outcomes[0].outcome == "pass"  # WATCH's own evaluation_state
+    entries = [
+        record for record in caplog.records if record.message == "shadow_parity_diagnostic"
+    ]
+    assert entries == []
+    persisted = repository.get_one("earnings_calendar", "AAPL")
+    assert persisted is not None
+    assert persisted.verdict == "WATCH"
+    assert persisted.evaluation_state == "pass"
+    assert persisted.lifecycle_stage == "confirmed"
+    assert persisted.opportunity_id is not None
+
+
+def test_scheduled_earnings_cutover_outage_is_authoritative_missing_data_and_bounded_once(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A genuine, shared EARNINGS_CALENDAR_V1 outage under cutover: the
+    subject-first path's own typed UnknownReason becomes the authoritative
+    missing_data result (never a crash, never a fallback to legacy
+    execution), and the cycle's own total provider-call count for AAPL
+    still equals subject-first preparation's own isolated cost exactly --
+    the same bounded-once property the pre-cutover shadow path already
+    proved, now confirmed for the authoritative path itself.
+    """
+    import asa.scheduled_screening as scheduled_screening_module
+
+    scenario = FixtureScenario(
+        failures=((MarketCapability.EARNINGS_CALENDAR_V1, ProviderErrorCode.NO_DATA),)
+    )
+    factory, captured = capturing_market_data_access_factory(
+        build_fixture_market_data_access_factory({"AAPL": scenario})
+    )
+    monkeypatch.setattr(scheduled_screening_module, "build_shared_market_data_access", factory)
+    monkeypatch.setenv("ASA_TRADIER_ENABLED", "true")
+    monkeypatch.setenv("ASA_TRADIER_ACCESS_TOKEN", "sandbox-secret-token")
+    monkeypatch.setenv("ASA_EARNINGS_CALENDAR_CUTOVER_ENABLED", "true")
+    repository = InMemoryLatestResultRepository()
+    caplog.set_level(logging.INFO)
+    baseline = shadow_alone_call_count("AAPL", datetime.now(UTC), scenario)
+
+    outcomes = run_scheduled_refresh(
+        (("earnings_calendar", "AAPL"),),
+        repository=repository,
+        acquisition_attempt_repository=InMemoryAcquisitionAttemptRepository(),
+    )
+
+    assert len(outcomes) == 1
+    assert outcomes[0].error is None
+    assert outcomes[0].outcome == "missing_data"
+    entries = [
+        record for record in caplog.records if record.message == "shadow_parity_diagnostic"
+    ]
+    assert entries == []
+    persisted = repository.get_one("earnings_calendar", "AAPL")
+    assert persisted is not None
+    assert persisted.evaluation_state == "missing_data"
+    assert persisted.verdict is None
+    assert len(captured["AAPL"].budget_manager.accounting) == baseline
+
+
+def test_scheduled_earnings_cutover_explicitly_disabled_keeps_legacy_authoritative(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """The rollback path: an explicit falsy
+    ASA_EARNINGS_CALENDAR_CUTOVER_ENABLED value (not merely the flag's
+    absence) keeps legacy authoritative and the shadow comparison running,
+    proving the switch is operationally reversible in both directions,
+    not just off by default.
+    """
+    import asa.scheduled_screening as scheduled_screening_module
+
+    monkeypatch.setattr(
+        scheduled_screening_module,
+        "build_shared_market_data_access",
+        build_fixture_market_data_access_factory(),
+    )
+    monkeypatch.setenv("ASA_TRADIER_ENABLED", "true")
+    monkeypatch.setenv("ASA_TRADIER_ACCESS_TOKEN", "sandbox-secret-token")
+    monkeypatch.setenv("ASA_EARNINGS_CALENDAR_CUTOVER_ENABLED", "false")
+    repository = InMemoryLatestResultRepository()
+    caplog.set_level(logging.INFO)
+
+    outcomes = run_scheduled_refresh(
+        (("earnings_calendar", "AAPL"),),
+        repository=repository,
+        acquisition_attempt_repository=InMemoryAcquisitionAttemptRepository(),
+    )
+
+    assert len(outcomes) == 1
+    assert outcomes[0].error is None
+    assert outcomes[0].outcome == "pass"
+    entries = [
+        record for record in caplog.records if record.message == "shadow_parity_diagnostic"
+    ]
+    assert len(entries) == 1
+    assert entries[0].shadow_status == "match"
+    persisted = repository.get_one("earnings_calendar", "AAPL")
+    assert persisted is not None
+    assert persisted.verdict == "PASS"
+
+
+def test_scheduled_forward_factor_unaffected_by_earnings_cutover(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Architect checkpoint: nineteenth review, "Scope it only to the
+    migrated earnings_calendar strategy. FF/Skew stay on their existing
+    legacy evaluation path." forward_factor shares this cycle and this
+    symbol's own plan with a cut-over Earnings Calendar pair, but
+    forward_factor itself has no CutoverPolicy entry (only earnings_
+    calendar does): it keeps executing through legacy, unaffected by the
+    other pair's own authority selection.
+    """
+    import asa.scheduled_screening as scheduled_screening_module
+
+    monkeypatch.setattr(
+        scheduled_screening_module,
+        "build_shared_market_data_access",
+        build_fixture_market_data_access_factory(),
+    )
+    monkeypatch.setenv("ASA_TRADIER_ENABLED", "true")
+    monkeypatch.setenv("ASA_TRADIER_ACCESS_TOKEN", "sandbox-secret-token")
+    monkeypatch.setenv("ASA_EARNINGS_CALENDAR_CUTOVER_ENABLED", "true")
+    repository = InMemoryLatestResultRepository()
+    caplog.set_level(logging.INFO)
+
+    outcomes = run_scheduled_refresh(
+        (("forward_factor", "AAPL"), ("earnings_calendar", "AAPL")),
+        repository=repository,
+        acquisition_attempt_repository=InMemoryAcquisitionAttemptRepository(),
+    )
+
+    assert len(outcomes) == 2
+    forward_factor_outcome = next(item for item in outcomes if item.signal_id == "forward_factor")
+    earnings_outcome = next(item for item in outcomes if item.signal_id == "earnings_calendar")
+    assert forward_factor_outcome.error is None
+    assert earnings_outcome.error is None
+    # forward_factor is never shadow-registered/cutover-eligible: no
+    # shadow_parity_diagnostic entry is ever logged for it, cut over or not.
+    entries = [
+        record for record in caplog.records if record.message == "shadow_parity_diagnostic"
+    ]
+    assert all(entry.signal_id != "forward_factor" for entry in entries)
+    forward_factor_persisted = repository.get_one("forward_factor", "AAPL")
+    assert forward_factor_persisted is not None

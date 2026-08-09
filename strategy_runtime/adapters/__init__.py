@@ -33,6 +33,7 @@ immediately beforehand.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from datetime import datetime
 
 from domain import MarketCapability
@@ -67,18 +68,23 @@ from strategy_runtime.adapters.skew_momentum_vertical import (
 from strategy_runtime.catalog import SignalCatalogEntry
 from strategy_runtime.manifest_contract import validate_manifest_contract
 from strategy_runtime.market_data_planning import resolution_policy_for_capabilities
+from strategy_runtime.orchestration import CutoverPolicy
 from strategy_runtime.registry import StrategyRegistry
 from strategy_runtime.result import UniversalScreeningResult
 from strategy_runtime.subject_preparation import SubjectPreparationRegistry
 
 __all__ = [
+    "EARNINGS_CALENDAR_CUTOVER_ENABLED_VAR",
     "UNBOUND_FULFILLMENT",
+    "build_migrated_cutover_policy",
     "build_migrated_shadow_registry",
     "build_migrated_signal_catalog",
     "build_migrated_strategy_registry",
     "migrated_shadow_capability_reducers",
     "migrated_shadow_resolution_policy",
 ]
+
+EARNINGS_CALENDAR_CUTOVER_ENABLED_VAR = "ASA_EARNINGS_CALENDAR_CUTOVER_ENABLED"
 
 
 class _UnboundFulfillment:
@@ -199,3 +205,49 @@ def build_migrated_signal_catalog() -> tuple[SignalCatalogEntry, ...]:
         ),
     )
     return tuple(sorted(entries, key=lambda item: item.signal_id))
+
+
+def build_migrated_cutover_policy(values: Mapping[str, str]) -> CutoverPolicy:
+    """The one shared cutover-policy owner both asa/scheduled_screening.py
+    and asa/api/screening_routes.py call identically (SPRINT-014 S14-PR-05,
+    Architect checkpoint: nineteenth review, "one shared cutover policy
+    owner used identically by scheduled and API roots. Do not create
+    separate route-specific switches").
+
+    Reads ``ASA_EARNINGS_CALENDAR_CUTOVER_ENABLED`` from ``values`` (an
+    explicit environment mapping, following
+    market_data.config.load_market_data_config's own established
+    boundary convention -- a caller passes os.environ at the actual
+    process boundary, never read here directly). Only the migrated
+    earnings_calendar strategy is ever eligible (Architect checkpoint:
+    nineteenth review, "Scope it only to the migrated earnings_calendar
+    strategy. FF/Skew stay on their existing legacy evaluation path.") --
+    this function has no branch or parameter that could register any
+    other strategy_id.
+
+    Absent or falsy: earnings_calendar keeps its legacy-authoritative,
+    shadow-compared rollback behavior. Truthy: earnings_calendar's own
+    already-prepared subject-first knowledge becomes authoritative.
+    Flipping this flag back is the entire rollback mechanism -- no data
+    migration, since sealed subject-first evidence and attempt records
+    already recorded are never touched by this function either way.
+    """
+    return CutoverPolicy(
+        {
+            EARNINGS_CALENDAR_CONTRACT.strategy_id: _boolean_flag(
+                values, EARNINGS_CALENDAR_CUTOVER_ENABLED_VAR, default=False
+            )
+        }
+    )
+
+
+def _boolean_flag(values: Mapping[str, str], name: str, *, default: bool) -> bool:
+    raw = values.get(name)
+    if raw is None:
+        return default
+    normalized = raw.strip().lower()
+    if normalized in {"1", "true", "yes", "on"}:
+        return True
+    if normalized in {"0", "false", "no", "off"}:
+        return False
+    raise ValueError(f"{name} must be boolean")

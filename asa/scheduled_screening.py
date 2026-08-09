@@ -35,6 +35,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import os
 import sys
 import time
 from collections.abc import Callable, Sequence
@@ -72,6 +73,7 @@ from screening.cycle_identity import (
 from screening.live_acquisition import live_only_config
 from screening.live_adapters import capture_skew_snapshot
 from strategy_runtime.adapters import (
+    build_migrated_cutover_policy,
     build_migrated_shadow_registry,
     build_migrated_strategy_registry,
     migrated_shadow_capability_reducers,
@@ -406,6 +408,12 @@ def run_scheduled_refresh(
     # never aborts or affects any pair's own legacy evaluation.
     shadow_registry = build_migrated_shadow_registry(clock.now())
     shadow_capability_reducers = migrated_shadow_capability_reducers()
+    # SPRINT-014 S14-PR-05, Architect checkpoint: nineteenth review, "one
+    # shared cutover policy owner used identically by scheduled and API
+    # roots" -- built once per cycle from the same environment boundary
+    # market_data.config's own provider ASA_{PROVIDER}_ENABLED flags use,
+    # never a route-specific switch.
+    cutover_policy = build_migrated_cutover_policy(os.environ)
     requested_signal_ids_by_symbol: dict[str, set[str]] = {}
     for signal_id, symbol in universe:
         requested_signal_ids_by_symbol.setdefault(symbol, set()).add(signal_id)
@@ -480,6 +488,7 @@ def run_scheduled_refresh(
                 historical_skew_repository=resolved_historical_skew_repository,
                 shadow_registry=shadow_registry,
                 shadow_knowledge_by_subject=shadow_knowledge_by_symbol.get(symbol),
+                cutover_policy=cutover_policy,
             )
             _tally_new_calls(symbol, call_log_start)
             if shadow_diagnostic is not None:

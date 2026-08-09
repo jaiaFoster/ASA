@@ -536,3 +536,168 @@ class TestRealEarningsShadowAgainstFixtureProvider:
         assert entry.shadow_mismatched_fields == ()
         assert entry.shadow_snapshot_id is not None
         assert entry.shadow_snapshot_digest is not None
+
+
+class TestEarningsCutoverAgainstFixtureProvider:
+    """SPRINT-014 S14-PR-05, Architect checkpoint: nineteenth review
+    ("CUTOVER_PASS ... implement the already-approved PR-05 cutover
+    mechanism") -- the real API root, cutover enabled: authoritative
+    subject-first result with zero additional legacy calls (no shadow
+    comparison runs once cutover is authoritative -- there is nothing
+    left to compare against), rollback selects legacy again, and
+    PASS/WATCH/UNKNOWN all preserved.
+    """
+
+    def _client(
+        self, monkeypatch: pytest.MonkeyPatch, factory: object, *, cutover: bool
+    ) -> TestClient:
+        import asa.api.screening_routes as screening_routes_module
+
+        monkeypatch.setattr(screening_routes_module, "build_shared_market_data_access", factory)
+        monkeypatch.setenv("ASA_TRADIER_ENABLED", "true")
+        monkeypatch.setenv("ASA_TRADIER_ACCESS_TOKEN", "sandbox-secret-token")
+        monkeypatch.setenv(
+            "ASA_EARNINGS_CALENDAR_CUTOVER_ENABLED", "true" if cutover else "false"
+        )
+        return TestClient(
+            build_application(
+                Settings(agent_api_token=SecretStr("correct-token"), _env_file=None),
+                DependencyOverrides(
+                    latest_result_repository=InMemoryLatestResultRepository(),
+                    acquisition_attempt_repository=InMemoryAcquisitionAttemptRepository(),
+                ),
+            )
+        )
+
+    def test_cutover_pass_is_authoritative_with_zero_additional_provider_calls(
+        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        client = self._client(monkeypatch, build_fixture_market_data_access_factory(), cutover=True)
+        caplog.set_level(logging.INFO)
+        logging.getLogger().addHandler(caplog.handler)
+        baseline = shadow_alone_call_count("AAPL", datetime.now(UTC))
+
+        response = client.post("/api/v1/screening/earnings_calendar/AAPL/refresh", headers=_auth())
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["outcome"] == "pass"
+        assert body["verdict"] == "PASS"
+        # The correctness bar checkpoint sixteen/seventeen already
+        # established for the shadow path: the real request's own total
+        # provider-call count must equal subject-first preparation's own
+        # isolated cost exactly -- now proven for the authoritative
+        # (never legacy-executed) path itself.
+        assert body["request_count"] == baseline
+        entries = [
+            record for record in caplog.records if record.message == "shadow_parity_diagnostic"
+        ]
+        assert entries == []
+
+    def test_cutover_watch_is_authoritative(
+        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        factory = build_fixture_market_data_access_factory(
+            provider_cls_by_symbol={"AAPL": WatchEarningsFixtureProvider}
+        )
+        client = self._client(monkeypatch, factory, cutover=True)
+        caplog.set_level(logging.INFO)
+        logging.getLogger().addHandler(caplog.handler)
+        baseline = shadow_alone_call_count(
+            "AAPL", datetime.now(UTC), provider_cls=WatchEarningsFixtureProvider
+        )
+
+        response = client.post("/api/v1/screening/earnings_calendar/AAPL/refresh", headers=_auth())
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["verdict"] == "WATCH"
+        assert body["outcome"] == "watch"
+        assert body["lifecycle_stage"] == "confirmed"
+        assert body["opportunity_id"] is not None
+        assert body["request_count"] == baseline
+        entries = [
+            record for record in caplog.records if record.message == "shadow_parity_diagnostic"
+        ]
+        assert entries == []
+
+    def test_cutover_unknown_reason_is_authoritative_missing_data_bounded_once(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        scenario = FixtureScenario(
+            failures=((MarketCapability.EARNINGS_CALENDAR_V1, ProviderErrorCode.NO_DATA),)
+        )
+        factory = build_fixture_market_data_access_factory({"AAPL": scenario})
+        client = self._client(monkeypatch, factory, cutover=True)
+        baseline = shadow_alone_call_count("AAPL", datetime.now(UTC), scenario)
+
+        response = client.post("/api/v1/screening/earnings_calendar/AAPL/refresh", headers=_auth())
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["outcome"] == "missing_data"
+        assert body["verdict"] is None
+        assert body["request_count"] == baseline
+
+    def test_rollback_explicitly_disabled_keeps_legacy_authoritative(
+        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """The rollback path: an explicit falsy
+        ASA_EARNINGS_CALENDAR_CUTOVER_ENABLED value keeps legacy
+        authoritative and the shadow comparison running, exactly like
+        today's pre-cutover behavior.
+        """
+        client = self._client(
+            monkeypatch, build_fixture_market_data_access_factory(), cutover=False
+        )
+        caplog.set_level(logging.INFO)
+        logging.getLogger().addHandler(caplog.handler)
+        baseline = shadow_alone_call_count("AAPL", datetime.now(UTC))
+
+        response = client.post("/api/v1/screening/earnings_calendar/AAPL/refresh", headers=_auth())
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["outcome"] == "pass"
+        assert body["verdict"] == "PASS"
+        assert body["request_count"] == baseline
+        entries = [
+            record for record in caplog.records if record.message == "shadow_parity_diagnostic"
+        ]
+        assert len(entries) == 1
+        assert entries[0].shadow_status == "match"
+
+    def test_forward_factor_unaffected_by_earnings_cutover(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Architect checkpoint: nineteenth review, "Scope it only to the
+        migrated earnings_calendar strategy. FF/Skew stay on their
+        existing legacy evaluation path." forward_factor's own refresh
+        endpoint never consults CutoverPolicy for anything but
+        earnings_calendar (it has no shadow-registry binding at all, so
+        _cutover_authoritative_adapter always returns None for it) --
+        proven directly by comparing its own real response with the
+        cutover flag enabled against the same request with it disabled:
+        identical outcome/verdict/request_count either way, whatever
+        forward_factor's own real evaluation happens to produce.
+        """
+        cut_over_client = self._client(
+            monkeypatch, build_fixture_market_data_access_factory(), cutover=True
+        )
+        cut_over_response = cut_over_client.post(
+            "/api/v1/screening/forward_factor/AAPL/refresh", headers=_auth()
+        )
+
+        rolled_back_client = self._client(
+            monkeypatch, build_fixture_market_data_access_factory(), cutover=False
+        )
+        rolled_back_response = rolled_back_client.post(
+            "/api/v1/screening/forward_factor/AAPL/refresh", headers=_auth()
+        )
+
+        assert cut_over_response.status_code == rolled_back_response.status_code == 200
+        cut_over_body = cut_over_response.json()
+        rolled_back_body = rolled_back_response.json()
+        assert cut_over_body["outcome"] == rolled_back_body["outcome"]
+        assert cut_over_body["verdict"] == rolled_back_body["verdict"]
+        assert cut_over_body["request_count"] == rolled_back_body["request_count"]

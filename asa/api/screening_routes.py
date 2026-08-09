@@ -23,6 +23,7 @@ the runtime executes. It has no separate legacy registry authority.
 from __future__ import annotations
 
 import logging
+import os
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -53,6 +54,7 @@ from screening.cycle_identity import (
 )
 from screening.live_acquisition import APPROVED_LIVE_UNIVERSE, live_only_config
 from strategy_runtime.adapters import (
+    build_migrated_cutover_policy,
     build_migrated_shadow_registry,
     build_migrated_strategy_registry,
     migrated_shadow_capability_reducers,
@@ -431,6 +433,12 @@ def build_screening_router(
         # failure is isolated and never affects this request's own legacy
         # evaluation below.
         shadow_registry = build_migrated_shadow_registry(clock.now())
+        # SPRINT-014 S14-PR-05, Architect checkpoint: nineteenth review,
+        # "one shared cutover policy owner used identically by scheduled
+        # and API roots" -- same function, same environment boundary as
+        # asa/scheduled_screening.py's own call, never a route-specific
+        # switch.
+        cutover_policy = build_migrated_cutover_policy(os.environ)
         shadow_knowledge_by_subject: (
             dict[str, ReadOnlyStrategyInput[object] | UnknownReason] | None
         ) = None
@@ -463,6 +471,7 @@ def build_screening_router(
                 observations=partial(touched_observations, tracker),
                 shadow_registry=shadow_registry,
                 shadow_knowledge_by_subject=shadow_knowledge_by_subject,
+                cutover_policy=cutover_policy,
             )
         except RuntimeError:
             if prior is None:

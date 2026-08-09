@@ -1,5 +1,6 @@
 """Shared production orchestration seam (SPRINT-014 S14-PR-05A, Architect
-checkpoint: fourteenth review, "authorized next increment").
+checkpoint: nineteenth review, "CUTOVER_PASS ... implement the
+already-approved PR-05 cutover mechanism").
 
 The one generic seam both asa/scheduled_screening.py and
 asa/api/screening_routes.py call instead of a direct
@@ -9,26 +10,42 @@ invocation/cycle:
     one CapabilityFulfillmentService (built by the caller, unchanged)
     -> one SubjectAcquisitionPlan       (build_subject_acquisition_access)
     -> one PlanBackedFulfillment        (the same function)
-    -> subject-first shadow preparation (prepare_subject_shadow_knowledge,
+    -> subject-first preparation        (prepare_subject_shadow_knowledge,
                                           run once per subject, before any
                                           pair-level refresh)
     -> legacy adapters, closed over the SAME PlanBackedFulfillment
-    -> legacy authoritative result      (refresh(), unchanged)
-    -> shadow result + parity diagnostic (refresh_with_shadow, per pair)
+    -> refresh_with_shadow(), per pair:
+       * strategy_id has NO registered CutoverPolicy entry (today: FF,
+         Skew, and Earnings before its own entry exists) -- unchanged:
+         legacy authoritative result (refresh()), plus an optional shadow
+         result + parity diagnostic if also shadow-registered.
+       * strategy_id HAS a CutoverPolicy entry, currently pointing at
+         legacy (rollback) -- same as above: legacy authoritative, shadow
+         comparison still runs (an operator can flip back to subject-first
+         at any time with zero data migration).
+       * strategy_id HAS a CutoverPolicy entry pointing at subject-first
+         (cut over) -- subject-first's own already-prepared knowledge
+         becomes authoritative; legacy is never invoked at all, and no
+         shadow comparison runs (Architect checkpoint: nineteenth review,
+         "do not run both authoritative paths after cutover merely to
+         preserve shadowing").
 
-Legacy stays authoritative: refresh_with_shadow() persists exactly what
-refresh() already persists, through the same injected LatestResultRepository
--- a shadow result is never returned as the authoritative result and never
-reaches repository.upsert() through this module. No CUTOVER_PASS switch
-exists here; that remains S14-PR-06/07's own separate, still-paused work.
+Legacy stays the ONLY historically-authoritative path until a strategy's
+own CutoverPolicy entry says otherwise; refresh_with_shadow() still
+persists exactly what its own selected path computes, through the same
+injected LatestResultRepository -- a non-selected path's own result is
+never returned as authoritative and never reaches repository.upsert()
+through this module.
 
 Generic, registry/callback-driven throughout: this module imports no
 strategy-owned adapter module and contains no ``if strategy_id ==`` branch
-of any kind -- ``shadow_registry: SubjectPreparationRegistry`` is the one
-extension point a strategy registers itself into (today, only one migrated
-strategy does, via its own adapter module's binding-builder function); a
-strategy that never registers there is simply never shadowed, with zero
-code change here.
+of any kind -- ``shadow_registry: SubjectPreparationRegistry`` and
+``cutover_policy: CutoverPolicy`` are the two registered, data-driven
+extension points a strategy's own composition root opts it into (today,
+only one migrated strategy is registered in either); a strategy that
+never registers in shadow_registry is simply never shadowed, and one
+absent from cutover_policy simply never has its authoritative path
+selected here, with zero code change in this module either way.
 """
 
 from __future__ import annotations
@@ -52,9 +69,15 @@ from strategy_runtime.historical_evidence import HistoricalSkewRepository
 from strategy_runtime.knowledge import ReadOnlyStrategyInput
 from strategy_runtime.persistence import LatestResultRepository
 from strategy_runtime.registry import StrategyRegistry
-from strategy_runtime.result import UniversalScreeningResult
+from strategy_runtime.result import (
+    EvaluationState,
+    RowType,
+    UniversalScreeningResult,
+    compute_observation_id,
+)
 from strategy_runtime.service import refresh
 from strategy_runtime.subject_preparation import (
+    SubjectPreparationBinding,
     SubjectPreparationRegistry,
     prepare_strategy_knowledge,
 )
@@ -415,6 +438,120 @@ def _observations_relevant_to(
     return _scoped
 
 
+@dataclass(frozen=True, slots=True)
+class CutoverPolicy:
+    """Per-strategy authoritative-path selection for a strategy that has
+    already passed its own CUTOVER_PASS gate (Architect checkpoint:
+    nineteenth review, "one shared cutover policy owner used identically
+    by scheduled and API roots ... registration/policy binding remains
+    the extension mechanism").
+
+    Membership in ``subject_first_by_strategy_id`` means "this strategy's
+    own authoritative path is now operator-selected, not shadow-compared
+    here" -- the boolean value picks legacy (False, the bounded rollback
+    path SPRINT-014 itself requires stays available) or subject-first
+    (True). A strategy_id with NO entry here (the default, empty policy)
+    keeps refresh_with_shadow()'s own pre-cutover behavior completely
+    unchanged: legacy authoritative, plus an optional shadow comparison
+    if it is also shadow-registered -- exactly today's behavior for every
+    strategy that has not yet reached its own CUTOVER_PASS gate.
+
+    Built once per invocation/cycle by a single shared owner both
+    production roots call identically (strategy_runtime.adapters.
+    build_migrated_cutover_policy) -- never two independently-constructed,
+    route-specific switches.
+    """
+
+    subject_first_by_strategy_id: Mapping[str, bool] = field(default_factory=dict)
+
+    def is_cut_over(self, strategy_id: str) -> bool:
+        return self.subject_first_by_strategy_id.get(strategy_id, False)
+
+
+def _missing_data_result(
+    context: RuntimeContext, symbol: str, reason: UnknownReason
+) -> UniversalScreeningResult:
+    """The authoritative-subject-first path's own projection for a typed
+    evidence gap subject-first preparation itself already discovered
+    (Architect checkpoint: nineteenth review: subject-first evaluation
+    "must perform zero acquisition of its own" -- falling back to legacy
+    execution here would both violate that and give legacy an execution
+    call the cutover-enabled mode must never make). Generic: reads only
+    the UnknownReason's own typed code/demand_ids, never a strategy
+    identity, so this applies identically to any future strategy that
+    registers a CutoverPolicy entry.
+    """
+    return UniversalScreeningResult(
+        strategy_id=context.contract.strategy_id,
+        strategy_version=context.contract.version,
+        symbol=symbol,
+        observation_id=compute_observation_id(
+            context.run_id, context.contract.strategy_id, symbol
+        ),
+        opportunity_id=None,
+        row_type=RowType.RESULT,
+        verdict=None,
+        evaluation_state=EvaluationState.MISSING_DATA,
+        lifecycle_stage=None,
+        recommendation_state=None,
+        data_quality=None,
+        metrics={},
+        economics={},
+        blockers=(f"typed unknown evidence gap: {reason.code}",),
+        warnings=(),
+        provenance=(
+            f"unknown:{reason.code}",
+            *(f"demand:{demand_id}" for demand_id in reason.demand_ids),
+        ),
+        observed_at=context.clock.now(),
+    )
+
+
+def _authoritative_subject_first_adapter(
+    binding: SubjectPreparationBinding[object],
+    knowledge_or_unknown: ReadOnlyStrategyInput[object] | UnknownReason,
+    symbol: str,
+) -> Callable[[RuntimeContext], UniversalScreeningResult]:
+    """The one adapter cutover-authoritative mode registers in place of
+    the legacy adapter -- a pure projection over already-prepared
+    knowledge (or a typed gap already-prepared), performing zero
+    acquisition of its own either way.
+    """
+    if isinstance(knowledge_or_unknown, UnknownReason):
+
+        def _missing_data_adapter(context: RuntimeContext) -> UniversalScreeningResult:
+            return _missing_data_result(context, symbol, knowledge_or_unknown)
+
+        return _missing_data_adapter
+    return binding.build_shadow_adapter({symbol: knowledge_or_unknown})
+
+
+def _cutover_authoritative_adapter(
+    cutover_policy: CutoverPolicy | None,
+    shadow_registry: SubjectPreparationRegistry[object] | None,
+    shadow_knowledge_by_subject: Mapping[str, ReadOnlyStrategyInput[object] | UnknownReason]
+    | None,
+    strategy_id: str,
+    symbol: str,
+) -> Callable[[RuntimeContext], UniversalScreeningResult] | None:
+    """None unless ``strategy_id`` is cut over AND its already-prepared
+    shadow knowledge for this subject is actually available -- in every
+    other case refresh_with_shadow() falls straight through to its
+    existing, unchanged legacy(+optional shadow) behavior.
+    """
+    if cutover_policy is None or shadow_registry is None or shadow_knowledge_by_subject is None:
+        return None
+    if not cutover_policy.is_cut_over(strategy_id):
+        return None
+    if not shadow_registry.is_registered(strategy_id):
+        return None
+    knowledge_or_unknown = shadow_knowledge_by_subject.get(strategy_id)
+    if knowledge_or_unknown is None:
+        return None
+    binding = shadow_registry.binding_for(strategy_id)
+    return _authoritative_subject_first_adapter(binding, knowledge_or_unknown, symbol)
+
+
 def refresh_with_shadow(
     legacy_registry: StrategyRegistry[UniversalScreeningResult],
     repository: LatestResultRepository,
@@ -427,15 +564,27 @@ def refresh_with_shadow(
     shadow_registry: SubjectPreparationRegistry[object] | None = None,
     shadow_knowledge_by_subject: Mapping[str, ReadOnlyStrategyInput[object] | UnknownReason]
     | None = None,
+    cutover_policy: CutoverPolicy | None = None,
     now: datetime | None = None,
 ) -> tuple[UniversalScreeningResult, ShadowParityDiagnostic | None]:
     """The one orchestration seam both production roots call, replacing a
     direct strategy_runtime.service.refresh() call.
 
-    Always runs and returns exactly what refresh() already would --
-    ``legacy_registry`` is expected to already be built with adapters
-    closed over this subject's own PlanBackedFulfillment (built by
-    build_subject_acquisition_access(), used identically to how a raw
+    If ``cutover_policy`` is supplied and ``strategy_id`` is cut over
+    (Architect checkpoint: nineteenth review, CUTOVER_PASS), and this
+    subject's own already-prepared shadow knowledge for it is available,
+    authoritative evaluation comes from that already-prepared knowledge
+    instead of legacy -- legacy is never invoked, no shadow comparison
+    runs (there is nothing left to compare against), and this function
+    returns ``(result, None)``. This is the ONLY branch in this function
+    keyed on ``cutover_policy``; every strategy_id absent from it (the
+    default, empty policy) falls straight through to the unchanged
+    behavior below.
+
+    Otherwise, always runs and returns exactly what refresh() already
+    would -- ``legacy_registry`` is expected to already be built with
+    adapters closed over this subject's own PlanBackedFulfillment (built
+    by build_subject_acquisition_access(), used identically to how a raw
     CapabilityFulfillmentService was closed over before), so legacy FF/
     Skew/Earnings execute unchanged through the same plan subject-first
     preparation already populated. ``observations`` itself is scoped down
@@ -456,6 +605,23 @@ def refresh_with_shadow(
     diagnostic, never raised and never allowed to affect the legacy
     result this function still returns and the caller still persists.
     """
+    authoritative_adapter = _cutover_authoritative_adapter(
+        cutover_policy, shadow_registry, shadow_knowledge_by_subject, strategy_id, symbol
+    )
+    if authoritative_adapter is not None:
+        authoritative_registry: StrategyRegistry[UniversalScreeningResult] = StrategyRegistry(
+            ((legacy_registry.contract_for(strategy_id), authoritative_adapter),)
+        )
+        result = refresh(
+            authoritative_registry,
+            repository,
+            clock,
+            strategy_id=strategy_id,
+            symbol=symbol,
+            observations=tuple,
+            historical_skew_repository=None,
+        )
+        return result, None
     result = refresh(
         legacy_registry,
         repository,
