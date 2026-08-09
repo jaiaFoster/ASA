@@ -11,13 +11,19 @@ from asa.scheduled_screening import (
     PRODUCTION_SCREENING_UNIVERSE,
     run_scheduled_refresh,
 )
-from domain import CanonicalInstrumentIdentity
+from domain import CanonicalInstrumentIdentity, MarketCapability
 from domain.strategy_evidence import HistoricalSkewObservation
+from market_data import FixtureScenario, ProviderErrorCode
 from market_data.attempts import AttemptQuery, InMemoryAcquisitionAttemptRepository
 from market_data.transport import ReadOnlyHttpResponse
 from screening import APPROVED_LIVE_UNIVERSE, EARNINGS_CALENDAR_UNIVERSE
 from strategy_runtime.orchestration import ShadowParityDiagnostic
-from tests.asa._fixture_market_data_access import build_fixture_market_data_access_factory
+from tests.asa._fixture_market_data_access import (
+    WatchEarningsFixtureProvider,
+    build_fixture_market_data_access_factory,
+    capturing_market_data_access_factory,
+    shadow_alone_call_count,
+)
 from tests.asa.fakes import InMemoryLatestResultRepository
 from tests.asa.market_data_ops.fakes import ScriptedTransport, tradier_quote_response
 
@@ -1357,3 +1363,155 @@ def test_forward_factor_temporal_metadata_is_unaffected_by_a_successful_shadow_c
     # metadata -- identical to MSFT's own, which never shared a plan with
     # any shadowed strategy at all.
     assert aapl_result.temporal == msft_result.temporal
+
+
+# -- SPRINT-014 S14-PR-05A: real Earnings PASS/WATCH/UNKNOWN evidence at
+# the scheduled production root (Architect checkpoint: eighteenth review,
+# "SPRINT-014 PR-05 requires exact output parity before Architect
+# CUTOVER_PASS ... I won't infer the missing WATCH/root behavior from
+# lower-layer tests") ----------------------------------------------------
+
+
+def test_scheduled_earnings_pass_shadow_diagnostic_matches_and_legacy_persists(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Real scheduled root, real fixture-backed acquisition (zero network,
+    zero new HTTP fixture work): the emitted shadow_parity_diagnostic for
+    the Earnings pair reports match with a real snapshot id/digest, and
+    the persisted result is the legacy PASS result -- never the shadow
+    result.
+    """
+    import asa.scheduled_screening as scheduled_screening_module
+
+    monkeypatch.setattr(
+        scheduled_screening_module,
+        "build_shared_market_data_access",
+        build_fixture_market_data_access_factory(),
+    )
+    monkeypatch.setenv("ASA_TRADIER_ENABLED", "true")
+    monkeypatch.setenv("ASA_TRADIER_ACCESS_TOKEN", "sandbox-secret-token")
+    repository = InMemoryLatestResultRepository()
+    caplog.set_level(logging.INFO)
+
+    outcomes = run_scheduled_refresh(
+        (("earnings_calendar", "AAPL"),),
+        repository=repository,
+        acquisition_attempt_repository=InMemoryAcquisitionAttemptRepository(),
+    )
+
+    assert len(outcomes) == 1
+    assert outcomes[0].error is None
+    assert outcomes[0].outcome == "pass"
+    entries = [
+        record for record in caplog.records if record.message == "shadow_parity_diagnostic"
+    ]
+    assert len(entries) == 1
+    entry = entries[0]
+    assert entry.shadow_status == "match"
+    assert entry.shadow_mismatched_fields == ()
+    assert entry.shadow_snapshot_id is not None
+    assert entry.shadow_snapshot_digest is not None
+    # Legacy stays authoritative: the persisted result is the real legacy
+    # PASS result, never anything from the shadow comparator.
+    persisted = repository.get_one("earnings_calendar", "AAPL")
+    assert persisted is not None
+    assert persisted.verdict == "PASS"
+    assert persisted.evaluation_state == "pass"
+
+
+def test_scheduled_earnings_watch_shadow_diagnostic_matches_and_legacy_persists(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """The harder case: legacy treats WATCH as a successful,
+    lifecycle-confirmed observation (PairOutcome.outcome and
+    evaluation_state both read "pass" -- WATCH is a verdict, not a
+    separate evaluation_state), matching
+    strategy_runtime/adapters/earnings_calendar_subject_first.py's own
+    pinned-fixture proof of the exact same semantics, now through the
+    real scheduled root instead of a hand-built snapshot.
+    """
+    import asa.scheduled_screening as scheduled_screening_module
+
+    monkeypatch.setattr(
+        scheduled_screening_module,
+        "build_shared_market_data_access",
+        build_fixture_market_data_access_factory(
+            provider_cls_by_symbol={"AAPL": WatchEarningsFixtureProvider}
+        ),
+    )
+    monkeypatch.setenv("ASA_TRADIER_ENABLED", "true")
+    monkeypatch.setenv("ASA_TRADIER_ACCESS_TOKEN", "sandbox-secret-token")
+    repository = InMemoryLatestResultRepository()
+    caplog.set_level(logging.INFO)
+
+    outcomes = run_scheduled_refresh(
+        (("earnings_calendar", "AAPL"),),
+        repository=repository,
+        acquisition_attempt_repository=InMemoryAcquisitionAttemptRepository(),
+    )
+
+    assert len(outcomes) == 1
+    assert outcomes[0].error is None
+    assert outcomes[0].outcome == "pass"  # WATCH's own evaluation_state
+    entries = [
+        record for record in caplog.records if record.message == "shadow_parity_diagnostic"
+    ]
+    assert len(entries) == 1
+    entry = entries[0]
+    assert entry.shadow_status == "match"
+    assert entry.shadow_mismatched_fields == ()
+    assert entry.shadow_snapshot_id is not None
+    assert entry.shadow_snapshot_digest is not None
+    persisted = repository.get_one("earnings_calendar", "AAPL")
+    assert persisted is not None
+    assert persisted.verdict == "WATCH"
+    assert persisted.evaluation_state == "pass"
+    assert persisted.lifecycle_stage == "confirmed"
+    assert persisted.opportunity_id is not None
+
+
+def test_scheduled_earnings_outage_shadow_unknown_and_bounded_once_not_doubled(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A genuine, shared EARNINGS_CALENDAR_V1 outage: the emitted
+    diagnostic reports shadow_unknown with a real typed reason code and
+    demand ids, the legacy pair still completes (missing_data, never a
+    crash), and -- the property this whole checkpoint is about -- the
+    cycle's own TOTAL provider-call count for AAPL equals subject-first
+    preparation's own isolated cost for the identical scenario exactly,
+    proving the plan's own bounded retry is shared once, never doubled
+    by legacy independently retrying the same already-exhausted failure.
+    """
+    import asa.scheduled_screening as scheduled_screening_module
+
+    scenario = FixtureScenario(
+        failures=((MarketCapability.EARNINGS_CALENDAR_V1, ProviderErrorCode.NO_DATA),)
+    )
+    factory, captured = capturing_market_data_access_factory(
+        build_fixture_market_data_access_factory({"AAPL": scenario})
+    )
+    monkeypatch.setattr(scheduled_screening_module, "build_shared_market_data_access", factory)
+    monkeypatch.setenv("ASA_TRADIER_ENABLED", "true")
+    monkeypatch.setenv("ASA_TRADIER_ACCESS_TOKEN", "sandbox-secret-token")
+    repository = InMemoryLatestResultRepository()
+    caplog.set_level(logging.INFO)
+    baseline = shadow_alone_call_count("AAPL", datetime.now(UTC), scenario)
+
+    outcomes = run_scheduled_refresh(
+        (("earnings_calendar", "AAPL"),),
+        repository=repository,
+        acquisition_attempt_repository=InMemoryAcquisitionAttemptRepository(),
+    )
+
+    assert len(outcomes) == 1
+    assert outcomes[0].error is None
+    assert outcomes[0].outcome == "missing_data"
+    entries = [
+        record for record in caplog.records if record.message == "shadow_parity_diagnostic"
+    ]
+    assert len(entries) == 1
+    entry = entries[0]
+    assert entry.shadow_status == "shadow_unknown"
+    assert entry.shadow_unknown_code == "missing_earnings_date"
+    assert entry.shadow_unknown_demand_ids != ()
+    assert len(captured["AAPL"].budget_manager.accounting) == baseline

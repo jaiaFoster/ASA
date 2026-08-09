@@ -20,6 +20,7 @@ from strategy_runtime.orchestration import ShadowParityDiagnostic
 from strategy_runtime.persistence import UniversalSignalRow
 from strategy_runtime.result import EvaluationState, ResultTemporalMetadata, RowType
 from tests.asa._fixture_market_data_access import (
+    WatchEarningsFixtureProvider,
     build_fixture_market_data_access_factory,
     shadow_alone_call_count,
 )
@@ -489,3 +490,49 @@ class TestRealEarningsShadowAgainstFixtureProvider:
         body = response.json()
         assert body["outcome"] == "missing_data"
         assert body["request_count"] == baseline
+
+    def test_successful_watch_shadow_reports_match_and_authoritative_result_is_watch(
+        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Architect checkpoint: eighteenth review, "WATCH: not yet
+        exercised through either real production root." Uses
+        WatchEarningsFixtureProvider (front=0.50/back=0.48, empirically
+        confirmed to score 67.00 -- inside [watch_threshold=55,
+        pass_threshold=70)) instead of the base fixture's own PASS-scoring
+        IVs -- otherwise identical to the successful-PASS test above:
+        real route -> plan -> subject-first shadow preparation -> legacy
+        Earnings -> comparator, end to end.
+        """
+        factory = build_fixture_market_data_access_factory(
+            provider_cls_by_symbol={"AAPL": WatchEarningsFixtureProvider}
+        )
+        client = self._client(monkeypatch, factory)
+        caplog.set_level(logging.INFO)
+        logging.getLogger().addHandler(caplog.handler)
+        baseline = shadow_alone_call_count(
+            "AAPL", datetime.now(UTC), provider_cls=WatchEarningsFixtureProvider
+        )
+
+        response = client.post("/api/v1/screening/earnings_calendar/AAPL/refresh", headers=_auth())
+
+        assert response.status_code == 200
+        body = response.json()
+        # Legacy treats WATCH as a successful, lifecycle-confirmed
+        # observation (never a bare NO_SIGNAL with no opportunity
+        # identity) -- the authoritative, persisted result this route
+        # returns and the shadow result it compares against must both
+        # reflect that.
+        assert body["verdict"] == "WATCH"
+        assert body["outcome"] == "watch"
+        assert body["lifecycle_stage"] == "confirmed"
+        assert body["opportunity_id"] is not None
+        assert body["request_count"] == baseline
+        entries = [
+            record for record in caplog.records if record.message == "shadow_parity_diagnostic"
+        ]
+        assert len(entries) == 1
+        entry = entries[0]
+        assert entry.shadow_status == "match"
+        assert entry.shadow_mismatched_fields == ()
+        assert entry.shadow_snapshot_id is not None
+        assert entry.shadow_snapshot_digest is not None
