@@ -310,12 +310,7 @@ def test_option_chain_preserves_greeks_iv_and_liquidity() -> None:
 
 
 def test_option_chain_freshness_is_the_median_not_the_first_response_row() -> None:
-    """SPRINT-013 S13-10: the chain's own canonical timestamp is a
-    deterministic aggregate (median) over every contract's own genuine
-    trade time -- never the first row's own value, and never simply the
-    single newest either (an aggregate robust to an outlier in *either*
-    direction, not a max/min that only guards one direction).
-    """
+    """Chain time is an order-independent aggregate of provider field times."""
     old = {
         "symbol": "AAPL260821C00210000",
         "underlying": "AAPL",
@@ -341,6 +336,38 @@ def test_option_chain_freshness_is_the_median_not_the_first_response_row() -> No
     recent_time = NOW - timedelta(minutes=5)
     expected_median = old_time + (recent_time - old_time) / 2
     assert result.observations[0].effective_time == expected_median
+
+
+def test_current_bid_and_ask_dates_keep_an_untraded_chain_usable() -> None:
+    """A last transaction is not the timestamp of current quoted prices."""
+    old_trade = NOW - timedelta(days=3)
+    current_quote = NOW - timedelta(minutes=1)
+    row = {
+        "symbol": "DIS260821C00100000",
+        "underlying": "DIS",
+        "expiration_date": "2026-08-21",
+        "strike": "100",
+        "option_type": "call",
+        "last": "5",
+        "bid": "4.90",
+        "ask": "5.10",
+        "trade_date": int(old_trade.timestamp() * 1000),
+        "bid_date": int(current_quote.timestamp() * 1000),
+        "ask_date": int(current_quote.timestamp() * 1000),
+    }
+    result = provider(Transport((response({"options": {"option": [row]}}),))).fetch(
+        request(
+            MarketCapability.OPTION_CHAIN_V1,
+            ("contracts",),
+            expiration=True,
+            maximum_age_seconds=3600,
+        ),
+        authorization(),
+    )
+
+    assert result.error is None
+    assert result.observations[0].effective_time == current_quote
+    assert result.observations[0].freshness.status is FreshnessStatus.FRESH
 
 
 def test_option_chain_freshness_is_identical_regardless_of_response_row_order() -> None:

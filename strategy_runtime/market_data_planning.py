@@ -172,6 +172,7 @@ def build_shared_market_data_access(
     clock: Clock,
     subjects: tuple[str, ...],
     *,
+    budget_clock: Clock | None = None,
     rolling_window: ProviderRollingWindowTracker | None = None,
 ) -> dict[str, SubjectMarketDataAccess]:
     """One SubjectMarketDataAccess per subject in ``subjects`` -- never one
@@ -192,7 +193,7 @@ def build_shared_market_data_access(
     result: dict[str, SubjectMarketDataAccess] = {}
     for subject in subjects:
         budget_manager = _build_request_budget_manager(
-            enabled_configs, clock, rolling_window=rolling_window
+            enabled_configs, budget_clock or clock, rolling_window=rolling_window
         )
         factory = _provider_factory()
         providers = tuple(

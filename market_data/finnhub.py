@@ -328,7 +328,13 @@ class FinnhubProvider:
                 self._observation(request, subject, value, value.end_at, response)
                 for value in bar_values
             )
-        rows = _rows(response.json_body.get("earningsCalendar"))
+        raw_earnings = response.json_body.get("earningsCalendar")
+        # An explicitly present empty calendar is a valid, authoritative
+        # answer: no event matched this symbol/window.  Missing or malformed
+        # calendar structure remains EMPTY_PAYLOAD/SCHEMA_MISMATCH below.
+        if raw_earnings == []:
+            raise _NoData
+        rows = _rows(raw_earnings)
         security = Security(
             subject.canonical_instrument,
             subject.canonical_instrument.display_symbol.upper(),

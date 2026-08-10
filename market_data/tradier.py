@@ -457,11 +457,16 @@ def _is_monthly_expiration(value: date) -> bool:
 
 def _row_observed_at_or_none(row: Mapping[str, object]) -> datetime | None:
     raw = row.get("trade_date") or row.get("timestamp")
+    return _provider_timestamp_or_none(raw)
+
+
+def _provider_timestamp_or_none(raw: object) -> datetime | None:
     if isinstance(raw, (int, float)):
         divisor = 1000 if raw > 10_000_000_000 else 1
         return datetime.fromtimestamp(raw / divisor, tz=UTC)
     if isinstance(raw, str):
-        return datetime.fromisoformat(raw.replace("Z", "+00:00")).astimezone(UTC)
+        parsed = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+        return parsed.replace(tzinfo=UTC) if parsed.tzinfo is None else parsed.astimezone(UTC)
     return None
 
 
@@ -521,16 +526,14 @@ def _chain(
 ) -> OptionChain:
     if not rows:
         raise ValueError("empty option chain")
-    # SPRINT-013 S13-10: the chain's own canonical timestamp is the median
-    # of every contract row's own genuine trade timestamp (rows missing
-    # one entirely are excluded, never silently treated as "now" -- a
-    # missing timestamp must never inflate apparent freshness). Median,
-    # not min/max: a single very old illiquid contract cannot alone make
-    # an otherwise-current chain look stale, and a single very recently
-    # touched contract cannot alone make an otherwise-stale chain look
-    # fresh. Never response order (median_observed_at sorts internally).
+    # The chain's canonical timestamp is the median of each row's latest
+    # genuine provider field timestamp. Tradier timestamps trades, bids,
+    # asks, and Greeks independently; a last trade is not the observation
+    # time of a current quote. Rows with no provider timestamp are excluded,
+    # never silently treated as "now". Median keeps response order and one
+    # outlier from controlling chain freshness.
     valid_times = tuple(
-        parsed for row in rows if (parsed := _row_observed_at_or_none(row)) is not None
+        parsed for row in rows if (parsed := _row_market_state_at_or_none(row)) is not None
     )
     observed = median_observed_at(valid_times) if valid_times else received_at
     evidence = _evidence(response)
@@ -540,6 +543,31 @@ def _chain(
     return OptionChain(
         f"tradier:{response.request_reference}", security, observed, contracts, evidence
     )
+
+
+def _row_market_state_at_or_none(row: Mapping[str, object]) -> datetime | None:
+    """Latest provider timestamp for the market fields carried by one row.
+
+    ``trade_date`` is only the most recent transaction.  Treating it as the
+    timestamp of the row's current bid, ask, and Greeks rejects live chains
+    whenever otherwise-usable contracts have not traded recently.  Tradier
+    supplies distinct bid/ask timestamps and an ORATS update timestamp; use
+    every populated field's declared timestamp and select the latest genuine
+    provider observation.  No retrieval-time substitution is made here.
+    """
+    candidates: list[datetime] = []
+    for name in ("trade_date", "bid_date", "ask_date"):
+        value = row.get(name)
+        if value is not None:
+            parsed = _provider_timestamp_or_none(value)
+            if parsed is not None:
+                candidates.append(parsed)
+    greeks = row.get("greeks")
+    if isinstance(greeks, Mapping) and greeks.get("updated_at") is not None:
+        parsed = _provider_timestamp_or_none(greeks["updated_at"])
+        if parsed is not None:
+            candidates.append(parsed)
+    return max(candidates) if candidates else None
 
 
 def _option(

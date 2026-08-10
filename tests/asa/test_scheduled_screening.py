@@ -1022,8 +1022,8 @@ def test_a_long_running_cycle_regains_provider_capacity_after_elapsed_time(
     _force_tiny_tradier_window(monkeypatch, window_limit=_SKEW_MOMENTUM_REQUESTS_PER_PAIR)
     import asa.scheduled_screening as scheduled_screening_module
 
-    # Anchor (call 0), pair 1's own 4 requests closely spaced (call 1-4,
-    # all well within the same 60s Tradier window together), then a
+    # Anchor (call 0), pair 1's own 4 requests closely spaced (three clock
+    # reads each: local authorization, shared window, completion), then a
     # large jump comfortably past 60s before pair 2's own requests
     # (call 5+) -- a real elapsed-time gap, never an evaluation-timestamp
     # one (every pair still shares the exact same frozen `now` for its
@@ -1033,7 +1033,34 @@ def test_a_long_running_cycle_regains_provider_capacity_after_elapsed_time(
         scheduled_screening_module.time,
         "monotonic",
         _stepped_monotonic(
-            [0.0, 0.01, 0.02, 0.03, 0.04, 400.0, 400.01, 400.02, 400.03], tail=400.04
+            [
+                0.0,
+                0.01,
+                0.02,
+                0.03,
+                0.04,
+                0.05,
+                0.06,
+                0.07,
+                0.08,
+                0.09,
+                0.10,
+                0.11,
+                0.12,
+                400.0,
+                400.01,
+                400.02,
+                400.03,
+                400.04,
+                400.05,
+                400.06,
+                400.07,
+                400.08,
+                400.09,
+                400.10,
+                400.11,
+            ],
+            tail=400.12,
         ),
     )
 

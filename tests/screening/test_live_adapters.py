@@ -18,6 +18,7 @@ from __future__ import annotations
 import dataclasses
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
+from types import SimpleNamespace
 
 from domain import (
     AnnouncementTime,
@@ -63,6 +64,7 @@ from screening.adapters import TARGET_STRATEGY_REGISTRY
 from screening.live_acquisition import build_capability_registry, build_request_budget_manager
 from screening.live_adapters import (
     SKEW_MINIMUM_VALID_OBSERVATIONS,
+    _acquire_optional_earnings,
     _acquire_or_raise,
     build_live_adapters,
     build_live_skew_momentum_adapter,
@@ -539,6 +541,26 @@ class TestCaptureSkewSnapshot:
 
 
 class TestForwardFactorAndEarningsCalendarNeedTwoExpirations:
+    def test_confirmed_no_event_survives_another_providers_transient_failure(self) -> None:
+        class _Fulfillment:
+            def fulfill(self, _request, **_kwargs):  # noqa: ANN001, ANN202
+                return SimpleNamespace(
+                    observations=(),
+                    attempts=(
+                        SimpleNamespace(
+                            error=SimpleNamespace(code=ProviderErrorCode.RATE_LIMITED)
+                        ),
+                        SimpleNamespace(error=SimpleNamespace(code=ProviderErrorCode.NO_DATA)),
+                    ),
+                )
+
+        assert (
+            _acquire_optional_earnings(
+                _Fulfillment(), SYMBOL, NOW, NOW.date() + timedelta(days=60)  # type: ignore[arg-type]
+            )
+            is None
+        )
+
     def test_forward_factor_reports_missing_data_against_the_single_expiration_default_fixture(
         self,
     ) -> None:
