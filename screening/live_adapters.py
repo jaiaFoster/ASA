@@ -280,7 +280,11 @@ def _acquire_optional_earnings(
         events = tuple(cast(EarningsEvent, item.value) for item in result.observations)
         return min(events, key=lambda item: item.earnings_date)
     errors = tuple(attempt.error.code for attempt in result.attempts if attempt.error is not None)
-    if errors and all(code is ProviderErrorCode.NO_DATA for code in errors):
+    # One authoritative provider NO_DATA answer confirms that no event
+    # matched the requested symbol/window. Other providers may be
+    # temporarily unavailable; that absence is not contradictory market
+    # evidence, and must not erase the valid no-event result.
+    if ProviderErrorCode.NO_DATA in errors:
         return None
     summary = ", ".join(code.value for code in errors) or "unknown_provider_error"
     raise StrategyAdapterError(

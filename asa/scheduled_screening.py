@@ -314,7 +314,12 @@ def run_scheduled_refresh(
     # new scheduled cycle always starts from empty cycle-scoped state.
     unique_symbols = tuple(sorted({symbol for _, symbol in universe}))
     access = build_shared_market_data_access(
-        config, transport_factory, clock, unique_symbols, rolling_window=rolling_window
+        config,
+        transport_factory,
+        clock,
+        unique_symbols,
+        budget_clock=quota_clock,
+        rolling_window=rolling_window,
     )
     reuse_counts = {
         "provider_calls": 0,

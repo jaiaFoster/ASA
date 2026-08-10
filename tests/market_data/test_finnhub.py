@@ -255,7 +255,7 @@ def test_provider_shaped_upcoming_earnings_normalize_calendar_event(
 @pytest.mark.parametrize(
     ("body", "expected"),
     (
-        ({"earningsCalendar": []}, ProviderErrorCode.EMPTY_PAYLOAD),
+        ({"earningsCalendar": []}, ProviderErrorCode.NO_DATA),
         ({"earningsCalendar": [{"symbol": "AAPL"}]}, ProviderErrorCode.SCHEMA_MISMATCH),
     ),
 )

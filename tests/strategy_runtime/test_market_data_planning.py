@@ -11,7 +11,7 @@ not merely that two dict lookups return the same Python object.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -105,6 +105,28 @@ class TestBuildSharedMarketDataAccess:
         second = fulfillment.fulfill(request)
 
         assert first is second  # identical object back -- genuinely not re-fetched
+
+    def test_operational_budget_window_advances_while_semantic_clock_stays_frozen(self) -> None:
+        """A long subject plan must not hit a permanent one-second burst window."""
+        config = load_market_data_config({})
+        semantic_clock = _FixedClock()
+        budget_clock = _FixedClock()
+        access = build_shared_market_data_access(
+            config,
+            _no_transport_needed,
+            semantic_clock,
+            ("HD",),
+            budget_clock=budget_clock,
+        )
+
+        for _ in range(9):
+            access["HD"].budget_manager.authorize(
+                "deterministic_fixture", MarketCapability.OPTION_CHAIN_V1, 1
+            )
+            budget_clock.value += timedelta(seconds=2)
+
+        assert semantic_clock.now() == NOW
+        assert len(access["HD"].budget_manager.accounting) == 9
 
 
 class TestRunStrategiesWithSharedMarketData:
