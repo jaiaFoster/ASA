@@ -81,7 +81,7 @@ def test_refresh_persists_to_real_postgres_and_get_state_reads_it_back(
     repository: PostgresLatestResultRepository,
 ) -> None:
     clock = FixedClock(datetime(2026, 7, 23, 16, 0, tzinfo=UTC))
-    registry = build_migrated_strategy_registry()
+    registry = build_migrated_strategy_registry(_fulfillment_by_subject(clock)[SYMBOL])
 
     refreshed = refresh(
         registry,
@@ -89,7 +89,6 @@ def test_refresh_persists_to_real_postgres_and_get_state_reads_it_back(
         clock,
         strategy_id=STRATEGY_ID,
         symbol=SYMBOL,
-        fulfillment_by_subject=_fulfillment_by_subject(clock),
     )
 
     (persisted,) = get_state(repository, strategy_id=STRATEGY_ID, symbol=SYMBOL)
@@ -103,7 +102,7 @@ def test_second_refresh_overwrites_the_real_row_rather_than_accumulating(
     repository: PostgresLatestResultRepository,
 ) -> None:
     clock = FixedClock(datetime(2026, 7, 23, 16, 0, tzinfo=UTC))
-    registry = build_migrated_strategy_registry()
+    registry = build_migrated_strategy_registry(_fulfillment_by_subject(clock)[SYMBOL])
 
     refresh(
         registry,
@@ -111,7 +110,6 @@ def test_second_refresh_overwrites_the_real_row_rather_than_accumulating(
         clock,
         strategy_id=STRATEGY_ID,
         symbol=SYMBOL,
-        fulfillment_by_subject=_fulfillment_by_subject(clock),
     )
     refresh(
         registry,
@@ -119,7 +117,6 @@ def test_second_refresh_overwrites_the_real_row_rather_than_accumulating(
         clock,
         strategy_id=STRATEGY_ID,
         symbol=SYMBOL,
-        fulfillment_by_subject=_fulfillment_by_subject(clock),
     )
 
     assert len(get_state(repository)) == 1
@@ -135,14 +132,13 @@ def test_get_state_never_triggers_a_provider_request(
     # (written once via refresh(), which does own a fulfillment service)
     # and getting back identical results is the decisive, observable proof.
     clock = FixedClock(datetime(2026, 7, 23, 16, 0, tzinfo=UTC))
-    registry = build_migrated_strategy_registry()
+    registry = build_migrated_strategy_registry(_fulfillment_by_subject(clock)[SYMBOL])
     refresh(
         registry,
         repository,
         clock,
         strategy_id=STRATEGY_ID,
         symbol=SYMBOL,
-        fulfillment_by_subject=_fulfillment_by_subject(clock),
     )
 
     first = get_state(repository, strategy_id=STRATEGY_ID)
