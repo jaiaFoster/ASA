@@ -10,6 +10,7 @@ not merely that two dict lookups return the same Python object.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
@@ -144,45 +145,51 @@ class TestRunStrategiesWithSharedMarketData:
             outputs=(OutputKind.METRICS,),
         )
 
-    def test_two_strategies_sharing_a_subject_get_the_same_fulfillment_result_object(
+    def test_two_strategies_closed_over_the_same_fulfillment_share_one_result(
         self,
     ) -> None:
+        """SPRINT-014 S14-PR-05A (Architect checkpoint: twelfth review, item
+        2): run_strategies()/RuntimeContext no longer thread a
+        fulfillment_by_subject mapping at all -- acquisition is bound by
+        closure at registry-construction time instead (item 3). Two
+        adapters both closed over the identical, already-shared
+        CapabilityFulfillmentService instance still observe the same
+        de-duplicated result, proven here by construction rather than by
+        any run_strategies()-owned per-subject lookup.
+        """
         request = _quote_request()
-
-        def _adapter(context: RuntimeContext) -> object:
-            assert context.fulfillment is not None
-            return context.fulfillment.fulfill(request)
-
-        registry = StrategyRegistry(
-            ((self._contract("alpha"), _adapter), (self._contract("beta"), _adapter))
-        )
         config = load_market_data_config({})
         clock = _FixedClock()
         access = build_shared_market_data_access(config, _no_transport_needed, clock, ("AAPL",))
-        fulfillment_by_subject = {symbol: item.fulfillment for symbol, item in access.items()}
+        fulfillment = access["AAPL"].fulfillment
 
-        results = run_strategies(
-            registry, clock, subjects=("AAPL",), fulfillment_by_subject=fulfillment_by_subject
+        def _build_adapter() -> Callable[[RuntimeContext], object]:
+            def _adapter(context: RuntimeContext) -> object:
+                return fulfillment.fulfill(request)
+
+            return _adapter
+
+        registry = StrategyRegistry(
+            (
+                (self._contract("alpha"), _build_adapter()),
+                (self._contract("beta"), _build_adapter()),
+            )
         )
+
+        results = run_strategies(registry, clock, subjects=("AAPL",))
 
         assert len(results) == 2
         alpha_result = next(item for item in results if item.strategy_id == "alpha").result
         beta_result = next(item for item in results if item.strategy_id == "beta").result
         assert alpha_result is beta_result  # both adapters actually shared one fulfillment
 
-    def test_no_fulfillment_by_subject_leaves_context_fulfillment_none(self) -> None:
-        seen: list[object] = []
-
-        def _adapter(context: RuntimeContext) -> str:
-            seen.append(context.fulfillment)
-            return "ok"
-
-        registry = StrategyRegistry(((self._contract("alpha"), _adapter),))
-        clock = _FixedClock()
-
-        run_strategies(registry, clock, subjects=("AAPL",))  # no fulfillment_by_subject at all
-
-        assert seen == [None]
+    def test_runtime_context_has_no_fulfillment_field_at_all(self) -> None:
+        """Architect checkpoint: twelfth review, item 1 -- "do not replace
+        it with a generic data, services, resources, or similar escape
+        hatch". Checked directly against the dataclass's own fields, not
+        merely that some value was None.
+        """
+        assert "fulfillment" not in RuntimeContext.__dataclass_fields__
 
 
 def _quote_request_for(symbol: str) -> CapabilityRequest:

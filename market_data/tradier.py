@@ -13,11 +13,13 @@ from domain import (
     CompletenessMetadata,
     EvidenceKind,
     EvidenceReference,
+    ExpirationCollection,
     ExpirationCycle,
     MarketCapability,
     MarketDataSubject,
     MarketObservation,
     OHLCVBar,
+    OHLCVSeries,
     OptionChain,
     OptionContract,
     OptionType,
@@ -307,14 +309,21 @@ class TradierProvider:
                 for row in rows
             )
         if request.capability is MarketCapability.HISTORICAL_BARS_V1:
+            # SPRINT-014 S14-PR-05A (Founder-approved bounded contract
+            # extension): one historical-bars request legitimately returns
+            # one bar per trading day -- bundled into one OHLCVSeries
+            # value, sealed into one MarketObservation, so a generic,
+            # single-observation-per-demand consumer (screening.
+            # subject_planning) can resolve this capability at all. Every
+            # bar shares this same response's own request accounting/
+            # evidence; there is no per-bar row left to attribute freshness
+            # to individually, so the whole series is normalized as one.
             rows = _rows(_mapping(response.json_body, "history").get("day"))
-            observations: list[MarketObservation] = []
+            bars: list[OHLCVBar] = []
             rejected_rows = 0
             for row in rows:
                 try:
-                    observations.append(
-                        self._observation(request, subject, _bar(subject, row), response, row)
-                    )
+                    bars.append(_bar(subject, row))
                 except (KeyError, TypeError, ValueError, InvalidOperation, DomainInvariantError):
                     rejected_rows += 1
             if rejected_rows:
@@ -328,30 +337,39 @@ class TradierProvider:
                         "diagnostic_code": ProviderErrorCode.SCHEMA_MISMATCH.value,
                     },
                 )
-            if not observations:
+            if not bars:
                 raise DomainInvariantError("Tradier history contained no valid canonical bars")
-            return tuple(observations)
+            series = OHLCVSeries(
+                subject.canonical_instrument,
+                86400,
+                self._dependencies.clock.now(),
+                tuple(sorted(bars, key=lambda bar: bar.start_at)),
+            )
+            return (self._observation(request, subject, series, response, {}),)
         if "expirations" in request.required_fields and "contracts" not in request.required_fields:
+            # Same bounded extension for OPTION_CHAIN_V1's own expirations-
+            # only discovery: Tradier's real endpoint returns one entry per
+            # listed expiration -- bundled into one ExpirationCollection
+            # value (domain.financial's own established collection shape
+            # for this exact capability) instead of N sibling
+            # ExpirationCycle observations.
             values = _mapping(response.json_body, "expirations").get("date")
             dates = values if isinstance(values, list) else [values]
             as_of = request.effective_end.date()
-            return tuple(
-                self._observation(
-                    request,
-                    subject,
-                    ExpirationCycle(
-                        parsed,
-                        (parsed - as_of).days,
-                        _is_monthly_expiration(parsed),
-                        not _is_monthly_expiration(parsed),
-                        as_of,
-                        _evidence(response),
-                    ),
-                    response,
-                    {},
+            evidence = _evidence(response)
+            cycles = tuple(
+                ExpirationCycle(
+                    parsed,
+                    (parsed - as_of).days,
+                    _is_monthly_expiration(parsed),
+                    not _is_monthly_expiration(parsed),
+                    as_of,
+                    evidence,
                 )
                 for parsed in (_date(item) for item in dates)
             )
+            collection = ExpirationCollection(as_of, cycles)
+            return (self._observation(request, subject, collection, response, {}),)
         rows = _rows(_mapping(response.json_body, "options").get("option"))
         chain = _chain(subject, rows, response, self._dependencies.clock.now())
         return (self._observation(request, subject, chain, response, rows[0] if rows else {}),)
@@ -367,6 +385,8 @@ class TradierProvider:
         received = self._dependencies.clock.now().astimezone(UTC)
         if isinstance(value, OHLCVBar):
             effective = value.end_at
+        elif isinstance(value, OHLCVSeries):
+            effective = value.bars[-1].end_at
         elif isinstance(value, OptionChain):
             effective = value.observed_at
         elif isinstance(value, Quote):
@@ -630,9 +650,13 @@ def _option(
 
 def _field_present(field: str, value: object) -> bool:
     if field == "expirations":
-        return isinstance(value, ExpirationCycle)
+        return isinstance(value, ExpirationCycle) or (
+            isinstance(value, ExpirationCollection) and bool(value.cycles)
+        )
     if field == "contracts":
         return isinstance(value, OptionChain) and bool(value.contracts)
+    if field in {"open", "high", "low", "close", "volume"} and isinstance(value, OHLCVSeries):
+        return bool(value.bars)
     if field in {"greeks", "implied_volatility", "volume", "open_interest"} and isinstance(
         value, OptionChain
     ):

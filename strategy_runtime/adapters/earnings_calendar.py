@@ -39,11 +39,25 @@ in an extractable, structured field -- exposing it would mean changing
 that existing, preserved execution graph's own output shape, out of
 this ticket's scope. Recorded as a known limitation and a concrete
 recommendation for a follow-up sprint, not silently accepted.
+
+This adapter is retained only for shadow comparison against the new
+subject-first read-only Earnings evaluation (SPRINT-014 S14-PR-05A,
+Architect checkpoint: twelfth review) -- it is no longer the strategy's
+own production path once that shadow wiring is authorized, and is
+deletion-gated to S14-PR-07. ``build_earnings_calendar_adapter()``
+replaces the old context-reading ``earnings_calendar_adapter`` function:
+acquisition now comes from a CapabilityFulfiller closed over at
+registry-construction time -- typically a PlanBackedFulfillment wrapping
+the exact same SubjectAcquisitionPlan the subject-first path already
+resolved for this subject, so an identical request either path makes is
+fulfilled once -- never from RuntimeContext, which no longer carries a
+fulfillment field at all.
 """
 
 from __future__ import annotations
 
 from domain import MarketCapability
+from market_data.subject_plan import CapabilityFulfiller
 from screening import run_screening
 from screening.adapters import TARGET_STRATEGY_REGISTRY
 from screening.live_adapters import build_live_earnings_calendar_adapter
@@ -61,6 +75,7 @@ from strategy_runtime.contract import (
     StructureKind,
 )
 from strategy_runtime.lifecycle import compute_opportunity_id, validate_lifecycle_stage
+from strategy_runtime.registry import StrategyAdapter
 from strategy_runtime.result import UniversalScreeningResult, compute_observation_id
 
 EARNINGS_CALENDAR_CONTRACT = StrategyContract(
@@ -105,35 +120,41 @@ _STAGE_BY_OUTCOME = {
 }
 
 
-def earnings_calendar_adapter(context: RuntimeContext) -> UniversalScreeningResult:
-    if context.fulfillment is None:
-        raise RuntimeError(
-            "earnings_calendar requires shared market data access "
-            "(strategy_runtime.market_data_planning, EPIC-3) -- RuntimeContext.fulfillment is None"
+def build_earnings_calendar_adapter(
+    fulfillment: CapabilityFulfiller,
+) -> StrategyAdapter[UniversalScreeningResult]:
+    """Close over one subject's own CapabilityFulfiller and return the
+    thin translation layer strategies_own_thesis exists for.
+    """
+
+    def _adapter(context: RuntimeContext) -> UniversalScreeningResult:
+        live_adapter = build_live_earnings_calendar_adapter(
+            context.subject,
+            fulfillment,
+            freshness_requirement=context.contract.freshness_requirement,
         )
-    live_adapter = build_live_earnings_calendar_adapter(
-        context.subject,
-        context.fulfillment,
-        freshness_requirement=context.contract.freshness_requirement,
-    )
-    (result,) = run_screening(
-        TARGET_STRATEGY_REGISTRY,
-        {"earnings_calendar": live_adapter},
-        context.clock,
-        strategy_ids=("earnings_calendar",),
-    )
-    observation_id = compute_observation_id(context.run_id, "earnings_calendar", context.subject)
+        (result,) = run_screening(
+            TARGET_STRATEGY_REGISTRY,
+            {"earnings_calendar": live_adapter},
+            context.clock,
+            strategy_ids=("earnings_calendar",),
+        )
+        observation_id = compute_observation_id(
+            context.run_id, "earnings_calendar", context.subject
+        )
 
-    stage = _STAGE_BY_OUTCOME.get(result.outcome_status)
-    opportunity_id = None
-    if stage is not None:
-        validate_lifecycle_stage(EARNINGS_CALENDAR_CONTRACT, stage)
-        opportunity_id = compute_opportunity_id("earnings_calendar", context.subject)
+        stage = _STAGE_BY_OUTCOME.get(result.outcome_status)
+        opportunity_id = None
+        if stage is not None:
+            validate_lifecycle_stage(EARNINGS_CALENDAR_CONTRACT, stage)
+            opportunity_id = compute_opportunity_id("earnings_calendar", context.subject)
 
-    return translate_screening_result(
-        result,
-        symbol=context.subject,
-        observation_id=observation_id,
-        opportunity_id=opportunity_id,
-        lifecycle_stage=stage,
-    )
+        return translate_screening_result(
+            result,
+            symbol=context.subject,
+            observation_id=observation_id,
+            opportunity_id=opportunity_id,
+            lifecycle_stage=stage,
+        )
+
+    return _adapter

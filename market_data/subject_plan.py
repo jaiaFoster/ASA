@@ -37,6 +37,10 @@ CapabilityFulfillmentService itself never owns cycle identity either).
 
 from __future__ import annotations
 
+import logging
+from dataclasses import dataclass
+from typing import Protocol
+
 from market_data.attempts import AcquisitionAttemptRepository, attempt_records_for
 from market_data.factory import Clock
 from market_data.fulfillment import (
@@ -45,6 +49,8 @@ from market_data.fulfillment import (
     FulfillmentStatus,
 )
 from market_data.providers import CapabilityRequest
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class SubjectAcquisitionPlan:
@@ -67,6 +73,7 @@ class SubjectAcquisitionPlan:
         "_maximum_attempts_per_request",
         "_resolved",
         "_sequence_offset",
+        "_attempt_recording_degraded",
     )
 
     def __init__(
@@ -95,6 +102,7 @@ class SubjectAcquisitionPlan:
         self._maximum_attempts_per_request = maximum_attempts_per_request
         self._resolved: dict[tuple[CapabilityRequest, bool], CapabilityFulfillmentResult] = {}
         self._sequence_offset = 0
+        self._attempt_recording_degraded = False
 
     @property
     def subject(self) -> str:
@@ -103,6 +111,21 @@ class SubjectAcquisitionPlan:
     @property
     def plan_id(self) -> str:
         return self._plan_id
+
+    @property
+    def attempt_recording_degraded(self) -> bool:
+        """True if any attempt-repository persistence call failed during
+        this plan's own lifetime so far (SPRINT-014 S14-PR-05A, production-
+        root wiring). This plan is now the single durable attempt owner
+        for every consumer sharing it -- resolve() itself never raises an
+        attempt-repository failure, so it also owns the resilience
+        guarantee a caller's own now-retired per-pair recording block used
+        to provide: a persistence outage for the attempt side-channel must
+        never abort or corrupt a strategy evaluation sharing this plan
+        (SPRINT-013 S13-02). Callers use this subject-scoped flag as their
+        own "were this cycle's attempts durably recorded" signal instead.
+        """
+        return self._attempt_recording_degraded
 
     def resolve(
         self, request: CapabilityRequest, *, required: bool = True
@@ -142,4 +165,70 @@ class SubjectAcquisitionPlan:
             sequence_offset=self._sequence_offset,
         )
         self._sequence_offset += len(records)
-        self._attempt_repository.record(records)
+        try:
+            self._attempt_repository.record(records)
+        except Exception:
+            # Best-effort, exactly like the per-pair recording block this
+            # plan now replaces as the single durable attempt owner: never
+            # let an attempt-persistence outage abort or corrupt the
+            # strategy evaluation that triggered this resolve() call
+            # (SPRINT-013 S13-02). attempt_recording_degraded lets a
+            # caller still report this honestly instead of silently.
+            self._attempt_recording_degraded = True
+            _LOGGER.warning(
+                "subject_acquisition_plan_attempt_recording_failed",
+                extra={"plan_id": self._plan_id, "subject": self._subject},
+                exc_info=True,
+            )
+
+
+class CapabilityFulfiller(Protocol):
+    """The one method every already-existing, unmodified acquisition
+    function in this codebase actually calls on whatever it is given
+    (screening/live_context.py's acquire_capability,
+    screening/live_adapters.py's _acquire_or_raise, and everything built
+    on them) -- CapabilityFulfillmentService already satisfies this
+    structurally; formalized as a Protocol here (SPRINT-014 S14-PR-05A) so
+    PlanBackedFulfillment below can be passed to the same call sites
+    without changing any of them.
+    """
+
+    def fulfill(
+        self, request: CapabilityRequest, *, required: bool = True
+    ) -> CapabilityFulfillmentResult: ...
+
+
+@dataclass(frozen=True, slots=True)
+class PlanBackedFulfillment:
+    """Adapts SubjectAcquisitionPlan.resolve() to CapabilityFulfillmentService's
+    own fulfill() interface (SPRINT-014 S14-PR-05A, Architect review
+    finding B3, PR #292 review 4877473757: "one exhausted request shared
+    across migrated and legacy same-subject consumers").
+
+    Forward Factor and Skew Momentum's own acquisition (screening/
+    live_adapters.py's build_live_forward_factor_adapter/
+    build_live_skew_momentum_adapter, unmodified) call ``.fulfill()``
+    directly on whatever CapabilityFulfiller they are given. Wrapping one
+    subject's own SubjectAcquisitionPlan in this class and passing the
+    wrapper instead of the subject's raw CapabilityFulfillmentService
+    means every one of those unmodified calls transparently routes
+    through the same plan Earnings Calendar's own generic subject
+    planning (screening/subject_planning.py) already uses for that
+    subject this cycle -- so a capability request either strategy makes
+    is resolved once, shared, and exhausted-or-successful for every
+    consumer, migrated or legacy, regardless of which one asks first.
+
+    Introduces no new persistence or identity authority of its own: every
+    call is a pure pass-through to the wrapped plan's own resolve(), which
+    already owns idempotency and durable attempt persistence (S14-PR-03).
+    Never carried on RuntimeContext (I-09) -- only closed over by the
+    legacy composition binding at registry-construction time, exactly like
+    the raw CapabilityFulfillmentService it replaces.
+    """
+
+    plan: SubjectAcquisitionPlan
+
+    def fulfill(
+        self, request: CapabilityRequest, *, required: bool = True
+    ) -> CapabilityFulfillmentResult:
+        return self.plan.resolve(request, required=required)

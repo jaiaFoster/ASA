@@ -284,3 +284,30 @@ class CapabilityFulfillmentService:
                 request.capability,
             )
         return None
+
+
+def observations_from_fulfillment(
+    fulfillment: CapabilityFulfillmentService,
+) -> tuple[MarketObservation, ...]:
+    """Flatten every observation a CapabilityFulfillmentService's own
+    completed_results accumulated during a run into one provider-neutral
+    tuple (SPRINT-014 S14-PR-05A). Lives here, not strategy_runtime/, because
+    fulfillment-to-observation flattening is a market-data/integration
+    concern -- strategy_runtime.service.refresh() itself only ever consumes
+    the already-flattened provider-neutral tuple this produces (via its own
+    ``observations`` callback parameter), never CapabilityFulfillmentService
+    directly (Architect checkpoint: thirteenth review, corrective item 1).
+
+    A transitional-legacy caller still driving acquisition through a raw
+    CapabilityFulfillmentService (not yet a sealed MarketSnapshot) uses this
+    at its own integration/composition-root boundary (asa/scheduled_screening.py,
+    asa/api/screening_routes.py) to build that callback. A caller already
+    holding a sealed MarketSnapshot passes its own ``.observations`` directly
+    instead -- this helper exists only for the fulfillment-service-shaped
+    case.
+    """
+    return tuple(
+        observation
+        for completed in fulfillment.completed_results
+        for observation in completed.observations
+    )

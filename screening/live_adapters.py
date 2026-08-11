@@ -7,12 +7,15 @@ screening/fixtures.py to screening/live_acquisition.py. No strategy logic
 is reimplemented here, same as SCREEN-004/ANALYTICS-003.
 
 Each factory function closes over one symbol and one already-constructed
-CapabilityFulfillmentService, returning a StrategyAdapter-conforming
-callable. A missing or unfulfillable live capability, or no expiration
-pair satisfying a strategy's DTE policy, raises StrategyAdapterError with
-MISSING_DATA -- an expected, isolated, non-crashing outcome (SCREEN-003),
-never a raw exception escaping to the runner's more generic
-STRATEGY_EXCEPTION handling.
+CapabilityFulfiller (market_data.subject_plan.CapabilityFulfiller --
+either a raw CapabilityFulfillmentService or a PlanBackedFulfillment
+wrapping one subject's own SubjectAcquisitionPlan, SPRINT-014 S14-PR-05A,
+Architect checkpoint: twelfth review), returning a StrategyAdapter-
+conforming callable. A missing or unfulfillable live capability, or no
+expiration pair satisfying a strategy's DTE policy, raises
+StrategyAdapterError with MISSING_DATA -- an expected, isolated,
+non-crashing outcome (SCREEN-003), never a raw exception escaping to the
+runner's more generic STRATEGY_EXCEPTION handling.
 
 Option-chain acquisition is a two-step flow (TRADIER-PATCH-003, #156):
 Tradier's real endpoint is scoped to one expiration per request, so a
@@ -53,16 +56,15 @@ from domain import (
     HistoricalSkewObservations,
     MarketCapability,
     OHLCVBar,
+    OHLCVSeries,
     OptionChain,
     OptionType,
     Quote,
 )
-from market_data import (
-    CapabilityFulfillmentService,
-    FulfillmentStatus,
-    ProviderErrorCode,
-)
+from market_data import FulfillmentStatus, ProviderErrorCode
+from market_data.capability_coalescing import combine_option_chains
 from market_data.session_calendar import MarketSessionStatus, UsEquitySessionCalendar
+from market_data.subject_plan import CapabilityFulfiller
 from market_data.temporal import (
     DEFAULT_FRESHNESS_REQUIREMENT,
     FreshnessRequirement,
@@ -82,7 +84,6 @@ from screening.live_context import (
     acquire_expirations,
     build_capability_subject,
     classify_domain_invariant_error,
-    combine_option_chains,
     select_atm_strike_at_expiration,
     select_nearest_delta_contract,
 )
@@ -98,6 +99,9 @@ from strategies import (
     compile_strategy_graph,
     earnings_calendar_requirement,
     execute_strategy_graph,
+)
+from strategies.earnings_calendar_planning import (
+    HISTORICAL_LOOKBACK_DAYS as EARNINGS_CALENDAR_HISTORICAL_LOOKBACK_DAYS,
 )
 from strategies.manifest import StrategyManifest
 from strategies.plugins import build_plugin_registry
@@ -156,7 +160,7 @@ def _live_result(
 
 
 def _acquire_or_raise(
-    fulfillment: CapabilityFulfillmentService,
+    fulfillment: CapabilityFulfiller,
     symbol: str,
     capability: MarketCapability,
     now: datetime,
@@ -224,7 +228,7 @@ def _acquire_or_raise(
 
 
 def _acquire_combined_chain(
-    fulfillment: CapabilityFulfillmentService,
+    fulfillment: CapabilityFulfiller,
     symbol: str,
     now: datetime,
     expirations: tuple[date, ...],
@@ -250,7 +254,7 @@ def _acquire_combined_chain(
 
 
 def _acquire_optional_earnings(
-    fulfillment: CapabilityFulfillmentService,
+    fulfillment: CapabilityFulfiller,
     symbol: str,
     now: datetime,
     back_expiration: date,
@@ -350,7 +354,11 @@ class HistoricalSkewHistoryReader(Protocol):
 
 
 def _acquire_daily_closes(
-    fulfillment: CapabilityFulfillmentService, symbol: str, now: datetime
+    fulfillment: CapabilityFulfiller,
+    symbol: str,
+    now: datetime,
+    *,
+    lookback_days: int = _HISTORICAL_LOOKBACK_DAYS,
 ) -> tuple[Decimal, ...]:
     """Oldest-first daily close series over a fixed lookback window, for
     realized-volatility and momentum computation. Unlike every other
@@ -360,8 +368,13 @@ def _acquire_daily_closes(
     skips the single-observation freshness/usability gate _acquire_or_raise
     applies elsewhere: "freshness" for a completed prior trading day's
     close is not the same concept as for a live quote or chain.
+
+    ``lookback_days`` defaults to this module's own Skew-Momentum-owned
+    constant; Earnings Calendar's own call site passes its strategy-owned
+    value explicitly instead (SPRINT-014 S14-PR-05A, Architect checkpoint,
+    third review) -- never a second, independently maintained copy.
     """
-    lookback_start = now - timedelta(days=_HISTORICAL_LOOKBACK_DAYS)
+    lookback_start = now - timedelta(days=lookback_days)
     subject = build_capability_subject(
         symbol,
         MarketCapability.HISTORICAL_BARS_V1,
@@ -378,7 +391,7 @@ def _acquire_daily_closes(
             effective_start=lookback_start,
             effective_end=now,
             required_fields=("close",),
-            maximum_age_seconds=int(timedelta(days=_HISTORICAL_LOOKBACK_DAYS + 1).total_seconds()),
+            maximum_age_seconds=int(timedelta(days=lookback_days + 1).total_seconds()),
         )
     except DomainInvariantError as exc:
         raise StrategyAdapterError(
@@ -391,8 +404,18 @@ def _acquire_daily_closes(
             f"a valid request for live {MarketCapability.HISTORICAL_BARS_V1.value} for "
             f"{symbol} could not be completed or normalized",
         )
-    ordered = sorted(result.observations, key=lambda item: item.effective_time)
-    closes = tuple(cast(OHLCVBar, item.value).close for item in ordered)
+    # SPRINT-014 S14-PR-05A (Founder-approved bounded contract extension):
+    # a provider-neutral, single-observation OHLCVSeries is now the
+    # preferred normalized shape (market_data/tradier.py's own
+    # historical-bars response). The older shape -- one OHLCVBar per
+    # observation -- remains supported unchanged for any provider/fixture
+    # not yet updated to emit the new series value.
+    if len(result.observations) == 1 and isinstance(result.observations[0].value, OHLCVSeries):
+        bars = result.observations[0].value.bars
+    else:
+        ordered = sorted(result.observations, key=lambda item: item.effective_time)
+        bars = tuple(cast(OHLCVBar, item.value) for item in ordered)
+    closes = tuple(bar.close for bar in bars)
     if len(closes) < 2:
         raise StrategyAdapterError(
             ScreeningOutcomeStatus.MISSING_DATA,
@@ -403,7 +426,7 @@ def _acquire_daily_closes(
 
 def build_live_forward_factor_adapter(
     symbol: str,
-    fulfillment: CapabilityFulfillmentService,
+    fulfillment: CapabilityFulfiller,
     *,
     freshness_requirement: FreshnessRequirement = DEFAULT_FRESHNESS_REQUIREMENT,
 ) -> StrategyAdapter:
@@ -509,7 +532,7 @@ def build_live_forward_factor_adapter(
 
 def build_live_earnings_calendar_adapter(
     symbol: str,
-    fulfillment: CapabilityFulfillmentService,
+    fulfillment: CapabilityFulfiller,
     *,
     freshness_requirement: FreshnessRequirement = DEFAULT_FRESHNESS_REQUIREMENT,
 ) -> StrategyAdapter:
@@ -602,7 +625,12 @@ def build_live_earnings_calendar_adapter(
         term_richness = normalize_richness(
             front_contract.implied_volatility - back_contract.implied_volatility
         )
-        closes = _acquire_daily_closes(fulfillment, symbol, now)
+        closes = _acquire_daily_closes(
+            fulfillment,
+            symbol,
+            now,
+            lookback_days=EARNINGS_CALENDAR_HISTORICAL_LOOKBACK_DAYS,
+        )
         realized_vol = compute_realized_volatility(closes)
         # iv30/rv30-style richness (same source, ~09:40): front-month IV
         # priced above what has actually realized -- the second predictor
@@ -648,7 +676,7 @@ class _SkewSnapshot(NamedTuple):
 
 
 def _acquire_skew_snapshot(
-    fulfillment: CapabilityFulfillmentService,
+    fulfillment: CapabilityFulfiller,
     symbol: str,
     now: datetime,
     *,
@@ -755,7 +783,7 @@ def _acquire_skew_snapshot(
 
 
 def capture_skew_snapshot(
-    fulfillment: CapabilityFulfillmentService,
+    fulfillment: CapabilityFulfiller,
     symbol: str,
     now: datetime,
 ) -> HistoricalSkewObservation:
@@ -790,7 +818,7 @@ def capture_skew_snapshot(
 
 def build_live_skew_momentum_adapter(
     symbol: str,
-    fulfillment: CapabilityFulfillmentService,
+    fulfillment: CapabilityFulfiller,
     *,
     freshness_requirement: FreshnessRequirement = DEFAULT_FRESHNESS_REQUIREMENT,
     historical_skew_repository: HistoricalSkewHistoryReader | None = None,
@@ -883,7 +911,7 @@ LIVE_ADAPTER_FACTORIES = {
 
 
 def build_live_adapters(
-    symbol: str, fulfillment: CapabilityFulfillmentService
+    symbol: str, fulfillment: CapabilityFulfiller
 ) -> dict[str, StrategyAdapter]:
     """One live-driven adapter per target strategy, all bound to the same
     symbol and fulfillment service -- the live counterpart of

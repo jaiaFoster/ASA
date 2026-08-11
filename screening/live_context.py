@@ -13,7 +13,6 @@ non-controversial calendar rule, not strategy logic.
 
 from __future__ import annotations
 
-from dataclasses import replace
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 
@@ -23,6 +22,7 @@ from domain import (
     DomainInvariantError,
     EvidenceKind,
     EvidenceReference,
+    ExpirationCollection,
     ExpirationCycle,
     Instrument,
     InstrumentKind,
@@ -35,7 +35,8 @@ from domain import (
     OptionType,
     ProviderAddressProjection,
 )
-from market_data import CapabilityFulfillmentService, FulfillmentStatus
+from market_data import FulfillmentStatus
+from market_data.subject_plan import CapabilityFulfiller
 from screening.live_acquisition import acquire_capability
 from screening.results import ScreeningOutcomeStatus
 from screening.runner import StrategyAdapterError
@@ -126,53 +127,6 @@ def select_nearest_delta_contract(
 def _is_monthly_expiration(expiration: date) -> bool:
     """Third Friday of the month -- the standard monthly options cycle."""
     return expiration.weekday() == 4 and 15 <= expiration.day <= 21
-
-
-def combine_option_chains(
-    chains: tuple[OptionChain, ...], observed_at: datetime
-) -> OptionChain:
-    """Combine one or more per-expiration OptionChain acquisitions into a
-    single OptionChain a strategy manifest can query across all of them
-    (TRADIER-PATCH-003).
-
-    Tradier's real option-chain endpoint scopes each request to one
-    expiration (TRADIER-PATCH-002/#156), so live acquisition of a strategy
-    that needs two expirations (Forward Factor, Earnings Calendar) makes
-    two separate chain requests -- but strategy components like
-    strategies/stonk_components.py's CalendarStructure expect one chain
-    object spanning every expiration they need, exactly like the offline
-    fixture's single, all-expirations-at-once response already provides.
-
-    OptionChain's own invariant requires every contract to share the
-    chain's own observed_at exactly. Contracts from separately-timed
-    acquisitions are rebuilt with one canonical observed_at (this
-    combination's own caller-supplied timestamp) -- never their raw
-    prices, strikes, or greeks -- the same modeling choice as treating
-    near-simultaneous per-expiration reads as one logical market-data
-    snapshot, not fabricating data.
-
-    Deduplicates by contract identity after normalizing observed_at: a
-    provider that (like the offline fixture) doesn't actually scope its
-    response to the requested expiration and returns the same contracts
-    for both requests would otherwise violate OptionCollection's own
-    duplicate-contract invariant on merge.
-    """
-    if not chains:
-        raise ValueError("combine_option_chains requires at least one chain")
-    underlying = chains[0].underlying
-    for chain in chains[1:]:
-        if chain.underlying.identity != underlying.identity:
-            raise ValueError("combine_option_chains requires every chain to share one underlying")
-    deduplicated: dict[str, OptionContract] = {}
-    for chain in chains:
-        for contract in chain.contracts:
-            normalized = replace(contract, observed_at=observed_at)
-            deduplicated[normalized.identity] = normalized
-    evidence = tuple(dict.fromkeys(item for chain in chains for item in chain.evidence))
-    chain_id = "combined:" + ":".join(chain.option_chain_id for chain in chains)
-    return OptionChain(
-        chain_id, underlying, observed_at, tuple(deduplicated.values()), evidence
-    )
 
 
 def expirations_from_chain(chain: OptionChain, as_of: date) -> tuple[ExpirationCycle, ...]:
@@ -291,7 +245,7 @@ def build_capability_subject(
 
 
 def acquire_expirations(
-    fulfillment: CapabilityFulfillmentService,
+    fulfillment: CapabilityFulfiller,
     symbol: str,
     now: datetime,
 ) -> tuple[ExpirationCycle, ...]:
@@ -347,8 +301,18 @@ def acquire_expirations(
         )
     as_of = now.date()
     values = tuple(observation.value for observation in result.observations)
-    if all(isinstance(value, ExpirationCycle) for value in values):
-        cycles: tuple[ExpirationCycle, ...] = values  # type: ignore[assignment]
+    # SPRINT-014 S14-PR-05A (Founder-approved bounded contract extension):
+    # a provider-neutral, single-observation ExpirationCollection is now
+    # the preferred normalized shape (market_data/tradier.py's own
+    # expirations-only response). The two older shapes -- N sibling
+    # ExpirationCycle observations, or one full OptionChain a provider
+    # doesn't distinguish from a full chain request -- remain supported
+    # unchanged for any provider/fixture not yet updated to emit the new
+    # collection value.
+    if len(values) == 1 and isinstance(values[0], ExpirationCollection):
+        cycles: tuple[ExpirationCycle, ...] = values[0].cycles
+    elif all(isinstance(value, ExpirationCycle) for value in values):
+        cycles = values  # type: ignore[assignment]
     elif len(values) == 1 and isinstance(values[0], OptionChain):
         cycles = expirations_from_chain(values[0], as_of)
     else:

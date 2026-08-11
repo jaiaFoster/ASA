@@ -8,13 +8,22 @@ with three chances to drift. This is exactly this sprint's own
 generalize_before_specialize principle applied to the migration work
 itself: even the migration's own plumbing gets generalized before being
 copy-pasted per strategy.
+
+``explanation_metrics()`` (SPRINT-014 S14-PR-05A) is public rather than
+module-private because it is now shared by more than
+translate_screening_result()'s own ScreeningResult-shaped call site: the
+new subject-first Earnings adapter (strategy_runtime/adapters/
+earnings_calendar_subject_first.py) projects a ComponentValues graph
+result directly into UniversalScreeningResult, with no ScreeningResult in
+between, and reuses this exact metrics-extraction rule rather than a
+second, independently maintained copy.
 """
 
 from __future__ import annotations
 
 from decimal import Decimal
 
-from screening.results import ScreeningOutcomeStatus, ScreeningResult
+from screening.results import ScreeningExplanation, ScreeningOutcomeStatus, ScreeningResult
 from strategy_runtime.result import EvaluationState, RowType, UniversalScreeningResult
 from strategy_runtime.values import TypedValue
 
@@ -49,8 +58,7 @@ def _typed_explanation_value(value: object) -> TypedValue:
     return TypedValue.of_string(str(value))
 
 
-def _explanation_metrics(result: ScreeningResult) -> dict[str, TypedValue]:
-    explanation = result.explanation
+def explanation_metrics(explanation: ScreeningExplanation | None) -> dict[str, TypedValue]:
     if explanation is None:
         return {}
     metrics = {
@@ -106,7 +114,7 @@ def translate_screening_result(
     correctly.
     """
     is_success = result.outcome_status in _SUCCESS_OUTCOMES
-    metrics = _explanation_metrics(result)
+    metrics = explanation_metrics(result.explanation)
     metrics.update(
         {"strategy_native_score": TypedValue.of_decimal(result.strategy_native_score)}
         if result.strategy_native_score is not None

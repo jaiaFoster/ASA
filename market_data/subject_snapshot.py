@@ -55,15 +55,28 @@ def seal_subject_snapshot(
     resolutions: list[ResolutionResult] = []
     for result in results:
         capability = result.request.capability
-        observations = tuple(
-            observation
-            for attempt in result.attempts
-            for observation in attempt.observations
-        )
-        if not observations:
+        # SPRINT-014 S14-PR-05A (Architect review checkpoint, PR #292 review
+        # 4877473757): resolution must operate on the fulfillment result's
+        # own selected/coalesced observations, never a reconstruction from
+        # raw per-attempt observations. For an ordinary, single-winning-
+        # provider result these are identical (CapabilityFulfillmentService.
+        # fulfill() returns on the first successful attempt, so at most one
+        # attempt in the whole list ever carries observations) -- but a
+        # capability-owned coalescer (market_data.capability_coalescing)
+        # legitimately produces one CapabilityFulfillmentResult whose own
+        # ``attempts`` includes more than one *successful* source attempt
+        # (e.g. Earnings Calendar's front+back option-chain requests) while
+        # ``observations`` already holds the one combined, resolver-ready
+        # observation. Reconstructing from ``attempts`` there would hand
+        # the resolver the raw, uncombined per-source observations instead
+        # -- reproducing the exact "one value per provider" conflict this
+        # coalescer exists to avoid.
+        if not result.observations:
             continue
         policy = resolution_policy_by_capability[capability]
-        resolutions.append(ObservationResolver().resolve(observations, policy, as_of=as_of))
+        resolutions.append(
+            ObservationResolver().resolve(result.observations, policy, as_of=as_of)
+        )
 
     requested = tuple(result.request.capability for result in results)
     snapshot_request = SnapshotRequest(
