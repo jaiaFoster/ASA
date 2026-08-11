@@ -1,0 +1,340 @@
+---
+id: SPRINT-014R
+name: Finish the Modular Strategy and Fact Runtime
+version: 1.0
+status: AUTHORIZED_PENDING_FOUNDER_MERGE
+type: IMPLEMENTATION_SPRINT
+priority: P0
+baseline_commit: 7f74ddbb9af7ca0da45cc222a62cbf3fd79fb84f
+activation_issue: 298
+
+activation:
+  id: AMD-013-SPRINT-014R-V1.0
+  governance_amendment: GOV-AMD-001-013
+  founder_authorized: true
+  founder_direction: >
+    Finish one modular production runtime in which strategies are plug-ins
+    over immutable market knowledge. Acquisition occurs before strategy
+    execution; canonical and named versioned derived facts are materialized
+    once per subject and evidence set; strategies receive read-only knowledge
+    and own only thesis interpretation.
+  effective_when: this artifact is Founder-merged to the default branch
+  delegate:
+    role: ROLE-WORKER
+    instance: implementation-worker
+  limited_to_sprint: SPRINT-014R
+  approved_tickets:
+    - S14R-M1
+    - S14R-M2
+    - S14R-M3
+  expires:
+    - sprint_complete
+    - sprint_stopped
+    - Founder_revokes_delegation
+
+supersession:
+  supersedes_execution_shape: SPRINT-014
+  preserves:
+    branch: s14-pr-05a-generic-subject-planning
+    head: d486e56f8963d6183f8fbb6f8a4c4634a8845639
+    accepted_owners_and_contracts: true
+  rule: >
+    No previous SPRINT-014 branch is resumed or merged as a train. Useful
+    implementation may be reused only after validation against this sprint's
+    outcome and current main.
+
+objective: >
+  On exact merged main, all production strategies execute as plug-ins over
+  immutable, reusable, versioned facts through one generic runtime. Adding a
+  strategy that consumes existing knowledge must not change acquisition,
+  subject planning, or generic orchestration.
+
+canonical_flow:
+  - declared_strategy_requirements
+  - generic_subject_planning
+  - provider_acquisition
+  - sealed_subject_snapshot
+  - canonical_facts
+  - named_versioned_derived_facts
+  - immutable_read_only_strategy_knowledge
+  - strategy_thesis_or_graph
+  - UniversalScreeningResult
+  - persistence_and_replay
+
+existing_owners_to_reuse:
+  - strategies/manifest.py
+  - strategy_runtime/registry.py
+  - analytics/derived_facts.py
+  - analytics/features.py
+  - analytics/registry.py
+  - analytics/derived_fact_materialization.py
+  - facts/**
+  - market_data/subject_plan.py
+  - market_data/subject_snapshot.py
+  - existing_persistence_and_runtime_infrastructure
+
+scope:
+  in:
+    - remove_acquisition_capability_from_migrated_strategy_execution
+    - complete_subject_owned_acquisition_planning
+    - use_sealed_subject_evidence_as_evaluation_boundary
+    - project_canonical_facts_through_existing_fact_owner
+    - materialize_reusable_analytics_as_immutable_versioned_derived_facts
+    - build_one_read_only_strategy_knowledge_interface
+    - migrate_forward_factor_skew_momentum_and_earnings_calendar
+    - share_equivalent_fact_identity_and_computation
+    - persist_snapshot_fact_and_version_identity_required_for_replay
+    - prove_provider_free_replay
+    - prove_test_only_fourth_strategy_modularity
+    - delete_superseded_migrated_acquisition_paths
+    - verify_exact_merged_main
+  out:
+    - broad_universe_expansion
+    - SecurityUniverse_redesign
+    - constituent_sector_or_index_membership_ingestion
+    - new_production_strategies
+    - strategy_threshold_or_signal_changes
+    - provider_replacement
+    - unrelated_market_data_work
+    - UI_work
+    - deployment
+    - governance_changes
+    - new_top_level_subsystems
+
+invariants:
+  I-01_strategy_blindness_to_acquisition:
+    migrated_strategy_receives_none_of:
+      - provider_object
+      - provider_acquisition_selector
+      - network_transport
+      - budget_manager
+      - retry_mechanism
+      - CapabilityFulfillmentService
+      - provider_request_object
+  I-02_one_subject_evidence_boundary: >
+    One logical subject and evaluation cycle produces one sealed evidence
+    boundary for migrated consumers.
+  I-03_strategy_neutral_fact_identity: >
+    Canonical and reusable derived fact identities contain no strategy identity.
+  I-04_explicit_derived_facts:
+    required:
+      - stable_fact_id
+      - formula_version
+      - effective_time
+      - evidence_identity
+      - quality_state
+      - deterministic_identity
+      - parameter_identity_when_applicable
+  I-05_compute_once: >
+    Equivalent facts over the same evidence and parameters are reused across
+    strategies independent of strategy count and execution order.
+  I-06_strategy_owned_interpretation: >
+    Analytics calculates reusable values. Strategies own gates, thresholds,
+    scores, weights, structure rules, and verdicts.
+  I-07_generic_runtime: >
+    Generic orchestration contains no strategy-ID-specific execution branches.
+  I-08_provider_free_replay: >
+    Persisted migrated evaluations reproduce from snapshot, fact, version, and
+    evidence identity without provider access.
+  I-09_single_production_authority: >
+    One authoritative execution path remains at closure. Temporary rollback
+    paths are explicit, bounded, never silent, and deleted before closure.
+
+north_star_acceptance:
+  test_only_fourth_strategy:
+    consumes: facts_already_required_by_production_strategies
+    may_add_only:
+      - manifest
+      - requirements_declarations
+      - strategy_owned_graph_or_adapter
+      - registration
+      - tests
+    zero_changes_to:
+      - provider_integration
+      - market_data_acquisition
+      - subject_planning
+      - screening_orchestration
+      - generic_strategy_runtime
+    shared_work_rule: >
+      Running it with production strategies does not duplicate equivalent
+      provider requests or derived calculations.
+
+tickets:
+  S14R-M1:
+    title: Establish the Fact Boundary
+    objective: >
+      Execute at least one current production strategy from sealed immutable
+      read-only subject knowledge with zero strategy-owned acquisition.
+    required_proof:
+      - generic_acquisition_planning
+      - sealed_snapshot
+      - canonical_projection
+      - named_versioned_derived_materialization
+      - read_only_strategy_input
+      - authoritative_strategy_execution
+      - correct_PASS_WATCH_FAIL_UNKNOWN_semantics
+    pass: >
+      One real migrated strategy evaluates successfully with no strategy-owned
+      acquisition.
+  S14R-M2:
+    title: Converge All Production Strategies
+    depends_on: [S14R-M1]
+    objective: >
+      Move forward_factor, skew_momentum, and earnings_calendar onto the same
+      generic fact boundary.
+    required_proof:
+      - no_migrated_RuntimeContext_acquisition_object
+      - no_migrated_strategy_specific_provider_acquisition
+      - shared_fact_identity_across_consumers
+      - provider_calls_invariant_to_strategy_order_for_equivalent_demands
+      - production_semantics_preserved
+      - superseded_paths_unreachable
+    pass: all_current_production_strategies_use_one_fact_oriented_architecture
+  S14R-M3:
+    title: Prove Modularity Replay and Legacy Deletion
+    depends_on: [S14R-M2]
+    objective: >
+      Make the fact-oriented runtime the only live migrated architecture and
+      prove replay and plug-in modularity.
+    required_proof:
+      - provider_free_replay
+      - test_only_fourth_strategy_north_star
+      - legacy_migrated_acquisition_deleted
+      - forbidden_path_architecture_guards
+      - full_repository_validation
+    pass: target_architecture_is_only_live_migrated_architecture
+
+execution_policy:
+  outcome_first: true
+  mainline_first: true
+  PR_count_is_implementation_detail: true
+  multiple_corrective_PRs_per_milestone: allowed_within_scope
+  after_each_merge:
+    - synchronize_to_new_main
+    - verify_main_contains_merge
+    - run_milestone_specific_smoke
+    - treat_post_merge_integration_failure_as_same_milestone_work
+    - continue_without_Founder_interaction
+  loop_breaker:
+    first_failure: one_direct_corrective_pass
+    repeated_same_acceptance_failure:
+      - stop_local_patch_sequence
+      - restate_blocked_sprint_condition
+      - reproduce_from_owning_boundary
+      - challenge_current_implementation_assumption
+      - implement_one_root_cause_correction
+      - remove_superseded_partial_solution
+
+authority:
+  worker:
+    may:
+      - implement_enumerated_milestones
+      - add_and_update_tests_and_documentation
+      - perform_bounded_refactors
+      - open_and_update_pull_requests
+      - perform_self_review
+      - enable_auto_merge_when_available
+      - mechanically_merge_qualifying_sprint_PRs
+      - correct_in_scope_failures
+    may_not:
+      - merge_activation_or_scope_changes
+      - bypass_branch_protection
+      - modify_frozen_governance
+      - redefine_protected_architecture_or_domain_contracts
+      - expand_scope
+      - reduce_risk_floor
+      - deploy
+  manager_may_merge: false
+  architect_may_merge: false
+
+merge_policy:
+  activation_merge_authority: Founder_only
+  implementation_merge_authority: active_Amendment_013_delegate
+  auto_merge: true
+  required_before_every_delegated_merge:
+    - PR_implements_M1_M2_or_M3_or_in_scope_correction
+    - assigned_Worker_and_milestone_recorded
+    - branch_current_with_or_validated_against_main
+    - required_repository_CI_green
+    - architecture_validation_green
+    - immutable_contract_tests_green
+    - deterministic_identity_tests_green
+    - stage_required_replay_tests_green
+    - relevant_strategy_runtime_integration_tests_green
+    - Worker_self_review_complete
+    - Manager_stop_status_CLEAR
+    - no_known_sprint_invariant_violation
+    - no_non_delegable_change
+    - no_unresolved_blocking_issue
+    - branch_protection_not_bypassed
+  missing_skipped_unavailable_or_failing_gate: blocks_merge
+
+validation:
+  required_before_every_delegated_merge:
+    - focused_changed_behavior_tests
+    - full_pytest
+    - changed_file_ruff
+    - mypy_for_changed_owners
+    - architecture_validation
+    - immutable_contract_validation
+    - deterministic_identity_validation
+    - stage_required_provider_free_replay_validation
+    - governance_integrity_validation
+    - lean_entrypoint_validation
+    - git_diff_check
+  final_exact_main:
+    - full_test_suite
+    - architecture_validation
+    - immutable_contract_validation
+    - deterministic_identity_validation
+    - provider_free_replay_validation
+    - fourth_strategy_modularity_proof
+    - production_equivalent_scheduled_execution_non_mutating
+    - production_equivalent_API_execution_non_mutating
+    - zero_migrated_strategy_owned_acquisition
+    - no_live_legacy_migrated_path
+    - no_duplicate_generic_owner_or_subsystem
+    - no_sprint_created_temporary_compatibility_code
+    - clean_repository
+
+stop_conditions:
+  - frozen_governance_change_required
+  - protected_architecture_or_domain_contract_redefinition_required
+  - scope_expansion_required
+  - risk_floor_reduction_required
+  - deployment_required
+  - sprint_completion_impossible_inside_approved_architecture
+
+founder_interaction:
+  routine_progress: prohibited
+  next_normal_contact: closure_packet_after_exact_main_verification
+  hard_blocker_packet_only_for: stop_conditions
+
+definition_of_done:
+  - all_three_production_strategies_use_one_generic_read_only_fact_runtime
+  - reusable_calculations_are_named_versioned_immutable_facts
+  - no_strategy_facing_execution_object_exposes_acquisition
+  - equivalent_evidence_and_facts_are_reused
+  - migrated_evaluations_replay_without_providers
+  - fourth_strategy_requires_no_generic_runtime_or_acquisition_change
+  - superseded_migrated_acquisition_code_deleted
+  - exact_current_main_passes_all_final_validation
+
+closure_packet:
+  required:
+    - final_main_SHA
+    - merged_PRs
+    - exact_main_full_test_results
+    - architecture_validation
+    - replay_result
+    - fourth_strategy_proof
+    - all_three_read_only_fact_path_proof
+    - strategy_owned_acquisition_absence_proof
+    - legacy_path_deletion_proof
+    - non_sprint_observations
+    - next_sprint_recommendation
+
+successor_boundary:
+  id: UNIVERSE-001
+  title: Broad Equity Universe
+  authorization: not_granted
