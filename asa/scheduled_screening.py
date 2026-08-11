@@ -411,7 +411,7 @@ def run_scheduled_refresh(
     # A preparation failure is isolated exactly like this module's other
     # best-effort side channels (skew capture, opportunity history) and
     # never aborts or affects any pair's own legacy evaluation.
-    shadow_registry = build_migrated_shadow_registry(clock.now())
+    shadow_registry = build_migrated_shadow_registry(clock.now(), historical_skew_repository)
     shadow_capability_reducers = migrated_shadow_capability_reducers()
     # SPRINT-014 S14-PR-05, Architect checkpoint: nineteenth review, "one
     # shared cutover policy owner used identically by scheduled and API
@@ -440,6 +440,12 @@ def run_scheduled_refresh(
                     access[symbol].capability_registry
                 ),
                 capability_reducer_by_capability=shadow_capability_reducers,
+                strategy_ids=tuple(
+                    sorted(
+                        requested_signal_ids_by_symbol[symbol]
+                        & set(shadow_registry.strategy_ids())
+                    )
+                ),
             )
         except Exception:
             _LOGGER.warning(

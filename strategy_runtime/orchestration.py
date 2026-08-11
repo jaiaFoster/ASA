@@ -79,7 +79,7 @@ from strategy_runtime.service import refresh
 from strategy_runtime.subject_preparation import (
     SubjectPreparationBinding,
     SubjectPreparationRegistry,
-    prepare_strategy_knowledge,
+    prepare_subject_knowledge,
 )
 from strategy_runtime.validation import validate_result
 
@@ -191,6 +191,7 @@ def prepare_subject_shadow_knowledge(
     resolution_policy_by_capability: dict[MarketCapability, ResolutionPolicy],
     capability_reducer_by_capability: Mapping[MarketCapability, CapabilityResultReducer]
     | None = None,
+    strategy_ids: tuple[str, ...] | None = None,
 ) -> dict[str, ReadOnlyStrategyInput[object] | UnknownReason]:
     """Run subject-first preparation once for every strategy_id
     ``shadow_registry`` declares, against the same ``plan`` every legacy
@@ -208,19 +209,19 @@ def prepare_subject_shadow_knowledge(
     contract acquisition for OPTION_CHAIN_V1. Caller-supplied, generic:
     this module never registers one itself.
     """
-    return {
-        strategy_id: prepare_strategy_knowledge(
-            plan,
-            now,
-            shadow_registry,
-            strategy_id,
-            subject=subject,
-            provider_metadata=provider_metadata,
-            resolution_policy_by_capability=resolution_policy_by_capability,
-            capability_reducer_by_capability=capability_reducer_by_capability,
-        )
-        for strategy_id in shadow_registry.strategy_ids()
-    }
+    return prepare_subject_knowledge(
+        plan,
+        now,
+        (
+            shadow_registry
+            if strategy_ids is None
+            else shadow_registry.restricted_to(strategy_ids)
+        ),
+        subject=subject,
+        provider_metadata=provider_metadata,
+        resolution_policy_by_capability=resolution_policy_by_capability,
+        capability_reducer_by_capability=capability_reducer_by_capability,
+    )
 
 
 # The envelope/pair identity fields plus the semantic fields two

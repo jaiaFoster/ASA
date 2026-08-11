@@ -444,6 +444,7 @@ class TestRealEarningsShadowAgainstFixtureProvider:
         request's own total must equal it exactly, never more.
         """
 
+        monkeypatch.setenv("ASA_EARNINGS_CALENDAR_CUTOVER_ENABLED", "false")
         client = self._client(monkeypatch, build_fixture_market_data_access_factory())
         caplog.set_level(logging.INFO)
         logging.getLogger().addHandler(caplog.handler)
@@ -503,6 +504,7 @@ class TestRealEarningsShadowAgainstFixtureProvider:
         real route -> plan -> subject-first shadow preparation -> legacy
         Earnings -> comparator, end to end.
         """
+        monkeypatch.setenv("ASA_EARNINGS_CALENDAR_CUTOVER_ENABLED", "false")
         factory = build_fixture_market_data_access_factory(
             provider_cls_by_symbol={"AAPL": WatchEarningsFixtureProvider}
         )

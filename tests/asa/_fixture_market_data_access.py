@@ -290,5 +290,6 @@ def shadow_alone_call_count(
         provider_metadata=access.provider_metadata,
         resolution_policy_by_capability=migrated_shadow_resolution_policy(capability_registry),
         capability_reducer_by_capability=migrated_shadow_capability_reducers(),
+        strategy_ids=("earnings_calendar",),
     )
     return len(access.budget_manager.accounting)

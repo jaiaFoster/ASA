@@ -1411,6 +1411,8 @@ def test_scheduled_earnings_pass_shadow_diagnostic_matches_and_legacy_persists(
     """
     import asa.scheduled_screening as scheduled_screening_module
 
+    monkeypatch.setenv("ASA_EARNINGS_CALENDAR_CUTOVER_ENABLED", "false")
+
     monkeypatch.setattr(
         scheduled_screening_module,
         "build_shared_market_data_access",
@@ -1459,6 +1461,8 @@ def test_scheduled_earnings_watch_shadow_diagnostic_matches_and_legacy_persists(
     real scheduled root instead of a hand-built snapshot.
     """
     import asa.scheduled_screening as scheduled_screening_module
+
+    monkeypatch.setenv("ASA_EARNINGS_CALENDAR_CUTOVER_ENABLED", "false")
 
     monkeypatch.setattr(
         scheduled_screening_module,
@@ -1510,6 +1514,7 @@ def test_scheduled_earnings_outage_shadow_unknown_and_bounded_once_not_doubled(
     proving the plan's own bounded retry is shared once, never doubled
     by legacy independently retrying the same already-exhausted failure.
     """
+    monkeypatch.setenv("ASA_EARNINGS_CALENDAR_CUTOVER_ENABLED", "false")
     import asa.scheduled_screening as scheduled_screening_module
 
     scenario = FixtureScenario(
