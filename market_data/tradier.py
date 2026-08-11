@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 from collections.abc import Mapping, Sequence
 from datetime import UTC, date, datetime, time, timedelta
 from decimal import Decimal, InvalidOperation
@@ -72,6 +73,8 @@ TRADIER_CAPABILITIES = (
 # tradier_rolling_window_policy() read from, so the two can never drift.
 _MARKET_DATA_PER_MINUTE_PRODUCTION = 120
 _MARKET_DATA_PER_MINUTE_SANDBOX = 60
+
+LOGGER = logging.getLogger(__name__)
 
 
 def tradier_rolling_window_policy(
@@ -305,10 +308,29 @@ class TradierProvider:
             )
         if request.capability is MarketCapability.HISTORICAL_BARS_V1:
             rows = _rows(_mapping(response.json_body, "history").get("day"))
-            return tuple(
-                self._observation(request, subject, _bar(subject, row), response, row)
-                for row in rows
-            )
+            observations: list[MarketObservation] = []
+            rejected_rows = 0
+            for row in rows:
+                try:
+                    observations.append(
+                        self._observation(request, subject, _bar(subject, row), response, row)
+                    )
+                except (KeyError, TypeError, ValueError, InvalidOperation, DomainInvariantError):
+                    rejected_rows += 1
+            if rejected_rows:
+                LOGGER.warning(
+                    "Tradier rejected %d malformed historical bar row(s)",
+                    rejected_rows,
+                    extra={
+                        "provider": "tradier",
+                        "symbol": subject.canonical_instrument.display_symbol,
+                        "capability": request.capability.value,
+                        "diagnostic_code": ProviderErrorCode.SCHEMA_MISMATCH.value,
+                    },
+                )
+            if not observations:
+                raise DomainInvariantError("Tradier history contained no valid canonical bars")
+            return tuple(observations)
         if "expirations" in request.required_fields and "contracts" not in request.required_fields:
             values = _mapping(response.json_body, "expirations").get("date")
             dates = values if isinstance(values, list) else [values]

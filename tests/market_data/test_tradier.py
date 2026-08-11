@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 
 import pytest
 
@@ -275,6 +276,77 @@ def test_daily_history_normalizes_decimal_ohlcv() -> None:
     )
     assert result.error is None and isinstance(result.observations[0].value, OHLCVBar)
     assert transport.requests[0].path == "/v1/markets/history"
+
+
+def test_daily_history_rejects_one_incoherent_row_without_discarding_valid_series(
+    caplog,
+) -> None:  # noqa: ANN001
+    transport = Transport(
+        (
+            response(
+                {
+                    "history": {
+                        "day": [
+                            {
+                                "date": "2026-06-29",
+                                "open": "124.00",
+                                "high": "125.00",
+                                "low": "123.00",
+                                "close": "122.99",
+                                "volume": 100,
+                            },
+                            {
+                                "date": "2026-06-30",
+                                "open": "124.00",
+                                "high": "126.00",
+                                "low": "123.00",
+                                "close": "125.00",
+                                "volume": 200,
+                            },
+                        ]
+                    }
+                }
+            ),
+        )
+    )
+
+    result = provider(transport).fetch(
+        request(MarketCapability.HISTORICAL_BARS_V1, ("close",)), authorization()
+    )
+
+    assert result.error is None
+    assert len(result.observations) == 1
+    assert result.observations[0].value.close == Decimal("125.00")
+    assert "rejected 1 malformed historical bar row" in caplog.text
+
+
+def test_daily_history_fails_when_every_row_is_incoherent() -> None:
+    transport = Transport(
+        (
+            response(
+                {
+                    "history": {
+                        "day": {
+                            "date": "2026-06-29",
+                            "open": "124.00",
+                            "high": "125.00",
+                            "low": "123.00",
+                            "close": "122.99",
+                            "volume": 100,
+                        }
+                    }
+                }
+            ),
+        )
+    )
+
+    result = provider(transport).fetch(
+        request(MarketCapability.HISTORICAL_BARS_V1, ("close",)), authorization()
+    )
+
+    assert result.observations == ()
+    assert result.error is not None
+    assert result.error.code is ProviderErrorCode.SCHEMA_MISMATCH
 
 
 def test_option_chain_preserves_greeks_iv_and_liquidity() -> None:
