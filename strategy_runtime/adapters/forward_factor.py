@@ -6,21 +6,27 @@ this sprint's own quality.preserve rule for "execution graph" means
 Forward Factor's actual financial logic (compile_strategy_graph/
 execute_strategy_graph, strategies/stonk_manifests.py's own
 FORWARD_FACTOR_CALENDAR_MANIFEST) is reused unmodified, never
-reimplemented. forward_factor_adapter() is the thin translation layer
-strategies_own_thesis exists for: build the screening-style adapter for
-this run's own subject and shared fulfillment service, call it once, and
-translate its ScreeningResult into UniversalScreeningResult -- nothing
-else. No lifecycle: forward_factor has never tracked one, matching its
-own registered contract declaring lifecycle=NO_LIFECYCLE.
+reimplemented. No lifecycle: forward_factor has never tracked one,
+matching its own registered contract declaring lifecycle=NO_LIFECYCLE.
 
 Requirements are mechanically aligned with the canonical manifest:
 real-time quote for spot, option chains for the calendar, and earnings
 calendar evidence for the confirmed-event exclusion gate.
+
+``build_forward_factor_adapter()`` (SPRINT-014 S14-PR-05A, Architect
+checkpoint: twelfth review, item 3 -- "legacy FF/Skew ... get acquisition
+by closure, not context") replaces the old context-reading
+``forward_factor_adapter`` function: acquisition now comes from a
+CapabilityFulfiller closed over at registry-construction time (a raw
+CapabilityFulfillmentService or a PlanBackedFulfillment wrapping one
+subject's own SubjectAcquisitionPlan), never from RuntimeContext, which
+no longer carries a fulfillment field at all.
 """
 
 from __future__ import annotations
 
 from domain import MarketCapability
+from market_data.subject_plan import CapabilityFulfiller
 from screening import run_screening
 from screening.adapters import TARGET_STRATEGY_REGISTRY
 from screening.live_adapters import build_live_forward_factor_adapter
@@ -35,6 +41,7 @@ from strategy_runtime.contract import (
     StrategyContract,
     StructureKind,
 )
+from strategy_runtime.registry import StrategyAdapter
 from strategy_runtime.result import UniversalScreeningResult, compute_observation_id
 
 FORWARD_FACTOR_CONTRACT = StrategyContract(
@@ -64,28 +71,36 @@ FORWARD_FACTOR_CONTRACT = StrategyContract(
 )
 
 
-def forward_factor_adapter(context: RuntimeContext) -> UniversalScreeningResult:
-    if context.fulfillment is None:
-        raise RuntimeError(
-            "forward_factor requires shared market data access "
-            "(strategy_runtime.market_data_planning, EPIC-3) -- RuntimeContext.fulfillment is None"
+def build_forward_factor_adapter(
+    fulfillment: CapabilityFulfiller,
+) -> StrategyAdapter[UniversalScreeningResult]:
+    """Close over one subject's own CapabilityFulfiller (built by whatever
+    composition root is running this cycle) and return the thin
+    translation layer strategies_own_thesis exists for: build the
+    screening-style adapter for this run's own subject and fulfiller,
+    call it once, and translate its ScreeningResult into
+    UniversalScreeningResult -- nothing else.
+    """
+
+    def _adapter(context: RuntimeContext) -> UniversalScreeningResult:
+        live_adapter = build_live_forward_factor_adapter(
+            context.subject,
+            fulfillment,
+            freshness_requirement=context.contract.freshness_requirement,
         )
-    live_adapter = build_live_forward_factor_adapter(
-        context.subject,
-        context.fulfillment,
-        freshness_requirement=context.contract.freshness_requirement,
-    )
-    (result,) = run_screening(
-        TARGET_STRATEGY_REGISTRY,
-        {"forward_factor": live_adapter},
-        context.clock,
-        strategy_ids=("forward_factor",),
-    )
-    observation_id = compute_observation_id(context.run_id, "forward_factor", context.subject)
-    return translate_screening_result(
-        result,
-        symbol=context.subject,
-        observation_id=observation_id,
-        opportunity_id=None,
-        lifecycle_stage=None,
-    )
+        (result,) = run_screening(
+            TARGET_STRATEGY_REGISTRY,
+            {"forward_factor": live_adapter},
+            context.clock,
+            strategy_ids=("forward_factor",),
+        )
+        observation_id = compute_observation_id(context.run_id, "forward_factor", context.subject)
+        return translate_screening_result(
+            result,
+            symbol=context.subject,
+            observation_id=observation_id,
+            opportunity_id=None,
+            lifecycle_stage=None,
+        )
+
+    return _adapter

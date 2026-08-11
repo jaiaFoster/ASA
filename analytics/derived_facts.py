@@ -28,6 +28,7 @@ NORMALIZED_CALL_SKEW = "normalized_call_skew"
 NORMALIZED_PUT_SKEW = "normalized_put_skew"
 SKEW_HISTORICAL_PERCENTILE = "skew_historical_percentile"
 SKEW_HISTORICAL_ZSCORE = "skew_historical_zscore"
+IV_TERM_STRUCTURE_SPREAD = "iv_term_structure_spread"
 ATM_IV_VS_REALIZED = "atm_iv_vs_realized_volatility"
 CALL_WING_IV_VS_REALIZED = "call_wing_iv_vs_realized_volatility"
 PUT_WING_IV_VS_REALIZED = "put_wing_iv_vs_realized_volatility"
@@ -180,6 +181,44 @@ def compute_iv_realized_spread(
     return implied_volatility - realized_volatility
 
 
+def compute_atm_iv_vs_realized_volatility(
+    implied_volatility: Decimal, closes: Sequence[Decimal]
+) -> Decimal:
+    """Front-month ATM implied volatility minus realized volatility over
+    an already-canonical daily close series -- a single registered
+    composite calculation (SPRINT-014 S14-PR-05A, Architect checkpoint:
+    sixth review, "ATM_IV_VS_REALIZED hides a versioned derived
+    dependency"). Computes realized volatility internally rather than
+    accepting an already-materialized realized_volatility DerivedFact as
+    an input: EvidenceKind has no derived-fact reference kind, and this
+    feature's own registered formula_version must own the entire
+    computation end to end, not silently depend on a separately-versioned
+    intermediate a caller happened to materialize first. A caller that
+    also wants realized_volatility on its own (for reuse elsewhere)
+    materializes REALIZED_VOLATILITY separately, from the same closes.
+    """
+    from analytics.realized_volatility import compute_realized_volatility
+
+    realized_volatility = compute_realized_volatility(closes)
+    return compute_iv_realized_spread(implied_volatility, realized_volatility)
+
+
+def compute_iv_term_structure_spread(front_iv: Decimal, back_iv: Decimal) -> Decimal:
+    """Front-month implied volatility minus a later expiration's implied
+    volatility (SPRINT-014 S14-PR-05A, Architect checkpoint: fact/analytics
+    composition increment). A steep negative term-structure slope --
+    front IV meaningfully richer than the back expiration's -- is the
+    reusable financial feature Earnings Calendar's own term-structure
+    richness score input is built from; the raw spread lives here, in
+    analytics/, never as ad hoc subtraction inside screening or a
+    strategy. Richness normalization over this spread stays strategy-owned
+    (strategies/scoring.py's normalize_richness()).
+    """
+    if min(front_iv, back_iv) < 0:
+        raise ValueError("implied volatilities must be non-negative")
+    return front_iv - back_iv
+
+
 def compute_bid_ask_spread_ratio(bid: Decimal | None, ask: Decimal | None) -> Decimal:
     if bid is None or ask is None or bid < 0 or ask < bid:
         raise ValueError("valid ordered bid and ask are required")
@@ -239,6 +278,11 @@ DERIVED_FACT_DEFINITIONS = (
     _definition(
         IMPLIED_FORWARD_VOLATILITY,
         "Forward volatility implied by two canonical expiration IVs.",
+        MarketCapability.OPTION_CHAIN_V1,
+    ),
+    _definition(
+        IV_TERM_STRUCTURE_SPREAD,
+        "Front-month implied volatility minus a later expiration's implied volatility.",
         MarketCapability.OPTION_CHAIN_V1,
     ),
     _definition(
@@ -302,6 +346,15 @@ DERIVED_FACT_DEFINITIONS = (
             SKEW_HISTORICAL_ZSCORE,
         )
     ),
+    _definition(
+        ATM_IV_VS_REALIZED,
+        "Front-month ATM implied volatility minus realized volatility -- a "
+        "composite calculation owning its own realized-volatility computation "
+        "internally (compute_atm_iv_vs_realized_volatility), not a thin wrapper "
+        "over a separately-versioned intermediate.",
+        MarketCapability.OPTION_CHAIN_V1,
+        MarketCapability.HISTORICAL_BARS_V1,
+    ),
     *(
         _definition(
             identifier,
@@ -310,7 +363,6 @@ DERIVED_FACT_DEFINITIONS = (
             MarketCapability.HISTORICAL_BARS_V1,
         )
         for identifier in (
-            ATM_IV_VS_REALIZED,
             CALL_WING_IV_VS_REALIZED,
             PUT_WING_IV_VS_REALIZED,
         )

@@ -47,6 +47,44 @@ def test_structured_market_log_contains_required_correlation_fields() -> None:
     assert payload["account_id"] == "taxable-001"
 
 
+def test_shadow_parity_diagnostic_fields_survive_the_allowlist() -> None:
+    """SPRINT-014 S14-PR-05A (Architect checkpoint: sixteenth review, "log/
+    record shadow diagnostics internally. At minimum retain status,
+    mismatched fields, UNKNOWN code+demand IDs, and shadow snapshot ID/
+    digest without provider payloads") -- both production roots' own
+    shadow_parity_diagnostic log call sites are silently filtered through
+    this exact allowlist; a field missing here means it is silently
+    dropped from every real, production JSON log line, not just this
+    test's own record.
+    """
+    record = logging.LogRecord(
+        name="asa.api.screening_routes",
+        level=logging.INFO,
+        pathname=__file__,
+        lineno=1,
+        msg="shadow_parity_diagnostic",
+        args=(),
+        exc_info=None,
+    )
+    record.signal_id = "earnings_calendar"
+    record.symbol = "AAPL"
+    record.shadow_status = "mismatch"
+    record.shadow_mismatched_fields = ("verdict",)
+    record.shadow_unknown_code = "synthetic_gap"
+    record.shadow_unknown_demand_ids = ("demand-a",)
+    record.shadow_snapshot_id = "snapshot-1"
+    record.shadow_snapshot_digest = "digest-1"
+
+    payload = json.loads(JsonFormatter().format(record))
+
+    assert payload["shadow_status"] == "mismatch"
+    assert payload["shadow_mismatched_fields"] == ["verdict"]
+    assert payload["shadow_unknown_code"] == "synthetic_gap"
+    assert payload["shadow_unknown_demand_ids"] == ["demand-a"]
+    assert payload["shadow_snapshot_id"] == "snapshot-1"
+    assert payload["shadow_snapshot_digest"] == "digest-1"
+
+
 def _record_with_exc_info(exc: BaseException, msg: str = "operation failed") -> logging.LogRecord:
     try:
         raise exc

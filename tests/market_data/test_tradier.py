@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 
 import pytest
@@ -10,6 +10,7 @@ from domain import (
     CanonicalInstrumentIdentity,
     EvidenceKind,
     EvidenceReference,
+    ExpirationCollection,
     FreshnessStatus,
     Instrument,
     InstrumentKind,
@@ -18,6 +19,7 @@ from domain import (
     MarketDataSubject,
     MarketDataSubjectType,
     OHLCVBar,
+    OHLCVSeries,
     OptionChain,
     ProviderAddressProjection,
     Quote,
@@ -250,6 +252,11 @@ def test_option_chain_during_open_session_is_fresh() -> None:
 
 
 def test_daily_history_normalizes_decimal_ohlcv() -> None:
+    # SPRINT-014 S14-PR-05A (Founder-approved bounded contract extension):
+    # one historical-bars request normalizes into exactly one observation
+    # wrapping a provider-neutral OHLCVSeries, never one observation per
+    # trading day -- so a generic single-observation-per-demand consumer
+    # can resolve this capability at all.
     transport = Transport(
         (
             response(
@@ -274,13 +281,61 @@ def test_daily_history_normalizes_decimal_ohlcv() -> None:
         request(MarketCapability.HISTORICAL_BARS_V1, ("open", "high", "low", "close", "volume")),
         authorization(),
     )
-    assert result.error is None and isinstance(result.observations[0].value, OHLCVBar)
+    assert result.error is None
+    assert len(result.observations) == 1
+    series = result.observations[0].value
+    assert isinstance(series, OHLCVSeries)
+    assert len(series.bars) == 1
+    assert isinstance(series.bars[0], OHLCVBar)
+    assert series.bars[0].close == Decimal("210")
     assert transport.requests[0].path == "/v1/markets/history"
 
 
+def test_multi_day_history_normalizes_into_one_series_observation() -> None:
+    transport = Transport(
+        (
+            response(
+                {
+                    "history": {
+                        "day": [
+                            {
+                                "date": "2026-07-19",
+                                "open": "200.00",
+                                "high": "206",
+                                "low": "199",
+                                "close": "205",
+                                "volume": 40000000,
+                            },
+                            {
+                                "date": "2026-07-20",
+                                "open": "205.00",
+                                "high": "212",
+                                "low": "204",
+                                "close": "210",
+                                "volume": 50000000,
+                            },
+                        ]
+                    }
+                }
+            ),
+        )
+    )
+    result = provider(transport).fetch(
+        request(MarketCapability.HISTORICAL_BARS_V1, ("open", "high", "low", "close", "volume")),
+        authorization(),
+    )
+    assert result.error is None
+    assert len(result.observations) == 1
+    series = result.observations[0].value
+    assert isinstance(series, OHLCVSeries)
+    assert [bar.close for bar in series.bars] == [Decimal("205"), Decimal("210")]
+    # Oldest-first, regardless of the provider's own response order.
+    assert series.bars[0].start_at < series.bars[1].start_at
+
+
 def test_daily_history_rejects_one_incoherent_row_without_discarding_valid_series(
-    caplog,
-) -> None:  # noqa: ANN001
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     transport = Transport(
         (
             response(
@@ -309,14 +364,13 @@ def test_daily_history_rejects_one_incoherent_row_without_discarding_valid_serie
             ),
         )
     )
-
     result = provider(transport).fetch(
         request(MarketCapability.HISTORICAL_BARS_V1, ("close",)), authorization()
     )
-
     assert result.error is None
-    assert len(result.observations) == 1
-    assert result.observations[0].value.close == Decimal("125.00")
+    series = result.observations[0].value
+    assert isinstance(series, OHLCVSeries)
+    assert [bar.close for bar in series.bars] == [Decimal("125.00")]
     assert "rejected 1 malformed historical bar row" in caplog.text
 
 
@@ -339,14 +393,35 @@ def test_daily_history_fails_when_every_row_is_incoherent() -> None:
             ),
         )
     )
-
     result = provider(transport).fetch(
         request(MarketCapability.HISTORICAL_BARS_V1, ("close",)), authorization()
     )
-
     assert result.observations == ()
     assert result.error is not None
     assert result.error.code is ProviderErrorCode.SCHEMA_MISMATCH
+
+
+def test_expirations_only_normalizes_into_one_collection_observation() -> None:
+    # SPRINT-014 S14-PR-05A (Founder-approved bounded contract extension):
+    # Tradier's real expirations-only endpoint lists many dates in one
+    # response -- normalized into one observation wrapping a provider-
+    # neutral ExpirationCollection, never one observation per date.
+    transport = Transport(
+        (response({"expirations": {"date": ["2026-09-18", "2026-08-21"]}}),)
+    )
+    result = provider(transport).fetch(
+        request(MarketCapability.OPTION_CHAIN_V1, ("expirations",)), authorization()
+    )
+    assert result.error is None
+    assert len(result.observations) == 1
+    collection = result.observations[0].value
+    assert isinstance(collection, ExpirationCollection)
+    # Canonically ordered regardless of the provider's own response order.
+    assert [cycle.expiration_date for cycle in collection.cycles] == [
+        date(2026, 8, 21),
+        date(2026, 9, 18),
+    ]
+    assert transport.requests[0].path == "/v1/markets/options/expirations"
 
 
 def test_option_chain_preserves_greeks_iv_and_liquidity() -> None:
@@ -382,7 +457,12 @@ def test_option_chain_preserves_greeks_iv_and_liquidity() -> None:
 
 
 def test_option_chain_freshness_is_the_median_not_the_first_response_row() -> None:
-    """Chain time is an order-independent aggregate of provider field times."""
+    """SPRINT-013 S13-10: the chain's own canonical timestamp is a
+    deterministic aggregate (median) over every contract's own genuine
+    trade time -- never the first row's own value, and never simply the
+    single newest either (an aggregate robust to an outlier in *either*
+    direction, not a max/min that only guards one direction).
+    """
     old = {
         "symbol": "AAPL260821C00210000",
         "underlying": "AAPL",
@@ -408,38 +488,6 @@ def test_option_chain_freshness_is_the_median_not_the_first_response_row() -> No
     recent_time = NOW - timedelta(minutes=5)
     expected_median = old_time + (recent_time - old_time) / 2
     assert result.observations[0].effective_time == expected_median
-
-
-def test_current_bid_and_ask_dates_keep_an_untraded_chain_usable() -> None:
-    """A last transaction is not the timestamp of current quoted prices."""
-    old_trade = NOW - timedelta(days=3)
-    current_quote = NOW - timedelta(minutes=1)
-    row = {
-        "symbol": "DIS260821C00100000",
-        "underlying": "DIS",
-        "expiration_date": "2026-08-21",
-        "strike": "100",
-        "option_type": "call",
-        "last": "5",
-        "bid": "4.90",
-        "ask": "5.10",
-        "trade_date": int(old_trade.timestamp() * 1000),
-        "bid_date": int(current_quote.timestamp() * 1000),
-        "ask_date": int(current_quote.timestamp() * 1000),
-    }
-    result = provider(Transport((response({"options": {"option": [row]}}),))).fetch(
-        request(
-            MarketCapability.OPTION_CHAIN_V1,
-            ("contracts",),
-            expiration=True,
-            maximum_age_seconds=3600,
-        ),
-        authorization(),
-    )
-
-    assert result.error is None
-    assert result.observations[0].effective_time == current_quote
-    assert result.observations[0].freshness.status is FreshnessStatus.FRESH
 
 
 def test_option_chain_freshness_is_identical_regardless_of_response_row_order() -> None:

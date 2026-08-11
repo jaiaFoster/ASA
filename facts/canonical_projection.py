@@ -30,13 +30,44 @@ UNRESOLVED -> None (explicit UNKNOWN) rule, not field extraction.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import datetime
 
 from domain.canonical_fact import CanonicalFact
+from domain.market_data import MarketCapability
 from domain.provenance import Provenance
 from domain.references import Confidence
 from domain.values import DomainInvariantError, require_tz_aware
 from market_data.resolution import ConfidenceClassification, ResolutionMethod, ResolutionResult
+
+
+@dataclass(frozen=True, slots=True)
+class CanonicalFactRequest:
+    """One scalar a strategy-owned structural selection/binding wants
+    projected into a CanonicalFact (SPRINT-014 S14-PR-05A, Architect
+    checkpoint: tenth review, corrective knowledge-contract pass). Lives
+    here, not domain/, because facts/ is the accepted owner of canonical-
+    fact projection concepts (canonical_fact_id, project_canonical_fact
+    already live in this module) -- this is a request against that
+    machinery, not a cross-cutting domain value.
+
+    ``observation_id`` (added at the tenth-review checkpoint) is the
+    request's own claim about exactly which observation grounds
+    ``value`` -- not merely which capability. A generic composer verifies
+    this claim against the sealed snapshot's own resolution for
+    ``capability`` before trusting ``value`` (Architect checkpoint: "a
+    canonical-fact request must identify its exact selected source
+    observation, not merely a capability"); a request naming an
+    observation the resolution never actually selected is an
+    invariant/provenance failure, never silently accepted.
+    """
+
+    capability: MarketCapability
+    observation_id: str
+    value: object
+    subject: str
+    fact_type: str
+
 
 _CONFIDENCE_SCORE_BY_CLASSIFICATION = {
     ConfidenceClassification.EXACT_AGREEMENT: 1.0,
@@ -44,6 +75,24 @@ _CONFIDENCE_SCORE_BY_CLASSIFICATION = {
     ConfidenceClassification.DISAGREEMENT: 0.5,
     ConfidenceClassification.INSUFFICIENT_QUALITY: 0.0,
 }
+
+
+def canonical_fact_id(fact_type: str, subject: str, snapshot_digest: str) -> str:
+    """Deterministic identity for one projected canonical fact (SPRINT-014
+    S14-PR-05A, Architect checkpoint: sixth review, "canonical fact IDs are
+    strategy-owned" -- they are not; a fact's identity is a function of
+    what it represents (fact_type), which subject it is about, and which
+    sealed evidence it was projected from (snapshot_digest), never of
+    which strategy happened to be the caller that projected it. Mirrors
+    analytics.derived_fact_materialization.derived_fact_id()'s own exact
+    shape and argument order -- the two identity schemes are siblings.
+
+    Two different consumers projecting the same fact_type for the same
+    subject from the same sealed snapshot always receive the same ID, so
+    a later consumer can detect and reuse an already-projected fact
+    instead of silently duplicating it under a strategy-scoped name.
+    """
+    return f"{fact_type}:{subject}:{snapshot_digest}"
 
 
 def project_canonical_fact(

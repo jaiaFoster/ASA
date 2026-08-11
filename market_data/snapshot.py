@@ -122,13 +122,43 @@ class MarketSnapshotBuilder:
         ).issubset(requested):
             raise DomainInvariantError("Snapshot resolutions must be unique requested capabilities")
 
+        # SPRINT-014 S14-PR-05A (Architect review checkpoint, PR #292
+        # review 4877473757, second review): the sealed snapshot's own
+        # ``observations`` is the union of each fulfillment's selected/
+        # coalesced ``observations`` *and* every raw per-attempt
+        # observation, deduplicated by observation_id -- never resolution
+        # input alone. For an ordinary, single-winning-provider result
+        # these coincide (CapabilityFulfillmentService.fulfill() returns
+        # on the first successful attempt, so at most one attempt in the
+        # whole list ever carries observations), so this is behavior-
+        # preserving there. A capability-owned coalescer (market_data.
+        # capability_coalescing) legitimately produces one
+        # CapabilityFulfillmentResult whose own ``attempts`` includes more
+        # than one *successful* source attempt (e.g. a front and a back
+        # expiration, possibly from different providers) while
+        # ``observations`` holds only the one combined, resolver-ready
+        # observation -- storing only the combined observation would
+        # leave the snapshot referencing two source observation ids
+        # (the combined observation's own evidence) that are not
+        # themselves present anywhere in the sealed snapshot, and would
+        # silently drop a second provider's own raw observation and
+        # metadata whenever front and back were served by different
+        # providers. The union keeps the snapshot self-contained: the
+        # combined observation, and both of its own sources, all survive.
         observations = tuple(
             sorted(
                 {
                     observation.observation_id: observation
                     for fulfillment in fulfillments
-                    for attempt in fulfillment.attempts
-                    for observation in attempt.observations
+                    for source in (
+                        fulfillment.observations,
+                        tuple(
+                            observation
+                            for attempt in fulfillment.attempts
+                            for observation in attempt.observations
+                        ),
+                    )
+                    for observation in source
                 }.values(),
                 key=lambda item: (
                     item.capability.value,

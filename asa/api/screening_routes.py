@@ -1,14 +1,20 @@
 """GET /api/v1/capabilities, GET /api/v1/screening[/{signal}[/{symbol}]],
 POST /api/v1/screening/{signal}/{symbol}/refresh (API-003, API-004,
-SPRINT-008, cut over to strategy_runtime in SPRINT-009R/EPIC-R5).
+SPRINT-008, cut over to strategy_runtime in SPRINT-009R/EPIC-R5; cut over
+to the shared subject-plan/shadow orchestration seam in SPRINT-014
+S14-PR-05A).
 
 Read endpoints call only strategy_runtime.service.get_state(), which
 itself only ever reads through the injected LatestResultRepository and
 never triggers a provider request -- proven at this layer too by
 tests/asa/test_screening_routes.py, not merely inferred. The refresh
 endpoint is the one deliberate exception: it calls
-strategy_runtime.service.refresh() for exactly the one requested
-signal/symbol pair, never a whole universe or a whole signal.
+strategy_runtime.orchestration.refresh_with_shadow() for exactly the one
+requested signal/symbol pair, never a whole universe or a whole signal.
+Legacy stays authoritative and is the only result ever returned or
+persisted here; a diagnostic-only shadow result is never exposed on this
+public HTTP surface, only logged internally (see refresh_with_shadow's own
+module for the full contract).
 
 The capabilities endpoint is projected from the same universal contracts
 the runtime executes. It has no separate legacy registry authority.
@@ -17,10 +23,12 @@ the runtime executes. It has no separate legacy registry authority.
 from __future__ import annotations
 
 import logging
+import os
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal
+from functools import partial
 from typing import Literal
 
 from fastapi import APIRouter, Depends, Query, Request
@@ -34,15 +42,37 @@ from asa.api.screening_models import (
     ScreeningResultsEnvelope,
     SignalCapabilityResponse,
 )
+from domain import UnknownReason
 from market_data import load_market_data_config_from_environment
+from market_data.attempts import AcquisitionAttemptRepository
 from market_data.live_transport import build_live_transport
 from market_data.session_schedule import ON_DEMAND_COOLDOWN
+from screening.cycle_identity import (
+    manual_invocation_slot_id,
+    new_screening_cycle_id,
+    scope_identity,
+)
 from screening.live_acquisition import APPROVED_LIVE_UNIVERSE, live_only_config
+from strategy_runtime.adapters import (
+    build_migrated_cutover_policy,
+    build_migrated_shadow_registry,
+    build_migrated_strategy_registry,
+    migrated_shadow_capability_reducers,
+    migrated_shadow_resolution_policy,
+)
 from strategy_runtime.catalog import SignalCatalogEntry
+from strategy_runtime.knowledge import ReadOnlyStrategyInput
 from strategy_runtime.lifecycle import RecommendedAction
 from strategy_runtime.market_data_planning import (
     build_shared_market_data_access,
     enabled_provider_configs,
+)
+from strategy_runtime.orchestration import (
+    TouchedResultFulfillment,
+    build_subject_acquisition_access,
+    prepare_subject_shadow_knowledge,
+    refresh_with_shadow,
+    touched_observations,
 )
 from strategy_runtime.persistence import (
     LatestResultRepository,
@@ -51,7 +81,7 @@ from strategy_runtime.persistence import (
 )
 from strategy_runtime.registry import StrategyRegistry
 from strategy_runtime.result import EvaluationState, UniversalScreeningResult
-from strategy_runtime.service import get_state, record_opportunity_observation, refresh
+from strategy_runtime.service import get_state, record_opportunity_observation
 
 DEFAULT_LIMIT = 100
 MAX_LIMIT = 500
@@ -60,9 +90,32 @@ _LOGGER = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
-class _SystemClock:
+class _FrozenRequestClock:
+    """One fixed ``now``, captured once at the start of this on-demand
+    refresh -- not a fresh wall-clock reading on every call (Architect
+    checkpoint: seventeenth review, "the API root still constructs
+    _SystemClock, then independently calls clock.now() when building the
+    shadow registry, preparing shadow knowledge, generating the plan ID,
+    executing legacy Earnings, and later generating the shadow
+    diagnostic").
+
+    Mirrors asa/scheduled_screening.py's own _FrozenCycleClock rationale
+    (SPRINT-013 S13-03B): subject-first shadow preparation and legacy
+    execution must construct byte-identical request-window timestamps
+    (effective_start/effective_end embedded in every CapabilityRequest via
+    MarketDataRequestContext) for the shared plan's own request-identity
+    de-duplication to actually work -- an advancing clock silently defeats
+    that, producing distinct CapabilityRequest objects for what should be
+    the exact same demand, which can both miss the plan's cache and let
+    parity comparisons report a false temporal mismatch (legacy's own
+    result.observed_at differs from the shadow's own sealed-snapshot
+    as_of purely because of clock drift, not real evidence disagreement).
+    """
+
+    value: datetime
+
     def now(self) -> datetime:
-        return datetime.now(UTC)
+        return self.value
 
 
 def _paginate(
@@ -185,6 +238,7 @@ def build_screening_router(
     *,
     capabilities_catalog: tuple[SignalCatalogEntry, ...],
     history_repository: ObservationHistoryRepository,
+    acquisition_attempt_repository: AcquisitionAttemptRepository,
 ) -> APIRouter:
     router = APIRouter(prefix="/api/v1", dependencies=[Depends(authorize)])
 
@@ -309,7 +363,7 @@ def build_screening_router(
                 f"Refresh is bounded to the approved live universe {APPROVED_LIVE_UNIVERSE}, "
                 f"not {symbol!r}",
             )
-        clock = _SystemClock()
+        clock = _FrozenRequestClock(datetime.now(UTC))
         prior = repository.get_one(signal, symbol)
         if (
             prior is not None
@@ -333,14 +387,91 @@ def build_screening_router(
             )
         access = build_shared_market_data_access(config, transport_factory, clock, (symbol,))
         subject_access = access[symbol]
+        # SPRINT-014 S14-PR-05A (Architect checkpoint: sixteenth review,
+        # "final wiring increment"): one SubjectAcquisitionPlan +
+        # PlanBackedFulfillment for this one request, shared by this
+        # request's own legacy execution and (only if ``signal`` itself has
+        # a registered shadow binding) subject-first shadow preparation --
+        # ``registry`` (closed over from bootstrap, built with
+        # UNBOUND_FULFILLMENT) is only ever used above for
+        # _require_registered_signal's own membership check; a real
+        # evaluation always rebuilds a fresh, subject-scoped registry
+        # closed over this request's own real plan-backed fulfillment,
+        # never the raw CapabilityFulfillmentService, first.
+        acquisition = build_subject_acquisition_access(
+            symbol,
+            subject_access.fulfillment,
+            attempt_repository=acquisition_attempt_repository,
+            plan_id=new_screening_cycle_id(
+                invocation_type="api_refresh",
+                slot_id=manual_invocation_slot_id(clock.now()),
+                scope_id=scope_identity(((signal, symbol),)),
+            ),
+            clock=clock,
+        )
+        # SPRINT-014 S14-PR-05A (Architect checkpoint: seventeenth review,
+        # corrective item 2): this request's own legacy registry is bound
+        # to a fresh TouchedResultFulfillment wrapping the plan-backed
+        # fulfillment above -- this request's own observations callback is
+        # then derived from exactly what it itself recorded (a fresh call
+        # or a plan-cache hit alike), never from every observation the
+        # subject's raw fulfillment service ever accumulated, so evidence
+        # subject-first shadow preparation acquired for itself can never
+        # enter this request's own temporal metadata, even when it shares
+        # the same declared capability.
+        tracker = TouchedResultFulfillment(acquisition.plan_backed_fulfillment)
+        subject_registry = build_migrated_strategy_registry(tracker)
+        # Generic shadow-preparation seam (Architect checkpoint: sixteenth
+        # review, "do not eagerly acquire shadow-only data for an
+        # unshadowed API request ... shadow preparation must be limited to
+        # shadowed strategies actually requested for that subject"):
+        # prepared only when ``signal`` -- the one strategy this request is
+        # actually evaluating -- itself has a registered shadow binding.
+        # Never a hand-written `if signal == "earnings_calendar"` branch,
+        # and never triggered merely because some other, unrequested
+        # strategy happens to be registered for shadowing. A preparation
+        # failure is isolated and never affects this request's own legacy
+        # evaluation below.
+        shadow_registry = build_migrated_shadow_registry(clock.now())
+        # SPRINT-014 S14-PR-05, Architect checkpoint: nineteenth review,
+        # "one shared cutover policy owner used identically by scheduled
+        # and API roots" -- same function, same environment boundary as
+        # asa/scheduled_screening.py's own call, never a route-specific
+        # switch.
+        cutover_policy = build_migrated_cutover_policy(os.environ)
+        shadow_knowledge_by_subject: (
+            dict[str, ReadOnlyStrategyInput[object] | UnknownReason] | None
+        ) = None
+        if signal in shadow_registry.strategy_ids():
+            try:
+                shadow_knowledge_by_subject = prepare_subject_shadow_knowledge(
+                    acquisition.plan,
+                    clock.now(),
+                    shadow_registry,
+                    subject=symbol,
+                    provider_metadata=subject_access.provider_metadata,
+                    resolution_policy_by_capability=migrated_shadow_resolution_policy(
+                        subject_access.capability_registry
+                    ),
+                    capability_reducer_by_capability=migrated_shadow_capability_reducers(),
+                )
+            except Exception:
+                _LOGGER.warning(
+                    "shadow_subject_preparation_failed",
+                    extra={"signal_id": signal, "symbol": symbol},
+                    exc_info=True,
+                )
         try:
-            result = refresh(
-                registry,
+            result, shadow_diagnostic = refresh_with_shadow(
+                subject_registry,
                 repository,
                 clock,
                 strategy_id=signal,
                 symbol=symbol,
-                fulfillment_by_subject={symbol: subject_access.fulfillment},
+                observations=partial(touched_observations, tracker),
+                shadow_registry=shadow_registry,
+                shadow_knowledge_by_subject=shadow_knowledge_by_subject,
+                cutover_policy=cutover_policy,
             )
         except RuntimeError:
             if prior is None:
@@ -352,10 +483,29 @@ def build_screening_router(
                 result_changed=False,
                 refresh_failed=True,
             )
+        if shadow_diagnostic is not None:
+            # Diagnostic-only (Architect checkpoint: sixteenth review,
+            # "log/record shadow diagnostics internally instead"): never
+            # exposed on this public HTTP response, never persisted, never
+            # affects the legacy result above -- safe, sanitized fields
+            # only, no provider payloads.
+            _LOGGER.info(
+                "shadow_parity_diagnostic",
+                extra={
+                    "signal_id": signal,
+                    "symbol": symbol,
+                    "shadow_status": shadow_diagnostic.status,
+                    "shadow_mismatched_fields": shadow_diagnostic.mismatched_fields,
+                    "shadow_unknown_code": shadow_diagnostic.shadow_unknown_code,
+                    "shadow_unknown_demand_ids": shadow_diagnostic.shadow_unknown_demand_ids,
+                    "shadow_snapshot_id": shadow_diagnostic.shadow_snapshot_id,
+                    "shadow_snapshot_digest": shadow_diagnostic.shadow_snapshot_digest,
+                },
+            )
         if result.opportunity_id is not None:
             try:
                 record_opportunity_observation(
-                    registry,
+                    subject_registry,
                     history_repository,
                     result,
                     recommended_action=RecommendedAction.NO_ACTION,

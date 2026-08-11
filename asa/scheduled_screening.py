@@ -1,14 +1,17 @@
 """SPRINT-008D/PROD-002: scheduled production screening execution
-(cut over to strategy_runtime in SPRINT-009R/EPIC-R5).
+(cut over to strategy_runtime in SPRINT-009R/EPIC-R5; cut over to the
+shared subject-plan/shadow orchestration seam in SPRINT-014 S14-PR-05A).
 
-Calls strategy_runtime.service.refresh() -- the same shared execution graph
-POST /api/v1/screening/{signal}/{symbol}/refresh already calls (both, in
-turn, run the exact same unmodified screening execution graph internally
-via strategy_runtime.adapters._screening_bridge) -- once per (signal,
-symbol) pair in the production screening universe
+Calls strategy_runtime.orchestration.refresh_with_shadow() -- the same
+shared orchestration seam POST /api/v1/screening/{signal}/{symbol}/refresh
+already calls (both, in turn, run the exact same unmodified screening
+execution graph internally via strategy_runtime.adapters._screening_bridge)
+-- once per (signal, symbol) pair in the production screening universe
 (project/reports/SPRINT-008D-SCREENING-UNIVERSE.md), persisting through
 the real PostgresLatestResultRepository (universal_screening_state). No
-signal-selection or acquisition logic is reimplemented here.
+signal-selection or acquisition logic is reimplemented here. Legacy stays
+authoritative: refresh_with_shadow()'s own second, diagnostic-only shadow
+result is never persisted -- see its own module for the full contract.
 
 This must write to the same table asa/api/screening_routes.py now reads
 from -- writing anywhere else would silently starve the API of fresh data
@@ -32,11 +35,13 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import os
 import sys
 import time
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from functools import partial
 from typing import Protocol
 
 from asa.config import Settings
@@ -50,8 +55,9 @@ from asa.integrations.screening_acquisition_attempts_postgres import (
     PostgresAcquisitionAttemptRepository,
 )
 from asa.integrations.universal_screening_postgres import PostgresLatestResultRepository
+from domain import UnknownReason
 from market_data import ReuseDecision, load_market_data_config_from_environment
-from market_data.attempts import AcquisitionAttemptRepository, attempt_records_for
+from market_data.attempts import AcquisitionAttemptRepository
 from market_data.live_transport import build_live_transport
 from market_data.session_calendar import UsEquitySessionCalendar
 from market_data.session_schedule import SessionRefreshSchedule
@@ -66,21 +72,35 @@ from screening.cycle_identity import (
 )
 from screening.live_acquisition import live_only_config
 from screening.live_adapters import capture_skew_snapshot
-from strategy_runtime.adapters import build_migrated_strategy_registry
+from strategy_runtime.adapters import (
+    build_migrated_cutover_policy,
+    build_migrated_shadow_registry,
+    build_migrated_strategy_registry,
+    migrated_shadow_capability_reducers,
+    migrated_shadow_resolution_policy,
+)
 from strategy_runtime.historical_evidence import (
     ConflictingHistoricalObservationError,
     HistoricalSkewRepository,
     SyntheticOrBackdatedObservationError,
     record_prospective_skew_observation,
 )
+from strategy_runtime.knowledge import ReadOnlyStrategyInput
 from strategy_runtime.lifecycle import RecommendedAction
 from strategy_runtime.market_data_planning import (
     build_provider_rolling_window_tracker,
     build_shared_market_data_access,
     enabled_provider_configs,
 )
+from strategy_runtime.orchestration import (
+    TouchedResultFulfillment,
+    build_subject_acquisition_access,
+    prepare_subject_shadow_knowledge,
+    refresh_with_shadow,
+    touched_observations,
+)
 from strategy_runtime.persistence import LatestResultRepository, ObservationHistoryRepository
-from strategy_runtime.service import record_opportunity_observation, refresh
+from strategy_runtime.service import record_opportunity_observation
 
 # The production screening universe (project/reports/SPRINT-008D-SCREENING-
 # UNIVERSE.md, PROD-001; expanded SPRINT-011/UNI-001-UNI-002): all three
@@ -230,11 +250,17 @@ def run_scheduled_refresh(
     (SPRINT-013 S13-02) -- deterministically, from (invocation_type,
     slot_id, scope_id), never from raw wall-clock alone
     (screening.cycle_identity.new_screening_cycle_id). Each pair gets its
-    own pair_evaluation_id derived from that cycle. Attempt persistence is
-    best-effort per pair: a persistence failure never aborts an otherwise-
-    successful strategy evaluation, but PairOutcome.attempts_recorded is
-    set False so acquisition accounting is never silently reported
-    complete when it wasn't.
+    own pair_evaluation_id, used for shadow-diagnostic log correlation.
+
+    Attempt persistence is now owned by each symbol's own
+    SubjectAcquisitionPlan (SPRINT-014 S14-PR-05A), not recorded separately
+    per pair here -- a persistence failure never aborts or corrupts an
+    otherwise-successful strategy evaluation sharing that plan (the plan's
+    own best-effort resilience, market_data.subject_plan.
+    SubjectAcquisitionPlan.attempt_recording_degraded), but every
+    PairOutcome sharing a degraded symbol's plan honestly reports
+    attempts_recorded=False so acquisition accounting is never silently
+    reported complete when it wasn't.
     """
     run_at = now or datetime.now(UTC)
     invocation_type = "manual"
@@ -268,7 +294,6 @@ def run_scheduled_refresh(
         or PostgresHistoricalSkewRepository(create_postgres_engine(Settings().database_url))
     )
     session_calendar = UsEquitySessionCalendar()
-    registry = build_migrated_strategy_registry()
     config = live_only_config(load_market_data_config_from_environment())
     if not enabled_provider_configs(config):
         raise RuntimeError(
@@ -321,6 +346,27 @@ def run_scheduled_refresh(
         budget_clock=quota_clock,
         rolling_window=rolling_window,
     )
+    # SPRINT-014 S14-PR-05A (Architect checkpoint: sixteenth review, "final
+    # wiring increment"): one SubjectAcquisitionPlan + PlanBackedFulfillment
+    # per unique symbol, built once for the whole cycle -- never rebuilt
+    # per pair. Every migrated strategy adapter below is registered
+    # against this same plan-backed wrapper, never the raw
+    # CapabilityFulfillmentService directly, so a capability request any
+    # of forward_factor/skew_momentum/earnings_calendar makes for a shared
+    # symbol is resolved at most once (bounded-retried on failure) for the
+    # whole cycle and durably attempt-recorded through the plan itself --
+    # this module's own prior per-pair attempt_records_for() block is
+    # retired below in favor of that single durable owner.
+    acquisition_access = {
+        symbol: build_subject_acquisition_access(
+            symbol,
+            subject_access.fulfillment,
+            attempt_repository=resolved_acquisition_attempt_repository,
+            plan_id=f"{screening_cycle_id}:{symbol}",
+            clock=clock,
+        )
+        for symbol, subject_access in access.items()
+    }
     reuse_counts = {
         "provider_calls": 0,
         "reuse_hits": 0,
@@ -328,32 +374,148 @@ def run_scheduled_refresh(
         "incomplete_cache_bypasses": 0,
         "requests_not_eligible_for_reuse": 0,
     }
+
+    def _tally_new_calls(symbol: str, call_log_start: int) -> None:
+        # SPRINT-013 S13-03A/S13-03B sanitized reuse-accounting summary
+        # (cycle_scoped_request_reuse_summary below): safe, no-payload
+        # decision counts only -- called around every phase that can touch
+        # a provider (shadow preparation below, and each pair's own
+        # refresh_with_shadow() further down) so nothing this cycle ever
+        # made falls outside the tally.
+        for _fulfillment_result, decision in access[symbol].fulfillment.call_log[
+            call_log_start:
+        ]:
+            if decision is ReuseDecision.REUSED:
+                # SPRINT-013 S13-03B: a reuse hit consumed no provider
+                # request and produced no new attempt evidence -- never a
+                # fabricated attempt record for it, only this safe
+                # cycle-level count.
+                reuse_counts["reuse_hits"] += 1
+                continue
+            reuse_counts["provider_calls"] += 1
+            if decision is ReuseDecision.FRESH_AFTER_STALE_BYPASS:
+                reuse_counts["stale_cache_bypasses"] += 1
+            elif decision is ReuseDecision.FRESH_AFTER_INCOMPLETE_BYPASS:
+                reuse_counts["incomplete_cache_bypasses"] += 1
+            elif decision is ReuseDecision.FRESH_AFTER_OTHER_BYPASS:
+                reuse_counts["requests_not_eligible_for_reuse"] += 1
+
+    # Generic shadow-preparation seam (Architect checkpoint: fourteenth/
+    # fifteenth/sixteenth review): shadow_registry is looked up generically
+    # by strategy_id membership, never a hand-written
+    # `if signal_id == "earnings_calendar"` branch -- today only Earnings
+    # Calendar is registered. Prepared at most once per symbol, before any
+    # pair sharing that symbol is evaluated below, and only for a symbol
+    # whose own universe this cycle actually includes a shadowed strategy
+    # -- never an eager shadow-only acquisition for a symbol that has none.
+    # A preparation failure is isolated exactly like this module's other
+    # best-effort side channels (skew capture, opportunity history) and
+    # never aborts or affects any pair's own legacy evaluation.
+    shadow_registry = build_migrated_shadow_registry(clock.now())
+    shadow_capability_reducers = migrated_shadow_capability_reducers()
+    # SPRINT-014 S14-PR-05, Architect checkpoint: nineteenth review, "one
+    # shared cutover policy owner used identically by scheduled and API
+    # roots" -- built once per cycle from the same environment boundary
+    # market_data.config's own provider ASA_{PROVIDER}_ENABLED flags use,
+    # never a route-specific switch.
+    cutover_policy = build_migrated_cutover_policy(os.environ)
+    requested_signal_ids_by_symbol: dict[str, set[str]] = {}
+    for signal_id, symbol in universe:
+        requested_signal_ids_by_symbol.setdefault(symbol, set()).add(signal_id)
+    shadow_knowledge_by_symbol: dict[
+        str, dict[str, ReadOnlyStrategyInput[object] | UnknownReason]
+    ] = {}
+    for symbol in unique_symbols:
+        if not (requested_signal_ids_by_symbol[symbol] & set(shadow_registry.strategy_ids())):
+            continue
+        call_log_start = len(access[symbol].fulfillment.call_log)
+        try:
+            shadow_knowledge_by_symbol[symbol] = prepare_subject_shadow_knowledge(
+                acquisition_access[symbol].plan,
+                clock.now(),
+                shadow_registry,
+                subject=symbol,
+                provider_metadata=access[symbol].provider_metadata,
+                resolution_policy_by_capability=migrated_shadow_resolution_policy(
+                    access[symbol].capability_registry
+                ),
+                capability_reducer_by_capability=shadow_capability_reducers,
+            )
+        except Exception:
+            _LOGGER.warning(
+                "shadow_subject_preparation_failed",
+                extra={"symbol": symbol, "screening_cycle_id": screening_cycle_id},
+                exc_info=True,
+            )
+        finally:
+            _tally_new_calls(symbol, call_log_start)
     outcomes: list[PairOutcome] = []
     for signal_id, symbol in universe:
         subject_access = access[symbol]
+        plan = acquisition_access[symbol].plan
         pair_id = compute_pair_evaluation_id(screening_cycle_id, signal_id, symbol)
         try:
-            # SPRINT-013 S13-03B: call_log and the budget manager's own
-            # accounting are both sliced around this pair's own refresh()
-            # so only what *this* pair's own evaluation actually triggered
-            # is ever persisted or counted for it -- neither completed_results
-            # nor accounting's raw length can be used per pair any more once
-            # the fulfillment service (and its budget manager) are shared
-            # cycle-wide: both would include every other pair's own
-            # contribution for this same subject, over- or double-counting
-            # a shared symbol's request_count across the pairs that share it.
-            call_log_start = len(subject_access.fulfillment.call_log)
+            # SPRINT-013 S13-03B: the budget manager's own accounting is
+            # sliced around this pair's own refresh_with_shadow() so only
+            # what *this* pair's own evaluation actually triggered is ever
+            # counted for it -- accounting's raw length can't be used per
+            # pair once the fulfillment service (and its budget manager)
+            # are shared cycle-wide: it would include every other pair's
+            # own contribution for this same subject, over- or double-
+            # counting a shared symbol's request_count across the pairs
+            # that share it.
             budget_accounting_start = len(subject_access.budget_manager.accounting)
-            result = refresh(
-                registry,
+            call_log_start = len(subject_access.fulfillment.call_log)
+            # SPRINT-014 S14-PR-05A (Architect checkpoint: seventeenth
+            # review, corrective item 2): one fresh TouchedResultFulfillment
+            # per pair, wrapping this symbol's own shared PlanBackedFulfillment
+            # -- this pair's own legacy registry is bound to it (never the
+            # raw plan-backed wrapper directly), and this pair's own
+            # observations callback is derived from exactly what it itself
+            # recorded (a fresh call or a plan-cache hit alike), never from
+            # every observation the subject's raw fulfillment service ever
+            # accumulated cycle-wide -- so evidence subject-first shadow
+            # preparation (or a different pair sharing this symbol) acquired
+            # for itself, and this pair's own legacy execution never asked
+            # for or reused, can never enter this pair's own temporal
+            # metadata, even when it shares the same declared capability
+            # (e.g. a shadow-only OPTION_CHAIN_V1 front/back-month pair FF/
+            # Skew never touched).
+            tracker = TouchedResultFulfillment(acquisition_access[symbol].plan_backed_fulfillment)
+            pair_registry = build_migrated_strategy_registry(tracker)
+            result, shadow_diagnostic = refresh_with_shadow(
+                pair_registry,
                 resolved_repository,
                 clock,
                 strategy_id=signal_id,
                 symbol=symbol,
-                fulfillment_by_subject={symbol: subject_access.fulfillment},
+                observations=partial(touched_observations, tracker),
                 historical_skew_repository=resolved_historical_skew_repository,
+                shadow_registry=shadow_registry,
+                shadow_knowledge_by_subject=shadow_knowledge_by_symbol.get(symbol),
+                cutover_policy=cutover_policy,
             )
-            pair_calls = subject_access.fulfillment.call_log[call_log_start:]
+            _tally_new_calls(symbol, call_log_start)
+            if shadow_diagnostic is not None:
+                # Diagnostic-only (Architect checkpoint: sixteenth review,
+                # "log/record shadow diagnostics internally"): never
+                # persisted, never affects the legacy result above -- safe,
+                # sanitized fields only, no provider payloads.
+                _LOGGER.info(
+                    "shadow_parity_diagnostic",
+                    extra={
+                        "signal_id": signal_id,
+                        "symbol": symbol,
+                        "screening_cycle_id": screening_cycle_id,
+                        "pair_evaluation_id": pair_id,
+                        "shadow_status": shadow_diagnostic.status,
+                        "shadow_mismatched_fields": shadow_diagnostic.mismatched_fields,
+                        "shadow_unknown_code": shadow_diagnostic.shadow_unknown_code,
+                        "shadow_unknown_demand_ids": shadow_diagnostic.shadow_unknown_demand_ids,
+                        "shadow_snapshot_id": shadow_diagnostic.shadow_snapshot_id,
+                        "shadow_snapshot_digest": shadow_diagnostic.shadow_snapshot_digest,
+                    },
+                )
             if signal_id == "skew_momentum":
                 # SPRINT-013 S13-04D: attempt prospective accumulation on
                 # every cycle, not only after close -- record_prospective_
@@ -361,15 +523,18 @@ def run_scheduled_refresh(
                 # recently *completed* session, so every intraday attempt
                 # is a harmless, expected rejection and only the cycle(s)
                 # that actually run after that day's close ever succeed.
-                # capture_skew_snapshot reuses the exact acquisition this
-                # pair's own refresh() just made via the same fulfillment
-                # instance and now (SPRINT-013 S13-03B's per-cycle cache),
-                # so this never issues a second live provider request.
-                # Best-effort and fully isolated: never turns an otherwise
-                # successful pair into a failed PairOutcome.
+                # capture_skew_snapshot goes through this symbol's own
+                # PlanBackedFulfillment (Architect checkpoint: sixteenth
+                # review, "pass the same PlanBackedFulfillment, not the raw
+                # fulfillment service") -- it reuses the exact acquisition
+                # this pair's own refresh_with_shadow() just made via the
+                # same shared plan, so this never issues a second live
+                # provider request. Best-effort and fully isolated: never
+                # turns an otherwise successful pair into a failed
+                # PairOutcome.
                 try:
                     observation = capture_skew_snapshot(
-                        subject_access.fulfillment, symbol, clock.now()
+                        acquisition_access[symbol].plan_backed_fulfillment, symbol, clock.now()
                     )
                     record_prospective_skew_observation(
                         resolved_historical_skew_repository,
@@ -406,7 +571,7 @@ def run_scheduled_refresh(
             if result.opportunity_id is not None:
                 try:
                     record_opportunity_observation(
-                        registry,
+                        pair_registry,
                         resolved_history_repository,
                         result,
                         recommended_action=RecommendedAction.NO_ACTION,
@@ -421,48 +586,19 @@ def run_scheduled_refresh(
                         },
                         exc_info=True,
                     )
-            attempts_recorded = True
-            try:
-                sequence_offset = 0
-                for fulfillment_result, decision in pair_calls:
-                    if decision is ReuseDecision.REUSED:
-                        # SPRINT-013 S13-03B: a reuse hit consumed no
-                        # provider request and produced no new attempt
-                        # evidence -- never a fabricated attempt record for
-                        # it, only this safe cycle-level count (required
-                        # behavior: "do not create fake provider-attempt
-                        # records for cache hits").
-                        reuse_counts["reuse_hits"] += 1
-                        continue
-                    reuse_counts["provider_calls"] += 1
-                    if decision is ReuseDecision.FRESH_AFTER_STALE_BYPASS:
-                        reuse_counts["stale_cache_bypasses"] += 1
-                    elif decision is ReuseDecision.FRESH_AFTER_INCOMPLETE_BYPASS:
-                        reuse_counts["incomplete_cache_bypasses"] += 1
-                    elif decision is ReuseDecision.FRESH_AFTER_OTHER_BYPASS:
-                        reuse_counts["requests_not_eligible_for_reuse"] += 1
-                    records = attempt_records_for(
-                        fulfillment_result,
-                        screening_cycle_id=screening_cycle_id,
-                        pair_evaluation_id=pair_id,
-                        recorded_at=clock.now(),
-                        sequence_offset=sequence_offset,
-                    )
-                    sequence_offset += len(records)
-                    resolved_acquisition_attempt_repository.record(records)
-            except Exception:
-                attempts_recorded = False
-                _LOGGER.warning(
-                    "scheduled acquisition attempt recording failed -- "
-                    "diagnostics incomplete for this pair",
-                    extra={
-                        "signal_id": signal_id,
-                        "symbol": symbol,
-                        "screening_cycle_id": screening_cycle_id,
-                        "pair_evaluation_id": pair_id,
-                    },
-                    exc_info=True,
-                )
+            # SPRINT-014 S14-PR-05A (Architect checkpoint: sixteenth
+            # review): this module's own prior per-pair
+            # attempt_records_for()/repository.record() block is retired.
+            # acquisition_access[symbol].plan is now the single durable
+            # attempt owner for every pair sharing this symbol -- it
+            # persisted (or, on a real outage, best-effort logged and
+            # flagged) every attempt already, inline, during this pair's
+            # own refresh_with_shadow() call above. attempt_recording_
+            # degraded is subject-scoped, not pair-scoped, exactly because
+            # attempts themselves are now subject-scoped (shared across
+            # every strategy that resolves the same request for this
+            # symbol this cycle) -- every pair sharing a degraded symbol's
+            # plan honestly reports the same incomplete-diagnostics signal.
             outcomes.append(
                 PairOutcome(
                     signal_id,
@@ -470,7 +606,7 @@ def run_scheduled_refresh(
                     result.evaluation_state.value,
                     len(subject_access.budget_manager.accounting) - budget_accounting_start,
                     None,
-                    attempts_recorded,
+                    not plan.attempt_recording_degraded,
                 )
             )
         except Exception as exc:

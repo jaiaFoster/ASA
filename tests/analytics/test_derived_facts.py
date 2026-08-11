@@ -7,6 +7,7 @@ import pytest
 
 from analytics.derived_facts import (
     DERIVED_FACT_REGISTRY,
+    compute_atm_iv_vs_realized_volatility,
     compute_bid_ask_spread_ratio,
     compute_days_to_earnings,
     compute_earnings_inside_trade_window,
@@ -17,12 +18,14 @@ from analytics.derived_facts import (
     compute_historical_zscore,
     compute_implied_forward_volatility,
     compute_iv_realized_spread,
+    compute_iv_term_structure_spread,
     compute_momentum_dimensions,
     compute_no_confirmed_earnings_through_expiration,
     compute_normalized_skew,
     compute_open_interest_quality,
     compute_option_volume_band,
 )
+from analytics.realized_volatility import compute_realized_volatility
 
 
 def test_forward_variance_and_factor_independent_vector() -> None:
@@ -52,6 +55,24 @@ def test_normalized_skew_and_iv_realized_spread() -> None:
     assert compute_historical_zscore(Decimal("0.1"), history) > 0
 
 
+def test_atm_iv_vs_realized_volatility_owns_its_own_realized_vol_computation() -> None:
+    closes = (
+        Decimal("100"), Decimal("102"), Decimal("99"), Decimal("103"), Decimal("101"),
+    )
+    front_iv = Decimal("0.40")
+    expected = compute_iv_realized_spread(front_iv, compute_realized_volatility(closes))
+    assert compute_atm_iv_vs_realized_volatility(front_iv, closes) == expected
+
+
+def test_iv_term_structure_spread_is_front_minus_back_and_can_be_negative() -> None:
+    assert compute_iv_term_structure_spread(Decimal("0.30"), Decimal("0.18")) == Decimal("0.12")
+    # A legitimately positive term structure (contango) yields a negative
+    # spread -- never clamped or rejected.
+    assert compute_iv_term_structure_spread(Decimal("0.18"), Decimal("0.30")) == Decimal("-0.12")
+    with pytest.raises(ValueError, match="non-negative"):
+        compute_iv_term_structure_spread(Decimal("-0.1"), Decimal("0.2"))
+
+
 def test_raw_liquidity_dimensions_do_not_embed_strategy_thresholds() -> None:
     assert compute_bid_ask_spread_ratio(Decimal("0.90"), Decimal("1.10")) == Decimal("0.2")
     assert compute_option_volume_band(999) == 3
@@ -67,8 +88,9 @@ def test_named_momentum_dimensions_are_replay_stable() -> None:
 
 
 def test_initial_registry_is_closed_versioned_and_complete() -> None:
-    assert len(DERIVED_FACT_REGISTRY.registered_ids()) == 21
+    assert len(DERIVED_FACT_REGISTRY.registered_ids()) == 22
     assert DERIVED_FACT_REGISTRY.get("forward_factor").feature_version == "1.0.0"
+    assert DERIVED_FACT_REGISTRY.get("iv_term_structure_spread").feature_version == "1.0.0"
 
 
 def test_confirmed_earnings_through_back_expiration_is_ineligible() -> None:

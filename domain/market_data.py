@@ -12,6 +12,7 @@ from typing import Any, TypeAlias, cast
 
 from domain.financial import (
     EarningsEvent,
+    ExpirationCollection,
     ExpirationCycle,
     FinancialContract,
     OptionChain,
@@ -300,6 +301,53 @@ class OHLCVBar:
 
 
 @dataclass(frozen=True, slots=True)
+class OHLCVSeries:
+    """The provider-neutral collection value for HISTORICAL_BARS_V1
+    (SPRINT-014 S14-PR-05A, Founder-approved bounded contract extension):
+    one logical historical-bars acquisition request legitimately produces
+    many bars (one per trading day in the requested window), but the
+    generic subject planner and ObservationResolver both assume at most
+    one observation per provider per capability. Bundling every bar into
+    one OHLCVSeries value -- the same technique domain.financial.
+    ExpirationCollection already establishes for OPTION_CHAIN_V1's own
+    expirations-only response -- keeps that invariant intact: one
+    CapabilityRequest still resolves to exactly one MarketObservation.
+
+    Mirrors ExpirationCollection's own shape: a shared subject-level
+    identity (here, ``instrument``/``interval_seconds``) plus an ordered,
+    deduplicated collection of the same per-item value type
+    (domain.market_data.OHLCVBar) this capability already carries one of.
+    """
+
+    instrument: Instrument
+    interval_seconds: int
+    as_of: datetime
+    bars: tuple[OHLCVBar, ...]
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.instrument, Instrument):
+            raise DomainInvariantError("OHLCVSeries.instrument must be an Instrument")
+        if type(self.interval_seconds) is not int or self.interval_seconds <= 0:
+            raise DomainInvariantError("OHLCVSeries.interval_seconds must be a positive integer")
+        require_tz_aware(self.as_of, "OHLCVSeries", "as_of")
+        if not self.bars:
+            raise DomainInvariantError("OHLCVSeries requires at least one bar")
+        if not all(isinstance(item, OHLCVBar) for item in self.bars):
+            raise DomainInvariantError("OHLCVSeries must contain OHLCVBar records")
+        normalized = tuple(sorted(self.bars, key=lambda item: item.start_at))
+        if any(item.instrument.identity != self.instrument.identity for item in normalized):
+            raise DomainInvariantError("OHLCVSeries bars must share the series instrument")
+        if any(item.interval_seconds != self.interval_seconds for item in normalized):
+            raise DomainInvariantError("OHLCVSeries bars must share interval_seconds")
+        if any(item.end_at > self.as_of for item in normalized):
+            raise DomainInvariantError("OHLCVSeries as_of precedes an included bar")
+        start_times = tuple(item.start_at for item in normalized)
+        if len(start_times) != len(set(start_times)):
+            raise DomainInvariantError("OHLCVSeries contains duplicate bar start_at values")
+        object.__setattr__(self, "bars", normalized)
+
+
+@dataclass(frozen=True, slots=True)
 class TradingCalendarEvent:
     venue: str
     event_type: TradingCalendarEventType
@@ -424,9 +472,11 @@ class NormalizedProviderErrorMetadata:
 MarketObservationValue: TypeAlias = (
     Quote
     | OHLCVBar
+    | OHLCVSeries
     | OptionContract
     | OptionChain
     | ExpirationCycle
+    | ExpirationCollection
     | EarningsEvent
     | TradingCalendarEvent
     | CorporateActionPlaceholder
@@ -458,9 +508,11 @@ class MarketObservation:
         expected_capability = {
             Quote: MarketCapability.REAL_TIME_QUOTE_V1,
             OHLCVBar: MarketCapability.HISTORICAL_BARS_V1,
+            OHLCVSeries: MarketCapability.HISTORICAL_BARS_V1,
             OptionContract: MarketCapability.OPTION_CHAIN_V1,
             OptionChain: MarketCapability.OPTION_CHAIN_V1,
             ExpirationCycle: MarketCapability.OPTION_CHAIN_V1,
+            ExpirationCollection: MarketCapability.OPTION_CHAIN_V1,
             EarningsEvent: MarketCapability.EARNINGS_CALENDAR_V1,
             TradingCalendarEvent: MarketCapability.TRADING_CALENDAR_V1,
             CorporateActionPlaceholder: MarketCapability.CORPORATE_ACTIONS_V1,
@@ -482,6 +534,7 @@ class MarketObservation:
 MarketDataContract: TypeAlias = (
     Quote
     | OHLCVBar
+    | OHLCVSeries
     | TradingCalendarEvent
     | CorporateActionPlaceholder
     | FreshnessMetadata
@@ -499,6 +552,7 @@ _MARKET_TYPES = {
     for value in (
         Quote,
         OHLCVBar,
+        OHLCVSeries,
         TradingCalendarEvent,
         CorporateActionPlaceholder,
         FreshnessMetadata,
@@ -571,7 +625,9 @@ def _wire(value: object) -> object:
         }
     if isinstance(value, tuple):
         return [_wire(item) for item in value]
-    if isinstance(value, (OptionContract, OptionChain, ExpirationCycle, EarningsEvent)):
+    if isinstance(
+        value, (OptionContract, OptionChain, ExpirationCycle, ExpirationCollection, EarningsEvent)
+    ):
         return {"$financial_contract": financial_contract_to_data(cast(FinancialContract, value))}
     if type(value).__name__ in _MARKET_TYPES:
         return market_data_to_data(cast(MarketDataContract, value))

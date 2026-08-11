@@ -48,6 +48,7 @@ from market_data import (
     fixture_provider_registration,
     tradier_provider_registration,
 )
+from market_data.subject_plan import CapabilityFulfiller
 from screening.clock import Clock
 
 PRIORITY_POLICY_VERSION = "screening-live-v1"
@@ -229,7 +230,7 @@ def build_fulfillment_service(
 
 
 def acquire_capability(
-    fulfillment: CapabilityFulfillmentService,
+    fulfillment: CapabilityFulfiller,
     capability: MarketCapability,
     subject: MarketDataSubject,
     *,
@@ -241,8 +242,10 @@ def acquire_capability(
 ) -> CapabilityFulfillmentResult:
     """Acquire exactly one capability for one subject -- the only
     acquisition surface a caller needs; provider selection, budget
-    authorization, and fallback all happen inside CapabilityFulfillmentService
-    itself, unchanged.
+    authorization, and fallback all happen inside whatever
+    CapabilityFulfiller ``fulfillment`` actually is (a raw
+    CapabilityFulfillmentService or a PlanBackedFulfillment, SPRINT-014
+    S14-PR-05A) unchanged.
     """
     request = CapabilityRequest(
         capability, (subject,), effective_start, effective_end, required_fields, maximum_age_seconds

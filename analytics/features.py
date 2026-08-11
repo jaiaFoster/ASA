@@ -119,3 +119,34 @@ class DerivedFactSet:
             if fact.derived_fact_id == derived_fact_id:
                 return fact
         raise KeyError(derived_fact_id)
+
+
+@dataclass(frozen=True, slots=True)
+class DerivedFactRequest:
+    """One analytics value a binding wants materialized into a DerivedFact
+    (SPRINT-014 S14-PR-05A, Architect checkpoint: tenth review -- "keep
+    computation owned by analytics/"). ``value`` must be the result of a
+    registered analytics computation the binding ran *after* the canonical
+    facts it depends on were projected -- never a value computed ahead of
+    canonical projection and merely wrapped here. This request carries
+    only the data materialize_derived_fact() itself needs; the generic
+    orchestrator performs that one mechanical call, never the computation.
+
+    ``input_evidence`` must be non-empty (Architect checkpoint tenth
+    review, item 3): a derived fact with no cited evidence at all cannot
+    be genuine registered analytics output, so the type itself refuses to
+    exist in that shape rather than relying on every caller to remember
+    to populate it.
+    """
+
+    feature_id: str
+    subject: str
+    value: DerivedFactValue
+    unit: str
+    input_evidence: tuple[EvidenceReference, ...]
+    quality_status: DerivedFactQualityStatus
+    parameters: tuple[tuple[str, str], ...] = ()
+
+    def __post_init__(self) -> None:
+        if not self.input_evidence:
+            raise ValueError("DerivedFactRequest.input_evidence must be non-empty")

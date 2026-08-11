@@ -9,6 +9,7 @@ from enum import Enum
 
 from domain import (
     EarningsEvent,
+    ExpirationCollection,
     ExpirationCycle,
     MarketCapability,
     MarketObservation,
@@ -210,7 +211,8 @@ class ObservationResolver:
     @staticmethod
     def _value_data(observation: MarketObservation) -> dict[str, object]:
         if isinstance(
-            observation.value, (OptionContract, OptionChain, ExpirationCycle, EarningsEvent)
+            observation.value,
+            (OptionContract, OptionChain, ExpirationCycle, ExpirationCollection, EarningsEvent),
         ):
             data = financial_contract_to_data(observation.value)
         else:

@@ -176,7 +176,6 @@ class TestRefresh:
             clock,
             strategy_id="alpha",
             symbol="AAPL",
-            fulfillment_by_subject={},
         )
 
         assert result.strategy_id == "alpha"
@@ -194,7 +193,6 @@ class TestRefresh:
                 clock,
                 strategy_id="alpha",
                 symbol="AAPL",
-                fulfillment_by_subject={},
             )
         assert repository.get_one("alpha", "AAPL") is None  # nothing persisted on failure
 
@@ -210,7 +208,6 @@ class TestGetState:
             clock,
             strategy_id="alpha",
             symbol="AAPL",
-            fulfillment_by_subject={},
         )
 
         assert len(get_state(repository)) == 1

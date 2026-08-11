@@ -47,6 +47,7 @@ from market_data.fulfillment import (
     FulfillmentStatus,
     ProviderFulfillmentAttempt,
     ReuseDecision,
+    observations_from_fulfillment,
 )
 from market_data.providers import (
     CapabilityRequest,
@@ -203,6 +204,7 @@ __all__ = [
     "FulfillmentStatus",
     "ProviderFulfillmentAttempt",
     "ReuseDecision",
+    "observations_from_fulfillment",
     "ConfidenceClassification",
     "FieldDisagreement",
     "ObservationResolver",

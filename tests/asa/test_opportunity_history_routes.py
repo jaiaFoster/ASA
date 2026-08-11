@@ -116,9 +116,9 @@ def test_history_append_failure_does_not_rollback_latest_state(
 
     def successful_refresh(registry, repository, clock, **kwargs):  # noqa: ANN001, ARG001
         repository.upsert(UniversalSignalRow.from_result(result))
-        return result
+        return result, None
 
-    monkeypatch.setattr("asa.api.screening_routes.refresh", successful_refresh)
+    monkeypatch.setattr("asa.api.screening_routes.refresh_with_shadow", successful_refresh)
     monkeypatch.setattr(
         "asa.api.screening_routes.load_market_data_config_from_environment",
         lambda: load_market_data_config(

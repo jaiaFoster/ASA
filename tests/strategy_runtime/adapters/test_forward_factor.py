@@ -10,7 +10,10 @@ import pytest
 from domain import MarketCapability
 from market_data import load_market_data_config
 from market_data.transport import ReadOnlyHttpResponse
-from strategy_runtime.adapters.forward_factor import FORWARD_FACTOR_CONTRACT, forward_factor_adapter
+from strategy_runtime.adapters.forward_factor import (
+    FORWARD_FACTOR_CONTRACT,
+    build_forward_factor_adapter,
+)
 from strategy_runtime.context import RuntimeContext
 from strategy_runtime.contract import LifecycleModel
 from strategy_runtime.market_data_planning import build_shared_market_data_access
@@ -74,13 +77,6 @@ class TestForwardFactorContract:
 
 
 class TestForwardFactorAdapter:
-    def test_requires_shared_fulfillment(self) -> None:
-        context = RuntimeContext(
-            FORWARD_FACTOR_CONTRACT, "AAPL", _FixedClock(datetime.now(UTC)), "run-1"
-        )
-        with pytest.raises(RuntimeError, match="requires shared market data access"):
-            forward_factor_adapter(context)
-
     def test_full_live_acquisition_produces_a_translated_result(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -100,11 +96,12 @@ class TestForwardFactorAdapter:
         access = build_shared_market_data_access(
             config, lambda _provider_id: ScriptedTransport(responses), clock, ("AAPL",)
         )
-        context = RuntimeContext(
-            FORWARD_FACTOR_CONTRACT, "AAPL", clock, "run-1", access["AAPL"].fulfillment
-        )
+        # SPRINT-014 S14-PR-05A (Architect checkpoint: twelfth review, item
+        # 3): acquisition is bound by closure, not carried on RuntimeContext.
+        context = RuntimeContext(FORWARD_FACTOR_CONTRACT, "AAPL", clock, "run-1")
+        adapter = build_forward_factor_adapter(access["AAPL"].fulfillment)
 
-        result = forward_factor_adapter(context)
+        result = adapter(context)
 
         assert result.strategy_id == "forward_factor"
         assert result.symbol == "AAPL"
