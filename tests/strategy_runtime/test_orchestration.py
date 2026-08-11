@@ -486,6 +486,45 @@ class TestPrepareSubjectShadowKnowledge:
         # the real plan/fulfillment, not a stub.
         assert len(budgets.accounting) == 1
 
+    def test_consumers_share_one_snapshot_and_one_equivalent_request(self) -> None:
+        def adapter_builder(
+            _knowledge: Mapping[str, ReadOnlyStrategyInput[object]],
+        ) -> Callable[[RuntimeContext], UniversalScreeningResult]:
+            raise AssertionError("not evaluated during preparation")
+
+        entries = tuple(
+            (
+                strategy_id,
+                SubjectPreparationBinding(
+                    SubjectPlanConsumer(
+                        strategy_id,
+                        (_synthetic_demand(),),
+                        lambda _evidence: DemandExpansion(),
+                    ),
+                    _synthetic_prepare_knowledge_mapping,
+                    adapter_builder,
+                ),
+            )
+            for strategy_id in ("consumer-a", "consumer-b")
+        )
+        fulfillment, budgets = service(provider("primary"))
+        result = prepare_subject_shadow_knowledge(
+            _plan(fulfillment),
+            NOW,
+            SubjectPreparationRegistry(entries),
+            subject="AAPL",
+            provider_metadata=(provider("primary").metadata,),
+            resolution_policy_by_capability=_SYNTHETIC_RESOLUTION_POLICY,
+        )
+
+        first = result["consumer-a"]
+        second = result["consumer-b"]
+        assert isinstance(first, ReadOnlyStrategyInput)
+        assert isinstance(second, ReadOnlyStrategyInput)
+        assert first.snapshot_id == second.snapshot_id
+        assert first.snapshot_digest == second.snapshot_digest
+        assert len(budgets.accounting) == 1
+
 
 def _synthetic_knowledge_input(symbol: str) -> ReadOnlyStrategyInput[object]:
     return ReadOnlyStrategyInput(

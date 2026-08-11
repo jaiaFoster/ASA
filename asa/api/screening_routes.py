@@ -454,6 +454,7 @@ def build_screening_router(
                         subject_access.capability_registry
                     ),
                     capability_reducer_by_capability=migrated_shadow_capability_reducers(),
+                    strategy_ids=(signal,),
                 )
             except Exception:
                 _LOGGER.warning(

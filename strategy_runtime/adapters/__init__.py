@@ -50,6 +50,12 @@ from strategies import (
     SKEW_MOMENTUM_VERTICAL_MANIFEST,
 )
 from strategies.earnings_calendar_planning import earnings_calendar_resolved_field_requirements
+from strategies.forward_factor_planning import (
+    resolved_field_requirements as forward_factor_resolved_field_requirements,
+)
+from strategies.skew_momentum_planning import (
+    resolved_field_requirements as skew_momentum_resolved_field_requirements,
+)
 from strategy_runtime.adapters.earnings_calendar import (
     EARNINGS_CALENDAR_CONTRACT,
     build_earnings_calendar_adapter,
@@ -61,11 +67,18 @@ from strategy_runtime.adapters.forward_factor import (
     FORWARD_FACTOR_CONTRACT,
     build_forward_factor_adapter,
 )
+from strategy_runtime.adapters.forward_factor_subject_first import (
+    build_forward_factor_subject_preparation_binding,
+)
+from strategy_runtime.adapters.skew_momentum_subject_first import (
+    build_skew_momentum_subject_preparation_binding,
+)
 from strategy_runtime.adapters.skew_momentum_vertical import (
     SKEW_MOMENTUM_VERTICAL_CONTRACT,
     build_skew_momentum_adapter,
 )
 from strategy_runtime.catalog import SignalCatalogEntry
+from strategy_runtime.historical_evidence import HistoricalSkewRepository
 from strategy_runtime.manifest_contract import validate_manifest_contract
 from strategy_runtime.market_data_planning import resolution_policy_for_capabilities
 from strategy_runtime.orchestration import CutoverPolicy
@@ -137,7 +150,9 @@ def build_migrated_strategy_registry(
     )
 
 
-def build_migrated_shadow_registry(now: datetime) -> SubjectPreparationRegistry[object]:
+def build_migrated_shadow_registry(
+    now: datetime, historical_skew_repository: HistoricalSkewRepository | None = None
+) -> SubjectPreparationRegistry[object]:
     """Every migrated strategy with a registered subject-first shadow
     binding, assembled once per invocation/cycle (SPRINT-014 S14-PR-05A,
     Architect checkpoint: sixteenth review, "both roots must use the same
@@ -153,6 +168,16 @@ def build_migrated_shadow_registry(now: datetime) -> SubjectPreparationRegistry[
     """
     return SubjectPreparationRegistry(
         (
+            (
+                FORWARD_FACTOR_CONTRACT.strategy_id,
+                build_forward_factor_subject_preparation_binding(now),
+            ),
+            (
+                SKEW_MOMENTUM_VERTICAL_CONTRACT.strategy_id,
+                build_skew_momentum_subject_preparation_binding(
+                    now, historical_skew_repository
+                ),
+            ),
             (
                 EARNINGS_CALENDAR_CONTRACT.strategy_id,
                 build_earnings_calendar_subject_preparation_binding(now),
@@ -183,9 +208,10 @@ def migrated_shadow_resolution_policy(
     constructed from existing market-data configuration/registry
     ownership").
     """
-    return resolution_policy_for_capabilities(
-        capability_registry, earnings_calendar_resolved_field_requirements()
-    )
+    requirements = earnings_calendar_resolved_field_requirements()
+    requirements.update(forward_factor_resolved_field_requirements())
+    requirements.update(skew_momentum_resolved_field_requirements())
+    return resolution_policy_for_capabilities(capability_registry, requirements)
 
 
 def build_migrated_signal_catalog() -> tuple[SignalCatalogEntry, ...]:
@@ -234,8 +260,10 @@ def build_migrated_cutover_policy(values: Mapping[str, str]) -> CutoverPolicy:
     """
     return CutoverPolicy(
         {
+            FORWARD_FACTOR_CONTRACT.strategy_id: True,
+            SKEW_MOMENTUM_VERTICAL_CONTRACT.strategy_id: True,
             EARNINGS_CALENDAR_CONTRACT.strategy_id: _boolean_flag(
-                values, EARNINGS_CALENDAR_CUTOVER_ENABLED_VAR, default=False
+                values, EARNINGS_CALENDAR_CUTOVER_ENABLED_VAR, default=True
             )
         }
     )

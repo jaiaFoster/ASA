@@ -126,6 +126,14 @@ class SubjectPreparationRegistry(Generic[TPayload]):
         except KeyError:
             raise UnknownSubjectPreparationBindingError(strategy_id) from None
 
+    def restricted_to(
+        self, strategy_ids: tuple[str, ...]
+    ) -> SubjectPreparationRegistry[TPayload]:
+        """Immutable view containing only explicitly requested consumers."""
+        return SubjectPreparationRegistry(
+            tuple((strategy_id, self.binding_for(strategy_id)) for strategy_id in strategy_ids)
+        )
+
 
 def prepare_strategy_knowledge(
     plan: SubjectAcquisitionPlan,
@@ -179,3 +187,61 @@ def prepare_strategy_knowledge(
     return compose_strategy_knowledge(
         plan_result.snapshot, knowledge_registry, strategy_id, subject=subject
     )
+
+
+def prepare_subject_knowledge(
+    plan: SubjectAcquisitionPlan,
+    now: datetime,
+    registry: SubjectPreparationRegistry[object],
+    *,
+    subject: str,
+    provider_metadata: tuple[ProviderMetadata, ...],
+    resolution_policy_by_capability: dict[MarketCapability, ResolutionPolicy],
+    capability_reducer_by_capability: Mapping[MarketCapability, CapabilityResultReducer]
+    | None = None,
+) -> dict[str, ReadOnlyStrategyInput[object] | UnknownReason]:
+    """Prepare every registered consumer from one sealed subject snapshot.
+
+    Demand collection and both acquisition phases run once across the whole
+    registry.  Each strategy-owned binding then maps the same immutable
+    snapshot into its own read-only payload.  Adding another consumer changes
+    declarations only; it cannot create a second evidence boundary.
+    """
+    strategy_ids = registry.strategy_ids()
+    if not strategy_ids:
+        return {}
+    bindings = {strategy_id: registry.binding_for(strategy_id) for strategy_id in strategy_ids}
+    plan_result = run_subject_plan(
+        plan,
+        now,
+        tuple(bindings[strategy_id].consumer for strategy_id in strategy_ids),
+        provider_metadata=provider_metadata,
+        resolution_policy_by_capability=resolution_policy_by_capability,
+        capability_reducer_by_capability=capability_reducer_by_capability,
+    )
+    prepared: dict[str, ReadOnlyStrategyInput[object] | UnknownReason] = {}
+    for strategy_id in strategy_ids:
+        binding = bindings[strategy_id]
+        expansion = plan_result.expansions_by_consumer[binding.consumer.consumer_id]
+        if expansion.unknown_reasons:
+            prepared[strategy_id] = expansion.unknown_reasons[0]
+            continue
+        mapping = binding.prepare_knowledge_mapping(
+            plan_result.snapshot,
+            plan_result.projected_evidence,
+            expansion.selections,
+            subject,
+        )
+        if isinstance(mapping, UnknownReason):
+            prepared[strategy_id] = mapping
+            continue
+        knowledge_registry: KnowledgeCompositionRegistry[object] = (
+            KnowledgeCompositionRegistry(((strategy_id, mapping),))
+        )
+        prepared[strategy_id] = compose_strategy_knowledge(
+            plan_result.snapshot,
+            knowledge_registry,
+            strategy_id,
+            subject=subject,
+        )
+    return prepared
