@@ -540,15 +540,19 @@ def _cutover_authoritative_adapter(
     other case refresh_with_shadow() falls straight through to its
     existing, unchanged legacy(+optional shadow) behavior.
     """
-    if cutover_policy is None or shadow_registry is None or shadow_knowledge_by_subject is None:
+    if cutover_policy is None or shadow_registry is None:
         return None
     if not cutover_policy.is_cut_over(strategy_id):
         return None
     if not shadow_registry.is_registered(strategy_id):
         return None
-    knowledge_or_unknown = shadow_knowledge_by_subject.get(strategy_id)
+    knowledge_or_unknown = (
+        None
+        if shadow_knowledge_by_subject is None
+        else shadow_knowledge_by_subject.get(strategy_id)
+    )
     if knowledge_or_unknown is None:
-        return None
+        knowledge_or_unknown = UnknownReason("subject_preparation_failed")
     binding = shadow_registry.binding_for(strategy_id)
     return _authoritative_subject_first_adapter(binding, knowledge_or_unknown, symbol)
 
