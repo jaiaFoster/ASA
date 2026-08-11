@@ -428,6 +428,25 @@ class TestSkewMomentumLiveNeedsMultipleStrikes:
         )
         assert result.subject_identity == f"symbol:{SYMBOL}"
 
+    def test_requests_bounded_history_horizon_proven_for_sparse_live_series(self) -> None:
+        CapturingMultiExpirationFixtureProvider.requests.clear()
+        fulfillment, clock = _fulfillment(CapturingMultiExpirationFixtureProvider)
+        adapters = build_live_adapters(SYMBOL, fulfillment)
+
+        run_screening(
+            TARGET_STRATEGY_REGISTRY,
+            adapters,
+            clock,
+            strategy_ids=("skew_momentum",),
+        )
+
+        request = next(
+            item
+            for item in CapturingMultiExpirationFixtureProvider.requests
+            if item.capability is MarketCapability.HISTORICAL_BARS_V1  # type: ignore[attr-defined]
+        )
+        assert request.effective_end - request.effective_start == timedelta(days=180)  # type: ignore[attr-defined]
+
 
 class _StubHistoricalSkewRepository:
     """Structurally satisfies screening.live_adapters.

@@ -308,7 +308,11 @@ def _spot_price(quote: Quote) -> Decimal:
 # hardcoded constants (identical for every symbol) since this ticket's
 # original authorship. See project/reports/SPRINT-011.md for the full
 # defect writeup and cited sources for each strategy's own thesis.
-_HISTORICAL_LOOKBACK_DAYS = 45  # calendar days -- ~30 trading days
+# Tradier can return a sparse daily history for otherwise valid symbols
+# (production CVX: 11 rows in 45 calendar days, 57 rows in 180).  The
+# consumer requires 21 observations, so request a bounded horizon proven
+# sufficient for that live provider shape without adding calls or retries.
+_HISTORICAL_LOOKBACK_DAYS = 180
 
 # SPRINT-013 S13-04D: mirrors strategies/stonk_manifests.py's own
 # SKEW_MOMENTUM_VERTICAL_MANIFEST-declared historical_lookback_observations/

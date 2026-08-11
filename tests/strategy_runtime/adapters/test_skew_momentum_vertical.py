@@ -76,8 +76,8 @@ def _option_row(strike: int, expiration: str, option_type: str, call_delta: str)
 
 def _history_response() -> ReadOnlyHttpResponse:
     # Skew Momentum's realized-volatility input needs ~30 trading days
-    # (screening/live_adapters.py's _HISTORICAL_LOOKBACK_DAYS=45 calendar
-    # days), ending recently enough to satisfy the freshness requirement --
+    # (screening/live_adapters.py requests a bounded 180-calendar-day
+    # horizon), ending recently enough to satisfy the freshness requirement --
     # ending 15+ days ago (an earlier draft's mistake) reads as STALE_DATA.
     days = []
     cursor = date.today() - timedelta(days=1)
