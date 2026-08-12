@@ -31,6 +31,7 @@ from strategy_runtime.result import (
     UniversalScreeningResult,
 )
 from strategy_runtime.service import get_state, refresh
+from strategy_runtime.values import TypedValue
 
 pytestmark = [
     pytest.mark.postgres,
@@ -79,8 +80,8 @@ def _registry() -> StrategyRegistry[UniversalScreeningResult]:
             None,
             None,
             None,
-            {},
-            {},
+            {"persistence_probe": TypedValue.of_string("ok")},
+            {"persistence_probe": TypedValue.of_string("ok")},
             (),
             (),
             ("test:persistence",),
