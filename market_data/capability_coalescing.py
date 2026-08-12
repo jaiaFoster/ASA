@@ -26,7 +26,7 @@ from __future__ import annotations
 import dataclasses
 from datetime import datetime
 
-from domain import MarketCapability
+from domain import MarketCapability, OHLCVSeries
 from domain.financial import ExpirationCollection, OptionChain, OptionContract
 from domain.market_data import (
     MarketDataSubject,
@@ -282,3 +282,120 @@ def reduce_option_chain_results(
         observed_at=front_request.effective_end,
     )
     return dataclasses.replace(combined, attempts=combined.attempts + discovery_attempts)
+
+
+def reduce_historical_bar_results(
+    results: tuple[CapabilityFulfillmentResult, ...],
+) -> CapabilityFulfillmentResult:
+    """Coalesce distinct historical-bar windows for one sealed subject.
+
+    Consumers legitimately request different lookbacks.  The sealed snapshot
+    still owns one capability resolution, so combine the normalized series
+    while retaining every request attempt.  Overlapping bars are selected
+    deterministically from the newest source observation.
+    """
+    if not results:
+        raise ValueError("reduce_historical_bar_results requires at least one result")
+    if any(item.request.capability is not MarketCapability.HISTORICAL_BARS_V1 for item in results):
+        raise ValueError("reduce_historical_bar_results requires HISTORICAL_BARS_V1 results")
+
+    attempts = tuple(attempt for item in results for attempt in item.attempts)
+    observations = tuple(observation for item in results for observation in item.observations)
+    if not observations:
+        primary = min(
+            results,
+            key=lambda item: (
+                item.request.effective_start,
+                item.request.effective_end,
+                item.request.maximum_age_seconds,
+                tuple(subject.subject_identity for subject in item.request.subjects),
+            ),
+        )
+        return dataclasses.replace(primary, attempts=attempts)
+
+    series_by_observation: list[tuple[MarketObservation, OHLCVSeries]] = []
+    for observation in observations:
+        if not isinstance(observation.value, OHLCVSeries):
+            raise DomainInvariantError(
+                "reduce_historical_bar_results received a nominally successful "
+                f"HISTORICAL_BARS_V1 observation whose value is "
+                f"{type(observation.value).__name__}, not OHLCVSeries"
+            )
+        series_by_observation.append((observation, observation.value))
+    instrument = series_by_observation[0][1].instrument
+    interval_seconds = series_by_observation[0][1].interval_seconds
+    if any(
+        series.instrument.identity != instrument.identity
+        or series.interval_seconds != interval_seconds
+        for _, series in series_by_observation
+    ):
+        raise DomainInvariantError(
+            "reduce_historical_bar_results requires one instrument and interval"
+        )
+
+    bars_by_start = {}
+    for _observation, series in sorted(
+        series_by_observation,
+        key=lambda item: (item[0].effective_time, item[0].observation_id),
+    ):
+        for bar in series.bars:
+            bars_by_start[bar.start_at] = bar
+    primary_observation, _ = max(
+        series_by_observation,
+        key=lambda item: (item[0].effective_time, item[0].observation_id),
+    )
+    combined_series = OHLCVSeries(
+        instrument,
+        interval_seconds,
+        max(series.as_of for _, series in series_by_observation),
+        tuple(bars_by_start.values()),
+    )
+    effective_start = min(item.request.effective_start for item in results)
+    effective_end = max(item.request.effective_end for item in results)
+    combined_subject = dataclasses.replace(
+        primary_observation.subject,
+        request_context=dataclasses.replace(
+            primary_observation.subject.request_context,
+            semantic_start=effective_start,
+            semantic_end=effective_end,
+        ),
+    )
+    combined_request = CapabilityRequest(
+        MarketCapability.HISTORICAL_BARS_V1,
+        (combined_subject,),
+        effective_start,
+        effective_end,
+        primary_observation.subject.request_context.required_fields,
+        max(item.request.maximum_age_seconds for item in results),
+    )
+    evidence = tuple(
+        EvidenceReference(EvidenceKind.OBSERVATION, observation.observation_id)
+        for observation in sorted(observations, key=lambda item: item.observation_id)
+    )
+    combined_observation = dataclasses.replace(
+        primary_observation,
+        subject=combined_subject,
+        value=combined_series,
+        observation_id=market_observation_identity(
+            primary_observation.provenance.provider_id,
+            MarketCapability.HISTORICAL_BARS_V1,
+            combined_subject,
+            primary_observation.effective_time,
+            combined_series,
+            primary_observation.schema_version,
+        ),
+        provenance=dataclasses.replace(primary_observation.provenance, evidence=evidence),
+    )
+    status = (
+        FulfillmentStatus.FULFILLED
+        if all(item.status is FulfillmentStatus.FULFILLED for item in results)
+        else FulfillmentStatus.DEGRADED
+    )
+    return CapabilityFulfillmentResult(
+        combined_request,
+        status,
+        combined_observation.provenance.provider_id,
+        (combined_observation,),
+        attempts,
+        True,
+    )

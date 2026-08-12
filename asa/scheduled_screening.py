@@ -90,6 +90,7 @@ from strategy_runtime.orchestration import (
     refresh_with_shadow,
 )
 from strategy_runtime.persistence import LatestResultRepository, ObservationHistoryRepository
+from strategy_runtime.preparation_diagnostics import classify_subject_preparation_exception
 from strategy_runtime.service import record_opportunity_observation
 
 # The production screening universe (project/reports/SPRINT-008D-SCREENING-
@@ -425,10 +426,17 @@ def run_scheduled_refresh(
                     )
                 ),
             )
-        except Exception:
+        except Exception as failure:
             _LOGGER.warning(
                 "shadow_subject_preparation_failed",
-                extra={"symbol": symbol, "screening_cycle_id": screening_cycle_id},
+                extra={
+                    "symbol": symbol,
+                    "screening_cycle_id": screening_cycle_id,
+                    "failure_class": (
+                        classify_subject_preparation_exception(failure)
+                    ),
+                    "exception_type": type(failure).__name__,
+                },
                 exc_info=True,
             )
         finally:

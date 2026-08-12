@@ -12,7 +12,10 @@ from datetime import datetime
 
 from domain import MarketCapability
 from market_data import CapabilityRegistry
-from market_data.capability_coalescing import reduce_option_chain_results
+from market_data.capability_coalescing import (
+    reduce_historical_bar_results,
+    reduce_option_chain_results,
+)
 from market_data.resolution import ResolutionPolicy
 from screening.subject_planning import CapabilityResultReducer
 from strategies import (
@@ -122,14 +125,18 @@ def build_migrated_shadow_registry(
 
 
 def migrated_shadow_capability_reducers() -> dict[MarketCapability, CapabilityResultReducer]:
-    """Generic multi-result capability reducers any registered shadow
-    binding's own subject plan might need while sealing -- currently just
-    OPTION_CHAIN_V1 (Earnings Calendar's own discovery-then-per-expiration-
-    contract acquisition shape), forwarded unchanged into
+    """Generic multi-result capability reducers registered bindings need.
+
+    OPTION_CHAIN_V1 combines discovery/per-expiration requests. Historical
+    bars combine the distinct lookback windows declared by Skew Momentum
+    and Earnings Calendar. Both are forwarded unchanged into
     strategy_runtime.orchestration.prepare_subject_shadow_knowledge by
     both production roots.
     """
-    return {MarketCapability.OPTION_CHAIN_V1: reduce_option_chain_results}
+    return {
+        MarketCapability.HISTORICAL_BARS_V1: reduce_historical_bar_results,
+        MarketCapability.OPTION_CHAIN_V1: reduce_option_chain_results,
+    }
 
 
 def migrated_shadow_resolution_policy(

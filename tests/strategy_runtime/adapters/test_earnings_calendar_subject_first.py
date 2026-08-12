@@ -82,6 +82,7 @@ from strategy_runtime.subject_preparation import (
     SubjectPreparationRegistry,
     UnknownSubjectPreparationBindingError,
     prepare_strategy_knowledge,
+    prepare_subject_knowledge,
 )
 from tests.market_data.test_fulfillment import CAPABILITY, provider, service
 from tests.strategy_runtime.test_earnings_calendar_generic_composition import (
@@ -488,6 +489,43 @@ class TestPrepareStrategyKnowledgeGenericMechanics:
         assert isinstance(result, UnknownReason)
         assert result.code == "synthetic_gap"
         assert called is False
+
+    def test_one_binding_failure_does_not_destroy_other_prepared_knowledge(self) -> None:
+        consumer_a = SubjectPlanConsumer(
+            "broken-strategy", (_synthetic_demand(),), lambda _evidence: DemandExpansion()
+        )
+        consumer_b = SubjectPlanConsumer(
+            "healthy-strategy", (_synthetic_demand(),), lambda _evidence: DemandExpansion()
+        )
+
+        def _broken(*_args: object) -> KnowledgeMapping[_SyntheticPayload]:
+            raise RuntimeError("synthetic binding defect")
+
+        broken: SubjectPreparationBinding[_SyntheticPayload] = SubjectPreparationBinding(
+            consumer_a, _broken, _synthetic_build_shadow_adapter
+        )
+        healthy: SubjectPreparationBinding[_SyntheticPayload] = SubjectPreparationBinding(
+            consumer_b, _synthetic_prepare_knowledge_mapping, _synthetic_build_shadow_adapter
+        )
+        registry: SubjectPreparationRegistry[object] = SubjectPreparationRegistry(
+            (("broken-strategy", broken), ("healthy-strategy", healthy))
+        )
+        fulfillment, budgets = service(provider("primary"))
+
+        result = prepare_subject_knowledge(
+            _plan(fulfillment),
+            NOW,
+            registry,
+            subject="AAPL",
+            provider_metadata=(provider("primary").metadata,),
+            resolution_policy_by_capability=_SYNTHETIC_RESOLUTION_POLICY,
+        )
+
+        broken_result = result["broken-strategy"]
+        assert isinstance(broken_result, UnknownReason)
+        assert broken_result.code == "strategy_knowledge_construction_failed"
+        assert isinstance(result["healthy-strategy"], ReadOnlyStrategyInput)
+        assert len(budgets.accounting) == 1
 
 
 class TestEarningsCalendarSubjectFirstAdapter:
