@@ -14,7 +14,7 @@ from strategy_runtime.subject_preparation import BuildShadowAdapter
 
 
 @dataclass(frozen=True, slots=True)
-class StrategyKnowledgeReplayRecord(Generic[TPayload]):
+class StrategyKnowledgeReplayRecord(Generic[TPayload]):  # noqa: UP046
     strategy_id: str
     subject: str
     knowledge: ReadOnlyStrategyInput[TPayload]

@@ -226,11 +226,14 @@ def _resolve_new_demands(
     demand_by_id: dict[str, CapabilityDemand],
     resolved: dict[str, CapabilityFulfillmentResult],
 ) -> None:
-    # Sorted by demand_id so the underlying plan's own call sequence is
-    # deterministic regardless of consumer registration order (invariant:
-    # expansion/consumer order never changes phase-two demand identity or
-    # call count).
-    for demand_id in sorted(demand_by_id):
+    # Capability-first ordering is stable across effective times; demand IDs
+    # include temporal inputs and therefore cannot define request sequencing.
+    # The identity remains the secondary key for multiple same-capability
+    # demands, preserving consumer-order independence.
+    for demand_id in sorted(
+        demand_by_id,
+        key=lambda item: (demand_by_id[item].capability.value, item),
+    ):
         if demand_id in resolved:
             continue
         demand = demand_by_id[demand_id]

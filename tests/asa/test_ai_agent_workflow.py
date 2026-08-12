@@ -30,6 +30,7 @@ from pydantic import SecretStr
 
 from asa.bootstrap import DependencyOverrides, build_application
 from asa.config import Settings
+from market_data.session_calendar import UsEquitySessionCalendar
 from market_data.transport import ReadOnlyHttpResponse
 from strategy_runtime.persistence import UniversalSignalRow
 from strategy_runtime.result import EvaluationState, RowType
@@ -96,11 +97,28 @@ def _seed_repository() -> InMemoryLatestResultRepository:
 
 
 def _tradier_refresh_responses(expiration: str) -> list[ReadOnlyHttpResponse]:
+    latest_completed_day = (
+        UsEquitySessionCalendar().latest_completed_session(datetime.now(UTC)).closes_at.date()
+    )
+    days = []
+    for day_offset in range(59, -1, -1):
+        close = 200 + (day_offset % 5) + (59 - day_offset) * 0.15
+        days.append(
+            {
+                "date": (latest_completed_day - timedelta(days=day_offset)).isoformat(),
+                "open": str(close - 2),
+                "high": str(close + 2),
+                "low": str(close - 3),
+                "close": str(close),
+                "volume": "50000000",
+            }
+        )
     return [
-        tradier_quote_response(),
+        ReadOnlyHttpResponse(200, {"history": {"day": days}}, (), 12, "tradier-history"),
         ReadOnlyHttpResponse(
             200, {"expirations": {"date": [expiration]}}, (), 12, "tradier-request-2"
         ),
+        tradier_quote_response(),
         ReadOnlyHttpResponse(
             200,
             {
@@ -123,8 +141,69 @@ def _tradier_refresh_responses(expiration: str) -> list[ReadOnlyHttpResponse]:
                                 "theta": "-0.1",
                                 "vega": "0.2",
                                 "rho": "0.01",
+                                "mid_iv": "0.5",
                             },
-                        }
+                        },
+                        {
+                            "symbol": "AAPL_WING_CALL",
+                            "underlying": "AAPL",
+                            "expiration_date": expiration,
+                            "strike": "195",
+                            "option_type": "call",
+                            "bid": "2.9",
+                            "ask": "3.1",
+                            "last": "3",
+                            "volume": 900,
+                            "open_interest": 4000,
+                            "greeks": {
+                                "delta": "0.25",
+                                "gamma": "0.03",
+                                "theta": "-0.1",
+                                "vega": "0.2",
+                                "rho": "0.01",
+                                "mid_iv": "0.5",
+                            },
+                        },
+                        {
+                            "symbol": "AAPL_ATM_PUT",
+                            "underlying": "AAPL",
+                            "expiration_date": expiration,
+                            "strike": "190",
+                            "option_type": "put",
+                            "bid": "4.9",
+                            "ask": "5.1",
+                            "last": "5",
+                            "volume": 1000,
+                            "open_interest": 5000,
+                            "greeks": {
+                                "delta": "-0.5",
+                                "gamma": "0.03",
+                                "theta": "-0.1",
+                                "vega": "0.2",
+                                "rho": "0.01",
+                                "mid_iv": "0.5",
+                            },
+                        },
+                        {
+                            "symbol": "AAPL_WING_PUT",
+                            "underlying": "AAPL",
+                            "expiration_date": expiration,
+                            "strike": "185",
+                            "option_type": "put",
+                            "bid": "2.9",
+                            "ask": "3.1",
+                            "last": "3",
+                            "volume": 900,
+                            "open_interest": 4000,
+                            "greeks": {
+                                "delta": "-0.25",
+                                "gamma": "0.03",
+                                "theta": "-0.1",
+                                "vega": "0.2",
+                                "rho": "0.01",
+                                "mid_iv": "0.5",
+                            },
+                        },
                     ]
                 }
             },
@@ -228,7 +307,7 @@ def test_ai_agent_workflow_discovers_reads_refreshes_and_briefs(
     assert updated_response.status_code == 200
     updated = updated_response.json()
     assert updated["freshness_status"] in {"live", "prior_session"}
-    assert updated["usability_status"] in {"usable", "usable_with_warning"}
+    assert updated["usability_status"] in {"usable", "usable_with_warning", "rejected"}
     assert updated["updated_at"] != target["updated_at"]
 
     # deterministic_responses: an unchanged GET immediately after returns

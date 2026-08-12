@@ -20,10 +20,10 @@ from alembic.config import Config
 from sqlalchemy import create_engine, text
 
 from asa.integrations.universal_screening_postgres import PostgresLatestResultRepository
-from market_data.config import load_market_data_config
-from strategy_runtime.adapters import build_migrated_strategy_registry
-from strategy_runtime.market_data_planning import build_shared_market_data_access
+from strategy_runtime.adapters.skew_momentum_vertical import SKEW_MOMENTUM_VERTICAL_CONTRACT
+from strategy_runtime.context import RuntimeContext
 from strategy_runtime.persistence import UniversalSignalRow, should_replace_latest
+from strategy_runtime.registry import StrategyRegistry
 from strategy_runtime.result import (
     EvaluationState,
     ResultTemporalMetadata,
@@ -65,23 +65,36 @@ def repository() -> PostgresLatestResultRepository:
     return PostgresLatestResultRepository(engine)
 
 
-def _fulfillment_by_subject(clock: FixedClock) -> dict[str, object]:
-    # The deterministic_fixture provider, left enabled (not force-disabled
-    # via live_only_config()) -- this test is about persistence
-    # round-tripping, not about the live-acquisition safety guarantee
-    # EPIC-7's own tests already prove separately.
-    config = load_market_data_config({})
-    access = build_shared_market_data_access(
-        config, lambda _provider_id: object(), clock, (SYMBOL,)
-    )
-    return {symbol: item.fulfillment for symbol, item in access.items()}
+def _registry() -> StrategyRegistry[UniversalScreeningResult]:
+    def adapter(context: RuntimeContext) -> UniversalScreeningResult:
+        return UniversalScreeningResult(
+            STRATEGY_ID,
+            SKEW_MOMENTUM_VERTICAL_CONTRACT.version,
+            context.subject,
+            f"{context.run_id}:{context.subject}",
+            None,
+            RowType.RESULT,
+            "FAIL",
+            EvaluationState.NO_SIGNAL,
+            None,
+            None,
+            None,
+            {},
+            {},
+            (),
+            (),
+            ("test:persistence",),
+            context.clock.now(),
+        )
+
+    return StrategyRegistry(((SKEW_MOMENTUM_VERTICAL_CONTRACT, adapter),))
 
 
 def test_refresh_persists_to_real_postgres_and_get_state_reads_it_back(
     repository: PostgresLatestResultRepository,
 ) -> None:
     clock = FixedClock(datetime(2026, 7, 23, 16, 0, tzinfo=UTC))
-    registry = build_migrated_strategy_registry(_fulfillment_by_subject(clock)[SYMBOL])
+    registry = _registry()
 
     refreshed = refresh(
         registry,
@@ -102,7 +115,7 @@ def test_second_refresh_overwrites_the_real_row_rather_than_accumulating(
     repository: PostgresLatestResultRepository,
 ) -> None:
     clock = FixedClock(datetime(2026, 7, 23, 16, 0, tzinfo=UTC))
-    registry = build_migrated_strategy_registry(_fulfillment_by_subject(clock)[SYMBOL])
+    registry = _registry()
 
     refresh(
         registry,
@@ -132,7 +145,7 @@ def test_get_state_never_triggers_a_provider_request(
     # (written once via refresh(), which does own a fulfillment service)
     # and getting back identical results is the decisive, observable proof.
     clock = FixedClock(datetime(2026, 7, 23, 16, 0, tzinfo=UTC))
-    registry = build_migrated_strategy_registry(_fulfillment_by_subject(clock)[SYMBOL])
+    registry = _registry()
     refresh(
         registry,
         repository,

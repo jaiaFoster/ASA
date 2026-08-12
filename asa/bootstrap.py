@@ -39,7 +39,6 @@ from asa.ui import mount_ui
 from market_data.attempts import AcquisitionAttemptRepository
 from market_data.live_transport import build_live_transport as build_transport_for_provider
 from strategy_runtime.adapters import (
-    UNBOUND_FULFILLMENT,
     build_migrated_signal_catalog,
     build_migrated_strategy_registry,
 )
@@ -77,18 +76,12 @@ def build_application(
         engine_factory(settings.database_url)
     )
     broker_provider = selected.broker_provider or _build_broker_provider(settings)
-    latest_result_repository = (
-        selected.latest_result_repository
-        or PostgresLatestResultRepository(engine_factory(settings.database_url))
+    latest_result_repository = selected.latest_result_repository or PostgresLatestResultRepository(
+        engine_factory(settings.database_url)
     )
-    # SPRINT-014 S14-PR-05A (Architect checkpoint: twelfth review, item 3):
-    # this registry is used only for its own contract/membership metadata
-    # (build_screening_router's own _require_registered_signal check) --
-    # never for actual evaluation, so it never needs a real
-    # CapabilityFulfiller. asa/api/screening_routes.py's own refresh
-    # handler rebuilds a fresh, subject-scoped registry with a real one
-    # immediately before evaluating any strategy.
-    screening_registry = build_migrated_strategy_registry(UNBOUND_FULFILLMENT)
+    # Contract/membership registry only. Production evaluation is composed
+    # from prepared read-only knowledge at the request boundary.
+    screening_registry = build_migrated_strategy_registry()
     observation_history_repository = (
         selected.observation_history_repository
         or PostgresObservationHistoryRepository(engine_factory(settings.database_url))

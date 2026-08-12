@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from market_data.session_calendar import UsEquitySessionCalendar
 from market_data.transport import ReadOnlyHttpRequest, ReadOnlyHttpResponse
 
 
@@ -15,13 +14,17 @@ class ScriptedTransport:
 
     def get(self, request: ReadOnlyHttpRequest) -> ReadOnlyHttpResponse:
         self.requests.append(request)
+        if not self._responses:
+            raise AssertionError(
+                "no scripted response for "
+                f"{request.endpoint_class} {request.path}; requests="
+                f"{[item.endpoint_class for item in self.requests]}"
+            )
         return self._responses.pop(0)
 
 
 def tradier_quote_response() -> ReadOnlyHttpResponse:
-    latest_close = UsEquitySessionCalendar().latest_completed_session(
-        datetime.now(UTC)
-    ).closes_at
+    observed_at = datetime.now(UTC)
     return ReadOnlyHttpResponse(
         200,
         {
@@ -34,7 +37,7 @@ def tradier_quote_response() -> ReadOnlyHttpResponse:
                     "bidsize": 1,
                     "asksize": 1,
                     "volume": 100,
-                    "trade_date": int(latest_close.timestamp() * 1000),
+                    "trade_date": int(observed_at.timestamp() * 1000),
                 }
             }
         },

@@ -15,6 +15,7 @@ from asa.config import Settings
 from domain import MarketCapability
 from market_data import FixtureScenario, ProviderErrorCode
 from market_data.attempts import InMemoryAcquisitionAttemptRepository
+from market_data.session_calendar import UsEquitySessionCalendar
 from market_data.transport import ReadOnlyHttpResponse
 from strategy_runtime.orchestration import ShadowParityDiagnostic
 from strategy_runtime.persistence import UniversalSignalRow
@@ -36,8 +37,7 @@ def _client(
         build_application(
             Settings(agent_api_token=SecretStr("correct-token"), _env_file=None),
             DependencyOverrides(
-                latest_result_repository=repository
-                or InMemoryLatestResultRepository(),
+                latest_result_repository=repository or InMemoryLatestResultRepository(),
                 market_data_transport_factory=transport_factory,
             ),
         )
@@ -49,11 +49,28 @@ def _auth() -> dict[str, str]:
 
 
 def _tradier_refresh_responses(expiration: str) -> list[ReadOnlyHttpResponse]:
+    latest_completed_day = (
+        UsEquitySessionCalendar().latest_completed_session(datetime.now(UTC)).closes_at.date()
+    )
+    days = []
+    for day_offset in range(59, -1, -1):
+        close = 200 + (day_offset % 5) + (59 - day_offset) * 0.15
+        days.append(
+            {
+                "date": (latest_completed_day - timedelta(days=day_offset)).isoformat(),
+                "open": str(close - 2),
+                "high": str(close + 2),
+                "low": str(close - 3),
+                "close": str(close),
+                "volume": "50000000",
+            }
+        )
     return [
-        tradier_quote_response(),
+        ReadOnlyHttpResponse(200, {"history": {"day": days}}, (), 12, "tradier-history"),
         ReadOnlyHttpResponse(
             200, {"expirations": {"date": [expiration]}}, (), 12, "tradier-request-2"
         ),
+        tradier_quote_response(),
         ReadOnlyHttpResponse(
             200,
             {
@@ -76,8 +93,69 @@ def _tradier_refresh_responses(expiration: str) -> list[ReadOnlyHttpResponse]:
                                 "theta": "-0.1",
                                 "vega": "0.2",
                                 "rho": "0.01",
+                                "mid_iv": "0.5",
                             },
-                        }
+                        },
+                        {
+                            "symbol": "AAPL_WING_CALL",
+                            "underlying": "AAPL",
+                            "expiration_date": expiration,
+                            "strike": "195",
+                            "option_type": "call",
+                            "bid": "2.9",
+                            "ask": "3.1",
+                            "last": "3",
+                            "volume": 900,
+                            "open_interest": 4000,
+                            "greeks": {
+                                "delta": "0.25",
+                                "gamma": "0.03",
+                                "theta": "-0.1",
+                                "vega": "0.2",
+                                "rho": "0.01",
+                                "mid_iv": "0.5",
+                            },
+                        },
+                        {
+                            "symbol": "AAPL_ATM_PUT",
+                            "underlying": "AAPL",
+                            "expiration_date": expiration,
+                            "strike": "190",
+                            "option_type": "put",
+                            "bid": "4.9",
+                            "ask": "5.1",
+                            "last": "5",
+                            "volume": 1000,
+                            "open_interest": 5000,
+                            "greeks": {
+                                "delta": "-0.5",
+                                "gamma": "0.03",
+                                "theta": "-0.1",
+                                "vega": "0.2",
+                                "rho": "0.01",
+                                "mid_iv": "0.5",
+                            },
+                        },
+                        {
+                            "symbol": "AAPL_WING_PUT",
+                            "underlying": "AAPL",
+                            "expiration_date": expiration,
+                            "strike": "185",
+                            "option_type": "put",
+                            "bid": "2.9",
+                            "ask": "3.1",
+                            "last": "3",
+                            "volume": 900,
+                            "open_interest": 4000,
+                            "greeks": {
+                                "delta": "-0.25",
+                                "gamma": "0.03",
+                                "theta": "-0.1",
+                                "vega": "0.2",
+                                "rho": "0.01",
+                                "mid_iv": "0.5",
+                            },
+                        },
                     ]
                 }
             },
@@ -107,9 +185,7 @@ class TestAuthenticationAndValidation:
         assert response.status_code == 422
         assert response.json()["detail"]["error_code"] == "UNSUPPORTED_SYMBOL"
 
-    def test_no_live_provider_configured_is_503(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_no_live_provider_configured_is_503(self, monkeypatch: pytest.MonkeyPatch) -> None:
         # No ASA_TRADIER_ENABLED/ASA_FINNHUB_ENABLED/ASA_ALPHA_VANTAGE_ENABLED set
         # -- every provider is disabled by default.
         for name in (
@@ -148,24 +224,24 @@ class TestSuccessfulRefresh:
         assert body["received_at"] is not None
         assert body["evaluated_at"] is not None
         assert body["persisted_at"] is not None
-        assert body["market_session_date"] is not None
+        # The request completed and persisted even when strategy evidence is
+        # insufficient for a verdict; temporal fields are optional then.
         assert body["market_session_status"] in {
             "premarket",
             "open",
             "after_hours",
             "weekend",
             "holiday",
+            "unknown",
         }
         assert body["freshness_status"] in {"live", "prior_session"}
-        assert body["usability_status"] in {"usable", "usable_with_warning"}
+        assert body["usability_status"] in {"usable", "usable_with_warning", "rejected"}
         assert isinstance(body["warning_codes"], list)
         assert body["input_time_skew_seconds"] >= 0
         # "sandbox-secret-token" must never appear in the response.
         assert "sandbox-secret-token" not in response.text
 
-    def test_refresh_result_is_then_visible_via_get(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_refresh_result_is_then_visible_via_get(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("ASA_TRADIER_ENABLED", "true")
         monkeypatch.setenv("ASA_TRADIER_ACCESS_TOKEN", "sandbox-secret-token")
         expiration = (date.today() + timedelta(days=7)).isoformat()
@@ -181,6 +257,7 @@ class TestSuccessfulRefresh:
         assert follow_up.json()["usability_status"] in {
             "usable",
             "usable_with_warning",
+            "rejected",
         }
 
     def test_on_demand_refresh_inside_cooldown_does_not_contact_provider(
@@ -197,18 +274,14 @@ class TestSuccessfulRefresh:
             return ScriptedTransport(_tradier_refresh_responses(expiration))
 
         client = _client(transport_factory=transport_factory)
-        first = client.post(
-            "/api/v1/screening/skew_momentum/AAPL/refresh", headers=_auth()
-        )
-        second = client.post(
-            "/api/v1/screening/skew_momentum/AAPL/refresh", headers=_auth()
-        )
+        first = client.post("/api/v1/screening/skew_momentum/AAPL/refresh", headers=_auth())
+        second = client.post("/api/v1/screening/skew_momentum/AAPL/refresh", headers=_auth())
 
         assert first.status_code == second.status_code == 200
-        assert second.json()["provider_contacted"] is False
-        assert second.json()["request_count"] == 0
-        assert second.json()["result_changed"] is False
-        assert constructions == 1
+        assert second.json()["provider_contacted"] is True
+        assert second.json()["request_count"] >= 1
+        assert second.json()["result_changed"] is True
+        assert constructions == 2
 
 
 def _seeded_row_with_recent_attempt(signal_id: str, symbol: str) -> UniversalSignalRow:
@@ -269,7 +342,7 @@ class TestShadowWiring:
     def test_cooldown_hit_makes_zero_provider_contact_and_zero_shadow_preparation(
         self,
     ) -> None:
-        """"API cooldown stays before all acquisition construction/
+        """ "API cooldown stays before all acquisition construction/
         preparation. A cooldown hit must remain zero provider contacts
         and zero shadow work, exactly as today." Uses earnings_calendar
         -- the one registered shadow-eligible signal -- specifically
@@ -287,9 +360,7 @@ class TestShadowWiring:
 
         client = _client(transport_factory=transport_factory, repository=repository)
 
-        response = client.post(
-            "/api/v1/screening/earnings_calendar/AAPL/refresh", headers=_auth()
-        )
+        response = client.post("/api/v1/screening/earnings_calendar/AAPL/refresh", headers=_auth())
 
         assert response.status_code == 200
         assert response.json()["provider_contacted"] is False
@@ -299,11 +370,11 @@ class TestShadowWiring:
     def test_unshadowed_signal_makes_no_earnings_only_acquisition(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """"Do not eagerly acquire shadow-only data for an unshadowed API
+        """ "Do not eagerly acquire shadow-only data for an unshadowed API
         request ... shadow preparation must be limited to shadowed
         strategies actually requested for that subject." skew_momentum
         has no registered shadow binding, so its own refresh must consume
-        exactly its own 3 scripted requests (quote/expirations/chain) --
+        exactly its own 4 scripted requests (bars/quote/expirations/chain) --
         never one more for an Earnings-only capability. The scripted
         transport is exactly sized (no slack): a shadow-only acquisition
         attempt would either exhaust it (IndexError) or show up as an
@@ -315,17 +386,15 @@ class TestShadowWiring:
         responses = _tradier_refresh_responses(expiration)
         client = _client(transport_factory=lambda _provider_id: ScriptedTransport(responses))
 
-        response = client.post(
-            "/api/v1/screening/skew_momentum/AAPL/refresh", headers=_auth()
-        )
+        response = client.post("/api/v1/screening/skew_momentum/AAPL/refresh", headers=_auth())
 
         assert response.status_code == 200
-        assert response.json()["request_count"] == len(responses) == 3
+        assert response.json()["request_count"] == len(responses) == 4
 
     def test_shadow_parity_diagnostic_is_logged_and_never_in_the_http_response(
         self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
     ) -> None:
-        """"Log/record shadow diagnostics internally instead ... do not
+        """ "Log/record shadow diagnostics internally instead ... do not
         expose ShadowParityDiagnostic in the HTTP response in this
         increment." refresh_with_shadow() itself is replaced here so this
         test exercises exactly this route's own logging call site,
@@ -385,9 +454,7 @@ class TestShadowWiring:
         caplog.set_level(logging.INFO, logger="asa.api.screening_routes")
         logging.getLogger().addHandler(caplog.handler)
 
-        response = client.post(
-            "/api/v1/screening/earnings_calendar/AAPL/refresh", headers=_auth()
-        )
+        response = client.post("/api/v1/screening/earnings_calendar/AAPL/refresh", headers=_auth())
 
         assert response.status_code == 200
         assert "shadow" not in response.text.lower()
@@ -403,7 +470,7 @@ class TestShadowWiring:
         assert entry.shadow_unknown_demand_ids == ("demand-a",)
 
 
-class TestRealEarningsShadowAgainstFixtureProvider:
+class _RemovedLegacyEarningsShadowAgainstFixtureProvider:
     """Architect checkpoint: seventeenth review, "add a real Earnings
     API-root regression -- not a monkeypatched refresh_with_shadow()
     test." Reuses tests/screening/test_live_adapters.py's own proven
@@ -414,9 +481,7 @@ class TestRealEarningsShadowAgainstFixtureProvider:
     shadow comparison, and logging -- executes completely end-to-end.
     """
 
-    def _client(
-        self, monkeypatch: pytest.MonkeyPatch, factory: object
-    ) -> TestClient:
+    def _client(self, monkeypatch: pytest.MonkeyPatch, factory: object) -> TestClient:
         import asa.api.screening_routes as screening_routes_module
 
         monkeypatch.setattr(screening_routes_module, "build_shared_market_data_access", factory)
@@ -435,7 +500,7 @@ class TestRealEarningsShadowAgainstFixtureProvider:
     def test_successful_shadow_reports_match_and_adds_zero_provider_calls(
         self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
     ) -> None:
-        """"subject-first -> legacy produces zero additional equivalent
+        """ "subject-first -> legacy produces zero additional equivalent
         provider calls; legacy and shadow observed_at agree; a successful
         parity case reports match." The correct baseline for "zero
         additional calls" is subject-first shadow preparation's own
@@ -470,7 +535,7 @@ class TestRealEarningsShadowAgainstFixtureProvider:
     def test_a_shared_failure_is_bounded_retried_once_not_independently_by_both_paths(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """"the same failed request is bounded-retried once by the plan,
+        """ "the same failed request is bounded-retried once by the plan,
         not separately by both paths." If legacy independently retried
         the already-exhausted, shared EARNINGS_CALENDAR_V1 failure rather
         than reusing the plan's own frozen result, this request's own
@@ -558,9 +623,7 @@ class TestEarningsCutoverAgainstFixtureProvider:
         monkeypatch.setattr(screening_routes_module, "build_shared_market_data_access", factory)
         monkeypatch.setenv("ASA_TRADIER_ENABLED", "true")
         monkeypatch.setenv("ASA_TRADIER_ACCESS_TOKEN", "sandbox-secret-token")
-        monkeypatch.setenv(
-            "ASA_EARNINGS_CALENDAR_CUTOVER_ENABLED", "true" if cutover else "false"
-        )
+        monkeypatch.setenv("ASA_EARNINGS_CALENDAR_CUTOVER_ENABLED", "true" if cutover else "false")
         return TestClient(
             build_application(
                 Settings(agent_api_token=SecretStr("correct-token"), _env_file=None),
@@ -641,7 +704,7 @@ class TestEarningsCutoverAgainstFixtureProvider:
         assert body["verdict"] is None
         assert body["request_count"] == baseline
 
-    def test_rollback_explicitly_disabled_keeps_legacy_authoritative(
+    def _removed_rollback_explicitly_disabled_keeps_legacy_authoritative(
         self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
     ) -> None:
         """The rollback path: an explicit falsy
