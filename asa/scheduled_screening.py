@@ -41,7 +41,6 @@ import time
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from functools import partial
 from typing import Protocol
 
 from asa.config import Settings
@@ -59,7 +58,6 @@ from domain import UnknownReason
 from market_data import ReuseDecision, load_market_data_config_from_environment
 from market_data.attempts import AcquisitionAttemptRepository
 from market_data.live_transport import build_live_transport
-from market_data.session_calendar import UsEquitySessionCalendar
 from market_data.session_schedule import SessionRefreshSchedule
 from screening import APPROVED_LIVE_UNIVERSE, EARNINGS_CALENDAR_UNIVERSE
 from screening.cycle_identity import (
@@ -71,7 +69,6 @@ from screening.cycle_identity import (
     pair_evaluation_id as compute_pair_evaluation_id,
 )
 from screening.live_acquisition import live_only_config
-from screening.live_adapters import capture_skew_snapshot
 from strategy_runtime.adapters import (
     build_migrated_cutover_policy,
     build_migrated_shadow_registry,
@@ -79,12 +76,7 @@ from strategy_runtime.adapters import (
     migrated_shadow_capability_reducers,
     migrated_shadow_resolution_policy,
 )
-from strategy_runtime.historical_evidence import (
-    ConflictingHistoricalObservationError,
-    HistoricalSkewRepository,
-    SyntheticOrBackdatedObservationError,
-    record_prospective_skew_observation,
-)
+from strategy_runtime.historical_evidence import HistoricalSkewRepository
 from strategy_runtime.knowledge import ReadOnlyStrategyInput
 from strategy_runtime.lifecycle import RecommendedAction
 from strategy_runtime.market_data_planning import (
@@ -93,11 +85,9 @@ from strategy_runtime.market_data_planning import (
     enabled_provider_configs,
 )
 from strategy_runtime.orchestration import (
-    TouchedResultFulfillment,
     build_subject_acquisition_access,
     prepare_subject_shadow_knowledge,
     refresh_with_shadow,
-    touched_observations,
 )
 from strategy_runtime.persistence import LatestResultRepository, ObservationHistoryRepository
 from strategy_runtime.service import record_opportunity_observation
@@ -270,9 +260,7 @@ def run_scheduled_refresh(
         if slot is None:
             return ()
         resolved_claim_repository = claim_repository or (
-            PostgresRefreshScheduleClaimRepository(
-                create_postgres_engine(Settings().database_url)
-            )
+            PostgresRefreshScheduleClaimRepository(create_postgres_engine(Settings().database_url))
         )
         if not resolved_claim_repository.claim(slot.slot_id, run_at):
             return ()
@@ -293,7 +281,6 @@ def run_scheduled_refresh(
         historical_skew_repository
         or PostgresHistoricalSkewRepository(create_postgres_engine(Settings().database_url))
     )
-    session_calendar = UsEquitySessionCalendar()
     config = live_only_config(load_market_data_config_from_environment())
     if not enabled_provider_configs(config):
         raise RuntimeError(
@@ -346,17 +333,8 @@ def run_scheduled_refresh(
         budget_clock=quota_clock,
         rolling_window=rolling_window,
     )
-    # SPRINT-014 S14-PR-05A (Architect checkpoint: sixteenth review, "final
-    # wiring increment"): one SubjectAcquisitionPlan + PlanBackedFulfillment
-    # per unique symbol, built once for the whole cycle -- never rebuilt
-    # per pair. Every migrated strategy adapter below is registered
-    # against this same plan-backed wrapper, never the raw
-    # CapabilityFulfillmentService directly, so a capability request any
-    # of forward_factor/skew_momentum/earnings_calendar makes for a shared
-    # symbol is resolved at most once (bounded-retried on failure) for the
-    # whole cycle and durably attempt-recorded through the plan itself --
-    # this module's own prior per-pair attempt_records_for() block is
-    # retired below in favor of that single durable owner.
+    # One subject-owned plan per symbol acquires and seals shared evidence
+    # before any provider-blind strategy evaluation is constructed.
     acquisition_access = {
         symbol: build_subject_acquisition_access(
             symbol,
@@ -382,9 +360,7 @@ def run_scheduled_refresh(
         # a provider (shadow preparation below, and each pair's own
         # refresh_with_shadow() further down) so nothing this cycle ever
         # made falls outside the tally.
-        for _fulfillment_result, decision in access[symbol].fulfillment.call_log[
-            call_log_start:
-        ]:
+        for _fulfillment_result, decision in access[symbol].fulfillment.call_log[call_log_start:]:
             if decision is ReuseDecision.REUSED:
                 # SPRINT-013 S13-03B: a reuse hit consumed no provider
                 # request and produced no new attempt evidence -- never a
@@ -425,10 +401,12 @@ def run_scheduled_refresh(
     shadow_knowledge_by_symbol: dict[
         str, dict[str, ReadOnlyStrategyInput[object] | UnknownReason]
     ] = {}
+    prepared_request_count_by_symbol: dict[str, int] = {}
     for symbol in unique_symbols:
         if not (requested_signal_ids_by_symbol[symbol] & set(shadow_registry.strategy_ids())):
             continue
         call_log_start = len(access[symbol].fulfillment.call_log)
+        budget_start = len(access[symbol].budget_manager.accounting)
         try:
             shadow_knowledge_by_symbol[symbol] = prepare_subject_shadow_knowledge(
                 acquisition_access[symbol].plan,
@@ -437,13 +415,13 @@ def run_scheduled_refresh(
                 subject=symbol,
                 provider_metadata=access[symbol].provider_metadata,
                 resolution_policy_by_capability=migrated_shadow_resolution_policy(
-                    access[symbol].capability_registry
+                    access[symbol].capability_registry,
+                    tuple(sorted(requested_signal_ids_by_symbol[symbol])),
                 ),
                 capability_reducer_by_capability=shadow_capability_reducers,
                 strategy_ids=tuple(
                     sorted(
-                        requested_signal_ids_by_symbol[symbol]
-                        & set(shadow_registry.strategy_ids())
+                        requested_signal_ids_by_symbol[symbol] & set(shadow_registry.strategy_ids())
                     )
                 ),
             )
@@ -455,6 +433,9 @@ def run_scheduled_refresh(
             )
         finally:
             _tally_new_calls(symbol, call_log_start)
+            prepared_request_count_by_symbol[symbol] = (
+                len(access[symbol].budget_manager.accounting) - budget_start
+            )
     outcomes: list[PairOutcome] = []
     for signal_id, symbol in universe:
         subject_access = access[symbol]
@@ -472,30 +453,14 @@ def run_scheduled_refresh(
             # that share it.
             budget_accounting_start = len(subject_access.budget_manager.accounting)
             call_log_start = len(subject_access.fulfillment.call_log)
-            # SPRINT-014 S14-PR-05A (Architect checkpoint: seventeenth
-            # review, corrective item 2): one fresh TouchedResultFulfillment
-            # per pair, wrapping this symbol's own shared PlanBackedFulfillment
-            # -- this pair's own legacy registry is bound to it (never the
-            # raw plan-backed wrapper directly), and this pair's own
-            # observations callback is derived from exactly what it itself
-            # recorded (a fresh call or a plan-cache hit alike), never from
-            # every observation the subject's raw fulfillment service ever
-            # accumulated cycle-wide -- so evidence subject-first shadow
-            # preparation (or a different pair sharing this symbol) acquired
-            # for itself, and this pair's own legacy execution never asked
-            # for or reused, can never enter this pair's own temporal
-            # metadata, even when it shares the same declared capability
-            # (e.g. a shadow-only OPTION_CHAIN_V1 front/back-month pair FF/
-            # Skew never touched).
-            tracker = TouchedResultFulfillment(acquisition_access[symbol].plan_backed_fulfillment)
-            pair_registry = build_migrated_strategy_registry(tracker)
+            pair_registry = build_migrated_strategy_registry()
             result, shadow_diagnostic = refresh_with_shadow(
                 pair_registry,
                 resolved_repository,
                 clock,
                 strategy_id=signal_id,
                 symbol=symbol,
-                observations=partial(touched_observations, tracker),
+                observations=tuple,
                 historical_skew_repository=resolved_historical_skew_repository,
                 shadow_registry=shadow_registry,
                 shadow_knowledge_by_subject=shadow_knowledge_by_symbol.get(symbol),
@@ -522,58 +487,6 @@ def run_scheduled_refresh(
                         "shadow_snapshot_digest": shadow_diagnostic.shadow_snapshot_digest,
                     },
                 )
-            if signal_id == "skew_momentum":
-                # SPRINT-013 S13-04D: attempt prospective accumulation on
-                # every cycle, not only after close -- record_prospective_
-                # skew_observation's own gate accepts only the most
-                # recently *completed* session, so every intraday attempt
-                # is a harmless, expected rejection and only the cycle(s)
-                # that actually run after that day's close ever succeed.
-                # capture_skew_snapshot goes through this symbol's own
-                # PlanBackedFulfillment (Architect checkpoint: sixteenth
-                # review, "pass the same PlanBackedFulfillment, not the raw
-                # fulfillment service") -- it reuses the exact acquisition
-                # this pair's own refresh_with_shadow() just made via the
-                # same shared plan, so this never issues a second live
-                # provider request. Best-effort and fully isolated: never
-                # turns an otherwise successful pair into a failed
-                # PairOutcome.
-                try:
-                    observation = capture_skew_snapshot(
-                        acquisition_access[symbol].plan_backed_fulfillment, symbol, clock.now()
-                    )
-                    record_prospective_skew_observation(
-                        resolved_historical_skew_repository,
-                        clock,
-                        session_calendar,
-                        observation,
-                    )
-                except SyntheticOrBackdatedObservationError:
-                    pass
-                except ConflictingHistoricalObservationError:
-                    _LOGGER.error(
-                        "skew_history_conflicting_observation",
-                        extra={
-                            "signal_id": signal_id,
-                            "symbol": symbol,
-                            "screening_cycle_id": screening_cycle_id,
-                        },
-                    )
-                except Exception:
-                    # SPRINT-013 S13-07: exc_info=True confirmed missing here
-                    # by real production evidence (2026-08-05 13:41Z cycle --
-                    # every skew_momentum pair logged this event with no
-                    # exception detail at all, even after S13-11's formatter
-                    # fix, since this call site never passed exc_info).
-                    _LOGGER.warning(
-                        "skew_history_capture_failed",
-                        extra={
-                            "signal_id": signal_id,
-                            "symbol": symbol,
-                            "screening_cycle_id": screening_cycle_id,
-                        },
-                        exc_info=True,
-                    )
             if result.opportunity_id is not None:
                 try:
                     record_opportunity_observation(
@@ -610,7 +523,9 @@ def run_scheduled_refresh(
                     signal_id,
                     symbol,
                     result.evaluation_state.value,
-                    len(subject_access.budget_manager.accounting) - budget_accounting_start,
+                    prepared_request_count_by_symbol.pop(symbol, 0)
+                    + len(subject_access.budget_manager.accounting)
+                    - budget_accounting_start,
                     None,
                     not plan.attempt_recording_degraded,
                 )

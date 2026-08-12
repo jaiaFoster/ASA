@@ -1,39 +1,8 @@
-"""Skew Momentum Vertical migrated onto the universal runtime
-(SPRINT-009/EPIC-7).
-
-Reuses screening.adapters.TARGET_STRATEGY_REGISTRY and
-screening.live_adapters.build_live_skew_momentum_adapter directly --
-this sprint's own quality.preserve rule for "execution graph" means
-Skew Momentum's actual financial logic (compile_strategy_graph/
-execute_strategy_graph, strategies/stonk_manifests.py's own
-SKEW_MOMENTUM_VERTICAL_MANIFEST) is reused unmodified, never
-reimplemented. No lifecycle: skew_momentum has never tracked one,
-matching its own registered contract declaring lifecycle=NO_LIFECYCLE.
-
-Requirements match SPRINT-008D/PROD-004's own confirmed data-requirement
-audit exactly: real_time_quote_v1 for spot price plus option_chain_v1
-for the vertical structure, both actually used by the live adapter even
-though screening/registry.py's own required_capabilities under-declares
-this.
-
-``build_skew_momentum_adapter()`` (SPRINT-014 S14-PR-05A, Architect
-checkpoint: twelfth review, item 3) replaces the old context-reading
-``skew_momentum_adapter`` function: acquisition now comes from a
-CapabilityFulfiller closed over at registry-construction time, never
-from RuntimeContext, which no longer carries a fulfillment field at all.
-``historical_skew_repository`` stays on RuntimeContext unchanged (a
-separate, SPRINT-013 S13-04D concern, out of scope for this removal).
-"""
+"""Provider-blind Skew Momentum Vertical production contract."""
 
 from __future__ import annotations
 
 from domain import MarketCapability
-from market_data.subject_plan import CapabilityFulfiller
-from screening import run_screening
-from screening.adapters import TARGET_STRATEGY_REGISTRY
-from screening.live_adapters import build_live_skew_momentum_adapter
-from strategy_runtime.adapters._screening_bridge import translate_screening_result
-from strategy_runtime.context import RuntimeContext
 from strategy_runtime.contract import (
     NO_LIFECYCLE,
     DataRequirement,
@@ -43,8 +12,6 @@ from strategy_runtime.contract import (
     StrategyContract,
     StructureKind,
 )
-from strategy_runtime.registry import StrategyAdapter
-from strategy_runtime.result import UniversalScreeningResult, compute_observation_id
 
 SKEW_MOMENTUM_VERTICAL_CONTRACT = StrategyContract(
     strategy_id="skew_momentum",
@@ -70,35 +37,3 @@ SKEW_MOMENTUM_VERTICAL_CONTRACT = StrategyContract(
     outputs=(OutputKind.METRICS, OutputKind.ECONOMICS),
     capabilities=(StrategyCapability.ECONOMICS, StrategyCapability.OPTION_STRUCTURES),
 )
-
-
-def build_skew_momentum_adapter(
-    fulfillment: CapabilityFulfiller,
-) -> StrategyAdapter[UniversalScreeningResult]:
-    """Close over one subject's own CapabilityFulfiller and return the
-    thin translation layer strategies_own_thesis exists for.
-    """
-
-    def _adapter(context: RuntimeContext) -> UniversalScreeningResult:
-        live_adapter = build_live_skew_momentum_adapter(
-            context.subject,
-            fulfillment,
-            freshness_requirement=context.contract.freshness_requirement,
-            historical_skew_repository=context.historical_skew_repository,
-        )
-        (result,) = run_screening(
-            TARGET_STRATEGY_REGISTRY,
-            {"skew_momentum": live_adapter},
-            context.clock,
-            strategy_ids=("skew_momentum",),
-        )
-        observation_id = compute_observation_id(context.run_id, "skew_momentum", context.subject)
-        return translate_screening_result(
-            result,
-            symbol=context.subject,
-            observation_id=observation_id,
-            opportunity_id=None,
-            lifecycle_stage=None,
-        )
-
-    return _adapter

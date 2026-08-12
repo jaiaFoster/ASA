@@ -1,34 +1,8 @@
-"""Migrated strategy adapters (SPRINT-009/EPIC-7).
+"""Production strategy contracts and subject-first knowledge bindings.
 
-One module per migrated strategy: forward_factor, skew_momentum_vertical,
-earnings_calendar. Each declares its own StrategyContract (EPIC-2) and a
-StrategyAdapter (EPIC-1) that reuses the existing, unmodified execution
-graph (screening.live_adapters, strategies/stonk_manifests.py --
-this sprint's own quality.preserve rule for "execution graph") and
-translates its ScreeningResult into this sprint's UniversalScreeningResult
-(EPIC-6) via _screening_bridge.translate_screening_result(), the one
-translation rule every migrated strategy shares.
-
-build_migrated_strategy_registry() (EPIC-9) is the one place all three
-are actually registered together -- wiring that registry into the
-deployed API's own route handlers remains a separate, deliberately
-deferred step (see project/reports/SPRINT-009.md); importing this
-subpackage has no side effect on the currently-shipped
-/api/v1/screening* surface on its own.
-
-SPRINT-014 S14-PR-05A (Architect checkpoint: twelfth review, item 3):
-build_migrated_strategy_registry() now requires a CapabilityFulfiller,
-closed over into all three adapters at construction time -- acquisition
-is bound by closure, never read from RuntimeContext (which no longer
-carries a fulfillment field). A caller that only needs this registry's
-contract/membership metadata (e.g. asa/bootstrap.py's own
-is_registered() checks, never actual evaluation) passes
-UNBOUND_FULFILLMENT, which raises loudly if anything ever actually tries
-to acquire data through it -- an explicit, visible placeholder, never a
-silent empty-evidence fallback. A caller that is about to evaluate a
-strategy for a real subject must rebuild this registry with that
-subject's own real CapabilityFulfiller (raw or PlanBackedFulfillment)
-immediately beforehand.
+Acquisition is owned by generic subject planning.  The production registry
+contains no acquisition-capable adapter; authoritative evaluation is built
+from immutable prepared knowledge by the subject preparation registry.
 """
 
 from __future__ import annotations
@@ -39,10 +13,7 @@ from datetime import datetime
 from domain import MarketCapability
 from market_data import CapabilityRegistry
 from market_data.capability_coalescing import reduce_option_chain_results
-from market_data.fulfillment import CapabilityFulfillmentResult
-from market_data.providers import CapabilityRequest
 from market_data.resolution import ResolutionPolicy
-from market_data.subject_plan import CapabilityFulfiller
 from screening.subject_planning import CapabilityResultReducer
 from strategies import (
     EARNINGS_CALENDAR_MANIFEST,
@@ -58,14 +29,12 @@ from strategies.skew_momentum_planning import (
 )
 from strategy_runtime.adapters.earnings_calendar import (
     EARNINGS_CALENDAR_CONTRACT,
-    build_earnings_calendar_adapter,
 )
 from strategy_runtime.adapters.earnings_calendar_subject_first import (
     build_earnings_calendar_subject_preparation_binding,
 )
 from strategy_runtime.adapters.forward_factor import (
     FORWARD_FACTOR_CONTRACT,
-    build_forward_factor_adapter,
 )
 from strategy_runtime.adapters.forward_factor_subject_first import (
     build_forward_factor_subject_preparation_binding,
@@ -75,9 +44,9 @@ from strategy_runtime.adapters.skew_momentum_subject_first import (
 )
 from strategy_runtime.adapters.skew_momentum_vertical import (
     SKEW_MOMENTUM_VERTICAL_CONTRACT,
-    build_skew_momentum_adapter,
 )
 from strategy_runtime.catalog import SignalCatalogEntry
+from strategy_runtime.context import RuntimeContext
 from strategy_runtime.historical_evidence import HistoricalSkewRepository
 from strategy_runtime.manifest_contract import validate_manifest_contract
 from strategy_runtime.market_data_planning import resolution_policy_for_capabilities
@@ -87,8 +56,6 @@ from strategy_runtime.result import UniversalScreeningResult
 from strategy_runtime.subject_preparation import SubjectPreparationRegistry
 
 __all__ = [
-    "EARNINGS_CALENDAR_CUTOVER_ENABLED_VAR",
-    "UNBOUND_FULFILLMENT",
     "build_migrated_cutover_policy",
     "build_migrated_shadow_registry",
     "build_migrated_signal_catalog",
@@ -97,43 +64,13 @@ __all__ = [
     "migrated_shadow_resolution_policy",
 ]
 
-EARNINGS_CALENDAR_CUTOVER_ENABLED_VAR = "ASA_EARNINGS_CALENDAR_CUTOVER_ENABLED"
+
+def _subject_first_only(_context: RuntimeContext) -> UniversalScreeningResult:
+    raise RuntimeError("production strategies require prepared read-only knowledge")
 
 
-class _UnboundFulfillment:
-    """Placeholder CapabilityFulfiller for a registry built for contract/
-    catalog metadata only -- raises immediately if anything ever actually
-    tries to acquire data through it, rather than silently returning
-    empty or fabricated evidence.
-    """
-
-    def fulfill(
-        self, request: CapabilityRequest, *, required: bool = True
-    ) -> CapabilityFulfillmentResult:
-        raise RuntimeError(
-            "this StrategyRegistry was built with UNBOUND_FULFILLMENT for contract/"
-            "catalog metadata only -- rebuild it with a real subject-scoped "
-            "CapabilityFulfiller before evaluating any strategy"
-        )
-
-
-UNBOUND_FULFILLMENT = _UnboundFulfillment()
-
-
-def build_migrated_strategy_registry(
-    fulfillment: CapabilityFulfiller,
-) -> StrategyRegistry[UniversalScreeningResult]:
-    """All three EPIC-7 migration targets, registered together -- the one
-    place this sprint's own "three production strategies execute through
-    one shared runtime" success criterion is assembled and directly
-    checkable (see tests/strategy_runtime/adapters/test_registry.py).
-
-    ``fulfillment`` is closed over into all three adapters -- pass
-    UNBOUND_FULFILLMENT for a registry that is only ever used for
-    contract/membership metadata, or a real CapabilityFulfiller
-    (typically one subject's own PlanBackedFulfillment) immediately
-    before evaluating that subject.
-    """
+def build_migrated_strategy_registry() -> StrategyRegistry[UniversalScreeningResult]:
+    """Register all production contracts without acquisition authority."""
     pairs = (
         (FORWARD_FACTOR_CALENDAR_MANIFEST, FORWARD_FACTOR_CONTRACT),
         (SKEW_MOMENTUM_VERTICAL_MANIFEST, SKEW_MOMENTUM_VERTICAL_CONTRACT),
@@ -143,9 +80,9 @@ def build_migrated_strategy_registry(
         validate_manifest_contract(manifest, contract)
     return StrategyRegistry(
         (
-            (FORWARD_FACTOR_CONTRACT, build_forward_factor_adapter(fulfillment)),
-            (SKEW_MOMENTUM_VERTICAL_CONTRACT, build_skew_momentum_adapter(fulfillment)),
-            (EARNINGS_CALENDAR_CONTRACT, build_earnings_calendar_adapter(fulfillment)),
+            (FORWARD_FACTOR_CONTRACT, _subject_first_only),
+            (SKEW_MOMENTUM_VERTICAL_CONTRACT, _subject_first_only),
+            (EARNINGS_CALENDAR_CONTRACT, _subject_first_only),
         )
     )
 
@@ -174,9 +111,7 @@ def build_migrated_shadow_registry(
             ),
             (
                 SKEW_MOMENTUM_VERTICAL_CONTRACT.strategy_id,
-                build_skew_momentum_subject_preparation_binding(
-                    now, historical_skew_repository
-                ),
+                build_skew_momentum_subject_preparation_binding(now, historical_skew_repository),
             ),
             (
                 EARNINGS_CALENDAR_CONTRACT.strategy_id,
@@ -199,6 +134,7 @@ def migrated_shadow_capability_reducers() -> dict[MarketCapability, CapabilityRe
 
 def migrated_shadow_resolution_policy(
     capability_registry: CapabilityRegistry,
+    strategy_ids: tuple[str, ...] | None = None,
 ) -> dict[MarketCapability, ResolutionPolicy]:
     """Resolution policies for every capability today's one registered
     shadow binding (Earnings Calendar) needs sealed, built from this
@@ -208,9 +144,21 @@ def migrated_shadow_resolution_policy(
     constructed from existing market-data configuration/registry
     ownership").
     """
-    requirements = earnings_calendar_resolved_field_requirements()
-    requirements.update(forward_factor_resolved_field_requirements())
-    requirements.update(skew_momentum_resolved_field_requirements())
+    selected = set(
+        strategy_ids
+        or (
+            EARNINGS_CALENDAR_CONTRACT.strategy_id,
+            FORWARD_FACTOR_CONTRACT.strategy_id,
+            SKEW_MOMENTUM_VERTICAL_CONTRACT.strategy_id,
+        )
+    )
+    requirements: dict[MarketCapability, tuple[tuple[str, ...], int]] = {}
+    if EARNINGS_CALENDAR_CONTRACT.strategy_id in selected:
+        requirements.update(earnings_calendar_resolved_field_requirements())
+    if FORWARD_FACTOR_CONTRACT.strategy_id in selected:
+        requirements.update(forward_factor_resolved_field_requirements())
+    if SKEW_MOMENTUM_VERTICAL_CONTRACT.strategy_id in selected:
+        requirements.update(skew_momentum_resolved_field_requirements())
     return resolution_policy_for_capabilities(capability_registry, requirements)
 
 
@@ -234,48 +182,17 @@ def build_migrated_signal_catalog() -> tuple[SignalCatalogEntry, ...]:
 
 
 def build_migrated_cutover_policy(values: Mapping[str, str]) -> CutoverPolicy:
-    """The one shared cutover-policy owner both asa/scheduled_screening.py
-    and asa/api/screening_routes.py call identically (SPRINT-014 S14-PR-05,
-    Architect checkpoint: nineteenth review, "one shared cutover policy
-    owner used identically by scheduled and API roots. Do not create
-    separate route-specific switches").
+    """Return the single authoritative subject-first production policy.
 
-    Reads ``ASA_EARNINGS_CALENDAR_CUTOVER_ENABLED`` from ``values`` (an
-    explicit environment mapping, following
-    market_data.config.load_market_data_config's own established
-    boundary convention -- a caller passes os.environ at the actual
-    process boundary, never read here directly). Only the migrated
-    earnings_calendar strategy is ever eligible (Architect checkpoint:
-    nineteenth review, "Scope it only to the migrated earnings_calendar
-    strategy. FF/Skew stay on their existing legacy evaluation path.") --
-    this function has no branch or parameter that could register any
-    other strategy_id.
-
-    Absent or falsy: earnings_calendar keeps its legacy-authoritative,
-    shadow-compared rollback behavior. Truthy: earnings_calendar's own
-    already-prepared subject-first knowledge becomes authoritative.
-    Flipping this flag back is the entire rollback mechanism -- no data
-    migration, since sealed subject-first evidence and attempt records
-    already recorded are never touched by this function either way.
+    M3 deliberately removes the temporary per-strategy rollback path.
+    ``values`` remains accepted until the composition-root API is simplified,
+    but no environment value can reactivate strategy-owned acquisition.
     """
+    del values
     return CutoverPolicy(
         {
             FORWARD_FACTOR_CONTRACT.strategy_id: True,
             SKEW_MOMENTUM_VERTICAL_CONTRACT.strategy_id: True,
-            EARNINGS_CALENDAR_CONTRACT.strategy_id: _boolean_flag(
-                values, EARNINGS_CALENDAR_CUTOVER_ENABLED_VAR, default=True
-            )
+            EARNINGS_CALENDAR_CONTRACT.strategy_id: True,
         }
     )
-
-
-def _boolean_flag(values: Mapping[str, str], name: str, *, default: bool) -> bool:
-    raw = values.get(name)
-    if raw is None:
-        return default
-    normalized = raw.strip().lower()
-    if normalized in {"1", "true", "yes", "on"}:
-        return True
-    if normalized in {"0", "false", "no", "off"}:
-        return False
-    raise ValueError(f"{name} must be boolean")

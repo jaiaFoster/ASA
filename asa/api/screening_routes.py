@@ -28,7 +28,6 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal
-from functools import partial
 from typing import Literal
 
 from fastapi import APIRouter, Depends, Query, Request
@@ -68,11 +67,9 @@ from strategy_runtime.market_data_planning import (
     enabled_provider_configs,
 )
 from strategy_runtime.orchestration import (
-    TouchedResultFulfillment,
     build_subject_acquisition_access,
     prepare_subject_shadow_knowledge,
     refresh_with_shadow,
-    touched_observations,
 )
 from strategy_runtime.persistence import (
     LatestResultRepository,
@@ -151,8 +148,7 @@ def _filter_and_sort(
             or (
                 (
                     "fresh"
-                    if item.temporal.usability_status
-                    in {"usable", "usable_with_warning"}
+                    if item.temporal.usability_status in {"usable", "usable_with_warning"}
                     else "stale"
                 )
                 if item.temporal is not None
@@ -303,9 +299,7 @@ def build_screening_router(
                 "NO_OPPORTUNITY_HISTORY",
                 f"No opportunity history for {opportunity_id!r}",
             )
-        return OpportunityHistoryResponse.from_history(
-            history, limit=limit, offset=offset
-        )
+        return OpportunityHistoryResponse.from_history(history, limit=limit, offset=offset)
 
     @router.get("/screening/{signal}", response_model=ScreeningResultsEnvelope)
     def list_screening_for_signal(
@@ -368,8 +362,7 @@ def build_screening_router(
         if (
             prior is not None
             and prior.temporal is not None
-            and clock.now() - prior.temporal.last_refresh_attempt_at
-            < ON_DEMAND_COOLDOWN
+            and clock.now() - prior.temporal.last_refresh_attempt_at < ON_DEMAND_COOLDOWN
         ):
             return RefreshResultResponse.from_universal_result(
                 prior.to_result(),
@@ -387,17 +380,8 @@ def build_screening_router(
             )
         access = build_shared_market_data_access(config, transport_factory, clock, (symbol,))
         subject_access = access[symbol]
-        # SPRINT-014 S14-PR-05A (Architect checkpoint: sixteenth review,
-        # "final wiring increment"): one SubjectAcquisitionPlan +
-        # PlanBackedFulfillment for this one request, shared by this
-        # request's own legacy execution and (only if ``signal`` itself has
-        # a registered shadow binding) subject-first shadow preparation --
-        # ``registry`` (closed over from bootstrap, built with
-        # UNBOUND_FULFILLMENT) is only ever used above for
-        # _require_registered_signal's own membership check; a real
-        # evaluation always rebuilds a fresh, subject-scoped registry
-        # closed over this request's own real plan-backed fulfillment,
-        # never the raw CapabilityFulfillmentService, first.
+        # One subject-owned plan acquires and seals all evidence before the
+        # provider-blind strategy evaluation is constructed.
         acquisition = build_subject_acquisition_access(
             symbol,
             subject_access.fulfillment,
@@ -409,18 +393,7 @@ def build_screening_router(
             ),
             clock=clock,
         )
-        # SPRINT-014 S14-PR-05A (Architect checkpoint: seventeenth review,
-        # corrective item 2): this request's own legacy registry is bound
-        # to a fresh TouchedResultFulfillment wrapping the plan-backed
-        # fulfillment above -- this request's own observations callback is
-        # then derived from exactly what it itself recorded (a fresh call
-        # or a plan-cache hit alike), never from every observation the
-        # subject's raw fulfillment service ever accumulated, so evidence
-        # subject-first shadow preparation acquired for itself can never
-        # enter this request's own temporal metadata, even when it shares
-        # the same declared capability.
-        tracker = TouchedResultFulfillment(acquisition.plan_backed_fulfillment)
-        subject_registry = build_migrated_strategy_registry(tracker)
+        subject_registry = build_migrated_strategy_registry()
         # Generic shadow-preparation seam (Architect checkpoint: sixteenth
         # review, "do not eagerly acquire shadow-only data for an
         # unshadowed API request ... shadow preparation must be limited to
@@ -451,7 +424,7 @@ def build_screening_router(
                     subject=symbol,
                     provider_metadata=subject_access.provider_metadata,
                     resolution_policy_by_capability=migrated_shadow_resolution_policy(
-                        subject_access.capability_registry
+                        subject_access.capability_registry, (signal,)
                     ),
                     capability_reducer_by_capability=migrated_shadow_capability_reducers(),
                     strategy_ids=(signal,),
@@ -469,7 +442,7 @@ def build_screening_router(
                 clock,
                 strategy_id=signal,
                 symbol=symbol,
-                observations=partial(touched_observations, tracker),
+                observations=tuple,
                 shadow_registry=shadow_registry,
                 shadow_knowledge_by_subject=shadow_knowledge_by_subject,
                 cutover_policy=cutover_policy,

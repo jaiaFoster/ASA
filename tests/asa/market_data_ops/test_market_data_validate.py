@@ -406,5 +406,5 @@ def test_scripted_transport_fake_is_available_for_future_full_live_simulation() 
 
     transport = ScriptedTransport([])
     assert transport.requests == []
-    with pytest.raises(IndexError):
+    with pytest.raises(AssertionError, match="no scripted response"):
         transport.get(ReadOnlyHttpRequest("production", "quotes", "/v1/markets/quotes", (), (), 10))

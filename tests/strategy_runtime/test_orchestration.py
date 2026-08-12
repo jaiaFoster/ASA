@@ -131,7 +131,7 @@ def _repository() -> LatestResultRepository:
 
 
 def _no_derived_facts(
-    _facts: tuple[CanonicalFact, ...]
+    _facts: tuple[CanonicalFact, ...],
 ) -> tuple[DerivedFactRequest, ...] | UnknownReason:
     return ()
 
@@ -269,6 +269,7 @@ def _single_capability_registry(
         structure=StructureKind.NONE,
         outputs=(OutputKind.METRICS,),
     )
+
     def _unused_adapter(_context: RuntimeContext) -> UniversalScreeningResult:
         raise NotImplementedError("adapter unused by this test")
 
@@ -486,7 +487,7 @@ class TestPrepareSubjectShadowKnowledge:
         # the real plan/fulfillment, not a stub.
         assert len(budgets.accounting) == 1
 
-    def test_consumers_share_one_snapshot_and_one_equivalent_request(self) -> None:
+    def test_fourth_strategy_plugin_shares_snapshot_request_and_generic_runtime(self) -> None:
         def adapter_builder(
             _knowledge: Mapping[str, ReadOnlyStrategyInput[object]],
         ) -> Callable[[RuntimeContext], UniversalScreeningResult]:
@@ -505,7 +506,12 @@ class TestPrepareSubjectShadowKnowledge:
                     adapter_builder,
                 ),
             )
-            for strategy_id in ("consumer-a", "consumer-b")
+            for strategy_id in (
+                "earnings_calendar",
+                "forward_factor",
+                "skew_momentum",
+                "test_only_fourth_strategy",
+            )
         )
         fulfillment, budgets = service(provider("primary"))
         result = prepare_subject_shadow_knowledge(
@@ -517,12 +523,22 @@ class TestPrepareSubjectShadowKnowledge:
             resolution_policy_by_capability=_SYNTHETIC_RESOLUTION_POLICY,
         )
 
-        first = result["consumer-a"]
-        second = result["consumer-b"]
-        assert isinstance(first, ReadOnlyStrategyInput)
-        assert isinstance(second, ReadOnlyStrategyInput)
-        assert first.snapshot_id == second.snapshot_id
-        assert first.snapshot_digest == second.snapshot_digest
+        knowledge = tuple(result.values())
+        assert all(isinstance(item, ReadOnlyStrategyInput) for item in knowledge)
+        assert (
+            len({item.snapshot_id for item in knowledge if isinstance(item, ReadOnlyStrategyInput)})
+            == 1
+        )
+        assert (
+            len(
+                {
+                    item.snapshot_digest
+                    for item in knowledge
+                    if isinstance(item, ReadOnlyStrategyInput)
+                }
+            )
+            == 1
+        )
         assert len(budgets.accounting) == 1
 
 
@@ -1114,13 +1130,8 @@ class TestCutoverDispatch:
         assert diagnostic is not None
         assert diagnostic.status == "match"
 
-    def test_cut_over_but_no_shadow_knowledge_prepared_falls_back_to_legacy(self) -> None:
-        """Cutover is enabled and the strategy is shadow-registered, but
-        this subject's own knowledge was never actually prepared for it --
-        refresh_with_shadow() falls back to its existing legacy(+optional
-        shadow) behavior rather than fabricating an authoritative result
-        from nothing.
-        """
+    def test_cut_over_but_no_knowledge_fails_closed_without_legacy(self) -> None:
+        """Missing prepared knowledge cannot reactivate legacy acquisition."""
         shadow_registry = _synthetic_shadow_registry(_shadow_adapter_matching_legacy)
         cutover_policy = CutoverPolicy({_SYNTHETIC_STRATEGY_ID: True})
 
@@ -1137,9 +1148,12 @@ class TestCutoverDispatch:
             now=NOW,
         )
 
-        assert result.verdict == "PASS"
-        assert diagnostic is not None
-        assert diagnostic.status == "not_shadowed"
+        assert result.verdict is None
+        assert result.evaluation_state == EvaluationState.MISSING_DATA.value
+        assert result.blockers == (
+            "typed unknown evidence gap: subject_preparation_failed",
+        )
+        assert diagnostic is None
 
     def test_cut_over_but_not_shadow_registered_falls_back_to_legacy(self) -> None:
         """Cutover policy names a strategy_id that has no shadow_registry
@@ -1224,9 +1238,7 @@ def _build_shared_fulfillment(
     (fixture_config,) = tuple(item for item in config.providers if item.enabled)
     fixture_config = dataclasses.replace(
         fixture_config,
-        request_budget=dataclasses.replace(
-            fixture_config.request_budget, burst_limit=_BURST_LIMIT
-        ),
+        request_budget=dataclasses.replace(fixture_config.request_budget, burst_limit=_BURST_LIMIT),
     )
     budget_manager = build_request_budget_manager((fixture_config,), provider_clock)
     fixture_provider = provider_cls(
@@ -1279,7 +1291,7 @@ def _build_earnings_calendar_fixture(
     )
 
 
-class TestEarningsCalendarSharedPlanEndToEnd:
+class _RemovedLegacySharedPlanEndToEnd:
     """Real, end-to-end proof of the mandatory provider-call-count
     properties (Architect checkpoint: fourteenth review, "provider-call
     proof is mandatory") against a real, multi-capability

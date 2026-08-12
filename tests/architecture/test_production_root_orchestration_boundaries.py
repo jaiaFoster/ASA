@@ -100,31 +100,17 @@ class TestNoRawFulfillmentStrategyBindingAtLiveRoots:
 
     def test_scheduled_screening_binds_only_plan_backed_fulfillment(self) -> None:
         tree = _tree(_SCHEDULED)
-        assignments = _local_call_assignments(tree)
         call_sites = _registry_builder_call_sites(tree)
         assert call_sites, "expected at least one build_migrated_strategy_registry call"
         for call in call_sites:
-            assert len(call.args) == 1
-            assert _wraps_plan_backed_fulfillment(call.args[0], assignments), (
-                f"scheduled_screening.py binds a live strategy registry at line "
-                f"{call.lineno} to something other than .plan_backed_fulfillment "
-                f"(directly, or via one TouchedResultFulfillment wrapper) -- "
-                f"never the raw fulfillment service"
-            )
+            assert call.args == [], "strategy registry must receive no acquisition authority"
 
     def test_screening_routes_binds_only_plan_backed_fulfillment_or_unbound(self) -> None:
         tree = _tree(_API)
-        assignments = _local_call_assignments(tree)
         call_sites = _registry_builder_call_sites(tree)
         assert call_sites, "expected at least one build_migrated_strategy_registry call"
         for call in call_sites:
-            assert len(call.args) == 1
-            assert _wraps_plan_backed_fulfillment(call.args[0], assignments), (
-                f"screening_routes.py binds a live strategy registry at line "
-                f"{call.lineno} to something other than .plan_backed_fulfillment "
-                f"(directly, or via one TouchedResultFulfillment wrapper) -- "
-                f"never the raw fulfillment service"
-            )
+            assert call.args == [], "strategy registry must receive no acquisition authority"
 
 
 class TestBothRootsCallTheSharedShadowSeamNotRawRefresh:
