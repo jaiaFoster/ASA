@@ -76,6 +76,7 @@ from strategy_runtime.persistence import (
     ObservationHistoryRepository,
     replay_opportunity_history,
 )
+from strategy_runtime.preparation_diagnostics import classify_subject_preparation_exception
 from strategy_runtime.registry import StrategyRegistry
 from strategy_runtime.result import EvaluationState, UniversalScreeningResult
 from strategy_runtime.service import get_state, record_opportunity_observation
@@ -429,10 +430,15 @@ def build_screening_router(
                     capability_reducer_by_capability=migrated_shadow_capability_reducers(),
                     strategy_ids=(signal,),
                 )
-            except Exception:
+            except Exception as failure:
                 _LOGGER.warning(
                     "shadow_subject_preparation_failed",
-                    extra={"signal_id": signal, "symbol": symbol},
+                    extra={
+                        "signal_id": signal,
+                        "symbol": symbol,
+                        "failure_class": classify_subject_preparation_exception(failure),
+                        "exception_type": type(failure).__name__,
+                    },
                     exc_info=True,
                 )
         try:

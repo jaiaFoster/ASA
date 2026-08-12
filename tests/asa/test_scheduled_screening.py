@@ -25,7 +25,7 @@ from tests.asa._fixture_market_data_access import (
     capturing_market_data_access_factory,
     shadow_alone_call_count,
 )
-from tests.asa.fakes import InMemoryLatestResultRepository
+from tests.asa.fakes import InMemoryLatestResultRepository, InMemoryObservationHistoryRepository
 from tests.asa.market_data_ops.fakes import ScriptedTransport, tradier_quote_response
 
 
@@ -1164,6 +1164,76 @@ def test_shadow_subject_preparation_failure_never_aborts_the_cycle(
     ]
     assert len(failures) == 1
     assert failures[0].symbol == "AAPL"
+    assert failures[0].failure_class == "resolution_policy_construction_failure"
+
+
+def test_production_root_prepares_all_three_strategies_from_one_subject_snapshot(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Regression for #307: the real production composition root must
+    coalesce Skew's 180-day and Earnings' 45-day historical-bar demands.
+    Before the fix this exact topology raised during snapshot sealing and
+    every authoritative result became subject_preparation_failed.
+    """
+    import asa.scheduled_screening as scheduled_screening_module
+
+    monkeypatch.setattr(
+        scheduled_screening_module,
+        "build_shared_market_data_access",
+        build_fixture_market_data_access_factory(),
+    )
+    monkeypatch.setenv("ASA_TRADIER_ENABLED", "true")
+    monkeypatch.setenv("ASA_TRADIER_ACCESS_TOKEN", "sandbox-secret-token")
+    repository = InMemoryLatestResultRepository()
+    caplog.set_level(logging.WARNING)
+
+    outcomes = run_scheduled_refresh(
+        (
+            ("forward_factor", "AAPL"),
+            ("skew_momentum", "AAPL"),
+            ("earnings_calendar", "AAPL"),
+        ),
+        repository=repository,
+        acquisition_attempt_repository=InMemoryAcquisitionAttemptRepository(),
+    )
+
+    assert len(outcomes) == 3
+    assert all(item.error is None for item in outcomes)
+    assert all(item.outcome != "missing_data" for item in outcomes)
+    assert not any(
+        record.message == "shadow_subject_preparation_failed" for record in caplog.records
+    )
+
+
+def test_production_universe_topology_has_no_universal_preparation_failure(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Mechanically identical 82-pair topology using deterministic providers."""
+    import asa.scheduled_screening as scheduled_screening_module
+
+    monkeypatch.setattr(
+        scheduled_screening_module,
+        "build_shared_market_data_access",
+        build_fixture_market_data_access_factory(),
+    )
+    monkeypatch.setenv("ASA_TRADIER_ENABLED", "true")
+    monkeypatch.setenv("ASA_TRADIER_ACCESS_TOKEN", "sandbox-secret-token")
+    repository = InMemoryLatestResultRepository()
+    caplog.set_level(logging.WARNING)
+
+    outcomes = run_scheduled_refresh(
+        PRODUCTION_SCREENING_UNIVERSE,
+        repository=repository,
+        history_repository=InMemoryObservationHistoryRepository(),
+        acquisition_attempt_repository=InMemoryAcquisitionAttemptRepository(),
+    )
+
+    assert len(outcomes) == 82
+    assert all(item.error is None for item in outcomes)
+    assert all(item.outcome != "missing_data" for item in outcomes)
+    assert not any(
+        record.message == "shadow_subject_preparation_failed" for record in caplog.records
+    )
 
 
 def test_ff_and_skew_results_are_unaffected_by_whether_earnings_shares_the_cycle(

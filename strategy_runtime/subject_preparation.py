@@ -43,6 +43,7 @@ from screening.subject_planning import (
 from strategy_runtime.knowledge import ReadOnlyStrategyInput, TPayload
 from strategy_runtime.knowledge_composition import compose_strategy_knowledge
 from strategy_runtime.knowledge_registry import KnowledgeBinding, KnowledgeCompositionRegistry
+from strategy_runtime.preparation_diagnostics import record_strategy_knowledge_failure
 from strategy_runtime.registry import StrategyAdapter
 from strategy_runtime.result import UniversalScreeningResult
 
@@ -73,7 +74,7 @@ BuildShadowAdapter = Callable[
 
 
 @dataclass(frozen=True, slots=True)
-class SubjectPreparationBinding(Generic[TPayload]):
+class SubjectPreparationBinding(Generic[TPayload]):  # noqa: UP046
     """One strategy's own subject-first preparation declaration: what to
     plan/demand (a SubjectPlanConsumer, screening-owned but built from
     this strategy's own pure demand/expansion functions), what to do with
@@ -96,7 +97,7 @@ class DuplicateSubjectPreparationBindingError(ValueError):
     """
 
 
-class SubjectPreparationRegistry(Generic[TPayload]):
+class SubjectPreparationRegistry(Generic[TPayload]):  # noqa: UP046
     """Mirrors strategy_runtime.knowledge_registry.KnowledgeCompositionRegistry's
     own established immutable-constructor shape exactly -- no dynamic
     discovery, no ``.register()`` mutator.
@@ -226,12 +227,19 @@ def prepare_subject_knowledge(
         if expansion.unknown_reasons:
             prepared[strategy_id] = expansion.unknown_reasons[0]
             continue
-        mapping = binding.prepare_knowledge_mapping(
-            plan_result.snapshot,
-            plan_result.projected_evidence,
-            expansion.selections,
-            subject,
-        )
+        try:
+            mapping = binding.prepare_knowledge_mapping(
+                plan_result.snapshot,
+                plan_result.projected_evidence,
+                expansion.selections,
+                subject,
+            )
+        except Exception:
+            # The subject snapshot is already sealed. A defect in one
+            # strategy-owned projection must not erase valid knowledge for
+            # unrelated consumers sharing that evidence boundary.
+            prepared[strategy_id] = record_strategy_knowledge_failure(strategy_id, subject)
+            continue
         if isinstance(mapping, UnknownReason):
             prepared[strategy_id] = mapping
             continue
