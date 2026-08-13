@@ -148,6 +148,7 @@ class SubjectAcquisitionPlan:
         attempts_made = 1
         while (
             result.status is FulfillmentStatus.FAILED
+            and _failure_is_retryable(result)
             and attempts_made < self._maximum_attempts_per_request
         ):
             result = self._fulfillment.fulfill(request, required=required)
@@ -180,6 +181,20 @@ class SubjectAcquisitionPlan:
                 extra={"plan_id": self._plan_id, "subject": self._subject},
                 exc_info=True,
             )
+
+
+def _failure_is_retryable(result: CapabilityFulfillmentResult) -> bool:
+    """Retry only a wholly transient provider failure set.
+
+    A failed fulfillment can contain several provider attempts.  Repeating
+    the complete request immediately when any provider returned a definitive
+    result (for example NO_DATA, authorization failure, or schema mismatch)
+    cannot change that result and only consumes scarce fallback quota.  The
+    normalized error policy already owns retryability; the subject plan obeys
+    it instead of maintaining a second error-code list.
+    """
+    errors = tuple(attempt.error for attempt in result.attempts)
+    return bool(errors) and all(error is not None and error.retryable for error in errors)
 
 
 class CapabilityFulfiller(Protocol):

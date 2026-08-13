@@ -596,7 +596,7 @@ def _force_tiny_tradier_window(monkeypatch: pytest.MonkeyPatch, window_limit: in
 # that already use it, but these two tests need a genuinely complete
 # fixture so their pass/refusal assertions are unambiguous rather than
 # "some outcome, who knows which."
-_SKEW_MOMENTUM_REQUESTS_PER_PAIR = 5
+_SKEW_MOMENTUM_REQUESTS_PER_PAIR = 4
 _STRIKE_DELTA_LADDER = (
     (-15, "0.80"),
     (-10, "0.70"),
@@ -809,8 +809,8 @@ def test_a_failed_shared_capability_becomes_a_durably_shared_known_failure(
     deliberately never reuses a cached *failed* result on its own (see
     test_fulfillment.py's own
     test_a_failed_result_is_never_reused_and_gets_its_own_independent_retry)
-    -- correct for failure *isolation* within one bare service instance,
-    but it used to also mean there was no durable, shared "this datum is
+        -- correct for failure *isolation* within one bare service instance,
+        but it used to also mean there was no durable, shared "this datum is
     UNKNOWN this cycle" fact a second pair sharing the same symbol could
     consult: it paid its own full provider round-trip for the identical
     failure, even though both pairs ran under the same frozen cycle clock.
@@ -818,12 +818,11 @@ def test_a_failed_shared_capability_becomes_a_durably_shared_known_failure(
     root-cause statement: "Failed cache entries may be removed and
     repeated by later strategies."
 
-    Now that skew_momentum's own legacy adapter is registered against this
+        Now that skew_momentum's own legacy adapter is registered against this
     symbol's shared PlanBackedFulfillment (not the raw fulfillment service
     directly), SubjectAcquisitionPlan itself provides that durable shared
-    fact: the plan's own bounded retry (market_data/subject_plan.py,
-    maximum_attempts_per_request=2 by default) makes one extra attempt at
-    the failing request before freezing it, and every later resolve() for
+        fact: the plan freezes a definitive non-retryable failure after its
+        first provider round trip, and every later resolve() for
     that exact same (request, required) key -- from any pair sharing this
     symbol, including this test's own second, identical
     ("skew_momentum", "AAPL") pair -- returns that frozen result with zero
@@ -845,11 +844,6 @@ def test_a_failed_shared_capability_becomes_a_durably_shared_known_failure(
 
     responses = _complete_skew_momentum_responses(expiration)
     responses[3] = _empty_history_response("tradier-request-4-empty-attempt-1")
-    # The plan's own bounded retry means exactly one more scripted response
-    # is consumed for the SAME failing request -- never a second full
-    # 4-request burst for the second, identical pair.
-    responses.append(_empty_history_response("tradier-request-4-empty-attempt-2"))
-
     outcomes = run_scheduled_refresh(
         universe,
         repository=repository,
@@ -860,9 +854,9 @@ def test_a_failed_shared_capability_becomes_a_durably_shared_known_failure(
     assert len(outcomes) == 2
     assert outcomes[0].error is None
     assert outcomes[1].error is None
-    # First pair: 3 fresh successes (quote/expirations/chain) plus the
-    # plan's own 2 bounded-retry attempts at the one failing capability.
-    assert outcomes[0].request_count == _SKEW_MOMENTUM_REQUESTS_PER_PAIR + 1
+    # First pair: 3 fresh successes (quote/expirations/chain) plus one
+    # definitive non-retryable failure for historical bars.
+    assert outcomes[0].request_count == _SKEW_MOMENTUM_REQUESTS_PER_PAIR
     # Second pair: every one of its four capability requests -- including
     # the now-exhausted, durably shared failure -- is served entirely from
     # this symbol's shared plan. Zero new provider calls.

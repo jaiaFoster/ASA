@@ -117,11 +117,7 @@ class TestResolveSharesFailure:
         # failure.
         assert len(budgets.accounting) == 1
 
-    def test_the_plans_own_bounded_retry_gets_a_second_chance_before_freezing(self) -> None:
-        # FixtureScenario's own outcome is fixed for the provider's whole
-        # lifetime (unlike the _FailsOnceProvider used elsewhere), so this
-        # proves the *number* of attempts the plan itself makes before
-        # giving up, not that a later attempt happens to succeed.
+    def test_non_retryable_no_data_is_frozen_without_wasting_a_second_request(self) -> None:
         always_fails = FixtureScenario(
             failures=((request().capability, ProviderErrorCode.NO_DATA),)
         )
@@ -131,7 +127,7 @@ class TestResolveSharesFailure:
         result = plan.resolve(request(), required=False)
 
         assert result.status.value == "failed"
-        assert len(budgets.accounting) == 2  # the bounded retry actually ran
+        assert len(budgets.accounting) == 1
 
 
 class TestConsumerOrderIndependence:
@@ -166,7 +162,7 @@ class TestAttemptPersistence:
         plan.resolve(request(), required=False)
 
         rows = repository.query(AttemptQuery(screening_cycle_id="cycle-1:AAPL", limit=10))
-        assert len(rows) == 2  # both bounded-retry attempts persisted
+        assert len(rows) == 1
         assert all(item.outcome is AcquisitionOutcome.NO_MATCHING_DATA for item in rows)
 
     def test_a_reused_result_does_not_duplicate_attempt_rows(self) -> None:
