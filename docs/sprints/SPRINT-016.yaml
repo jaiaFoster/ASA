@@ -1,0 +1,236 @@
+---
+id: SPRINT-016
+name: Restore Full Strategy Evaluability
+version: 1.0
+status: AUTHORIZED_PENDING_FOUNDER_MERGE
+type: IMPLEMENTATION_SPRINT
+priority: P0
+baseline_commit: f67e99873e448ae45e01b859167bc2fda1cd8c1c
+activation_issue: 309
+
+activation:
+  id: AMD-013-SPRINT-016-V1.0
+  governance_amendment: GOV-AMD-001-013
+  founder_authorized: true
+  founder_direction: >
+    Restore trustworthy production evaluability for Forward Factor, Skew
+    Momentum, and Earnings Calendar on the existing production universe.
+    Every inability to evaluate must be either corrected as an ASA defect or
+    specifically proven as legitimate upstream or declared-policy ineligibility.
+  effective_when: this artifact is Founder-merged to the default branch
+  delegate:
+    role: ROLE-WORKER
+    instance: implementation-worker
+  limited_to_sprint: SPRINT-016
+  approved_tickets:
+    - S16-01
+    - S16-02
+    - S16-03
+  expires:
+    - sprint_complete
+    - sprint_stopped
+    - Founder_revokes_delegation
+    - scope_or_authority_changes
+
+objective: >
+  Achieve zero known ASA-caused inability to evaluate across all three current
+  production strategies on the unchanged production universe through the
+  existing S14R subject-first fact runtime.
+
+baseline:
+  forward_factor:
+    evaluated: 30
+    total: 30
+    role: regression_control
+  skew_momentum:
+    missing_data: 30
+    total: 30
+    reason: unusable_historical_bars
+  earnings_calendar:
+    no_valid_expiration_pair: 13
+    missing_earnings_date: 6
+    unusable_phase_two_evidence: 3
+    unusable_phase_two_symbols: [AVGO, MU, NVDA]
+    total: 22
+
+canonical_flow:
+  - declared_requirements
+  - generic_subject_plan
+  - provider_acquisition
+  - sealed_snapshot
+  - canonical_facts
+  - versioned_derived_facts
+  - immutable_read_only_strategy_knowledge
+  - strategy_evaluation
+
+scope:
+  in:
+    - identify_and_remove_ASA_caused_skew_historical_evidence_failures
+    - classify_all_earnings_failures
+    - correct_ASA_caused_earnings_evidence_failures
+    - preserve_legitimate_upstream_and_policy_ineligibility_as_typed_outcomes
+    - verify_all_three_strategies_through_current_subject_first_runtime
+    - add_diagnostics_needed_for_the_known_failure_classes
+    - add_regressions_derived_from_demonstrated_production_failures
+  out:
+    - broad_universe_expansion
+    - universe_redesign
+    - new_strategies
+    - threshold_or_score_tuning
+    - new_strategy_research
+    - provider_replacement
+    - speculative_refactoring
+    - new_top_level_subsystems
+    - UI_changes
+    - brokerage_or_execution
+    - unrelated_cleanup
+    - deployment
+    - governance_changes
+
+architecture_constraints:
+  preserve_S14R_subject_first_runtime: true
+  strategy_must_not_receive:
+    - provider_objects
+    - fulfillment_services
+    - request_budgets
+    - retries
+    - transport
+    - provider_request_authority
+  forward_factor_30_of_30_is_regression_control: true
+
+tickets:
+  S16-01:
+    title: Recover Skew Momentum Evaluability
+    objective: >
+      Convert the uniform 30/30 unusable_historical_bars result into actual
+      evaluations unless a genuine external limitation is proven.
+    acceptance:
+      - exact_root_cause_identified
+      - correction_at_owning_layer
+      - red_on_baseline_green_on_head_regression
+      - production_equivalent_30_symbol_run
+      - zero_unexplained_unusable_historical_bars
+      - no_strategy_owned_acquisition
+      - forward_factor_regression_control_green
+  S16-02:
+    title: Classify and Recover Earnings Evaluability
+    objective: >
+      Classify all 22 Earnings Calendar symbols and correct every ASA-caused
+      evidence failure without weakening declared strategy policy.
+    may_parallelize_after_baseline_capture_with: S16-01
+    acceptance:
+      - all_22_symbols_classified
+      - every_ASA_caused_defect_corrected
+      - zero_unexplained_unusable_phase_two_evidence
+      - missing_earnings_date_only_when_proven_legitimate
+      - no_valid_expiration_pair_only_when_policy_demonstrably_rejects_inventory
+      - forward_factor_regression_control_green
+  S16-03:
+    title: Integrated Evaluability Proof
+    depends_on: [S16-01, S16-02]
+    objective: >
+      Prove the exact merged-main architecture over the current production
+      topology with zero known ASA-caused inability to evaluate.
+    acceptance:
+      - forward_factor_30_of_30_evaluated
+      - skew_has_zero_unexplained_historical_bar_failure
+      - every_earnings_symbol_has_a_specific_outcome
+      - ASA_defect_count_zero
+      - no_subject_preparation_failed
+      - no_sibling_failure_amplification
+      - no_silent_fallback
+      - no_strategy_owned_acquisition
+
+execution_policy:
+  goal_supremacy: every_change_removes_or_prevents_a_known_inability_to_evaluate
+  root_cause_first: true
+  mainline_first: true
+  initial_reads_are_ticket_bounded: true
+  read_expansion_requires_reproduced_owner_evidence: true
+  corrective_PRs_remain_attached_to_original_ticket: true
+  loop_breaker:
+    first_failure: one_direct_corrective_pass
+    repeated_same_acceptance_failure:
+      - stop_smaller_patches
+      - reproduce_at_owning_boundary
+      - restate_violated_acceptance
+      - challenge_implementation_assumption
+      - replace_superseded_partial_fixes
+
+authority:
+  worker:
+    may:
+      - implement_enumerated_tickets
+      - perform_bounded_in_scope_corrections
+      - add_targeted_tests_and_diagnostics
+      - open_and_update_pull_requests
+      - perform_self_review
+      - enable_auto_merge_when_available
+      - mechanically_merge_qualifying_sprint_PRs
+    may_not:
+      - merge_this_activation_artifact
+      - change_governance_or_constitution
+      - redefine_protected_architecture_or_domain_contracts_outside_scope
+      - expand_scope_or_universe
+      - reduce_risk_floor
+      - deploy
+  manager:
+    merge: prohibited
+  architect:
+    merge: prohibited
+
+merge_policy:
+  activation_merge_authority: Founder_only
+  implementation_merge_authority: active_Amendment_013_delegate
+  branch_protection_bypass: prohibited
+  before_every_delegated_merge:
+    - ticket_and_assigned_Worker_recorded
+    - PR_within_enumerated_scope
+    - dependencies_merged
+    - required_CI_green
+    - relevant_integration_and_regression_tests_green
+    - architecture_validation_green_when_applicable
+    - Worker_self_review_complete
+    - Manager_stop_status_CLEAR
+    - no_unresolved_blocker
+    - no_governance_contract_or_scope_violation
+
+validation:
+  per_correction:
+    - targeted_regression
+    - related_package_and_integration_tests
+    - required_architecture_validation
+    - Ruff_for_changed_scope
+    - mypy_for_changed_scope
+    - repository_required_CI
+  closure:
+    - full_test_suite
+    - architecture_validation
+    - production_equivalent_current_universe_cycle
+    - exact_merged_main_verification
+    - Founder_authorized_deployment
+    - one_real_production_cycle
+
+stop_conditions:
+  ordinary:
+    - owning_layer_ambiguous
+    - evidence_contradicts_active_contract
+    - correction_crosses_ticket_scope
+    - repeated_correction_fails_same_acceptance
+    - unrelated_P0_or_P1_regression
+    - required_validation_cannot_run
+  Founder_required:
+    - governance_or_constitution_change
+    - protected_contract_redefinition_outside_scope
+    - scope_expansion
+    - risk_floor_reduction
+    - new_vendor_or_account_authority
+    - Founder_only_credential
+    - deployment_authorization
+
+completion:
+  exact_main_required: true
+  production_proof_required: true
+  success: zero_known_ASA_caused_inability_to_evaluate
+  delegation_expires_on_completion: true
+  UNIVERSE_001_remains_blocked_until_completion: true
