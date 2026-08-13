@@ -1077,7 +1077,9 @@ class TestCutoverDispatch:
     ) -> None:
         shadow_registry = _synthetic_shadow_registry(_shadow_adapter_matching_legacy)
         knowledge: dict[str, ReadOnlyStrategyInput[object] | UnknownReason] = {
-            _SYNTHETIC_STRATEGY_ID: UnknownReason("synthetic_gap", demand_ids=("demand-a",))
+            _SYNTHETIC_STRATEGY_ID: UnknownReason(
+                "synthetic_gap", demand_ids=("demand-a",), detail="failed_role=history"
+            )
         }
         cutover_policy = CutoverPolicy({_SYNTHETIC_STRATEGY_ID: True})
 
@@ -1100,6 +1102,7 @@ class TestCutoverDispatch:
         assert result.opportunity_id is None
         assert result.lifecycle_stage is None
         assert any("synthetic_gap" in blocker for blocker in result.blockers)
+        assert any("failed_role=history" in blocker for blocker in result.blockers)
 
     def test_rollback_false_entry_keeps_legacy_authoritative_and_shadow_comparison(
         self,

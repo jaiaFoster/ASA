@@ -284,6 +284,9 @@ class TestExpandEarningsCalendarDemands:
         assert expansion.demands == ()
         assert len(expansion.unknown_reasons) == 1
         assert expansion.unknown_reasons[0].code == "no_valid_expiration_pair"
+        assert "listed=" in expansion.unknown_reasons[0].detail
+        assert "eligible_fronts=none" in expansion.unknown_reasons[0].detail
+        assert "target_gap=30;tolerance=5" in expansion.unknown_reasons[0].detail
 
     def test_no_listed_expirations_is_no_valid_pair_unknown(self) -> None:
         evidence = _phase_one_evidence(expirations=())
@@ -391,6 +394,7 @@ class TestSelectEarningsCalendarPhaseTwoEvidence:
         assert isinstance(result, UnknownReason)
         assert result.code == "unusable_phase_two_evidence"
         assert the_bars_id in result.demand_ids
+        assert result.detail == "unusable_roles=historical_bars"
 
     def test_unusable_expiration_discovery_evidence_is_unknown(self) -> None:
         selections = self._selections()

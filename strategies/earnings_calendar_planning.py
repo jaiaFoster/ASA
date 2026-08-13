@@ -291,6 +291,76 @@ def _expiration_candidates(
     return ()
 
 
+def _expiration_rejection_detail(
+    candidates: tuple[ExpirationCandidate, ...],
+    earnings_date: date,
+    requirement: EarningsCalendarRequirement,
+) -> str:
+    """Provider-neutral evidence showing why the frozen pair gate rejected.
+
+    This is diagnostic only: selection remains owned by
+    ``select_earnings_relative_expiration_pair`` above.  Keeping the raw
+    listed dates/DTEs and each gate's eligible subset makes a production
+    ``no_valid_expiration_pair`` independently classifiable without payload
+    access or policy relaxation.
+    """
+    policy = requirement.expiration_policy
+    fronts = tuple(
+        item
+        for item in candidates
+        if policy.front_min_dte <= item.days_to_expiration <= policy.front_max_dte
+        and item.expiration_date < earnings_date
+    )
+    backs = tuple(
+        item
+        for item in candidates
+        if policy.back_min_dte <= item.days_to_expiration <= policy.back_max_dte
+        and item.expiration_date > earnings_date
+    )
+    nearest = min(
+        (
+            (
+                abs(
+                    (back.expiration_date - front.expiration_date).days
+                    - policy.target_gap_days
+                ),
+                front,
+                back,
+            )
+            for front in fronts
+            for back in backs
+            if back.expiration_date > front.expiration_date
+        ),
+        default=None,
+        key=lambda item: (item[0], item[1].expiration_date, item[2].expiration_date),
+    )
+
+    def render(items: tuple[ExpirationCandidate, ...]) -> str:
+        rendered = ",".join(
+            f"{item.expiration_date.isoformat()}({item.days_to_expiration})" for item in items
+        )
+        return rendered or "none"
+
+    nearest_text = (
+        "none"
+        if nearest is None
+        else (
+            f"{nearest[1].expiration_date.isoformat()}/"
+            f"{nearest[2].expiration_date.isoformat()}"
+            f"(gap={(nearest[2].expiration_date - nearest[1].expiration_date).days},"
+            f"deviation={nearest[0]})"
+        )
+    )
+    return (
+        f"earnings_date={earnings_date.isoformat()};"
+        f"listed={render(candidates)};"
+        f"eligible_fronts={render(fronts)};"
+        f"eligible_backs={render(backs)};"
+        f"nearest_pair={nearest_text};"
+        f"target_gap={policy.target_gap_days};tolerance={policy.gap_tolerance_days}"
+    )
+
+
 def expand_earnings_calendar_demands(
     evidence: Mapping[str, ResolvedCapabilityEvidence],
     *,
@@ -345,6 +415,7 @@ def expand_earnings_calendar_demands(
                         the_earnings_demand.demand_id,
                         the_expirations_demand.demand_id,
                     ),
+                    detail=_expiration_rejection_detail(candidates, earnings_date, requirement),
                 ),
             )
         )
@@ -395,13 +466,16 @@ def select_earnings_calendar_phase_two_evidence(
     the_earnings_demand_id = earnings_demand(now, requirement=requirement).demand_id
     the_historical_bars_demand_id = historical_bars_demand(now).demand_id
     the_expirations_demand_id = expirations_demand(now).demand_id
+    evidence_roles = (
+        ("spot_price", the_quote_demand_id),
+        ("earnings_event", the_earnings_demand_id),
+        ("historical_bars", the_historical_bars_demand_id),
+        ("expiration_discovery", the_expirations_demand_id),
+        ("front_chain", front_demand_id),
+        ("back_chain", back_demand_id),
+    )
     by_demand_id = {
-        the_quote_demand_id: projected_evidence.get(the_quote_demand_id),
-        the_earnings_demand_id: projected_evidence.get(the_earnings_demand_id),
-        the_historical_bars_demand_id: projected_evidence.get(the_historical_bars_demand_id),
-        the_expirations_demand_id: projected_evidence.get(the_expirations_demand_id),
-        front_demand_id: projected_evidence.get(front_demand_id),
-        back_demand_id: projected_evidence.get(back_demand_id),
+        demand_id: projected_evidence.get(demand_id) for _role, demand_id in evidence_roles
     }
     unusable = tuple(
         demand_id
@@ -409,7 +483,14 @@ def select_earnings_calendar_phase_two_evidence(
         if item is None or item.usability is not EvidenceUsability.RESOLVED
     )
     if unusable:
-        return UnknownReason("unusable_phase_two_evidence", demand_ids=unusable)
+        unusable_roles = tuple(
+            role for role, demand_id in evidence_roles if demand_id in unusable
+        )
+        return UnknownReason(
+            "unusable_phase_two_evidence",
+            demand_ids=unusable,
+            detail=f"unusable_roles={','.join(unusable_roles)}",
+        )
 
     return EarningsCalendarPhaseTwoEvidence(
         spot_price_evidence=by_demand_id[the_quote_demand_id],  # type: ignore[arg-type]

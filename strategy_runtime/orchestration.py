@@ -498,7 +498,10 @@ def _missing_data_result(
         data_quality=None,
         metrics={},
         economics={},
-        blockers=(f"typed unknown evidence gap: {reason.code}",),
+        blockers=(
+            f"typed unknown evidence gap: {reason.code}"
+            + (f" ({reason.detail})" if reason.detail else ""),
+        ),
         warnings=(),
         provenance=(
             f"unknown:{reason.code}",
