@@ -321,11 +321,24 @@ class TradierProvider:
             rows = _rows(_mapping(response.json_body, "history").get("day"))
             bars: list[OHLCVBar] = []
             rejected_rows = 0
+            incomplete_rows = 0
+            received_at = self._dependencies.clock.now()
             for row in rows:
                 try:
-                    bars.append(_bar(subject, row))
+                    bar = _bar(subject, row)
                 except (KeyError, TypeError, ValueError, InvalidOperation, DomainInvariantError):
                     rejected_rows += 1
+                    continue
+                # Tradier includes the current, still-forming daily candle.
+                # Canonical historical bars are completed intervals: admitting
+                # today's midnight-to-midnight row before midnight makes its
+                # end_at later than OHLCVSeries.as_of and invalidates the whole
+                # otherwise-usable response.  Keep completed provider facts and
+                # leave the in-progress candle to real-time capabilities.
+                if bar.end_at > received_at:
+                    incomplete_rows += 1
+                    continue
+                bars.append(bar)
             if rejected_rows:
                 LOGGER.warning(
                     "Tradier rejected %d malformed historical bar row(s)",
@@ -337,12 +350,22 @@ class TradierProvider:
                         "diagnostic_code": ProviderErrorCode.SCHEMA_MISMATCH.value,
                     },
                 )
+            if incomplete_rows:
+                LOGGER.info(
+                    "Tradier excluded %d incomplete historical bar row(s)",
+                    incomplete_rows,
+                    extra={
+                        "provider": "tradier",
+                        "symbol": subject.canonical_instrument.display_symbol,
+                        "capability": request.capability.value,
+                    },
+                )
             if not bars:
                 raise DomainInvariantError("Tradier history contained no valid canonical bars")
             series = OHLCVSeries(
                 subject.canonical_instrument,
                 86400,
-                self._dependencies.clock.now(),
+                received_at,
                 tuple(sorted(bars, key=lambda bar: bar.start_at)),
             )
             return (self._observation(request, subject, series, response, {}),)

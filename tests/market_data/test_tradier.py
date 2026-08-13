@@ -333,6 +333,50 @@ def test_multi_day_history_normalizes_into_one_series_observation() -> None:
     assert series.bars[0].start_at < series.bars[1].start_at
 
 
+def test_daily_history_excludes_current_incomplete_row_without_discarding_completed_history(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    transport = Transport(
+        (
+            response(
+                {
+                    "history": {
+                        "day": [
+                            {
+                                "date": "2026-07-20",
+                                "open": "205.00",
+                                "high": "212",
+                                "low": "204",
+                                "close": "210",
+                                "volume": 50000000,
+                            },
+                            {
+                                "date": "2026-07-21",
+                                "open": "210.00",
+                                "high": "214",
+                                "low": "209",
+                                "close": "213",
+                                "volume": 30000000,
+                            },
+                        ]
+                    }
+                }
+            ),
+        )
+    )
+
+    with caplog.at_level("INFO"):
+        result = provider(transport).fetch(
+            request(MarketCapability.HISTORICAL_BARS_V1, ("close",)), authorization()
+        )
+
+    assert result.error is None
+    series = result.observations[0].value
+    assert isinstance(series, OHLCVSeries)
+    assert [bar.start_at.date() for bar in series.bars] == [date(2026, 7, 20)]
+    assert "excluded 1 incomplete historical bar row" in caplog.text
+
+
 def test_daily_history_rejects_one_incoherent_row_without_discarding_valid_series(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
