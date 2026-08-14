@@ -55,9 +55,9 @@ def _tradier_option(
 
 def _tradier_daily_bars_response() -> ReadOnlyHttpResponse:
     days: list[dict[str, object]] = []
-    latest_completed_day = UsEquitySessionCalendar().latest_completed_session(
-        datetime.now(UTC)
-    ).closes_at.date()
+    latest_completed_day = (
+        UsEquitySessionCalendar().latest_completed_session(datetime.now(UTC)).closes_at.date()
+    )
     for day_offset in range(59, -1, -1):
         day = (latest_completed_day - timedelta(days=day_offset)).isoformat()
         close = 200 + (day_offset % 5) + (59 - day_offset) * 0.15
@@ -71,9 +71,7 @@ def _tradier_daily_bars_response() -> ReadOnlyHttpResponse:
                 "volume": "50000000",
             }
         )
-    return ReadOnlyHttpResponse(
-        200, {"history": {"day": days}}, (), 12, "tradier-request-history"
-    )
+    return ReadOnlyHttpResponse(200, {"history": {"day": days}}, (), 12, "tradier-request-history")
 
 
 def _tradier_skew_capable_chain_responses(expiration: str) -> list[ReadOnlyHttpResponse]:
@@ -520,9 +518,7 @@ def test_non_skew_momentum_pairs_never_touch_the_historical_skew_repository(
         universe,
         repository=repository,
         historical_skew_repository=historical_skew_repository,
-        transport_factory=lambda _provider_id: ScriptedTransport(
-            [tradier_quote_response()]
-        ),
+        transport_factory=lambda _provider_id: ScriptedTransport([tradier_quote_response()]),
     )
 
     assert outcomes[0].signal_id == "earnings_calendar"
@@ -1186,9 +1182,7 @@ def test_shadow_subject_preparation_failure_never_aborts_the_cycle(
     assert len(outcomes) == 2
     assert all(item.error is None for item in outcomes)
     failures = [
-        record
-        for record in caplog.records
-        if record.message == "shadow_subject_preparation_failed"
+        record for record in caplog.records if record.message == "shadow_subject_preparation_failed"
     ]
     assert len(failures) == 1
     assert failures[0].symbol == "AAPL"
@@ -1263,6 +1257,16 @@ def test_production_universe_topology_has_no_universal_preparation_failure(
     assert all(item.outcome != "missing_data" for item in outcomes)
     assert not any(
         record.message == "shadow_subject_preparation_failed" for record in caplog.records
+    )
+    skew = repository.get_one("skew_momentum", "AAPL")
+    assert skew is not None
+    assert skew.metrics["derived_fact.cross_sectional_percentile"].native() != "UNKNOWN"
+    assert skew.metrics["derived_fact.sector_relative_return"].native() != "UNKNOWN"
+    assert any(
+        item.startswith("derived_fact:cross_sectional_momentum:") for item in skew.provenance
+    )
+    assert any(
+        item.startswith("derived_fact:sector_relative_momentum:") for item in skew.provenance
     )
 
 
@@ -1406,9 +1410,7 @@ def test_shadow_parity_diagnostic_is_logged_with_sanitized_fields(
     )
 
     assert outcomes[0].error is None
-    entries = [
-        record for record in caplog.records if record.message == "shadow_parity_diagnostic"
-    ]
+    entries = [record for record in caplog.records if record.message == "shadow_parity_diagnostic"]
     assert len(entries) == 1
     entry = entries[0]
     assert entry.signal_id == "forward_factor"
@@ -1538,9 +1540,7 @@ def _removed_scheduled_earnings_pass_shadow_diagnostic_matches_and_legacy_persis
     assert len(outcomes) == 1
     assert outcomes[0].error is None
     assert outcomes[0].outcome == "pass"
-    entries = [
-        record for record in caplog.records if record.message == "shadow_parity_diagnostic"
-    ]
+    entries = [record for record in caplog.records if record.message == "shadow_parity_diagnostic"]
     assert len(entries) == 1
     entry = entries[0]
     assert entry.shadow_status == "match"
@@ -1591,9 +1591,7 @@ def _removed_scheduled_earnings_watch_shadow_diagnostic_matches_and_legacy_persi
     assert len(outcomes) == 1
     assert outcomes[0].error is None
     assert outcomes[0].outcome == "pass"  # WATCH's own evaluation_state
-    entries = [
-        record for record in caplog.records if record.message == "shadow_parity_diagnostic"
-    ]
+    entries = [record for record in caplog.records if record.message == "shadow_parity_diagnostic"]
     assert len(entries) == 1
     entry = entries[0]
     assert entry.shadow_status == "match"
@@ -1645,9 +1643,7 @@ def _removed_scheduled_earnings_outage_shadow_unknown_and_bounded_once_not_doubl
     assert len(outcomes) == 1
     assert outcomes[0].error is None
     assert outcomes[0].outcome == "missing_data"
-    entries = [
-        record for record in caplog.records if record.message == "shadow_parity_diagnostic"
-    ]
+    entries = [record for record in caplog.records if record.message == "shadow_parity_diagnostic"]
     assert len(entries) == 1
     entry = entries[0]
     assert entry.shadow_status == "shadow_unknown"
@@ -1700,9 +1696,7 @@ def test_scheduled_earnings_cutover_pass_is_authoritative_with_zero_legacy_calls
     assert len(outcomes) == 1
     assert outcomes[0].error is None
     assert outcomes[0].outcome == "pass"
-    entries = [
-        record for record in caplog.records if record.message == "shadow_parity_diagnostic"
-    ]
+    entries = [record for record in caplog.records if record.message == "shadow_parity_diagnostic"]
     assert entries == []
     persisted = repository.get_one("earnings_calendar", "AAPL")
     assert persisted is not None
@@ -1738,9 +1732,7 @@ def test_scheduled_earnings_cutover_watch_is_authoritative(
     assert len(outcomes) == 1
     assert outcomes[0].error is None
     assert outcomes[0].outcome == "pass"  # WATCH's own evaluation_state
-    entries = [
-        record for record in caplog.records if record.message == "shadow_parity_diagnostic"
-    ]
+    entries = [record for record in caplog.records if record.message == "shadow_parity_diagnostic"]
     assert entries == []
     persisted = repository.get_one("earnings_calendar", "AAPL")
     assert persisted is not None
@@ -1786,9 +1778,7 @@ def test_scheduled_earnings_cutover_outage_is_authoritative_missing_data_and_bou
     assert len(outcomes) == 1
     assert outcomes[0].error is None
     assert outcomes[0].outcome == "missing_data"
-    entries = [
-        record for record in caplog.records if record.message == "shadow_parity_diagnostic"
-    ]
+    entries = [record for record in caplog.records if record.message == "shadow_parity_diagnostic"]
     assert entries == []
     persisted = repository.get_one("earnings_calendar", "AAPL")
     assert persisted is not None
@@ -1828,9 +1818,7 @@ def _removed_scheduled_earnings_cutover_explicitly_disabled_keeps_legacy_authori
     assert len(outcomes) == 1
     assert outcomes[0].error is None
     assert outcomes[0].outcome == "pass"
-    entries = [
-        record for record in caplog.records if record.message == "shadow_parity_diagnostic"
-    ]
+    entries = [record for record in caplog.records if record.message == "shadow_parity_diagnostic"]
     assert len(entries) == 1
     assert entries[0].shadow_status == "match"
     persisted = repository.get_one("earnings_calendar", "AAPL")
@@ -1875,9 +1863,7 @@ def test_scheduled_forward_factor_unaffected_by_earnings_cutover(
     assert earnings_outcome.error is None
     # forward_factor is never shadow-registered/cutover-eligible: no
     # shadow_parity_diagnostic entry is ever logged for it, cut over or not.
-    entries = [
-        record for record in caplog.records if record.message == "shadow_parity_diagnostic"
-    ]
+    entries = [record for record in caplog.records if record.message == "shadow_parity_diagnostic"]
     assert all(entry.signal_id != "forward_factor" for entry in entries)
     forward_factor_persisted = repository.get_one("forward_factor", "AAPL")
     assert forward_factor_persisted is not None
