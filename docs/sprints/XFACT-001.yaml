@@ -1,0 +1,355 @@
+---
+id: XFACT-001
+name: Generic Cross-Sectional Fact Materialization
+version: 1.0
+status: AUTHORIZED_PENDING_FOUNDER_MERGE
+type: IMPLEMENTATION_SPRINT
+priority: P1
+baseline_commit: cab88ca7cb665ed0c71ec6c02f6356de17794f29
+
+activation:
+  id: AMD-013-XFACT-001-V1.0
+  governance_amendment: GOV-AMD-001-013
+  founder_authorized: true
+  founder_direction: >
+    Remove ASA-caused cross-sectional UNKNOWN facts from Skew Momentum by
+    establishing the smallest reusable, provider-blind, replayable cross-subject
+    knowledge path justified by root-cause evidence. Prove that the same
+    cross-sectional knowledge can be reused by a second test-only consumer
+    without generic acquisition, scheduler, or runtime changes.
+  effective_when: this artifact is Founder-merged to the default branch
+  delegate:
+    role: ROLE-WORKER
+    instance: implementation-worker
+  limited_to_sprint: XFACT-001
+  approved_tickets:
+    - XFACT-01
+    - XFACT-02
+    - XFACT-03
+  expires:
+    - sprint_complete
+    - sprint_stopped
+    - Founder_revokes_delegation
+    - scope_or_authority_changes
+
+objective: >
+  Achieve zero ASA-caused inability to materialize or consume the four currently
+  missing Skew Momentum cross-sectional facts on the existing production
+  universe, while proving those facts are reusable platform knowledge rather
+  than Skew-specific runtime behavior.
+
+baseline:
+  production_universe:
+    unchanged: true
+    skew_symbols: 30
+  forward_factor:
+    role: regression_control
+    expected: normal_evaluation
+  earnings_calendar:
+    role: regression_control
+    expected: typed_evaluated_or_legitimate_unavailable
+  skew_momentum:
+    subject_local_facts: working
+    cross_sectional_unknown:
+      - call_skew_zscore
+      - put_skew_zscore
+      - cross_sectional_percentile
+      - sector_relative_return
+
+canonical_flow:
+  - sealed_subject_knowledge
+  - subject_local_canonical_and_derived_facts
+  - deterministic_cross_subject_evidence_boundary
+  - registered_cross_sectional_analytics
+  - versioned_cross_sectional_derived_facts
+  - immutable_read_only_strategy_knowledge
+  - strategy_evaluation
+
+scope:
+  in:
+    - root_cause_each_current_skew_cross_sectional_unknown
+    - identify_existing_cross_subject_fact_and_replay_owners
+    - determine_authoritative_sector_membership_source_or_raise_blocker
+    - implement_smallest_reusable_cross_sectional_materialization_path
+    - reuse_existing_fact_registry_identity_and_replay_contracts_where_sufficient
+    - materialize_call_skew_zscore
+    - materialize_put_skew_zscore
+    - materialize_cross_sectional_percentile
+    - materialize_sector_relative_return_when_authoritative_membership_exists
+    - preserve_typed_unknown_for_legitimate_incomplete_cohort_or_missing_membership
+    - prove_compute_once_reuse
+    - integrate_skew_declaratively
+    - prove_second_test_only_consumer_reuse
+    - exact_main_and_real_production_cycle_verification
+  out:
+    - broad_universe_expansion
+    - universe_membership_redesign_beyond_current_cohort_identity_needs
+    - new_production_strategy
+    - strategy_threshold_or_score_tuning
+    - provider_replacement
+    - new_vendor_or_account_without_Founder_authority
+    - UI_changes
+    - brokerage_or_execution
+    - speculative_factor_platform
+    - arbitrary_portfolio_query_language
+    - unrelated_analytics_cleanup
+    - speculative_refactoring
+    - deployment
+    - governance_changes
+
+architecture_constraints:
+  preserve_S14R_subject_first_boundary: true
+  cross_sectional_layer_starts_after_subject_local_facts_exist: true
+  strategies_remain_provider_blind: true
+  generic_runtime_must_not_branch_on_strategy_id: true
+  cross_sectional_computation_must_not_call_providers: true
+  sealed_subject_snapshots_must_not_be_mutated_with_cross_sectional_values: true
+  typed_unknown_required_for_legitimate_absence: true
+  fabricated_zero_or_neutral_fallbacks: prohibited
+  new_domain_or_request_contract:
+    default: prohibited
+    allowed_only_if:
+      - XFACT_01_proves_existing_contracts_cannot_represent_required_multi_subject_provenance
+      - Architect_review_triggered
+      - change_remains_within_approved_scope
+  regression_controls:
+    - forward_factor
+    - earnings_calendar
+
+tickets:
+  XFACT-01:
+    title: Root Cause and Cross-Subject Boundary
+    objective: >
+      Prove why the four Skew cross-sectional facts are UNKNOWN today and
+      identify the smallest correct owning boundary before selecting an
+      implementation architecture.
+    initial_read_policy:
+      bounded: true
+      expand_only_on_reproduced_owner_evidence: true
+    required_trace:
+      - subject_local_fact_materialization
+      - expected_cross_sectional_owner
+      - cohort_or_peer_input_selection
+      - analytics_materialization
+      - persistence_or_replay_path
+      - knowledge_binding
+      - strategy_input
+    required_findings:
+      - root_cause_for_each_unknown_fact
+      - shared_root_cause_grouping_where_applicable
+      - inventory_of_existing_fact_registry_identity_and_replay_primitives
+      - whether_existing_contracts_can_represent_multi_subject_provenance
+      - authoritative_sector_membership_owner_or_explicit_blocker
+    acceptance:
+      - exact_root_cause_proven_from_current_or_reproduced_cycle
+      - no_solution_architecture_assumed_before_root_cause
+      - no_hardcoded_peer_or_sector_values
+      - no_ticker_heuristic_sector_mapping
+      - existing_primitives_reuse_assessed_before_new_contract_proposal
+      - any_missing_authoritative_sector_source_raised_as_blocker
+
+  XFACT-02:
+    title: Reusable Cross-Sectional Materialization
+    depends_on:
+      - XFACT-01
+    objective: >
+      Implement the smallest reusable provider-free cross-sectional fact path
+      justified by XFACT-01, using existing identity, registry, evidence, and
+      replay machinery wherever it is sufficient.
+    required_behavior:
+      - deterministic_cross_subject_input_identity
+      - explicit_member_and_input_fact_provenance
+      - registered_formula_versioning
+      - parameter_identity_where_behavior_depends_on_parameters
+      - typed_insufficient_cohort_behavior
+      - typed_zero_variance_behavior
+      - typed_missing_membership_behavior
+      - provider_free_replay
+      - compute_once_reuse
+    acceptance:
+      - no_strategy_id_branch_in_generic_cross_sectional_code
+      - no_provider_or_fulfillment_dependency
+      - same_inputs_same_fact_identity_and_value
+      - changed_membership_or_relevant_input_changes_identity
+      - formula_version_change_changes_derived_identity
+      - provider_free_replay_passes
+      - consumer_count_does_not_multiply_provider_calls
+      - consumer_count_does_not_multiply_cross_sectional_materialization
+      - second_registration_order_produces_same_fact_identity_and_value
+
+  XFACT-03:
+    title: Skew Integration, Reuse Proof, and Closure
+    depends_on:
+      - XFACT-02
+    objective: >
+      Bind Skew Momentum to reusable cross-sectional facts, prove reuse with a
+      synthetic test-only second consumer, and verify the exact merged-main
+      production behavior on the unchanged universe.
+    required_skew_facts:
+      - call_skew_zscore
+      - put_skew_zscore
+      - cross_sectional_percentile
+      - sector_relative_return
+    second_consumer:
+      production_registered: false
+      purpose: architecture_reuse_proof_only
+      must_require_zero_changes_to:
+        - provider_acquisition
+        - subject_planning
+        - scheduler
+        - generic_runtime_dispatch
+        - generic_cross_sectional_materialization
+    acceptance:
+      - skew_consumes_cross_sectional_facts_declaratively
+      - no_skew_specific_math_moved_into_generic_runtime
+      - no_ASA_infrastructure_caused_cross_sectional_unknown_remains
+      - legitimate_unknowns_are_specific_and_typed
+      - second_consumer_reuses_at_least_one_cross_sectional_fact
+      - identical_fact_identity_and_value_across_consumer_order
+      - one_materialization_for_shared_fact
+      - forward_factor_regression_control_green
+      - earnings_calendar_regression_control_green
+      - replay_and_modularity_tests_green
+      - exact_merged_main_full_validation_green
+      - real_production_cycle_verified_after_Founder_authorized_deployment
+
+execution_policy:
+  goal_supremacy: >
+    Every change must either remove one of the four observed Skew
+    cross-sectional UNKNOWN facts through a reusable owner, or prove reuse of
+    that same owner by the second test-only consumer.
+  root_cause_first: true
+  reuse_existing_primitives_first: true
+  simple_before_extensible: true
+  no_speculative_platform_engineering: true
+  mainline_first: true
+  initial_reads_are_ticket_bounded: true
+  read_expansion_requires_reproduced_owner_evidence: true
+  corrective_PRs_remain_attached_to_original_ticket: true
+  targeted_tests_before_full_suite: true
+  loop_breaker:
+    first_failure: one_direct_corrective_pass
+    repeated_same_acceptance_failure:
+      - stop_smaller_patches
+      - reproduce_at_owning_boundary
+      - restate_violated_acceptance
+      - challenge_implementation_assumption
+      - replace_superseded_partial_fixes
+
+token_efficiency:
+  pr_body_is_primary_evidence_packet: true
+  avoid_duplicate_architecture_reports: true
+  reference_paths_tests_and_fact_ids_instead_of_copying_large_logs: true
+  do_not_restate_proven_S14R_architecture_without_new_conflict: true
+  do_not_run_full_suite_during_early_diagnosis_when_targeted_test_answers_question: true
+
+authority:
+  worker:
+    may:
+      - implement_enumerated_tickets
+      - perform_bounded_in_scope_corrections
+      - add_targeted_tests_and_diagnostics
+      - open_and_update_pull_requests
+      - perform_self_review
+      - enable_auto_merge_when_available
+      - mechanically_merge_qualifying_sprint_PRs
+    may_not:
+      - merge_this_activation_artifact
+      - change_governance_or_constitution
+      - expand_universe
+      - add_new_vendor_or_account_authority
+      - redefine_protected_architecture_or_domain_contracts_outside_scope
+      - reduce_risk_floor
+      - deploy
+  manager:
+    merge: prohibited
+  architect:
+    merge: prohibited
+
+architect_review_triggers:
+  required_when:
+    - canonical_fact_or_derived_fact_contract_changes
+    - evidence_reference_semantics_change
+    - cohort_or_cross_subject_identity_semantics_introduced_or_changed
+    - replay_contract_changes
+    - generic_runtime_boundary_changes
+    - new_domain_or_request_contract_is_proposed
+    - meaningful_new_cross_layer_coupling_is_introduced
+  not_required_for:
+    - narrow_reversible_bug_fix_following_existing_contract
+    - test_only_second_consumer
+    - local_formula_implementation_inside_accepted_owner
+  blocking_finding_must_state:
+    - violated_invariant
+    - reachable_path
+    - concrete_consequence
+    - owning_layer
+
+merge_policy:
+  activation_merge_authority: Founder_only
+  implementation_merge_authority: active_Amendment_013_delegate
+  branch_protection_bypass: prohibited
+  before_every_delegated_merge:
+    - ticket_and_assigned_Worker_recorded
+    - PR_within_enumerated_scope
+    - dependencies_merged
+    - required_CI_green
+    - relevant_targeted_integration_and_regression_tests_green
+    - architecture_validation_green_when_applicable
+    - Ruff_for_changed_scope_green
+    - mypy_for_changed_scope_green
+    - Worker_self_review_complete
+    - Manager_stop_status_CLEAR
+    - no_unresolved_blocker
+    - no_governance_contract_or_scope_violation
+
+validation:
+  per_correction:
+    - smallest_relevant_targeted_regression
+    - related_package_and_integration_tests
+    - required_architecture_validation
+    - Ruff_for_changed_scope
+    - mypy_for_changed_scope
+    - repository_required_CI
+  closure:
+    - full_test_suite
+    - architecture_validation
+    - replay_tests
+    - compute_once_reuse_proof
+    - second_consumer_modularity_proof
+    - production_equivalent_current_universe_cycle
+    - exact_merged_main_verification
+    - Founder_authorized_deployment
+    - one_real_production_cycle
+
+stop_conditions:
+  ordinary:
+    - owning_layer_ambiguous
+    - evidence_contradicts_active_contract
+    - correction_crosses_ticket_scope
+    - repeated_correction_fails_same_acceptance
+    - authoritative_sector_membership_source_missing_or_ambiguous
+    - existing_fact_identity_cannot_safely_represent_required_provenance
+    - replay_cannot_reconstruct_required_cross_subject_inputs
+    - unrelated_P0_or_P1_regression
+    - required_validation_cannot_run
+  Founder_required:
+    - governance_or_constitution_change
+    - protected_contract_redefinition_outside_scope
+    - scope_expansion
+    - risk_floor_reduction
+    - new_vendor_or_account_authority
+    - Founder_only_credential
+    - deployment_authorization
+
+completion:
+  exact_main_required: true
+  production_proof_required: true
+  success: >
+    Skew Momentum has no cross-sectional UNKNOWN caused by missing ASA
+    infrastructure, legitimate remaining UNKNOWNs are specific and typed, and
+    the same reusable cross-sectional facts are consumable by a second test-only
+    consumer without generic acquisition, scheduler, runtime-dispatch, or
+    materialization changes.
+  delegation_expires_on_completion: true
+  UNIVERSE_001_remains_blocked_until_completion: true
