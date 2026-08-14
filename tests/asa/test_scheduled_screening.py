@@ -473,6 +473,40 @@ def test_skew_momentum_pair_reads_the_injected_historical_skew_repository(
     ]
 
 
+def test_skew_momentum_pair_reads_the_default_historical_skew_repository(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Regression: production construction must not discard its resolved default."""
+    monkeypatch.setenv("ASA_TRADIER_ENABLED", "true")
+    monkeypatch.setenv("ASA_TRADIER_ACCESS_TOKEN", "sandbox-secret-token")
+    repository = InMemoryLatestResultRepository()
+    historical_skew_repository = _RecordingHistoricalSkewRepository()
+    monkeypatch.setattr(
+        "asa.scheduled_screening.PostgresHistoricalSkewRepository",
+        lambda _engine: historical_skew_repository,
+    )
+    monkeypatch.setattr(
+        "asa.scheduled_screening.create_postgres_engine",
+        lambda _url: object(),
+    )
+    expiration = (date.today() + timedelta(days=7)).isoformat()
+
+    outcomes = run_scheduled_refresh(
+        (("skew_momentum", "AAPL"),),
+        repository=repository,
+        history_repository=InMemoryObservationHistoryRepository(),
+        acquisition_attempt_repository=InMemoryAcquisitionAttemptRepository(),
+        transport_factory=lambda _provider_id: ScriptedTransport(
+            _tradier_skew_capable_chain_responses(expiration)
+        ),
+    )
+
+    assert outcomes[0].error is None
+    assert historical_skew_repository.history_for_calls == [
+        CanonicalInstrumentIdentity("symbol", "AAPL")
+    ]
+
+
 def test_non_skew_momentum_pairs_never_touch_the_historical_skew_repository(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -1189,6 +1223,7 @@ def test_production_root_prepares_all_three_strategies_from_one_subject_snapshot
         ),
         repository=repository,
         acquisition_attempt_repository=InMemoryAcquisitionAttemptRepository(),
+        historical_skew_repository=_RecordingHistoricalSkewRepository(),
     )
 
     assert len(outcomes) == 3
@@ -1220,6 +1255,7 @@ def test_production_universe_topology_has_no_universal_preparation_failure(
         repository=repository,
         history_repository=InMemoryObservationHistoryRepository(),
         acquisition_attempt_repository=InMemoryAcquisitionAttemptRepository(),
+        historical_skew_repository=_RecordingHistoricalSkewRepository(),
     )
 
     assert len(outcomes) == 82

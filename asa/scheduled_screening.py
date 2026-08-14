@@ -388,7 +388,14 @@ def run_scheduled_refresh(
     # A preparation failure is isolated exactly like this module's other
     # best-effort side channels (skew capture, opportunity history) and
     # never aborts or affects any pair's own legacy evaluation.
-    shadow_registry = build_migrated_shadow_registry(clock.now(), historical_skew_repository)
+    # Use the resolved repository, not only the optional injection argument.
+    # In production the argument is normally ``None`` and the Postgres-backed
+    # default above is the authoritative historical-evidence owner. Passing the
+    # unresolved argument silently disabled Skew's historical z-score facts in
+    # every default scheduled cycle.
+    shadow_registry = build_migrated_shadow_registry(
+        clock.now(), resolved_historical_skew_repository
+    )
     shadow_capability_reducers = migrated_shadow_capability_reducers()
     # SPRINT-014 S14-PR-05, Architect checkpoint: nineteenth review, "one
     # shared cutover policy owner used identically by scheduled and API
