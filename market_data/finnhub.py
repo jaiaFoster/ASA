@@ -18,6 +18,7 @@ from domain import (
     MarketDataSubject,
     MarketObservation,
     OHLCVBar,
+    OHLCVSeries,
     ProviderProvenance,
     Quote,
     Security,
@@ -324,10 +325,13 @@ class FinnhubProvider:
                 )
                 for index in range(len(arrays[0]))
             )
-            return tuple(
-                self._observation(request, subject, value, value.end_at, response)
-                for value in bar_values
+            series = OHLCVSeries(
+                subject.canonical_instrument,
+                86400,
+                self._dependencies.clock.now(),
+                bar_values,
             )
+            return (self._observation(request, subject, series, series.bars[-1].end_at, response),)
         raw_earnings = response.json_body.get("earningsCalendar")
         # An explicitly present empty calendar is a valid, authoritative
         # answer: no event matched this symbol/window.  Missing or malformed
@@ -505,6 +509,8 @@ def _evidence(response: ReadOnlyHttpResponse) -> tuple[EvidenceReference, ...]:
 
 
 def _present(field: str, value: object) -> bool:
+    if isinstance(value, OHLCVSeries) and field in {"open", "high", "low", "close", "volume"}:
+        return bool(value.bars) and all(getattr(bar, field) is not None for bar in value.bars)
     aliases = {"earnings_date": "earnings_date", "last": "last"}
     return (
         hasattr(value, aliases.get(field, field))

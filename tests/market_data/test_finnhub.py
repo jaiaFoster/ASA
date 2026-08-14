@@ -16,7 +16,7 @@ from domain import (
     MarketDataRequestContext,
     MarketDataSubject,
     MarketDataSubjectType,
-    OHLCVBar,
+    OHLCVSeries,
     ProviderAddressProjection,
     Quote,
 )
@@ -93,14 +93,10 @@ def subject(
         "finnhub", "v1", "symbol", symbol, NOW - timedelta(days=30), None, EVIDENCE
     )
     semantic_start = (
-        NOW
-        if capability is MarketCapability.EARNINGS_CALENDAR_V1
-        else NOW - timedelta(days=5)
+        NOW if capability is MarketCapability.EARNINGS_CALENDAR_V1 else NOW - timedelta(days=5)
     )
     semantic_end = (
-        NOW + timedelta(days=75)
-        if capability is MarketCapability.EARNINGS_CALENDAR_V1
-        else NOW
+        NOW + timedelta(days=75) if capability is MarketCapability.EARNINGS_CALENDAR_V1 else NOW
     )
     return MarketDataSubject(
         INSTRUMENT
@@ -113,9 +109,7 @@ def subject(
         ),
         kind,
         capability,
-        MarketDataRequestContext(
-            semantic_start, semantic_end, fields, (projection,), EVIDENCE
-        ),
+        MarketDataRequestContext(semantic_start, semantic_end, fields, (projection,), EVIDENCE),
     )
 
 
@@ -144,9 +138,7 @@ def provider(
     selected = next(item for item in config.providers if item.provider_id == "finnhub")
     authorizer = budget or Budget()
     return (
-        FinnhubProvider(
-            selected, ProviderDependencies(transport, clock or Clock(), authorizer)
-        ),
+        FinnhubProvider(selected, ProviderDependencies(transport, clock or Clock(), authorizer)),
         authorizer,
     )
 
@@ -168,9 +160,7 @@ def test_quote_success_requires_semantic_price_and_timestamp() -> None:
 def test_weekend_quote_from_friday_session_is_prior_session() -> None:
     friday_close = datetime(2026, 7, 24, 20, tzinfo=UTC)
     saturday = datetime(2026, 7, 25, 16, tzinfo=UTC)
-    transport = Transport(
-        (response({"c": 620.5, "t": int(friday_close.timestamp())}),)
-    )
+    transport = Transport((response({"c": 620.5, "t": int(friday_close.timestamp())}),))
     adapter, _ = provider(transport, clock=Clock(saturday))
     requested = replace(
         request(MarketCapability.REAL_TIME_QUOTE_V1, ("last",)),
@@ -198,8 +188,9 @@ def test_candle_success_validates_status_arrays_and_utc_timestamps() -> None:
         request(MarketCapability.HISTORICAL_BARS_V1, ("open", "high", "low", "close", "volume")),
         authorization(),
     )
-    assert result.error is None and isinstance(result.observations[0].value, OHLCVBar)
-    assert result.observations[0].value.start_at.tzinfo is UTC
+    assert result.error is None and isinstance(result.observations[0].value, OHLCVSeries)
+    assert len(result.observations) == 1
+    assert result.observations[0].value.bars[0].start_at.tzinfo is UTC
     assert dict(transport.requests[0].query)["resolution"] == "D"
 
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hashlib
 from collections.abc import Mapping
-from datetime import datetime, time, timedelta, timezone
+from datetime import UTC, datetime, time, timedelta
 from decimal import Decimal, InvalidOperation
 from typing import cast
 
@@ -20,6 +20,7 @@ from domain import (
     MarketDataSubject,
     MarketObservation,
     OHLCVBar,
+    OHLCVSeries,
     ProviderProvenance,
     Security,
     SecurityAssetType,
@@ -250,7 +251,7 @@ class AlphaVantageProvider:
             series = response.json_body.get("Time Series (Daily)")
             if not isinstance(series, Mapping):
                 raise _EmptyPayload
-            values: list[MarketObservation] = []
+            bars: list[OHLCVBar] = []
             for raw_date, raw_row in sorted(series.items()):
                 day = datetime.fromisoformat(str(raw_date)).date()
                 if not request.effective_start.date() <= day <= request.effective_end.date():
@@ -258,7 +259,7 @@ class AlphaVantageProvider:
                 if not isinstance(raw_row, Mapping):
                     raise TypeError("daily row must be an object")
                 row = cast(Mapping[str, object], raw_row)
-                start = datetime.combine(day, time.min, tzinfo=timezone.utc)
+                start = datetime.combine(day, time.min, tzinfo=UTC)
                 bar = OHLCVBar(
                     subject.canonical_instrument,
                     86400,
@@ -270,10 +271,24 @@ class AlphaVantageProvider:
                     _decimal(row["4. close"]),
                     _decimal(row["5. volume"]),
                 )
-                values.append(self._observation(request, subject, bar, bar.end_at, response))
-            if not values:
+                bars.append(bar)
+            if not bars:
                 raise _NoData
-            return tuple(values)
+            series_value = OHLCVSeries(
+                subject.canonical_instrument,
+                86400,
+                self._dependencies.clock.now(),
+                tuple(bars),
+            )
+            return (
+                self._observation(
+                    request,
+                    subject,
+                    series_value,
+                    series_value.bars[-1].end_at,
+                    response,
+                ),
+            )
         rows = response.json_body.get("quarterlyEarnings")
         if not isinstance(rows, list) or not rows:
             raise _EmptyPayload
@@ -319,13 +334,9 @@ class AlphaVantageProvider:
         effective: datetime,
         response: ReadOnlyHttpResponse,
     ) -> MarketObservation:
-        received = self._dependencies.clock.now().astimezone(timezone.utc)
+        received = self._dependencies.clock.now().astimezone(UTC)
         age = max(0, int((received - effective).total_seconds()))
-        present = tuple(
-            field
-            for field in request.required_fields
-            if hasattr(value, field) and getattr(value, field) is not None
-        )
+        present = tuple(field for field in request.required_fields if _present(field, value))
         missing = tuple(field for field in request.required_fields if field not in present)
         provenance = ProviderProvenance(
             self.provider_id, response.request_reference, _evidence(response)
@@ -419,6 +430,12 @@ class AlphaVantageProvider:
             ),
             attempts,
         )
+
+
+def _present(field: str, value: object) -> bool:
+    if isinstance(value, OHLCVSeries) and field in {"open", "high", "low", "close", "volume"}:
+        return bool(value.bars) and all(getattr(bar, field) is not None for bar in value.bars)
+    return hasattr(value, field) and getattr(value, field) is not None
 
 
 def _decimal(value: object) -> Decimal:
