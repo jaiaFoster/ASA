@@ -3,14 +3,21 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from dataclasses import replace
 from datetime import datetime
 from decimal import Decimal
 from functools import partial
 from types import MappingProxyType
 from typing import cast
 
+from analytics.cross_sectional_materialization import SubjectCrossSectionalFacts
+from analytics.derived_facts import CROSS_SECTIONAL_MOMENTUM, SECTOR_RELATIVE_MOMENTUM
+from analytics.features import DerivedFactSet
 from domain import (
     CanonicalInstrumentIdentity,
+    CanonicalReturnObservation,
+    EvidenceKind,
+    EvidenceReference,
     MarketCapability,
     OHLCVSeries,
     OptionChain,
@@ -139,6 +146,63 @@ def _prepare(
         call_wing_iv=cast(Decimal, values[2]),
         put_wing_iv=cast(Decimal, values[3]),
         history=history,
+        momentum_period_start=bars_observation.value.bars[-21].start_at,
+        momentum_period_end=bars_observation.value.bars[-1].end_at,
+    )
+
+
+def _extract_cross_subject_return(
+    knowledge: ReadOnlyStrategyInput[SkewMomentumPayload],
+) -> CanonicalReturnObservation:
+    closes_fact = next(
+        fact for fact in knowledge.canonical_facts if fact.fact_type == "daily_closes"
+    )
+    return CanonicalReturnObservation(
+        CanonicalInstrumentIdentity("symbol", knowledge.payload.chain.underlying.symbol),
+        knowledge.payload.time_series_return,
+        knowledge.payload.momentum_period_start,
+        knowledge.payload.momentum_period_end,
+        knowledge.effective_time,
+        (EvidenceReference(EvidenceKind.CANONICAL_FACT, closes_fact.fact_id, closes_fact.version),),
+    )
+
+
+def _bind_cross_subject_facts(
+    knowledge: ReadOnlyStrategyInput[SkewMomentumPayload],
+    cross_subject_value: object,
+) -> ReadOnlyStrategyInput[SkewMomentumPayload]:
+    if not isinstance(cross_subject_value, SubjectCrossSectionalFacts):
+        raise TypeError("Skew cross-subject binding requires SubjectCrossSectionalFacts")
+    cross_subject = cross_subject_value
+
+    def value(feature_id: str) -> Decimal | None:
+        fact = next(
+            (
+                item
+                for item in cross_subject.derived_facts.facts
+                if item.derived_fact_id.startswith(f"{feature_id}:")
+            ),
+            None,
+        )
+        if fact is None:
+            return None
+        assert isinstance(fact.value, Decimal)
+        return fact.value
+
+    payload = replace(
+        knowledge.payload,
+        cross_sectional_percentile=value(CROSS_SECTIONAL_MOMENTUM),
+        comparison_peer_count=cross_subject.comparison_peer_count,
+        sector_relative_return=value(SECTOR_RELATIVE_MOMENTUM),
+        comparison_unknown_reason=cross_subject.comparison_unknown_reason,
+        sector_unknown_reason=cross_subject.sector_unknown_reason,
+    )
+    return replace(
+        knowledge,
+        derived_facts=DerivedFactSet(
+            (*knowledge.derived_facts.facts, *cross_subject.derived_facts.facts)
+        ),
+        payload=payload,
     )
 
 
@@ -149,6 +213,9 @@ def build_skew_momentum_subject_preparation_binding(
         SubjectPlanConsumer(_STRATEGY_ID, bootstrap_demands(now), partial(expand_demands, now=now)),
         partial(_prepare, historical_repository, now),
         build_skew_momentum_subject_first_adapter,
+        "twenty_session_return_v1",
+        _extract_cross_subject_return,
+        _bind_cross_subject_facts,
     )
 
 
@@ -175,9 +242,9 @@ def build_skew_momentum_subject_first_adapter(
             call_wing_iv_minus_atm_iv=payload.call_wing_iv_minus_atm_iv,
             put_wing_iv_minus_atm_iv=payload.put_wing_iv_minus_atm_iv,
             time_series_return=payload.time_series_return,
-            cross_sectional_percentile=None,
-            comparison_peer_count=0,
-            sector_relative_return=None,
+            cross_sectional_percentile=payload.cross_sectional_percentile,
+            comparison_peer_count=payload.comparison_peer_count,
+            sector_relative_return=payload.sector_relative_return,
         )
         outputs = execute_strategy_graph(
             compile_strategy_graph(SKEW_MOMENTUM_VERTICAL_MANIFEST, _COMPONENTS), graph_context
@@ -205,7 +272,19 @@ def build_skew_momentum_subject_first_adapter(
             metrics=metrics,
             economics={},
             blockers=(),
-            warnings=explanation.warnings,
+            warnings=(
+                *explanation.warnings,
+                *(
+                    ()
+                    if payload.comparison_unknown_reason is None
+                    else (payload.comparison_unknown_reason,)
+                ),
+                *(
+                    ()
+                    if payload.sector_unknown_reason is None
+                    else (payload.sector_unknown_reason,)
+                ),
+            ),
             provenance=(
                 f"snapshot_id:{knowledge.snapshot_id}",
                 f"snapshot_digest:{knowledge.snapshot_digest}",

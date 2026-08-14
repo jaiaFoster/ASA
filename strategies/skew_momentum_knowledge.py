@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 
 from analytics.derived_facts import (
@@ -54,6 +54,13 @@ class SkewMomentumPayload:
     call_wing_iv_minus_atm_iv: Decimal
     put_wing_iv_minus_atm_iv: Decimal
     time_series_return: Decimal
+    momentum_period_start: datetime
+    momentum_period_end: datetime
+    cross_sectional_percentile: Decimal | None = None
+    comparison_peer_count: int = 0
+    sector_relative_return: Decimal | None = None
+    comparison_unknown_reason: str | None = "cross_sectional_not_materialized"
+    sector_unknown_reason: str | None = "cross_sectional_not_materialized"
 
 
 def build_skew_momentum_knowledge_mapping(
@@ -70,6 +77,8 @@ def build_skew_momentum_knowledge_mapping(
     call_wing_iv: Decimal,
     put_wing_iv: Decimal,
     history: tuple[HistoricalSkewObservation, ...],
+    momentum_period_start: datetime,
+    momentum_period_end: datetime,
 ) -> KnowledgeMapping[SkewMomentumPayload]:
     iv_values = (
         ("call_atm", call_atm_iv),
@@ -253,6 +262,8 @@ def build_skew_momentum_knowledge_mapping(
             call_wing_iv - call_atm_iv,
             put_wing_iv - put_atm_iv,
             value(NAMED_MOMENTUM_DIMENSIONS),
+            momentum_period_start,
+            momentum_period_end,
         )
 
     return KnowledgeMapping(tuple(requests), _compute, _payload)

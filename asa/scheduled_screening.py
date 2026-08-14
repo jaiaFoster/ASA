@@ -76,6 +76,7 @@ from strategy_runtime.adapters import (
     migrated_shadow_capability_reducers,
     migrated_shadow_resolution_policy,
 )
+from strategy_runtime.cross_subject_knowledge import compose_cross_subject_knowledge
 from strategy_runtime.historical_evidence import HistoricalSkewRepository
 from strategy_runtime.knowledge import ReadOnlyStrategyInput
 from strategy_runtime.lifecycle import RecommendedAction
@@ -439,9 +440,7 @@ def run_scheduled_refresh(
                 extra={
                     "symbol": symbol,
                     "screening_cycle_id": screening_cycle_id,
-                    "failure_class": (
-                        classify_subject_preparation_exception(failure)
-                    ),
+                    "failure_class": (classify_subject_preparation_exception(failure)),
                     "exception_type": type(failure).__name__,
                 },
                 exc_info=True,
@@ -451,6 +450,13 @@ def run_scheduled_refresh(
             prepared_request_count_by_symbol[symbol] = (
                 len(access[symbol].budget_manager.accounting) - budget_start
             )
+    # Provider-free cycle stage: all subject snapshots are sealed before
+    # registered cross-subject families are materialized once and rebound to
+    # their declaring consumers. This adds no acquisition and contains no
+    # strategy identity branch.
+    shadow_knowledge_by_symbol = compose_cross_subject_knowledge(
+        shadow_knowledge_by_symbol, shadow_registry
+    ).knowledge_by_subject
     outcomes: list[PairOutcome] = []
     for signal_id, symbol in universe:
         subject_access = access[symbol]

@@ -29,7 +29,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Generic
 
-from domain import MarketCapability, UnknownReason
+from domain import CanonicalReturnObservation, MarketCapability, UnknownReason
 from market_data.providers import ProviderMetadata
 from market_data.resolution import ResolutionPolicy
 from market_data.snapshot import MarketSnapshot
@@ -71,6 +71,13 @@ PrepareKnowledgeMapping = Callable[
 BuildShadowAdapter = Callable[
     [Mapping[str, "ReadOnlyStrategyInput[TPayload]"]], StrategyAdapter[UniversalScreeningResult]
 ]
+ExtractCrossSubjectReturn = Callable[
+    ["ReadOnlyStrategyInput[TPayload]"], CanonicalReturnObservation
+]
+BindCrossSubjectFacts = Callable[
+    ["ReadOnlyStrategyInput[TPayload]", object],
+    "ReadOnlyStrategyInput[TPayload]",
+]
 
 
 @dataclass(frozen=True, slots=True)
@@ -85,6 +92,19 @@ class SubjectPreparationBinding(Generic[TPayload]):  # noqa: UP046
     consumer: SubjectPlanConsumer
     prepare_knowledge_mapping: PrepareKnowledgeMapping[TPayload]
     build_shadow_adapter: BuildShadowAdapter[TPayload]
+    cross_subject_family_id: str | None = None
+    extract_cross_subject_return: ExtractCrossSubjectReturn[TPayload] | None = None
+    bind_cross_subject_facts: BindCrossSubjectFacts[TPayload] | None = None
+
+    def __post_init__(self) -> None:
+        callbacks = (
+            self.extract_cross_subject_return,
+            self.bind_cross_subject_facts,
+        )
+        if self.cross_subject_family_id is None and any(item is not None for item in callbacks):
+            raise ValueError("cross-subject callbacks require a family id")
+        if self.cross_subject_family_id is not None and any(item is None for item in callbacks):
+            raise ValueError("cross-subject family requires extraction and binding callbacks")
 
 
 class UnknownSubjectPreparationBindingError(KeyError):
@@ -127,9 +147,7 @@ class SubjectPreparationRegistry(Generic[TPayload]):  # noqa: UP046
         except KeyError:
             raise UnknownSubjectPreparationBindingError(strategy_id) from None
 
-    def restricted_to(
-        self, strategy_ids: tuple[str, ...]
-    ) -> SubjectPreparationRegistry[TPayload]:
+    def restricted_to(self, strategy_ids: tuple[str, ...]) -> SubjectPreparationRegistry[TPayload]:
         """Immutable view containing only explicitly requested consumers."""
         return SubjectPreparationRegistry(
             tuple((strategy_id, self.binding_for(strategy_id)) for strategy_id in strategy_ids)
@@ -243,8 +261,8 @@ def prepare_subject_knowledge(
         if isinstance(mapping, UnknownReason):
             prepared[strategy_id] = mapping
             continue
-        knowledge_registry: KnowledgeCompositionRegistry[object] = (
-            KnowledgeCompositionRegistry(((strategy_id, mapping),))
+        knowledge_registry: KnowledgeCompositionRegistry[object] = KnowledgeCompositionRegistry(
+            ((strategy_id, mapping),)
         )
         prepared[strategy_id] = compose_strategy_knowledge(
             plan_result.snapshot,
