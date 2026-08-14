@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 
 import pytest
 
@@ -16,7 +17,7 @@ from domain import (
     MarketDataRequestContext,
     MarketDataSubject,
     MarketDataSubjectType,
-    OHLCVBar,
+    OHLCVSeries,
     ProviderAddressProjection,
 )
 from market_data import (
@@ -32,7 +33,7 @@ from market_data.alpha_vantage import AlphaVantageProvider, alpha_vantage_provid
 from market_data.providers import ProviderErrorCode
 from market_data.transport import ReadOnlyHttpRequest, ReadOnlyHttpResponse
 
-NOW = datetime(2026, 7, 21, 16, 0, tzinfo=timezone.utc)
+NOW = datetime(2026, 7, 21, 16, 0, tzinfo=UTC)
 EVIDENCE = (EvidenceReference(EvidenceKind.OBSERVATION, "instrument-reference:AAPL"),)
 INSTRUMENT = Instrument(
     CanonicalInstrumentIdentity("figi", "BBG000B9XRY4"), InstrumentKind.EQUITY, "AAPL", "USD"
@@ -134,7 +135,9 @@ def test_daily_bars_use_compact_raw_documented_endpoint_and_decimal_values() -> 
         request(MarketCapability.HISTORICAL_BARS_V1, ("open", "high", "low", "close", "volume")),
         authorization(),
     )
-    assert result.error is None and isinstance(result.observations[0].value, OHLCVBar)
+    assert result.error is None and isinstance(result.observations[0].value, OHLCVSeries)
+    assert len(result.observations) == 1
+    assert result.observations[0].value.bars[0].close == Decimal("210")
     query = dict(transport.requests[0].query)
     assert query["function"] == "TIME_SERIES_DAILY" and query["outputsize"] == "compact"
     assert "test-key" not in repr(transport.requests[0])
