@@ -2,7 +2,7 @@
 id: UNIVERSE-001
 name: Broad Equity Universe Expansion
 version: 1.0
-status: AUTHORIZED_PENDING_FOUNDER_MERGE
+status: ACTIVE
 type: IMPLEMENTATION_SPRINT
 priority: P1
 baseline_commit: 7699ee66b4adf71841dcef3c209e82262e830878
@@ -33,6 +33,18 @@ objective: >
   Increase safely reachable universe breadth without introducing ASA-caused
   evaluation failures, strategy-owned acquisition, duplicate shared work, or
   speculative scale infrastructure.
+
+founder_membership_direction:
+  target_order:
+    - sp500
+    - russell_2000_after_sp500_passes
+  sp500_source:
+    name: Wikipedia — List of S&P 500 companies
+    url: https://en.wikipedia.org/wiki/List_of_S%26P_500_companies
+    authorization: explicit_Founder_source_override
+  temporal_model: effective_dated_snapshots_retained_prospectively
+  historical_reconstruction: prohibited
+  paid_license_or_trial: prohibited
 
 scope:
   in:
