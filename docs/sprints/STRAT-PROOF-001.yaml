@@ -1,0 +1,242 @@
+---
+id: STRAT-PROOF-001
+name: Plug-In Architecture Acceptance Proof
+version: 1.0
+status: AUTHORIZED_PENDING_FOUNDER_MERGE
+type: IMPLEMENTATION_SPRINT
+priority: P1
+baseline_commit: fb6ef9a1f43ec7580eea33ea3b6beae2e74d6681
+
+activation:
+  id: AMD-013-STRAT-PROOF-001-V1.0
+  governance_amendment: GOV-AMD-001-013
+  founder_authorized: true
+  founder_direction: >
+    Prove that a new test-only strategy can enter ASA through the existing
+    strategy extension seams, consume existing subject-local and cross-sectional
+    derived facts, execute and replay successfully, and do so without new
+    acquisition, analytics, orchestration, persistence, replay, scheduler, or
+    strategy-specific generic infrastructure. If the proof exposes a genuine
+    missing extension seam, fix the root cause at its owning boundary rather
+    than patching around it.
+  effective_when: this artifact is Founder-merged to the default branch
+  delegate:
+    role: ROLE-WORKER
+    instance: implementation-worker
+  limited_to_sprint: STRAT-PROOF-001
+  approved_tickets:
+    - STRAT-01
+  expires:
+    - sprint_complete
+    - sprint_stopped
+    - Founder_revokes_delegation
+    - scope_or_authority_changes
+
+objective: >
+  Demonstrate that ASA can add a new strategy by changing only strategy-owned
+  declaration, binding, evaluation, registration, and tests while preserving
+  provider blindness, compute-once reuse, replay, and existing production
+  behavior.
+
+scope:
+  in:
+    - add_one_test_only_synthetic_strategy
+    - consume_at_least_one_existing_subject_local_derived_fact
+    - consume_at_least_one_existing_cross_sectional_derived_fact
+    - use_existing_production_equivalent_registration_and_composition_seams
+    - produce_deterministic_verdict
+    - prove_provider_free_replay
+    - prove_provider_call_count_unchanged
+    - prove_subject_local_materialization_count_unchanged
+    - prove_cross_sectional_materialization_count_unchanged
+    - prove_registration_order_independence
+    - preserve_existing_three_strategy_behavior
+    - fix_one_bounded_root_cause_if_a_real_missing_extension_seam_is_proven
+  out:
+    - production_strategy_registration
+    - production_deployment
+    - new_provider_or_account
+    - new_market_data_requirement
+    - new_analytics_or_feature_research
+    - threshold_or_scoring_research
+    - universe_expansion
+    - scheduler_redesign
+    - new_parallel_registration_path
+    - speculative_refactoring
+    - UI_changes
+    - brokerage_or_execution
+    - governance_changes
+
+architecture_constraints:
+  test_only_strategy: true
+  use_real_extension_seams: true
+  strategy_must_receive_only_read_only_knowledge: true
+  no_provider_authority: true
+  no_strategy_id_branch_in_generic_code: true
+  no_duplicate_fact_calculation: true
+  no_duplicate_provider_work: true
+  no_test_only_runtime_bypass: true
+  reuse_existing_primitives_first: true
+  simple_before_extensible: true
+  no_speculative_platform_engineering: true
+
+tickets:
+  STRAT-01:
+    title: Plug-In Architecture Proof
+    objective: >
+      Add one synthetic test-only strategy through the existing strategy
+      registration and knowledge-composition path, using existing local and
+      cross-sectional facts, with no new generic infrastructure unless a genuine
+      missing extension seam is first proven.
+    allowed_changes:
+      - strategy_owned_declaration_or_requirements
+      - strategy_owned_knowledge_binding
+      - strategy_owned_evaluator_or_thesis_logic
+      - existing_registration_entry
+      - tests_and_fixtures
+      - one_bounded_generic_root_cause_correction_only_if_required_by_proven_gap
+    acceptance:
+      - consumes_existing_subject_local_fact
+      - consumes_existing_cross_sectional_fact
+      - executes_through_existing_production_equivalent_registration_path
+      - deterministic_verdict
+      - provider_call_count_matches_baseline
+      - subject_local_fact_materialization_count_matches_baseline
+      - cross_sectional_materialization_count_matches_baseline
+      - registration_order_does_not_change_fact_identity_value_or_verdict
+      - provider_free_replay_reproduces_result
+      - existing_production_strategy_regressions_green
+      - no_generic_code_references_synthetic_strategy_id
+      - full_exact_main_validation_green
+
+execution_policy:
+  goal_supremacy: >
+    Every change must directly prove strategy plug-in modularity or correct the
+    exact extension defect preventing that proof.
+  root_cause_first: true
+  reuse_existing_primitives_first: true
+  mainline_first: true
+  initial_reads_are_ticket_bounded: true
+  read_expansion_requires_reproduced_owner_evidence: true
+  targeted_tests_before_full_suite: true
+  one_concise_PR_evidence_packet: true
+  avoid_duplicate_architecture_reports: true
+  do_not_reopen_proven_S14R_or_XFACT_questions_without_contradictory_evidence: true
+  loop_breaker:
+    first_failure:
+      - reproduce_exact_failure
+      - identify_missing_extension_seam
+      - identify_owning_layer
+      - apply_one_direct_root_cause_correction
+    repeated_same_acceptance_failure:
+      - stop_micro_patching
+      - restate_violated_acceptance
+      - challenge_current_assumption
+      - raise_architect_blocker
+
+blockers:
+  architect_required_when:
+    - generic_runtime_dispatch_change_required
+    - canonical_fact_or_derived_fact_identity_semantics_change_required
+    - evidence_reference_semantics_change_required
+    - replay_or_persistence_contract_change_required
+    - second_registration_path_appears_required
+    - provider_or_acquisition_authority_appears_required
+    - existing_fact_must_be_duplicated_because_normal_knowledge_path_cannot_access_it
+  architect_blocker_packet:
+    - failing_acceptance_condition
+    - exact_reachable_path
+    - owning_boundary
+    - why_existing_seam_is_insufficient
+    - smallest_reusable_correction
+    - whether_correction_remains_in_scope
+  Founder_required_when:
+    - scope_expansion
+    - protected_contract_redefinition_outside_scope
+    - governance_or_risk_floor_change
+    - new_vendor_or_account_authority
+    - Founder_only_credential
+    - production_deployment
+    - other_Founder_only_authority
+
+authority:
+  worker:
+    may:
+      - implement_STRAT_01
+      - add_strategy_owned_test_only_code
+      - add_targeted_tests_and_fixtures
+      - perform_bounded_in_scope_root_cause_correction
+      - open_and_update_pull_requests
+      - perform_self_review
+      - enable_auto_merge_when_available
+      - mechanically_merge_qualifying_sprint_PRs
+    may_not:
+      - merge_this_activation_artifact
+      - register_strategy_in_production
+      - deploy
+      - expand_universe
+      - add_new_provider_or_account
+      - change_governance_or_constitution
+      - redefine_protected_contracts_outside_scope
+      - reduce_risk_floor
+  manager:
+    merge: prohibited
+  architect:
+    merge: prohibited
+
+merge_policy:
+  activation_merge_authority: Founder_only
+  implementation_merge_authority: active_Amendment_013_delegate
+  branch_protection_bypass: prohibited
+  auto_merge: enabled_for_qualifying_in_scope_PRs
+  before_every_delegated_merge:
+    - ticket_and_assigned_Worker_recorded
+    - PR_within_STRAT_01_scope
+    - required_CI_green
+    - targeted_architecture_and_regression_tests_green
+    - provider_and_materialization_count_proofs_green
+    - replay_and_registration_order_proofs_green
+    - Ruff_for_changed_scope_green
+    - mypy_for_changed_scope_green
+    - Worker_self_review_complete
+    - Manager_stop_status_CLEAR
+    - no_unresolved_architect_or_Founder_blocker
+    - no_governance_contract_or_scope_violation
+
+validation:
+  targeted:
+    - strategy_registration_and_composition
+    - provider_call_count_comparison
+    - subject_local_materialization_count_comparison
+    - cross_sectional_materialization_count_comparison
+    - registration_order_independence
+    - provider_free_replay
+    - architecture_boundaries
+    - existing_production_strategy_regressions
+  closure:
+    - Ruff_for_changed_scope
+    - mypy_for_changed_scope
+    - repository_required_CI
+    - full_test_suite
+    - exact_merged_main_verification
+  production_deployment_required: false
+  production_cycle_required: false
+
+completion:
+  exact_main_required: true
+  success: >
+    A new test-only strategy consumes existing subject-local and cross-sectional
+    derived facts, executes and replays through ASA's normal strategy
+    architecture, adds no provider work, causes no duplicate shared fact
+    computation, and requires no strategy-specific generic infrastructure.
+  closure_output:
+    - final_main_SHA_and_PR
+    - strategy_and_test_specific_files_added
+    - confirmation_of_no_strategy_specific_generic_branch
+    - provider_and_materialization_count_proof
+    - registration_order_proof
+    - replay_proof
+    - full_exact_main_validation
+    - UNIVERSE_001_READY_or_ARCHITECTURE_GAP_FOUND
+  delegation_expires_on_completion: true
+  UNIVERSE_001_remains_blocked_until_completion: true
