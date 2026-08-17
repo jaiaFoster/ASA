@@ -13,6 +13,7 @@ from typing import cast
 from analytics.cross_sectional_materialization import SubjectCrossSectionalFacts
 from analytics.derived_facts import CROSS_SECTIONAL_MOMENTUM, SECTOR_RELATIVE_MOMENTUM
 from analytics.features import DerivedFactSet
+from analytics.option_selection import select_canonical_contract
 from domain import (
     CanonicalInstrumentIdentity,
     CanonicalReturnObservation,
@@ -113,8 +114,8 @@ def _prepare(
     spot = _spot(quote_observation.value)
     call_strike = select_atm_strike_at_expiration(chain, expiration, spot, OptionType.CALL)
     put_strike = select_atm_strike_at_expiration(chain, expiration, spot, OptionType.PUT)
-    (call_atm,) = chain.find(expiration=expiration, strike=call_strike, option_type=OptionType.CALL)
-    (put_atm,) = chain.find(expiration=expiration, strike=put_strike, option_type=OptionType.PUT)
+    call_atm = select_canonical_contract(chain, expiration, call_strike, OptionType.CALL)
+    put_atm = select_canonical_contract(chain, expiration, put_strike, OptionType.PUT)
     call_wing = select_nearest_delta_contract(
         chain, expiration, OptionType.CALL, Decimal("0.25"), exclude_strike=call_strike
     )
