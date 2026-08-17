@@ -11,7 +11,6 @@ import json
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
-from pathlib import Path
 from types import MappingProxyType
 
 
@@ -64,8 +63,9 @@ class EquityUniverseMembershipSnapshot:
         return MappingProxyType({member.symbol: member for member in self.members})
 
 
-def load_membership_snapshot(path: Path) -> EquityUniverseMembershipSnapshot:
-    payload = json.loads(path.read_text())
+def load_membership_snapshot(path: str) -> EquityUniverseMembershipSnapshot:
+    with open(path, encoding="utf-8") as snapshot_file:
+        payload = json.load(snapshot_file)
     members = tuple(
         sorted(
             (
@@ -94,5 +94,5 @@ def load_membership_snapshot(path: Path) -> EquityUniverseMembershipSnapshot:
 
 
 SP500_MEMBERSHIP = load_membership_snapshot(
-    Path(__file__).with_name("universe_snapshots") / "sp500-2026-08-13.json"
+    f"{__file__.rsplit('/', 1)[0]}/universe_snapshots/sp500-2026-08-13.json"
 )
