@@ -1,0 +1,301 @@
+---
+id: UNIVERSE-001
+name: Broad Equity Universe Expansion
+version: 1.0
+status: AUTHORIZED_PENDING_FOUNDER_MERGE
+type: IMPLEMENTATION_SPRINT
+priority: P1
+baseline_commit: 7699ee66b4adf71841dcef3c209e82262e830878
+
+activation:
+  id: AMD-013-UNIVERSE-001-V1.0
+  governance_amendment: GOV-AMD-001-013
+  founder_authorized: true
+  founder_direction: >
+    Expand ASA's reachable equity universe while preserving the proven
+    provider-blind strategy/fact architecture. Measure real scale behavior
+    first, fix only demonstrated bottlenecks at their owning layer, and keep
+    expensive provider work driven by viable candidates rather than raw
+    universe size.
+  effective_when: this artifact is Founder-merged to the default branch
+  delegate:
+    role: ROLE-WORKER
+    instance: implementation-worker
+  limited_to_sprint: UNIVERSE-001
+  approved_tickets: [UNI-01, UNI-02, UNI-03]
+  expires:
+    - sprint_complete
+    - sprint_stopped
+    - Founder_revokes_delegation
+    - scope_or_authority_changes
+
+objective: >
+  Increase safely reachable universe breadth without introducing ASA-caused
+  evaluation failures, strategy-owned acquisition, duplicate shared work, or
+  speculative scale infrastructure.
+
+scope:
+  in:
+    - confirm_Founder_approved_target_universe
+    - confirm_authoritative_membership_source_or_raise_blocker
+    - reuse_existing_subject_security_identity_where_sufficient
+    - measure_current_provider_and_cycle_cost
+    - measure_progressively_larger_bounded_cohorts
+    - identify_first_real_scale_bottleneck
+    - implement_smallest_durable_correction_for_proven_bottleneck
+    - stage_expensive_acquisition_only_if_proven_needed
+    - preserve_compute_once_local_and_cross_subject_facts
+    - preserve_provider_free_replay
+    - preserve_current_known_good_universe_as_regression_control
+    - staged_rollout_using_measured_capacity_gates
+    - exact_main_and_real_production_verification
+  out:
+    - strategy_threshold_or_score_tuning
+    - new_strategy
+    - new_fact_or_cross_sectional_architecture_without_proven_need
+    - provider_replacement_without_proven_capacity_blocker
+    - speculative_caching_or_distributed_platform_work
+    - arbitrary_universe_query_platform
+    - UI_changes
+    - brokerage_or_execution
+    - governance_changes
+
+architecture_constraints:
+  strategies_remain_provider_blind: true
+  sealed_subject_knowledge_remains_authoritative: true
+  canonical_facts_remain_strategy_neutral: true
+  derived_facts_keep_single_canonical_owners: true
+  cross_subject_facts_remain_generic_and_reusable: true
+  no_strategy_id_branches_in_generic_runtime: true
+  no_duplicate_provider_or_fact_work_by_strategy_count_or_order: true
+  replay_remains_provider_free: true
+  proven_strategy_plugin_seam_remains_unchanged_unless_scale_evidence_proves_blocker: true
+  new_universe_or_capacity_contract:
+    default: prohibited
+    allowed_only_if:
+      - UNI_01_proves_existing_contracts_are_insufficient
+      - Architect_review_triggered
+      - change_remains_within_approved_scope
+
+tickets:
+  UNI-01:
+    title: Membership and Scale Preflight
+    objective: >
+      Confirm the authorized universe target and membership source, reuse the
+      existing identity model where possible, and measure real provider/cycle
+      behavior on progressively larger bounded cohorts before choosing any
+      scaling correction.
+    required_findings:
+      - Founder_approved_target_universe_confirmed
+      - authoritative_membership_source_confirmed_or_blocker_raised
+      - existing_identity_model_reuse_assessed
+      - current_known_good_load_baseline_captured
+      - progressively_larger_cohort_load_measured
+      - first_real_scale_bottleneck_identified
+      - naive_expensive_acquisition_baseline_measured_or_bounded_estimate_recorded
+    minimum_metrics:
+      - subjects_considered
+      - provider_requests_by_capability_and_provider
+      - expensive_option_requests
+      - cycle_duration
+      - quota_or_capacity_failures
+      - deferred_or_skipped_work_if_any
+      - subject_preparation_failures
+      - evaluated_or_classified_subjects
+      - ASA_caused_failures
+    acceptance:
+      - no_scale_architecture_assumed_before_measurement
+      - membership_provenance_explicit
+      - no_strategy_policy_encoded_in_membership
+      - no_unofficial_or_heuristic_index_membership_silently_adopted
+      - first_bottleneck_has_reproducible_evidence_and_owner
+
+  UNI-02:
+    title: Root-Cause Scale Correction
+    depends_on: [UNI-01]
+    objective: >
+      Fix only the first scale bottleneck proven by UNI-01 using the smallest
+      reusable correction at the owning layer.
+    allowed_correction_classes:
+      - staged_capability_acquisition
+      - request_budget_or_concurrency_correction
+      - fairness_or_failure_isolation_correction
+      - candidate_narrowing_from_declared_requirements_and_existing_knowledge
+      - existing_capacity_outcome_projection_correction
+      - bounded_contract_extension_if_existing_vocabulary_is_proven_insufficient
+    prohibited_workarounds:
+      - arbitrary_universe_shrinking_as_fix
+      - retry_increase_without_root_cause
+      - freshness_weakening
+      - hidden_symbol_allowlists
+      - strategy_specific_provider_orchestration
+      - fabricated_capacity_or_market_data_values
+      - strategy_id_branches
+    acceptance:
+      - exact_bottleneck_reproduced
+      - correction_at_owning_layer
+      - targeted_regression_red_on_baseline_green_on_head_where_practical
+      - current_known_good_universe_regression_green
+      - no_strategy_owned_acquisition
+      - no_duplicate_shared_work
+      - measured_next_cohort_gate_improves
+      - expensive_work_growth_is_better_than_naive_full_acquisition_for_tested_cohort
+
+  UNI-03:
+    title: Staged Rollout and Production Proof
+    depends_on: [UNI-02]
+    objective: >
+      Increase breadth incrementally using measured capacity gates, stopping at
+      real bottlenecks rather than arbitrary stage numbers, and prove the exact
+      merged-main system in production after Founder-authorized deployment.
+    rollout_policy:
+      next_stage_requires:
+        - prior_stage_cycle_completion
+        - provider_budget_within_limits
+        - no_unexplained_ASA_caused_failure
+        - failure_isolation_green
+        - current_known_good_regression_control_green
+      stop_when:
+        - next_measured_capacity_boundary_reached
+        - same_acceptance_failure_repeats_after_one_direct_correction
+        - scope_or_authority_change_required
+    acceptance:
+      - broad_membership_processed_to_measured_safe_limit
+      - expensive_requests_track_viable_candidates_better_than_raw_membership
+      - capacity_or_upstream_limitations_are_specific_and_typed
+      - ASA_caused_missing_data_zero_for_processed_scope
+      - no_subject_preparation_failed
+      - no_sibling_failure_amplification
+      - provider_free_replay_green
+      - strategy_plugin_modularity_regression_green
+      - exact_merged_main_full_validation_green
+      - real_production_cycle_verified_after_Founder_authorized_deployment
+
+execution_policy:
+  goal_supremacy: >
+    Every change must either increase safely reachable universe breadth at the
+    current architecture boundary or remove the exact measured bottleneck
+    preventing the next breadth increase.
+  root_cause_first: true
+  measure_before_design: true
+  reuse_existing_primitives_first: true
+  simple_before_extensible: true
+  no_speculative_platform_engineering: true
+  mainline_first: true
+  initial_reads_are_ticket_bounded: true
+  read_expansion_requires_reproduced_owner_evidence: true
+  targeted_and_load_tests_before_full_suite: true
+  one_concise_PR_evidence_packet: true
+  avoid_duplicate_architecture_reports: true
+  do_not_reopen_proven_S14R_XFACT_or_STRAT_PROOF_questions_without_contradictory_evidence: true
+  loop_breaker:
+    first_failure:
+      - reproduce_exact_scale_gate_failure
+      - identify_resource_capability_and_owner
+      - apply_one_direct_root_cause_correction
+      - repeat_same_load_proof
+    repeated_same_acceptance_failure:
+      - stop_micro_patching
+      - restate_violated_acceptance
+      - challenge_scaling_assumption
+      - raise_architect_blocker
+
+blockers:
+  architect_required_when:
+    - existing_subject_identity_cannot_represent_required_membership_safely
+    - staged_acquisition_cannot_be_expressed_through_existing_generic_requirement_seams
+    - capacity_outcome_requires_contract_change
+    - scheduler_or_runtime_boundary_prevents_bounded_fair_work
+    - broad_scale_exposes_duplicate_provider_or_fact_computation
+    - canonical_ownership_or_cross_layer_coupling_would_change
+  architect_blocker_packet:
+    - failed_scale_gate
+    - measured_symptom
+    - reproduction
+    - owning_layer
+    - violated_invariant
+    - smallest_reusable_correction
+    - whether_correction_remains_in_scope
+  Founder_required_when:
+    - target_universe_not_explicitly_authorized
+    - authoritative_membership_requires_new_paid_or_licensed_source
+    - new_vendor_or_account_authority
+    - scope_expansion
+    - protected_contract_redefinition_outside_scope
+    - governance_or_risk_floor_change
+    - Founder_only_credential
+    - production_deployment
+    - other_Founder_only_authority
+
+authority:
+  worker:
+    may:
+      - implement_enumerated_tickets
+      - perform_bounded_in_scope_root_cause_corrections
+      - add_targeted_load_regression_and_observability_tests
+      - open_and_update_pull_requests
+      - perform_self_review
+      - enable_auto_merge_when_available
+      - mechanically_merge_qualifying_sprint_PRs
+    may_not:
+      - merge_this_activation_artifact
+      - choose_or_expand_product_universe_without_Founder_authority
+      - add_new_vendor_or_account_authority
+      - change_governance_or_constitution
+      - redefine_protected_contracts_outside_scope
+      - reduce_risk_floor
+      - deploy
+  manager:
+    merge: prohibited
+  architect:
+    merge: prohibited
+
+merge_policy:
+  activation_merge_authority: Founder_only
+  implementation_merge_authority: active_Amendment_013_delegate
+  branch_protection_bypass: prohibited
+  auto_merge: enabled_for_qualifying_in_scope_PRs
+  before_every_delegated_merge:
+    - ticket_and_assigned_Worker_recorded
+    - PR_within_enumerated_scope
+    - dependencies_merged
+    - required_CI_green
+    - relevant_targeted_load_integration_and_regression_tests_green
+    - architecture_validation_green_when_applicable
+    - Ruff_for_changed_scope_green
+    - mypy_for_changed_scope_green
+    - Worker_self_review_complete
+    - Manager_stop_status_CLEAR
+    - no_unresolved_architect_or_Founder_blocker
+    - no_governance_contract_or_scope_violation
+
+validation:
+  per_correction:
+    - smallest_relevant_targeted_regression
+    - measured_load_or_capacity_proof
+    - related_package_and_integration_tests
+    - required_architecture_validation
+    - current_known_good_universe_regression
+    - Ruff_for_changed_scope
+    - mypy_for_changed_scope
+    - repository_required_CI
+  closure:
+    - full_test_suite
+    - architecture_validation
+    - provider_free_replay
+    - strategy_plugin_modularity_regression
+    - exact_merged_main_verification
+    - production_equivalent_expanded_universe_cycle
+    - Founder_authorized_deployment
+    - one_real_production_cycle
+
+completion:
+  exact_main_required: true
+  production_proof_required: true
+  success: >
+    ASA can process the Founder-approved broad universe to a measured safe
+    production limit using authoritative membership, while expensive provider
+    work grows with viable candidates rather than raw universe size, existing
+    strategy/fact architecture remains intact, and processed subjects have zero
+    known ASA-caused inability to evaluate.
+  delegation_expires_on_completion: true
