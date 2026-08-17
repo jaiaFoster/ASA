@@ -29,6 +29,7 @@ from datetime import date
 from decimal import Decimal
 
 from analytics.atm_selection import select_atm_strike
+from analytics.option_selection import select_canonical_contract
 from domain import (
     EarningsEvent,
     ExpirationCycle,
@@ -113,12 +114,10 @@ def select_earnings_calendar_structure(
     spot_price = quote.last
 
     front_strikes = tuple(
-        item.strike
-        for item in chain.find(expiration=front_expiration, option_type=OptionType.CALL)
+        item.strike for item in chain.find(expiration=front_expiration, option_type=OptionType.CALL)
     )
     back_strikes = tuple(
-        item.strike
-        for item in chain.find(expiration=back_expiration, option_type=OptionType.CALL)
+        item.strike for item in chain.find(expiration=back_expiration, option_type=OptionType.CALL)
     )
     if not front_strikes or not back_strikes:
         no_calls_demand_ids = tuple(
@@ -134,12 +133,10 @@ def select_earnings_calendar_structure(
         )
     front_strike = select_atm_strike(front_strikes, spot_price)
     back_strike = select_atm_strike(back_strikes, spot_price)
-    (front_contract,) = chain.find(
-        expiration=front_expiration, strike=front_strike, option_type=OptionType.CALL
+    front_contract = select_canonical_contract(
+        chain, front_expiration, front_strike, OptionType.CALL
     )
-    (back_contract,) = chain.find(
-        expiration=back_expiration, strike=back_strike, option_type=OptionType.CALL
-    )
+    back_contract = select_canonical_contract(chain, back_expiration, back_strike, OptionType.CALL)
     if front_contract.implied_volatility is None or back_contract.implied_volatility is None:
         missing_iv_demand_ids = tuple(
             demand_id

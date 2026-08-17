@@ -1,6 +1,7 @@
 from datetime import UTC, date, datetime
 from decimal import Decimal
 
+from analytics.option_selection import select_canonical_contract
 from domain import (
     CanonicalInstrumentIdentity,
     EvidenceKind,
@@ -13,7 +14,6 @@ from domain import (
     Security,
     SecurityAssetType,
 )
-from strategy_runtime.adapters.forward_factor_subject_first import _contract_at
 
 OBSERVED_AT = datetime(2026, 8, 17, 19, 0, tzinfo=UTC)
 EXPIRATION = date(2026, 9, 18)
@@ -34,7 +34,7 @@ def _security() -> Security:
     )
 
 
-def _contract(contract_id: str, implied_volatility: str) -> OptionContract:
+def _contract(contract_id: str) -> OptionContract:
     return OptionContract(
         CanonicalInstrumentIdentity("asa-option-v1", contract_id),
         _security(),
@@ -51,23 +51,21 @@ def _contract(contract_id: str, implied_volatility: str) -> OptionContract:
         None,
         None,
         None,
-        Decimal(implied_volatility),
+        Decimal("0.30"),
         OBSERVED_AT,
         EVIDENCE,
     )
 
 
-def test_contract_selection_accepts_multiple_canonical_identities_deterministically() -> None:
-    later = _contract("SPGI-adjusted", "0.31")
-    canonical_first = _contract("SPGI-standard", "0.29")
+def test_multiple_canonical_identities_select_by_chain_order() -> None:
     chain = OptionChain(
         "spgi-chain",
         _security(),
         OBSERVED_AT,
-        (canonical_first, later),
+        (_contract("SPGI-standard"), _contract("SPGI-adjusted")),
         EVIDENCE,
     )
 
-    selected = _contract_at(chain, EXPIRATION, Decimal("550"))
+    selected = select_canonical_contract(chain, EXPIRATION, Decimal("550"), OptionType.CALL)
 
     assert selected is chain.contracts[0]

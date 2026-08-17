@@ -23,7 +23,8 @@ from decimal import Decimal
 from typing import cast
 
 from analytics.engine import FeatureComputation
-from analytics.errors import MissingImpliedVolatilityError, NoMatchingContractError
+from analytics.errors import MissingImpliedVolatilityError
+from analytics.option_selection import select_canonical_contract
 from analytics.registry import AnalyticsFeatureDefinition, AnalyticsRegistry
 from domain import MarketCapability, OptionChain, OptionType
 
@@ -44,10 +45,7 @@ def compute_option_implied_volatility(inputs: Mapping[str, object]) -> Decimal:
     expiration = cast(date, inputs["expiration"])
     strike = cast(Decimal, inputs["strike"])
     option_type = cast(OptionType, inputs["option_type"])
-    matches = chain.find(expiration=expiration, strike=strike, option_type=option_type)
-    if not matches:
-        raise NoMatchingContractError(expiration.isoformat(), str(strike))
-    contract = matches[0]
+    contract = select_canonical_contract(chain, expiration, strike, option_type)
     if contract.implied_volatility is None:
         raise MissingImpliedVolatilityError(expiration.isoformat(), str(strike))
     return contract.implied_volatility

@@ -32,6 +32,7 @@ def bars_demand(now: datetime) -> CapabilityDemand:
         ("close",),
         now - timedelta(days=HISTORICAL_LOOKBACK_DAYS),
         now,
+        maximum_age_seconds=int(timedelta(days=HISTORICAL_LOOKBACK_DAYS + 1).total_seconds()),
     )
 
 

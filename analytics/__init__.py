@@ -58,6 +58,7 @@ from analytics.forward_factor import (
     compute_days_to_expiration,
     compute_option_implied_volatility,
 )
+from analytics.option_selection import select_canonical_contract
 from analytics.realized_volatility import (
     InsufficientPriceHistoryError,
     compute_log_returns,
@@ -111,6 +112,7 @@ __all__ = [
     "compute_normalized_skew",
     "compute_no_confirmed_earnings_through_expiration",
     "select_atm_strike",
+    "select_canonical_contract",
     "select_earnings_relative_expiration_pair",
     "select_expiration_pair",
 ]
