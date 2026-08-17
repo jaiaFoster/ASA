@@ -13,6 +13,7 @@ from domain import (
     ExpirationCollection,
     MarketCapability,
     OptionChain,
+    OptionContract,
     OptionType,
     Quote,
     UnknownReason,
@@ -70,6 +71,23 @@ def _atm_strike(chain: OptionChain, expiration: date, spot: Decimal) -> Decimal:
     return min(strikes, key=lambda strike: (abs(strike - spot), strike))
 
 
+def _contract_at(
+    chain: OptionChain, expiration: date, strike: Decimal
+) -> OptionContract:
+    """Select the first canonically ordered contract at economic coordinates.
+
+    Distinct canonical contract identities may legally share an expiration,
+    strike, and option type (for example standard and adjusted series).
+    ``OptionChain`` already orders those identities deterministically.
+    """
+    matches = chain.find(
+        expiration=expiration, strike=strike, option_type=OptionType.CALL
+    )
+    if not matches:
+        raise ValueError("no call contract at selected expiration and strike")
+    return matches[0]
+
+
 def _prepare(
     snapshot: MarketSnapshot,
     projected: ResolvedEvidenceView,
@@ -108,12 +126,8 @@ def _prepare(
     spot = _spot(quote_observation.value)
     front_strike = _atm_strike(chain, front_date, spot)
     back_strike = _atm_strike(chain, back_date, spot)
-    (front_contract,) = chain.find(
-        expiration=front_date, strike=front_strike, option_type=OptionType.CALL
-    )
-    (back_contract,) = chain.find(
-        expiration=back_date, strike=back_strike, option_type=OptionType.CALL
-    )
+    front_contract = _contract_at(chain, front_date, front_strike)
+    back_contract = _contract_at(chain, back_date, back_strike)
     if front_contract.implied_volatility is None or back_contract.implied_volatility is None:
         return UnknownReason("missing_implied_volatility")
 
