@@ -9,13 +9,16 @@ import pytest
 
 from asa.scheduled_screening import (
     PRODUCTION_SCREENING_UNIVERSE,
+    SP500_COHORT_MAXIMUM_SUBJECTS,
     run_scheduled_refresh,
+    scheduled_sp500_universe,
 )
 from domain import CanonicalInstrumentIdentity, MarketCapability
 from domain.strategy_evidence import HistoricalSkewObservation
 from market_data import FixtureScenario, ProviderErrorCode
 from market_data.attempts import AttemptQuery, InMemoryAcquisitionAttemptRepository
 from market_data.session_calendar import UsEquitySessionCalendar
+from market_data.session_schedule import SessionRefreshSchedule
 from market_data.transport import ReadOnlyHttpResponse
 from screening import APPROVED_LIVE_UNIVERSE, EARNINGS_CALENDAR_UNIVERSE
 from strategy_runtime.orchestration import ShadowParityDiagnostic
@@ -170,6 +173,65 @@ def test_earnings_calendar_pairs_use_the_single_name_subset_only() -> None:
     }
     assert earnings_symbols == set(EARNINGS_CALENDAR_UNIVERSE)
     assert earnings_symbols.isdisjoint(etfs)
+
+
+def test_scheduled_sp500_rollout_is_bounded_and_all_strategy() -> None:
+    slot = SessionRefreshSchedule().slots_for(date(2026, 8, 17))[0]
+    universe = scheduled_sp500_universe(slot)
+    symbols = {symbol for _strategy_id, symbol in universe}
+
+    assert len(symbols) == SP500_COHORT_MAXIMUM_SUBJECTS
+    assert len(universe) == 3 * SP500_COHORT_MAXIMUM_SUBJECTS
+    assert {strategy_id for strategy_id, _symbol in universe} == {
+        "forward_factor",
+        "skew_momentum",
+        "earnings_calendar",
+    }
+
+
+def test_scheduled_slots_advance_to_the_next_cohort() -> None:
+    first, second = SessionRefreshSchedule().slots_for(date(2026, 8, 17))[:2]
+    first_symbols = {symbol for _strategy_id, symbol in scheduled_sp500_universe(first)}
+    second_symbols = {symbol for _strategy_id, symbol in scheduled_sp500_universe(second)}
+    assert first_symbols.isdisjoint(second_symbols)
+
+
+def test_default_scheduled_cycle_uses_bounded_sp500_cohort(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    import asa.scheduled_screening as scheduled_screening_module
+
+    monkeypatch.setattr(
+        scheduled_screening_module,
+        "build_shared_market_data_access",
+        build_fixture_market_data_access_factory(),
+    )
+    monkeypatch.setenv("ASA_TRADIER_ENABLED", "true")
+    monkeypatch.setenv("ASA_TRADIER_ACCESS_TOKEN", "sandbox-secret-token")
+    caplog.set_level(logging.INFO)
+    slot = SessionRefreshSchedule().slots_for(date(2026, 8, 17))[0]
+    outcomes = run_scheduled_refresh(
+        repository=InMemoryLatestResultRepository(),
+        history_repository=InMemoryObservationHistoryRepository(),
+        acquisition_attempt_repository=InMemoryAcquisitionAttemptRepository(),
+        historical_skew_repository=_RecordingHistoricalSkewRepository(),
+        claim_repository=_SingleUseClaimRepository(),
+        enforce_schedule=True,
+        now=slot.scheduled_at,
+    )
+
+    assert len(outcomes) == 3 * SP500_COHORT_MAXIMUM_SUBJECTS
+    assert all(item.error is None for item in outcomes)
+    assert all(item.outcome != "missing_data" for item in outcomes)
+    selection = next(
+        record
+        for record in caplog.records
+        if record.message == "scheduled_universe_cohort_selected"
+    )
+    assert selection.source_revision_id == 1369213082
+    assert selection.cohort_count == 17
+    assert selection.subject_count == 30
 
 
 def test_no_enabled_provider_raises(monkeypatch: pytest.MonkeyPatch) -> None:

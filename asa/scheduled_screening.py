@@ -58,7 +58,7 @@ from domain import UnknownReason
 from market_data import ReuseDecision, load_market_data_config_from_environment
 from market_data.attempts import AcquisitionAttemptRepository
 from market_data.live_transport import build_live_transport
-from market_data.session_schedule import SessionRefreshSchedule
+from market_data.session_schedule import ScheduledRefreshSlot, SessionRefreshSchedule
 from screening import APPROVED_LIVE_UNIVERSE, EARNINGS_CALENDAR_UNIVERSE
 from screening.cycle_identity import (
     manual_invocation_slot_id,
@@ -69,6 +69,8 @@ from screening.cycle_identity import (
     pair_evaluation_id as compute_pair_evaluation_id,
 )
 from screening.live_acquisition import live_only_config
+from screening.universe_cohorts import UniverseCohort, plan_universe_cohort
+from screening.universe_membership import SP500_MEMBERSHIP
 from strategy_runtime.adapters import (
     build_migrated_cutover_policy,
     build_migrated_shadow_registry,
@@ -111,7 +113,53 @@ PRODUCTION_SCREENING_UNIVERSE: tuple[tuple[str, str], ...] = tuple(
     for signal_id in ("forward_factor", "skew_momentum")
     for symbol in APPROVED_LIVE_UNIVERSE
 ) + tuple(("earnings_calendar", symbol) for symbol in EARNINGS_CALENDAR_UNIVERSE)
+
+# UNI-01's current proven live capacity. Increasing this is a measured
+# capacity decision, never a CLI/environment override.
+SP500_COHORT_MAXIMUM_SUBJECTS = 30
 _LOGGER = logging.getLogger(__name__)
+
+
+def _scheduled_cohort_ordinal(slot: ScheduledRefreshSlot) -> int:
+    """Stable ordinal across every exchange-calendar refresh slot.
+
+    Counting the schedule's actual slots (including holidays and early-close
+    sessions) guarantees complete, gap-free cohort traversal without mutable
+    scheduler state or a database cursor.
+    """
+    if slot.session_date < SP500_MEMBERSHIP.effective_date:
+        raise ValueError("scheduled slot predates the active S&P 500 membership snapshot")
+    schedule = SessionRefreshSchedule()
+    cursor = SP500_MEMBERSHIP.effective_date
+    ordinal = 0
+    while cursor < slot.session_date:
+        ordinal += len(schedule.slots_for(cursor))
+        cursor += timedelta(days=1)
+    session_slots = schedule.slots_for(slot.session_date)
+    try:
+        slot_offset = next(
+            index for index, candidate in enumerate(session_slots) if candidate == slot
+        )
+    except StopIteration:
+        raise ValueError("scheduled slot is not part of its session schedule") from None
+    return ordinal + slot_offset
+
+
+def scheduled_sp500_cohort(slot: ScheduledRefreshSlot) -> UniverseCohort:
+    return plan_universe_cohort(
+        SP500_MEMBERSHIP,
+        maximum_subjects=SP500_COHORT_MAXIMUM_SUBJECTS,
+        cohort_ordinal=_scheduled_cohort_ordinal(slot),
+    )
+
+
+def scheduled_sp500_universe(slot: ScheduledRefreshSlot) -> tuple[tuple[str, str], ...]:
+    cohort = scheduled_sp500_cohort(slot)
+    return tuple(
+        (strategy_id, symbol)
+        for symbol in cohort.symbols
+        for strategy_id in ("forward_factor", "skew_momentum", "earnings_calendar")
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -206,7 +254,7 @@ class RefreshScheduleClaimRepository(Protocol):
 
 
 def run_scheduled_refresh(
-    universe: tuple[tuple[str, str], ...] = PRODUCTION_SCREENING_UNIVERSE,
+    universe: tuple[tuple[str, str], ...] | None = None,
     *,
     repository: LatestResultRepository | None = None,
     history_repository: ObservationHistoryRepository | None = None,
@@ -255,6 +303,7 @@ def run_scheduled_refresh(
     reported complete when it wasn't.
     """
     run_at = now or datetime.now(UTC)
+    resolved_universe = PRODUCTION_SCREENING_UNIVERSE if universe is None else universe
     invocation_type = "manual"
     slot_id = manual_invocation_slot_id(run_at)
     if enforce_schedule:
@@ -268,6 +317,25 @@ def run_scheduled_refresh(
             return ()
         invocation_type = "scheduled"
         slot_id = slot.slot_id
+        if universe is None:
+            cohort = scheduled_sp500_cohort(slot)
+            resolved_universe = tuple(
+                (strategy_id, symbol)
+                for symbol in cohort.symbols
+                for strategy_id in ("forward_factor", "skew_momentum", "earnings_calendar")
+            )
+            _LOGGER.info(
+                "scheduled_universe_cohort_selected",
+                extra={
+                    "universe_id": cohort.universe_id,
+                    "source_revision_id": cohort.source_revision_id,
+                    "cohort_ordinal": cohort.cohort_ordinal,
+                    "cohort_count": cohort.cohort_count,
+                    "subject_count": len(cohort.symbols),
+                },
+            )
+
+    universe = resolved_universe
 
     resolved_repository = repository or PostgresLatestResultRepository(
         create_postgres_engine(Settings().database_url)
