@@ -26,6 +26,10 @@ from domain import (
 )
 from market_data.snapshot import MarketSnapshot
 from screening.subject_planning import ResolvedEvidenceView, SubjectPlanConsumer
+from strategy_runtime.comparison_universe import (
+    ASSET_TYPE_BY_INSTRUMENT,
+    SECTOR_BY_INSTRUMENT,
+)
 from strategy_runtime.context import RuntimeContext
 from strategy_runtime.cross_subject_knowledge import compose_cross_subject_knowledge
 from strategy_runtime.execution import ExecutionStatus, run_strategies
@@ -151,6 +155,8 @@ def _compose(
     result = compose_cross_subject_knowledge(
         knowledge,
         SubjectPreparationRegistry(entries),
+        asset_types=ASSET_TYPE_BY_INSTRUMENT,
+        sectors=SECTOR_BY_INSTRUMENT,
     )
     return (
         {

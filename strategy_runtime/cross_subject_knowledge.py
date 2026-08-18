@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 
 from analytics.cross_sectional_materialization import (
@@ -9,10 +10,14 @@ from analytics.cross_sectional_materialization import (
     SubjectCrossSectionalFacts,
     materialize_cross_sectional_facts,
 )
-from domain import CanonicalInstrumentIdentity, CanonicalReturnObservation, UnknownReason
+from domain import (
+    CanonicalInstrumentIdentity,
+    CanonicalReturnObservation,
+    SectorClassification,
+    SecurityAssetType,
+    UnknownReason,
+)
 from strategy_runtime.comparison_universe import (
-    ASSET_TYPE_BY_INSTRUMENT,
-    SECTOR_BY_INSTRUMENT,
     approved_sector_id,
     select_comparison_universe_returns,
     select_sector_reference_returns,
@@ -33,20 +38,22 @@ def _instrument(symbol: str) -> CanonicalInstrumentIdentity:
 
 def _selected_inputs(
     returns: tuple[CanonicalReturnObservation, ...],
+    asset_types: Mapping[CanonicalInstrumentIdentity, SecurityAssetType],
+    sectors: Mapping[CanonicalInstrumentIdentity, SectorClassification],
 ) -> tuple[CrossSectionalFactInputs, ...]:
     selected: list[CrossSectionalFactInputs] = []
     for item in returns:
         subject = item.instrument
         period = (item.period_start, item.period_end)
         comparison = select_comparison_universe_returns(
-            subject, period, returns, ASSET_TYPE_BY_INSTRUMENT
+            subject, period, returns, asset_types
         )
-        sector = select_sector_reference_returns(subject, period, SECTOR_BY_INSTRUMENT, returns)
-        if subject not in ASSET_TYPE_BY_INSTRUMENT:
+        sector = select_sector_reference_returns(subject, period, sectors, returns)
+        if subject not in asset_types:
             comparison_reason = "missing_instrument_class"
         else:
             comparison_reason = "insufficient_comparison_cohort"
-        subject_sector = SECTOR_BY_INSTRUMENT.get(subject)
+        subject_sector = sectors.get(subject)
         if subject_sector is None:
             sector_reason = "missing_sector_membership"
         elif approved_sector_id(subject_sector) is None:
@@ -68,8 +75,11 @@ def _selected_inputs(
 def compose_cross_subject_knowledge(
     knowledge_by_subject: dict[str, dict[str, ReadOnlyStrategyInput[object] | UnknownReason]],
     registry: SubjectPreparationRegistry[object],
+    *,
+    asset_types: Mapping[CanonicalInstrumentIdentity, SecurityAssetType],
+    sectors: Mapping[CanonicalInstrumentIdentity, SectorClassification],
 ) -> CrossSubjectKnowledgeResult:
-    """Materialize each declared evidence family once, then bind by callback."""
+    """Materialize each declared family once from injected canonical classifications."""
 
     result = {subject: dict(values) for subject, values in knowledge_by_subject.items()}
     family_entries: dict[str, list[tuple[str, str, ReadOnlyStrategyInput[object]]]] = {}
@@ -105,7 +115,7 @@ def compose_cross_subject_knowledge(
         if not returns:
             continue
         materialized = materialize_cross_sectional_facts(
-            _selected_inputs(returns),
+            _selected_inputs(returns, asset_types, sectors),
             effective_time=max(item.effective_time for item in returns),
         )
         by_subject = {item.subject: item for item in materialized}

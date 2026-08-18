@@ -41,6 +41,7 @@ import time
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from types import MappingProxyType
 from typing import Protocol
 
 from asa.config import Settings
@@ -54,7 +55,7 @@ from asa.integrations.screening_acquisition_attempts_postgres import (
     PostgresAcquisitionAttemptRepository,
 )
 from asa.integrations.universal_screening_postgres import PostgresLatestResultRepository
-from domain import UnknownReason
+from domain import CanonicalInstrumentIdentity, UnknownReason
 from market_data import ReuseDecision, load_market_data_config_from_environment
 from market_data.attempts import AcquisitionAttemptRepository
 from market_data.live_transport import build_live_transport
@@ -70,13 +71,21 @@ from screening.cycle_identity import (
 )
 from screening.live_acquisition import live_only_config
 from screening.universe_cohorts import UniverseCohort, plan_universe_cohort
-from screening.universe_membership import SP500_MEMBERSHIP
+from screening.universe_membership import (
+    SP500_MEMBERSHIP,
+    EquityUniverseClassifications,
+    canonical_equity_classifications,
+)
 from strategy_runtime.adapters import (
     build_migrated_cutover_policy,
     build_migrated_shadow_registry,
     build_migrated_strategy_registry,
     migrated_shadow_capability_reducers,
     migrated_shadow_resolution_policy,
+)
+from strategy_runtime.comparison_universe import (
+    ASSET_TYPE_BY_INSTRUMENT,
+    SECTOR_BY_INSTRUMENT,
 )
 from strategy_runtime.cross_subject_knowledge import compose_cross_subject_knowledge
 from strategy_runtime.historical_evidence import HistoricalSkewRepository
@@ -118,6 +127,26 @@ PRODUCTION_SCREENING_UNIVERSE: tuple[tuple[str, str], ...] = tuple(
 # capacity decision, never a CLI/environment override.
 SP500_COHORT_MAXIMUM_SUBJECTS = 30
 _LOGGER = logging.getLogger(__name__)
+
+
+def _cross_subject_classifications(symbols: tuple[str, ...]) -> EquityUniverseClassifications:
+    """Authoritative S&P classifications plus explicit legacy-topology compatibility."""
+    active = canonical_equity_classifications(SP500_MEMBERSHIP)
+    asset_types = dict(active.asset_types)
+    sectors = dict(active.sectors)
+    for symbol in symbols:
+        instrument = CanonicalInstrumentIdentity("symbol", symbol)
+        if instrument in active.asset_types:
+            continue
+        legacy_asset_type = ASSET_TYPE_BY_INSTRUMENT.get(instrument)
+        if legacy_asset_type is not None:
+            asset_types[instrument] = legacy_asset_type
+        legacy_sector = SECTOR_BY_INSTRUMENT.get(instrument)
+        if legacy_sector is not None:
+            sectors[instrument] = legacy_sector
+    return EquityUniverseClassifications(
+        MappingProxyType(asset_types), MappingProxyType(sectors)
+    )
 
 
 def _scheduled_cohort_ordinal(slot: ScheduledRefreshSlot) -> int:
@@ -522,8 +551,12 @@ def run_scheduled_refresh(
     # registered cross-subject families are materialized once and rebound to
     # their declaring consumers. This adds no acquisition and contains no
     # strategy identity branch.
+    classifications = _cross_subject_classifications(unique_symbols)
     shadow_knowledge_by_symbol = compose_cross_subject_knowledge(
-        shadow_knowledge_by_symbol, shadow_registry
+        shadow_knowledge_by_symbol,
+        shadow_registry,
+        asset_types=classifications.asset_types,
+        sectors=classifications.sectors,
     ).knowledge_by_subject
     outcomes: list[PairOutcome] = []
     for signal_id, symbol in universe:

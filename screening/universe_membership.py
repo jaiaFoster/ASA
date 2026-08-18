@@ -13,6 +13,30 @@ from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from types import MappingProxyType
 
+from domain import CanonicalInstrumentIdentity, SectorClassification, SecurityAssetType
+
+GICS_TAXONOMY = "GICS"
+GICS_TAXONOMY_VERSION = "2023"
+
+# Taxonomy-level reference data at the boundary where the authoritative
+# membership source's sector names become canonical domain classifications.
+# This is deliberately not keyed by symbol or universe.
+GICS_SECTOR_NAME_TO_CODE: Mapping[str, str] = MappingProxyType(
+    {
+        "Energy": "10",
+        "Materials": "15",
+        "Industrials": "20",
+        "Consumer Discretionary": "25",
+        "Consumer Staples": "30",
+        "Health Care": "35",
+        "Financials": "40",
+        "Information Technology": "45",
+        "Communication Services": "50",
+        "Utilities": "55",
+        "Real Estate": "60",
+    }
+)
+
 
 @dataclass(frozen=True, slots=True)
 class EquityUniverseMember:
@@ -61,6 +85,36 @@ class EquityUniverseMembershipSnapshot:
     @property
     def by_symbol(self) -> Mapping[str, EquityUniverseMember]:
         return MappingProxyType({member.symbol: member for member in self.members})
+
+
+@dataclass(frozen=True, slots=True)
+class EquityUniverseClassifications:
+    asset_types: Mapping[CanonicalInstrumentIdentity, SecurityAssetType]
+    sectors: Mapping[CanonicalInstrumentIdentity, SectorClassification]
+
+
+def canonical_equity_classifications(
+    snapshot: EquityUniverseMembershipSnapshot,
+) -> EquityUniverseClassifications:
+    """Project typed equity membership metadata into canonical classifications."""
+    asset_types: dict[CanonicalInstrumentIdentity, SecurityAssetType] = {}
+    sectors: dict[CanonicalInstrumentIdentity, SectorClassification] = {}
+    for member in snapshot.members:
+        instrument = CanonicalInstrumentIdentity("symbol", member.symbol)
+        asset_types[instrument] = SecurityAssetType.EQUITY
+        try:
+            sector_code = GICS_SECTOR_NAME_TO_CODE[member.gics_sector]
+        except KeyError:
+            raise ValueError(
+                f"unsupported GICS sector name in {snapshot.universe_id}: "
+                f"{member.gics_sector!r}"
+            ) from None
+        sectors[instrument] = SectorClassification(
+            GICS_TAXONOMY, GICS_TAXONOMY_VERSION, sector_code
+        )
+    return EquityUniverseClassifications(
+        MappingProxyType(asset_types), MappingProxyType(sectors)
+    )
 
 
 def load_membership_snapshot(path: str) -> EquityUniverseMembershipSnapshot:

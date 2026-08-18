@@ -211,8 +211,9 @@ def test_default_scheduled_cycle_uses_bounded_sp500_cohort(
     monkeypatch.setenv("ASA_TRADIER_ACCESS_TOKEN", "sandbox-secret-token")
     caplog.set_level(logging.INFO)
     slot = SessionRefreshSchedule().slots_for(date(2026, 8, 17))[0]
+    repository = InMemoryLatestResultRepository()
     outcomes = run_scheduled_refresh(
-        repository=InMemoryLatestResultRepository(),
+        repository=repository,
         history_repository=InMemoryObservationHistoryRepository(),
         acquisition_attempt_repository=InMemoryAcquisitionAttemptRepository(),
         historical_skew_repository=_RecordingHistoricalSkewRepository(),
@@ -232,6 +233,14 @@ def test_default_scheduled_cycle_uses_bounded_sp500_cohort(
     assert selection.source_revision_id == 1369213082
     assert selection.cohort_count == 17
     assert selection.subject_count == 30
+    expanded_symbol = next(
+        symbol
+        for _strategy_id, symbol in scheduled_sp500_universe(slot)
+        if symbol not in APPROVED_LIVE_UNIVERSE
+    )
+    skew = repository.get_one("skew_momentum", expanded_symbol)
+    assert skew is not None
+    assert skew.metrics["derived_fact.cross_sectional_percentile"].native() != "UNKNOWN"
 
 
 def test_no_enabled_provider_raises(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -1330,6 +1339,9 @@ def test_production_universe_topology_has_no_universal_preparation_failure(
     assert any(
         item.startswith("derived_fact:sector_relative_momentum:") for item in skew.provenance
     )
+    legacy_etf = repository.get_one("skew_momentum", "SPY")
+    assert legacy_etf is not None
+    assert legacy_etf.metrics["derived_fact.cross_sectional_percentile"].native() != "UNKNOWN"
 
 
 def test_ff_and_skew_results_are_unaffected_by_whether_earnings_shares_the_cycle(
