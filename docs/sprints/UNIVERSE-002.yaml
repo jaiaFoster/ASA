@@ -1,0 +1,272 @@
+---
+id: UNIVERSE-002
+name: S&P Completion and Russell 2000 Preflight
+version: 1.0-final-draft
+status: PROPOSED_FOR_ACTIVATION
+type: IMPLEMENTATION_SPRINT
+priority: P0
+
+baseline_commit: f83361e972bb66df676818739d2a71c3e624fac9
+
+objective: >
+  Complete authoritative S&P 500 membership traversal and reason-quality proof,
+  then prepare a bounded Russell 2000 scale preflight using the existing generic
+  universe architecture. Do not activate Russell 2000 production screening.
+
+success_definition: >
+  All 503 canonical S&P constituents are accounted for across the three
+  production strategies with no silent omissions or ASA-caused evaluability
+  failures, and Russell 2000 has an authoritative reproducible membership
+  snapshot plus measured capacity/cohort evidence sufficient for a separate
+  Founder rollout decision.
+
+activation:
+  governance_amendment: GOV-AMD-001-013
+  effective_when: Founder_merges_this_sprint_artifact
+  delegate:
+    role: ROLE-WORKER
+    instance: implementation-worker
+  approved_tickets: [UNI2-01, UNI2-02]
+  auto_merge: enabled_for_qualifying_implementation_PRs
+  expires_on:
+    - sprint_complete
+    - sprint_stopped
+    - Founder_revokes_delegation
+    - scope_or_authority_change
+
+architecture_invariants:
+  - strategies_remain_provider_blind
+  - universe_membership_is_data_not_runtime_logic
+  - membership_metadata_drives_generic_classification
+  - sealed_subject_knowledge_remains_authoritative
+  - canonical_facts_remain_strategy_neutral
+  - derived_facts_remain_named_versioned_and_reusable
+  - no_strategy_id_symbol_or_universe_specific_runtime_branches
+  - compute_once_remains_independent_of_strategy_count_and_order
+  - typed_non_evaluability_remains_truthful
+  - provider_free_replay_remains_green
+  - scheduler_pagination_does_not_define_strategy_semantics
+
+execution_philosophy:
+  root_cause_first: true
+  verification_before_implementation: true
+  smallest_owning_layer_correction: true
+  reversible_before_expansive: true
+  no_speculative_platform_engineering: true
+  no_strategy_policy_or_threshold_tuning: true
+  no_unrelated_cleanup: true
+
+token_efficiency:
+  initial_read_set: >
+    Read only this sprint, the assigned ticket, its direct implementation owner,
+    nearest tests, and controlling authority artifacts.
+  expansion_rule: >
+    Expand reads only after reproduced evidence identifies another owning
+    boundary. Do not perform repository-wide audits without demonstrated need.
+  test_order:
+    - smallest_reproduction_or_acceptance_probe
+    - owner_package_tests
+    - directly_related_integration_or_architecture_tests
+    - exact_main_full_validation_at_ticket_or_sprint_gate
+  reporting: >
+    One concise evidence packet per PR or verification closure. Avoid duplicate
+    reports and repeated historical summaries.
+
+tickets:
+  UNI2-01:
+    title: Complete and prove full S&P 500 traversal
+    priority: P0
+    mode: verification_first
+    target_membership_count: 503
+    objective: >
+      Prove every canonical S&P constituent is traversed by each applicable
+      production strategy and that non-evaluability is specifically classified.
+    required:
+      - account_for_all_503_canonical_members
+      - distinguish_attempted_evaluated_and_typed_non_evaluable
+      - produce_reason_distribution_per_strategy
+      - verify_no_subject_is_silently_lost
+      - verify_no_subject_preparation_failed
+      - verify_zero_runner_failures_and_incomplete_diagnostics
+      - verify_temporal_integrity
+      - verify_replay_and_strategy_modularity
+    reason_quality:
+      forward_factor:
+        - distinguish_no_valid_expiration_pair_from_data_failure
+        - distinguish_quote_chain_IV_and_forward_variance_states
+        - preserve_earnings_gate_as_strategy_gate_not_generic_missing
+      skew_momentum:
+        - distinguish_no_signal_from_missing_data
+        - preserve_typed_warmup_cross_sectional_and_sector_states
+      earnings_calendar:
+        - distinguish_no_confirmed_event_from_structure_or_data_failure
+        - preserve_scored_candidates_separately_from_non_candidates
+    implementation_rule: >
+      If current main already satisfies an acceptance item, close it by evidence.
+      Change code only for a reproduced current defect at the first incorrect
+      owning boundary.
+    acceptance:
+      - canonical_membership_accounted_for_equals_503
+      - no_silent_omissions
+      - zero_known_ASA_caused_inability_to_evaluate
+      - zero_subject_preparation_failed
+      - zero_runner_failures
+      - zero_incomplete_diagnostics
+      - no_large_opaque_missing_data_bucket
+      - all_material_non_evaluability_has_specific_reason
+      - full_suite_green
+      - architecture_validation_green
+      - provider_free_replay_green
+
+  UNI2-02:
+    title: Russell 2000 membership and scale preflight
+    priority: P1
+    depends_on: [UNI2-01]
+    mode: preflight_only
+    objective: >
+      Establish an authoritative Russell 2000 membership dataset and measure
+      whether the existing generic scheduler/acquisition/runtime architecture can
+      support it safely before any production rollout is authorized.
+    membership_gate:
+      required_before_implementation:
+        - authoritative_source_identified
+        - source_usage_and_reproducibility_acceptable
+        - revision_identity_defined
+        - effective_date_defined
+      artifact_requirements:
+        - immutable_revision_pinned_snapshot
+        - deterministic_member_identity
+        - typed_asset_classification
+        - sector_classification_when_authoritatively_available
+        - no_manual_runtime_symbol_table
+    capacity_preflight:
+      measure:
+        - member_count
+        - expected_subjects_per_cycle
+        - provider_calls_per_subject
+        - option_chain_calls_per_subject
+        - projected_calls_per_cohort
+        - projected_full_sweep_calls
+        - runtime_and_storage_growth
+      prove:
+        - deterministic_bounded_cohorts
+        - fairness_across_full_membership
+        - no_strategy_count_multiplier
+        - no_provider_specific_strategy_logic
+        - existing_S_and_P_behavior_unchanged
+        - replay_works_without_provider_access
+    stop_conditions:
+      - provider_capacity_exceeds_current_authorized_limits
+      - source_cannot_be_reproduced_or_legally_used
+      - generic_runtime_requires_universe_specific_branching
+      - protected_architecture_contract_must_change
+    acceptance:
+      - authoritative_Russell_snapshot_exists
+      - scale_model_is_measured_not_estimated_from_guesswork
+      - bounded_cohort_plan_is_demonstrated
+      - no_Russell_specific_strategy_or_runtime_path
+      - no_S_and_P_regression
+      - exact_main_validation_green
+      - rollout_recommendation_is_READY_or_BLOCKED_with_specific_reason
+
+validation:
+  per_implementation_PR:
+    - current_reproduction_or_explicit_acceptance_gap
+    - targeted_regression
+    - owner_package_tests
+    - related_integration_tests
+    - architecture_validation_when_boundary_touched
+    - changed_scope_Ruff
+    - changed_scope_strict_mypy
+    - Lean_integrity_and_entrypoints
+    - git_diff_check
+    - repository_required_CI
+    - Worker_self_review
+    - Manager_stop_status_CLEAR
+    - no_unresolved_Architect_or_Founder_blocker
+  sprint_closure:
+    - exact_main_full_suite
+    - architecture_validation
+    - provider_free_replay
+    - strategy_plugin_modularity
+    - S_and_P_503_accounting_evidence
+    - Russell_preflight_evidence
+
+loop_breaker:
+  first_failure:
+    - reproduce_exact_failure
+    - identify_first_incorrect_owner
+    - apply_one_smallest_reversible_in_scope_root_cause_correction
+    - rerun_same_acceptance_proof
+  repeated_same_failure:
+    - stop_micro_patching
+    - restate_violated_acceptance
+    - identify_required_contract_change
+    - raise_Architect_blocker_if_protected_boundary_is_required
+  independent_work: >
+    Continue and merge other authorized work whose own gates are green.
+
+authority:
+  worker_may:
+    - implement_UNI2_01_and_UNI2_02
+    - close_acceptance_by_evidence_without_code_change
+    - make_bounded_root_cause_corrections_within_existing_contracts
+    - create_targeted_tests_and_measurement_artifacts
+    - open_PRs_and_enable_auto_merge
+    - mechanically_merge_qualifying_PRs_under_active_Amendment_013_delegation
+  worker_may_not:
+    - merge_the_activation_artifact
+    - deploy
+    - activate_Russell_2000_production_screening
+    - change_strategy_policy_thresholds_or_gates
+    - change_governance_or_risk_floor
+    - add_new_provider_or_paid_data_without_authority
+    - bypass_branch_protection
+    - silently_expand_scope
+  architect_required_when:
+    - protected_fact_derived_fact_snapshot_or_replay_contract_must_change
+    - generic_runtime_requires_new_cross_layer_ownership
+    - universe_classification_semantics_must_be_redefined
+  Founder_required_when:
+    - Russell_2000_production_activation_is_requested
+    - production_deployment_is_required
+    - new_provider_vendor_or_paid_data_is_required
+    - strategy_policy_or_threshold_changes
+    - governance_risk_floor_or_scope_expansion
+
+merge_policy:
+  activation_merge_authority: Founder_only
+  implementation_merge_authority: active_Amendment_013_delegate
+  auto_merge: enabled
+  branch_protection_bypass: prohibited
+  merge_only_when:
+    - ticket_is_enumerated
+    - dependencies_are_satisfied
+    - change_is_in_scope_and_reversible
+    - required_tests_and_CI_are_green
+    - Worker_self_review_complete
+    - Manager_stop_status_CLEAR
+    - no_unresolved_protected_boundary_blocker
+
+explicit_non_goals:
+  - Russell_2000_production_rollout
+  - strategy_threshold_or_score_tuning
+  - Forward_Factor_earnings_policy_change
+  - new_strategy_implementation
+  - ranking_or_portfolio_policy
+  - brokerage_or_execution
+  - UI_redesign
+  - provider_replacement_without_capacity_evidence
+  - broad_legacy_cleanup
+  - speculative_platform_work
+
+completion:
+  success: >
+    S&P 500 coverage is fully accounted for and trustworthy across all three
+    production strategies, and Russell 2000 is technically and operationally
+    preflighted without changing strategy semantics or introducing
+    universe-specific runtime logic.
+  next_step: >
+    Founder reviews the Russell preflight. If explicitly authorized, create a
+    separate RUSSELL-ROLLOUT sprint for canary, staged cohorts, full sweep, and
+    production proof.
