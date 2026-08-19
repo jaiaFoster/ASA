@@ -24,6 +24,7 @@ from domain import (
     ExpirationCycle,
     MarketCapability,
     OptionChain,
+    UnknownReason,
 )
 from facts.canonical_projection import CanonicalFactRequest, canonical_fact_id
 from strategies.knowledge_contracts import KnowledgeMapping
@@ -134,7 +135,9 @@ def build_forward_factor_knowledge_mapping(
         FORWARD_FACTOR, subject, snapshot_digest, parameters=selection_parameters
     )
 
-    def _compute(facts: tuple[CanonicalFact, ...]) -> tuple[DerivedFactRequest, ...]:
+    def _compute(
+        facts: tuple[CanonicalFact, ...],
+    ) -> tuple[DerivedFactRequest, ...] | UnknownReason:
         front_fact = next(item for item in facts if item.fact_id == front_fact_id)
         back_fact = next(item for item in facts if item.fact_id == back_fact_id)
         assert isinstance(front_fact.value, Decimal)
@@ -143,12 +146,17 @@ def build_forward_factor_knowledge_mapping(
             EvidenceReference(EvidenceKind.CANONICAL_FACT, front_fact.fact_id, _FACT_VERSION),
             EvidenceReference(EvidenceKind.CANONICAL_FACT, back_fact.fact_id, _FACT_VERSION),
         )
-        implied = compute_implied_forward_volatility(
-            front_fact.value,
-            back_fact.value,
-            front_cycle.days_to_expiration,
-            back_cycle.days_to_expiration,
-        )
+        try:
+            implied = compute_implied_forward_volatility(
+                front_fact.value,
+                back_fact.value,
+                front_cycle.days_to_expiration,
+                back_cycle.days_to_expiration,
+            )
+        except ValueError as exc:
+            if str(exc) != "forward variance must be positive":
+                raise
+            return UnknownReason("non_positive_forward_variance")
         result = [
             DerivedFactRequest(
                 IMPLIED_FORWARD_VOLATILITY,
