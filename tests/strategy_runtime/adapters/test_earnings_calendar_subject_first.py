@@ -34,6 +34,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
+from typing import cast
 
 import pytest
 
@@ -329,6 +330,12 @@ def _no_derived_facts(
     return ()
 
 
+def _broken_derived_facts(
+    _facts: tuple[CanonicalFact, ...]
+) -> tuple[DerivedFactRequest, ...] | UnknownReason:
+    raise RuntimeError("synthetic composition defect")
+
+
 def _synthetic_payload(
     _facts: tuple[CanonicalFact, ...], _derived: DerivedFactSet
 ) -> _SyntheticPayload:
@@ -507,8 +514,60 @@ class TestPrepareStrategyKnowledgeGenericMechanics:
         healthy: SubjectPreparationBinding[_SyntheticPayload] = SubjectPreparationBinding(
             consumer_b, _synthetic_prepare_knowledge_mapping, _synthetic_build_shadow_adapter
         )
-        registry: SubjectPreparationRegistry[object] = SubjectPreparationRegistry(
-            (("broken-strategy", broken), ("healthy-strategy", healthy))
+        registry = cast(
+            SubjectPreparationRegistry[object],
+            SubjectPreparationRegistry(
+                (("broken-strategy", broken), ("healthy-strategy", healthy))
+            ),
+        )
+        fulfillment, budgets = service(provider("primary"))
+
+        result = prepare_subject_knowledge(
+            _plan(fulfillment),
+            NOW,
+            registry,
+            subject="AAPL",
+            provider_metadata=(provider("primary").metadata,),
+            resolution_policy_by_capability=_SYNTHETIC_RESOLUTION_POLICY,
+        )
+
+        broken_result = result["broken-strategy"]
+        assert isinstance(broken_result, UnknownReason)
+        assert broken_result.code == "strategy_knowledge_construction_failed"
+        assert isinstance(result["healthy-strategy"], ReadOnlyStrategyInput)
+        assert len(budgets.accounting) == 1
+
+    def test_one_composition_failure_does_not_destroy_other_prepared_knowledge(self) -> None:
+        consumer_a = SubjectPlanConsumer(
+            "broken-strategy", (_synthetic_demand(),), lambda _evidence: DemandExpansion()
+        )
+        consumer_b = SubjectPlanConsumer(
+            "healthy-strategy", (_synthetic_demand(),), lambda _evidence: DemandExpansion()
+        )
+
+        def _broken_mapping(*_args: object) -> KnowledgeMapping[_SyntheticPayload]:
+            return KnowledgeMapping((), _broken_derived_facts, _synthetic_payload)
+
+        registry = cast(
+            SubjectPreparationRegistry[object],
+            SubjectPreparationRegistry(
+                (
+                    (
+                        "broken-strategy",
+                        SubjectPreparationBinding(
+                            consumer_a, _broken_mapping, _synthetic_build_shadow_adapter
+                        ),
+                    ),
+                    (
+                        "healthy-strategy",
+                        SubjectPreparationBinding(
+                            consumer_b,
+                            _synthetic_prepare_knowledge_mapping,
+                            _synthetic_build_shadow_adapter,
+                        ),
+                    ),
+                )
+            ),
         )
         fulfillment, budgets = service(provider("primary"))
 

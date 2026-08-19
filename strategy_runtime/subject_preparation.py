@@ -252,22 +252,22 @@ def prepare_subject_knowledge(
                 expansion.selections,
                 subject,
             )
+            if isinstance(mapping, UnknownReason):
+                prepared[strategy_id] = mapping
+                continue
+            knowledge_registry: KnowledgeCompositionRegistry[object] = (
+                KnowledgeCompositionRegistry(((strategy_id, mapping),))
+            )
+            prepared[strategy_id] = compose_strategy_knowledge(
+                plan_result.snapshot,
+                knowledge_registry,
+                strategy_id,
+                subject=subject,
+            )
         except Exception:
             # The subject snapshot is already sealed. A defect in one
-            # strategy-owned projection must not erase valid knowledge for
-            # unrelated consumers sharing that evidence boundary.
+            # strategy-owned projection or composition must not erase valid
+            # knowledge for unrelated consumers sharing that evidence boundary.
             prepared[strategy_id] = record_strategy_knowledge_failure(strategy_id, subject)
             continue
-        if isinstance(mapping, UnknownReason):
-            prepared[strategy_id] = mapping
-            continue
-        knowledge_registry: KnowledgeCompositionRegistry[object] = KnowledgeCompositionRegistry(
-            ((strategy_id, mapping),)
-        )
-        prepared[strategy_id] = compose_strategy_knowledge(
-            plan_result.snapshot,
-            knowledge_registry,
-            strategy_id,
-            subject=subject,
-        )
     return prepared
