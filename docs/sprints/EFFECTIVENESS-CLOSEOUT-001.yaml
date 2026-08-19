@@ -1,0 +1,402 @@
+---
+id: EFFECTIVENESS-CLOSEOUT-001
+name: Production Effectiveness and S&P Closeout
+version: 1.0
+status: PROPOSED_FOR_ACTIVATION
+type: IMPLEMENTATION_SPRINT
+priority: P0
+
+baseline_commit: cf8fe6fb611e9a445dfb186c9bfd914521acaa3d
+
+activation:
+  governance_amendment: GOV-AMD-001-013
+  founder_authorized: true
+  founder_direction: >
+    Finish the remaining S&P 500 production correctness work, reconcile the
+    bounded residual production issues, and leave ASA ready for Russell 2000.
+    Prefer small reversible root-cause corrections over stalled work. Auto-merge
+    qualifying implementation PRs after all required gates are green. Exhaust
+    in-scope investigation, correction, and validation before raising blockers.
+  effective_when: >
+    This sprint artifact is Founder-merged to the default branch.
+  delegate:
+    role: ROLE-WORKER
+    instance: implementation-worker
+  approved_tickets:
+    - ECL-01
+    - ECL-02
+    - ECL-03
+  expires_on:
+    - sprint_complete
+    - sprint_stopped
+    - Founder_revokes_delegation
+    - scope_or_authority_change
+
+objective: >
+  Remove the remaining demonstrated ASA-caused S&P production failure, verify
+  current production-integrity corrections, reconcile only the explicitly
+  enumerated residual issues, and prove exact-main S&P screening trustworthy
+  enough to close UNIVERSE-001 and proceed to a separately authorized
+  Russell 2000 preflight.
+
+controlling_success: >
+  Current S&P production completes with zero known ASA-caused inability to
+  evaluate, zero subject_preparation_failed caused by valid analytical edge
+  states, zero sibling-strategy failure amplification, correct typed UNKNOWN
+  behavior, current temporal integrity, provider-free replay, and strategy
+  plug-in modularity intact.
+
+architecture_invariants:
+  strategies_remain_provider_blind: true
+  sealed_subject_knowledge_remains_authoritative: true
+  canonical_facts_remain_strategy_neutral: true
+  derived_facts_have_single_reusable_owners: true
+  strategy_owned_fact_failure_cannot_destroy_valid_sibling_knowledge: true
+  cross_subject_facts_remain_generic_across_tickers_and_consumers: true
+  no_strategy_id_branches_in_generic_runtime: true
+  no_symbol_specific_runtime_branches: true
+  no_fabricated_or_default_market_facts: true
+  typed_UNKNOWN_semantics_remain_strict: true
+  compute_once_independent_of_strategy_count_and_order: true
+  provider_free_replay_remains_green: true
+  scheduler_pagination_does_not_define_analytical_semantics: true
+
+execution_philosophy:
+  goal_supremacy: >
+    Every implementation change must remove a currently demonstrated production
+    correctness blocker or directly prove one of this sprint's explicit closure
+    criteria. Do not spend sprint capacity on cleanup that does not advance the
+    S&P closeout.
+  root_cause_first: true
+  smallest_owning_layer_correction: true
+  measure_before_design: true
+  simple_before_extensible: true
+  reversible_before_expansive: true
+  no_speculative_platform_engineering: true
+  no_architecture_rewrite_without_proven_need: true
+  mainline_first: true
+
+token_efficiency:
+  initial_reads: >
+    Read only the assigned ticket, directly referenced current implementation,
+    nearest tests, and the controlling sprint/authority artifacts.
+  expansion_rule: >
+    Expand the read set only after a reproduced failure identifies another
+    owning boundary. Record the reason briefly in the PR rather than producing
+    a separate architecture report.
+  test_order:
+    - smallest_reproducing_regression
+    - owner_package_tests
+    - directly_related_integration_and_architecture_tests
+    - exact_main_full_validation_only_after_targeted_green
+  reporting: >
+    One concise PR evidence packet per correction. Do not duplicate findings
+    across reports, issues, and PR bodies unless required for closure evidence.
+
+overnight_execution:
+  auto_merge: enabled_for_qualifying_implementation_PRs
+  principle: >
+    Prefer a small reversible merged correction that satisfies all acceptance
+    and validation gates over leaving proven in-scope work unfinished.
+  worker_should:
+    - investigate_to_first_incorrect_owning_boundary
+    - implement_in_scope_root_cause_corrections_without_waiting_for_routine_review
+    - self_review_before_merge
+    - enable_auto_merge_after_required_checks_are_green
+    - continue_to_next_unblocked_ticket_after_merge
+    - fully_validate_exact_main_before_sprint_closure
+  worker_must_not:
+    - merge_with_red_or_missing_required_checks
+    - bypass_branch_protection
+    - weaken_acceptance_to_obtain_green_results
+    - silently_expand_scope
+    - redefine_strategy_policy
+    - change_governance
+    - deploy
+  blocker_behavior: >
+    Do not raise a blocker merely because the first implementation attempt is
+    inconvenient. Reproduce, identify ownership, attempt the smallest valid
+    in-scope correction, validate it, and use the loop breaker below. Raise only
+    when the required solution crosses an explicit protected boundary or cannot
+    be completed truthfully within this sprint.
+
+tickets:
+
+  ECL-01:
+    title: Contain invalid Forward Factor derived states
+    priority: P0
+    tracks:
+      - issue_345
+    objective: >
+      Correct the UDR path where non-positive implied forward variance causes
+      Forward Factor knowledge composition to throw and abort valid sibling
+      strategy preparation.
+    investigation:
+      method: >
+        Reproduce UDR at the current subject-first knowledge path and trace from
+        canonical IV evidence through derived-fact materialization to the first
+        exception boundary that escapes shared subject preparation.
+      stop_at_first_wrong_owner: true
+    required_correction:
+      - preserve_the_existing_forward_variance_formula
+      - never_abs_clamp_floor_or_fabricate_positive_forward_variance
+      - represent_the_legitimate_non_positive_domain_state_truthfully
+      - contain_strategy_owned_knowledge_failure_to_the_relevant_consumer
+      - allow_sibling_consumers_to_continue_from_valid_sealed_evidence
+    prohibited:
+      - UDR_symbol_special_case
+      - provider_retry_or_priority_change
+      - threshold_or_gate_change
+      - fabricated_volatility
+      - weakening_canonical_validation
+      - broad_exception_swallowing
+    acceptance:
+      - current_UDR_reproduction_is_red_on_baseline_and_green_on_head_where_practical
+      - Forward_Factor_returns_specific_typed_unavailable_or_equivalent_declared_state
+      - Skew_Momentum_continues_when_its_evidence_is_valid
+      - Earnings_Calendar_continues_when_its_evidence_is_valid
+      - no_subject_preparation_failed_from_this_analytical_condition
+      - no_sibling_failure_amplification
+      - unrelated_subjects_and_known_good_regressions_green
+      - provider_free_replay_green
+      - strategy_plugin_modularity_green
+    merge_rule: >
+      Auto-merge when targeted, architecture, changed-scope static checks, and
+      required CI are green and no protected-contract blocker remains.
+
+  ECL-02:
+    title: Verify current production integrity and residual defects
+    priority: P1
+    depends_on:
+      - ECL-01
+    scope:
+      - issue_246
+      - issue_247
+      - issue_245
+      - issue_236
+    objective: >
+      Verify current main against the original acceptance conditions of these
+      residual production issues. Treat verification-only closure as success.
+      Change code only when a defect reproduces on the current authoritative
+      path.
+    method:
+      - verify_current_behavior_before_reading_old_implementation_assumptions
+      - classify_each_issue_as_current_defect_resolved_or_legitimate_policy_market_outcome
+      - for_current_defect_trace_first_incorrect_owner
+      - apply_at_most_one_direct_root_cause_correction_per_distinct_reproduced_failure_before_loop_breaker
+    issue_rules:
+      issue_246:
+        required_proof:
+          - consecutive_due_cycles_do_not_silently_starve_expected_work
+          - current_attempt_state_advances_or_records_specific_non_advance_reason
+        no_redesign_if_current_behavior_is_green: true
+      issue_247:
+        required_proof:
+          - no_fixed_historical_lookback_leaks_into_current_freshness
+          - stale_or_overdue_state_cannot_silently_present_as_current_without_policy_basis
+          - exposed_temporal_values_are_coherent_with_authoritative_current_inputs
+        no_redesign_if_current_behavior_is_green: true
+      issue_245:
+        required_proof: >
+          Current Earnings acquisition/normalization either traverses the
+          previously failing path cleanly or yields a specific legitimate typed
+          upstream/policy outcome. Do not preserve the issue merely because an
+          old exact production topology is no longer naturally present.
+      issue_236:
+        required_proof: >
+          Determine only whether current expiration selection conforms to the
+          already-declared strategy policy. If yes, classify/close as legitimate
+          market-policy outcome. If implementation violates declared policy,
+          correct the selector at its owner.
+        strategy_policy_change: prohibited
+    acceptance:
+      - every_enumerated_issue_has_current_evidence_and_disposition
+      - any_code_change_has_current_reproduction_and_owner
+      - no_symbol_specific_workaround
+      - no_policy_or_threshold_change
+      - no_provider_change_without_separate_authority
+    merge_rule: >
+      Independent qualifying corrections may auto-merge after full ticket-level
+      gates. Verification-only issue closure requires no implementation PR.
+
+  ECL-03:
+    title: Reconcile authoritative backlog and close S&P roadmap
+    priority: P1
+    depends_on:
+      - ECL-01
+      - ECL-02
+    scope:
+      primary_issues:
+        - issue_250
+        - issue_261
+        - issue_268
+      explicitly_review_only:
+        - issue_147
+        - issue_162
+        - issue_242
+    objective: >
+      Make the open issue state reflect the current authoritative
+      S14R -> S16 -> XFACT -> STRAT-PROOF -> UNIVERSE architecture without
+      reimplementing superseded designs.
+    rules:
+      - close_acceptance_already_proven_by_current_architecture
+      - mark_or_close_superseded_work_when_newer_authoritative_path_replaced_it
+      - create_new_followup_only_for_a_specific_current_unmet_requirement
+      - do_not_implement_old_umbrella_descriptions_literally
+      - do_not_expand_into_ranking_execution_or_legacy_domain_cleanup
+      - administrative_reconciliation_is_not_an_excuse_for_source_refactoring
+    acceptance:
+      - primary_issues_have_explicit_current_disposition
+      - review_only_issues_are_reclassified_if_their_root_fix_is_already_current
+      - no_new_broad_architecture_umbrella_created
+      - remaining_followups_if_any_are_narrow_and_nonblocking_unless_current_evidence_proves_otherwise
+
+scope_exclusions:
+  - ADSK_or_ACN_earnings_gate_relaxation
+  - strategy_threshold_or_score_tuning
+  - new_strategy
+  - ranking_calibration
+  - expected_outcome_calibration
+  - position_sizing
+  - brokerage_or_execution
+  - Russell_2000_implementation
+  - provider_replacement_without_separate_authority
+  - new_paid_or_licensed_data_source
+  - UI_redesign
+  - speculative_cache_or_distributed_platform
+  - broad_legacy_domain_debt_cleanup
+  - Skew_sector_relative_research_unless_current_contract_proves_it_is_required_for_evaluability
+
+validation:
+  per_implementation_PR:
+    - reproduced_failure_or_explicit_current_acceptance_gap
+    - targeted_regression
+    - owner_package_tests
+    - directly_related_integration_tests
+    - architecture_validation_when_boundary_touched
+    - changed_scope_Ruff
+    - changed_scope_strict_mypy
+    - Lean_integrity_and_entrypoints
+    - git_diff_check
+    - repository_required_CI
+    - Worker_self_review
+    - Manager_stop_status_CLEAR
+    - no_unresolved_Architect_or_Founder_blocker
+  exact_main_closure:
+    - full_test_suite
+    - architecture_validation
+    - provider_free_replay
+    - strategy_plugin_modularity_regression
+    - known_good_legacy_subject_regressions
+    - staged_S_and_P_production_equivalent_cycle
+  production_closure_after_Founder_authorized_deployment:
+    - exact_deployed_SHA_matches_authorized_main
+    - real_scheduled_S_and_P_cycle
+    - zero_runner_failures
+    - zero_incomplete_attempt_diagnostics
+    - zero_known_ASA_caused_subject_preparation_failures
+    - zero_sibling_failure_amplification
+    - derived_facts_numeric_or_specific_typed_UNKNOWN_per_existing_contract
+    - current_temporal_integrity_proven
+
+loop_breaker:
+  first_failure:
+    - reproduce_exact_failure
+    - identify_first_incorrect_owning_boundary
+    - apply_one_smallest_reversible_in_scope_root_cause_correction
+    - rerun_same_acceptance_proof
+  repeated_same_acceptance_failure:
+    - stop_micro_patching
+    - restate_violated_acceptance
+    - identify_why_current_owner_contract_is_insufficient
+    - raise_Architect_blocker_if_protected_architecture_boundary_is_required
+  independent_work_rule: >
+    A blocker on one subpart does not stop independent already-authorized
+    tickets or validations from merging when their own gates are green.
+
+blockers:
+  Architect_required_when:
+    - public_or_protected_derived_fact_quality_contract_must_change
+    - sealed_subject_snapshot_meaning_must_change
+    - canonical_fact_ownership_or_identity_must_change
+    - persistence_or_replay_identity_semantics_must_change
+    - comparison_domain_semantics_must_be_redefined
+    - correct_failure_isolation_requires_new_cross_layer_authority_not_expressible_in_existing_seams
+  Founder_required_when:
+    - strategy_policy_threshold_gate_or_trade_thesis_must_change
+    - target_scope_expands_beyond_enumerated_tickets
+    - new_vendor_provider_account_or_paid_data_is_required
+    - governance_or_risk_floor_change_is_required
+    - protected_contract_redefinition_exceeds_sprint_authority
+    - Russell_2000_activation_or_implementation_is_requested
+    - production_deployment_is_required
+  Founder_blocker_policy: >
+    Founder blockers are a last resort. Before raising one, complete every
+    independent in-scope correction and validation that can truthfully merge,
+    and provide the exact remaining decision with no speculative alternatives.
+
+authority:
+  worker:
+    may:
+      - implement_enumerated_tickets
+      - perform_bounded_root_cause_corrections_within_existing_contracts
+      - add_targeted_regression_integration_and_observability_tests
+      - update_or_close_enumerated_issues_when_current_evidence_satisfies_their_acceptance
+      - open_and_update_pull_requests
+      - self_review
+      - enable_auto_merge
+      - mechanically_merge_qualifying_implementation_PRs_under_active_Amendment_013_delegation
+    may_not:
+      - merge_the_activation_artifact
+      - deploy
+      - redefine_governance
+      - change_product_or_strategy_policy
+      - expand_to_Russell_2000
+      - bypass_branch_protection
+      - lower_acceptance_or_risk_floor
+  architect:
+    may:
+      - decide_architecture_interfaces_ownership_invariants_and_technical_acceptance
+      - review_raised_architecture_blockers
+    may_not:
+      - merge
+      - deploy
+      - exercise_Founder_authority
+  manager:
+    merge: prohibited
+  Founder:
+    retains:
+      - activation_merge
+      - production_deployment_authority
+      - product_and_strategy_policy
+      - scope_expansion
+      - governance_and_risk_floor_authority
+
+merge_policy:
+  activation_merge_authority: Founder_only
+  implementation_merge_authority: active_Amendment_013_delegate
+  auto_merge: enabled
+  branch_protection_bypass: prohibited
+  merge_only_when:
+    - ticket_is_enumerated
+    - dependencies_are_satisfied
+    - implementation_is_within_scope
+    - required_tests_and_CI_are_green
+    - Worker_self_review_is_complete
+    - Manager_stop_status_is_CLEAR
+    - no_unresolved_protected_boundary_blocker
+    - change_is_reversible_without_data_or_contract_corruption
+
+completion:
+  exact_main_required: true
+  production_proof_required: true
+  success: >
+    S&P 500 production screening is trustworthy at the current architecture
+    boundary, issue #345's demonstrated failure amplification is eliminated,
+    bounded residual production-integrity issues are currently resolved or
+    specifically classified, stale architecture backlog is reconciled, and no
+    known ASA-caused blocker remains to UNIVERSE-001 closure.
+  next_step: >
+    After Founder accepts the S&P production PASS and closes UNIVERSE-001,
+    prepare a separate Russell 2000 membership and scale preflight. This sprint
+    does not activate Russell 2000.
