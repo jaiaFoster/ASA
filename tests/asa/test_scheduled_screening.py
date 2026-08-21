@@ -234,6 +234,8 @@ def test_default_scheduled_cycle_uses_bounded_sp500_cohort(
     )
     assert selection.source_revision_id == 1369213082
     assert selection.subject_count == 30
+    assert subject_claims.batch_attempted_at == slot.scheduled_at
+    assert subject_claims.batch_result == (90, 0, 0)
     expanded_symbol = next(
         symbol for symbol in subject_claims.last_claimed
         if symbol not in APPROVED_LIVE_UNIVERSE
@@ -352,6 +354,8 @@ class _InMemorySubjectRefreshRepository:
         self.eligible_after: dict[str, datetime] = {}
         self.failures: dict[str, int] = {}
         self.last_claimed: tuple[str, ...] = ()
+        self.batch_attempted_at: datetime | None = None
+        self.batch_result: tuple[int, int, int] | None = None
 
     def claim_oldest(
         self,
@@ -391,6 +395,21 @@ class _InMemorySubjectRefreshRepository:
         self.failures[subject_id] = count
         delay = (5, 15, 30)[min(count - 1, 2)]
         self.eligible_after[subject_id] = completed_at + timedelta(minutes=delay)
+
+    def batch_started(self, *, attempted_at: datetime, subject_count: int) -> None:
+        self.batch_attempted_at = attempted_at
+        assert subject_count == len(self.last_claimed)
+
+    def batch_completed(
+        self,
+        *,
+        completed_at: datetime,
+        pair_count: int,
+        failure_count: int,
+        incomplete_diagnostic_count: int,
+    ) -> None:
+        del completed_at
+        self.batch_result = (pair_count, failure_count, incomplete_diagnostic_count)
 
 
 def test_subject_claims_are_never_refreshed_then_oldest_with_canonical_tie_break() -> None:

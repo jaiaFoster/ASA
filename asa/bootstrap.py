@@ -1,6 +1,6 @@
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 from fastapi import FastAPI, Request, Response
@@ -28,6 +28,7 @@ from asa.integrations.providers.deterministic_fake_broker import (
     DeterministicFakeBrokerPortfolioProvider,
 )
 from asa.integrations.providers.robinhood import RobinhoodPortfolioProvider
+from asa.integrations.refresh_schedule_postgres import PostgresSubjectRefreshRepository
 from asa.integrations.runs_postgres import PostgresRunPublicationRepository
 from asa.integrations.screening_acquisition_attempts_postgres import (
     PostgresAcquisitionAttemptRepository,
@@ -58,6 +59,7 @@ class DependencyOverrides:
     latest_result_repository: LatestResultRepository | None = None
     observation_history_repository: ObservationHistoryRepository | None = None
     acquisition_attempt_repository: AcquisitionAttemptRepository | None = None
+    screening_operational_health: Callable[[], dict[str, object]] | None = None
 
 
 def build_application(
@@ -89,6 +91,28 @@ def build_application(
     acquisition_attempt_repository = (
         selected.acquisition_attempt_repository
         or PostgresAcquisitionAttemptRepository(engine_factory(settings.database_url))
+    )
+    subject_refresh_repository = PostgresSubjectRefreshRepository(
+        engine_factory(settings.database_url)
+    )
+
+    def postgres_screening_operational_health() -> dict[str, object]:
+        health = subject_refresh_repository.operational_health(as_of=datetime.now(UTC))
+        return {
+            "last_attempted_batch_at": health.last_attempted_batch_at,
+            "last_successful_batch_at": health.last_successful_batch_at,
+            "oldest_subject_age": health.oldest_subject_age_seconds,
+            "overdue_subject_count": health.overdue_subject_count,
+            "last_batch_subject_count": health.last_batch_subject_count,
+            "last_batch_pair_count": health.last_batch_pair_count,
+            "last_batch_failure_count": health.last_batch_failure_count,
+            "last_batch_incomplete_diagnostic_count": (
+                health.last_batch_incomplete_diagnostic_count
+            ),
+        }
+
+    screening_operational_health = (
+        selected.screening_operational_health or postgres_screening_operational_health
     )
     agent_authorize = build_agent_authorizer(settings.agent_api_token)
     quote_service = MarketQuoteService(
@@ -140,6 +164,7 @@ def build_application(
             capabilities_catalog=build_migrated_signal_catalog(),
             history_repository=observation_history_repository,
             acquisition_attempt_repository=acquisition_attempt_repository,
+            operational_health=screening_operational_health,
         )
     )
     mount_ui(app)

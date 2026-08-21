@@ -37,6 +37,7 @@ from asa.api.screening_models import (
     CapabilitiesResponse,
     OpportunityHistoryResponse,
     RefreshResultResponse,
+    ScreeningOperationalHealthResponse,
     ScreeningResultResponse,
     ScreeningResultsEnvelope,
     SignalCapabilityResponse,
@@ -236,6 +237,7 @@ def build_screening_router(
     capabilities_catalog: tuple[SignalCatalogEntry, ...],
     history_repository: ObservationHistoryRepository,
     acquisition_attempt_repository: AcquisitionAttemptRepository,
+    operational_health: Callable[[], dict[str, object]],
 ) -> APIRouter:
     router = APIRouter(prefix="/api/v1", dependencies=[Depends(authorize)])
 
@@ -251,6 +253,13 @@ def build_screening_router(
                 for definition in capabilities_catalog
             ]
         )
+
+    @router.get(
+        "/screening/operations",
+        response_model=ScreeningOperationalHealthResponse,
+    )
+    def screening_operations() -> ScreeningOperationalHealthResponse:
+        return ScreeningOperationalHealthResponse.model_validate(operational_health())
 
     @router.get("/screening", response_model=ScreeningResultsEnvelope)
     def list_screening(

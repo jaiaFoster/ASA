@@ -61,7 +61,17 @@ def _client(
         build_application(
             Settings(agent_api_token=SecretStr(token) if token else None, _env_file=None),
             DependencyOverrides(
-                latest_result_repository=repository or InMemoryLatestResultRepository()
+                latest_result_repository=repository or InMemoryLatestResultRepository(),
+                screening_operational_health=lambda: {
+                    "last_attempted_batch_at": NOW,
+                    "last_successful_batch_at": NOW,
+                    "oldest_subject_age": 600,
+                    "overdue_subject_count": 473,
+                    "last_batch_subject_count": 30,
+                    "last_batch_pair_count": 90,
+                    "last_batch_failure_count": 0,
+                    "last_batch_incomplete_diagnostic_count": 0,
+                },
             ),
         )
     )
@@ -108,6 +118,26 @@ class TestCapabilities:
         response = _client().get("/api/v1/capabilities", headers=_auth())
         for item in response.json()["signals"]:
             assert item["required_capabilities"]
+
+
+class TestScreeningOperations:
+    def test_exposes_distinct_authenticated_screening_liveness(self) -> None:
+        response = _client().get("/api/v1/screening/operations", headers=_auth())
+
+        assert response.status_code == 200
+        assert response.json() == {
+            "last_attempted_batch_at": NOW.isoformat().replace("+00:00", "Z"),
+            "last_successful_batch_at": NOW.isoformat().replace("+00:00", "Z"),
+            "oldest_subject_age": 600,
+            "overdue_subject_count": 473,
+            "last_batch_subject_count": 30,
+            "last_batch_pair_count": 90,
+            "last_batch_failure_count": 0,
+            "last_batch_incomplete_diagnostic_count": 0,
+        }
+
+    def test_screening_liveness_requires_authorization(self) -> None:
+        assert _client().get("/api/v1/screening/operations").status_code == 404
 
 
 class TestListScreening:
