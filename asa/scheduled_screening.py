@@ -55,7 +55,7 @@ from asa.integrations.screening_acquisition_attempts_postgres import (
     PostgresAcquisitionAttemptRepository,
 )
 from asa.integrations.universal_screening_postgres import PostgresLatestResultRepository
-from domain import CanonicalInstrumentIdentity, UnknownReason
+from domain import CanonicalInstrumentIdentity, MarketObservation, UnknownReason
 from market_data import ReuseDecision, load_market_data_config_from_environment
 from market_data.attempts import AcquisitionAttemptRepository
 from market_data.live_transport import build_live_transport
@@ -98,7 +98,7 @@ from strategy_runtime.market_data_planning import (
 )
 from strategy_runtime.orchestration import (
     build_subject_acquisition_access,
-    prepare_subject_shadow_knowledge,
+    prepare_subject_shadow_knowledge_with_temporal,
     refresh_with_shadow,
 )
 from strategy_runtime.persistence import LatestResultRepository, ObservationHistoryRepository
@@ -507,6 +507,9 @@ def run_scheduled_refresh(
     shadow_knowledge_by_symbol: dict[
         str, dict[str, ReadOnlyStrategyInput[object] | UnknownReason]
     ] = {}
+    shadow_temporal_observations_by_symbol: dict[
+        str, dict[str, tuple[MarketObservation, ...]]
+    ] = {}
     prepared_request_count_by_symbol: dict[str, int] = {}
     for symbol in unique_symbols:
         if not (requested_signal_ids_by_symbol[symbol] & set(shadow_registry.strategy_ids())):
@@ -514,7 +517,7 @@ def run_scheduled_refresh(
         call_log_start = len(access[symbol].fulfillment.call_log)
         budget_start = len(access[symbol].budget_manager.accounting)
         try:
-            shadow_knowledge_by_symbol[symbol] = prepare_subject_shadow_knowledge(
+            prepared_subject = prepare_subject_shadow_knowledge_with_temporal(
                 acquisition_access[symbol].plan,
                 clock.now(),
                 shadow_registry,
@@ -530,6 +533,12 @@ def run_scheduled_refresh(
                         requested_signal_ids_by_symbol[symbol] & set(shadow_registry.strategy_ids())
                     )
                 ),
+            )
+            shadow_knowledge_by_symbol[symbol] = dict(
+                prepared_subject.knowledge_by_strategy
+            )
+            shadow_temporal_observations_by_symbol[symbol] = dict(
+                prepared_subject.temporal_observations_by_strategy
             )
         except Exception as failure:
             _LOGGER.warning(
@@ -576,6 +585,14 @@ def run_scheduled_refresh(
             budget_accounting_start = len(subject_access.budget_manager.accounting)
             call_log_start = len(subject_access.fulfillment.call_log)
             pair_registry = build_migrated_strategy_registry()
+
+            def _subject_first_observations(
+                symbol: str = symbol, signal_id: str = signal_id
+            ) -> tuple[MarketObservation, ...]:
+                return shadow_temporal_observations_by_symbol.get(symbol, {}).get(
+                    signal_id, ()
+                )
+
             result, shadow_diagnostic = refresh_with_shadow(
                 pair_registry,
                 resolved_repository,
@@ -583,6 +600,7 @@ def run_scheduled_refresh(
                 strategy_id=signal_id,
                 symbol=symbol,
                 observations=tuple,
+                subject_first_observations=_subject_first_observations,
                 historical_skew_repository=resolved_historical_skew_repository,
                 shadow_registry=shadow_registry,
                 shadow_knowledge_by_subject=shadow_knowledge_by_symbol.get(symbol),

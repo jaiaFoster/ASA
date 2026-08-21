@@ -77,9 +77,11 @@ from strategy_runtime.result import (
 )
 from strategy_runtime.service import refresh
 from strategy_runtime.subject_preparation import (
+    PreparedSubjectKnowledge,
     SubjectPreparationBinding,
     SubjectPreparationRegistry,
     prepare_subject_knowledge,
+    prepare_subject_knowledge_with_temporal,
 )
 from strategy_runtime.validation import validate_result
 
@@ -210,6 +212,34 @@ def prepare_subject_shadow_knowledge(
     this module never registers one itself.
     """
     return prepare_subject_knowledge(
+        plan,
+        now,
+        (
+            shadow_registry
+            if strategy_ids is None
+            else shadow_registry.restricted_to(strategy_ids)
+        ),
+        subject=subject,
+        provider_metadata=provider_metadata,
+        resolution_policy_by_capability=resolution_policy_by_capability,
+        capability_reducer_by_capability=capability_reducer_by_capability,
+    )
+
+
+def prepare_subject_shadow_knowledge_with_temporal(
+    plan: SubjectAcquisitionPlan,
+    now: datetime,
+    shadow_registry: SubjectPreparationRegistry[object],
+    *,
+    subject: str,
+    provider_metadata: tuple[ProviderMetadata, ...],
+    resolution_policy_by_capability: dict[MarketCapability, ResolutionPolicy],
+    capability_reducer_by_capability: Mapping[MarketCapability, CapabilityResultReducer]
+    | None = None,
+    strategy_ids: tuple[str, ...] | None = None,
+) -> PreparedSubjectKnowledge:
+    """Prepare knowledge and consumer-scoped evidence from one sealed snapshot."""
+    return prepare_subject_knowledge_with_temporal(
         plan,
         now,
         (
@@ -568,6 +598,7 @@ def refresh_with_shadow(
     strategy_id: str,
     symbol: str,
     observations: Callable[[], tuple[MarketObservation, ...]],
+    subject_first_observations: Callable[[], tuple[MarketObservation, ...]] = tuple,
     historical_skew_repository: HistoricalSkewRepository | None = None,
     shadow_registry: SubjectPreparationRegistry[object] | None = None,
     shadow_knowledge_by_subject: Mapping[str, ReadOnlyStrategyInput[object] | UnknownReason]
@@ -626,7 +657,7 @@ def refresh_with_shadow(
             clock,
             strategy_id=strategy_id,
             symbol=symbol,
-            observations=tuple,
+            observations=subject_first_observations,
             historical_skew_repository=None,
         )
         return result, None

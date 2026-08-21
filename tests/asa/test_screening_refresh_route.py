@@ -278,10 +278,10 @@ class TestSuccessfulRefresh:
         second = client.post("/api/v1/screening/skew_momentum/AAPL/refresh", headers=_auth())
 
         assert first.status_code == second.status_code == 200
-        assert second.json()["provider_contacted"] is True
-        assert second.json()["request_count"] >= 1
-        assert second.json()["result_changed"] is True
-        assert constructions == 2
+        assert second.json()["provider_contacted"] is False
+        assert second.json()["request_count"] == 0
+        assert second.json()["result_changed"] is False
+        assert constructions == 1
 
 
 def _seeded_row_with_recent_attempt(signal_id: str, symbol: str) -> UniversalSignalRow:

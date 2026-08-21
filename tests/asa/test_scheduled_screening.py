@@ -1372,24 +1372,25 @@ def test_ff_and_skew_results_are_unaffected_by_whether_earnings_shares_the_cycle
     strategy to the universe must never perturb an unrelated strategy's
     own result.
     """
+    import asa.scheduled_screening as scheduled_screening_module
+
+    monkeypatch.setattr(
+        scheduled_screening_module,
+        "build_shared_market_data_access",
+        build_fixture_market_data_access_factory(),
+    )
     monkeypatch.setenv("ASA_TRADIER_ENABLED", "true")
     monkeypatch.setenv("ASA_TRADIER_ACCESS_TOKEN", "sandbox-secret-token")
     repository = InMemoryLatestResultRepository()
-    expiration = (date.today() + timedelta(days=7)).isoformat()
     universe = (
         ("skew_momentum", "AAPL"),
         ("earnings_calendar", "AAPL"),
         ("skew_momentum", "MSFT"),
     )
-    responses = _complete_skew_momentum_responses(expiration) + _complete_skew_momentum_responses(
-        expiration
-    )
-
     outcomes = run_scheduled_refresh(
         universe,
         repository=repository,
         acquisition_attempt_repository=InMemoryAcquisitionAttemptRepository(),
-        transport_factory=lambda _provider_id: ScriptedTransport(responses),
     )
 
     aapl_skew = next(

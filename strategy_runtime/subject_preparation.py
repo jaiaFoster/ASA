@@ -29,7 +29,12 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Generic
 
-from domain import CanonicalReturnObservation, MarketCapability, UnknownReason
+from domain import (
+    CanonicalReturnObservation,
+    MarketCapability,
+    MarketObservation,
+    UnknownReason,
+)
 from market_data.providers import ProviderMetadata
 from market_data.resolution import ResolutionPolicy
 from market_data.snapshot import MarketSnapshot
@@ -115,6 +120,30 @@ class DuplicateSubjectPreparationBindingError(ValueError):
     """Raised when two entries register the same strategy_id in one
     SubjectPreparationRegistry.
     """
+
+
+@dataclass(frozen=True, slots=True)
+class PreparedSubjectKnowledge:
+    """Prepared outcomes plus each consumer's sealed temporal evidence."""
+
+    knowledge_entries: tuple[
+        tuple[str, ReadOnlyStrategyInput[object] | UnknownReason], ...
+    ]
+    temporal_observation_entries: tuple[
+        tuple[str, tuple[MarketObservation, ...]], ...
+    ]
+
+    @property
+    def knowledge_by_strategy(
+        self,
+    ) -> Mapping[str, ReadOnlyStrategyInput[object] | UnknownReason]:
+        return dict(self.knowledge_entries)
+
+    @property
+    def temporal_observations_by_strategy(
+        self,
+    ) -> Mapping[str, tuple[MarketObservation, ...]]:
+        return dict(self.temporal_observation_entries)
 
 
 class SubjectPreparationRegistry(Generic[TPayload]):  # noqa: UP046
@@ -208,7 +237,7 @@ def prepare_strategy_knowledge(
     )
 
 
-def prepare_subject_knowledge(
+def prepare_subject_knowledge_with_temporal(
     plan: SubjectAcquisitionPlan,
     now: datetime,
     registry: SubjectPreparationRegistry[object],
@@ -218,7 +247,7 @@ def prepare_subject_knowledge(
     resolution_policy_by_capability: dict[MarketCapability, ResolutionPolicy],
     capability_reducer_by_capability: Mapping[MarketCapability, CapabilityResultReducer]
     | None = None,
-) -> dict[str, ReadOnlyStrategyInput[object] | UnknownReason]:
+) -> PreparedSubjectKnowledge:
     """Prepare every registered consumer from one sealed subject snapshot.
 
     Demand collection and both acquisition phases run once across the whole
@@ -228,7 +257,7 @@ def prepare_subject_knowledge(
     """
     strategy_ids = registry.strategy_ids()
     if not strategy_ids:
-        return {}
+        return PreparedSubjectKnowledge((), ())
     bindings = {strategy_id: registry.binding_for(strategy_id) for strategy_id in strategy_ids}
     plan_result = run_subject_plan(
         plan,
@@ -239,8 +268,32 @@ def prepare_subject_knowledge(
         capability_reducer_by_capability=capability_reducer_by_capability,
     )
     prepared: dict[str, ReadOnlyStrategyInput[object] | UnknownReason] = {}
+    temporal_observations: dict[str, tuple[MarketObservation, ...]] = {}
+    snapshot_observation_by_id = {
+        observation.observation_id: observation
+        for observation in plan_result.snapshot.observations
+    }
     for strategy_id in strategy_ids:
         binding = bindings[strategy_id]
+        relevant_observation_ids = {
+            observation.observation_id
+            for demand_id in plan_result.demand_ids_by_consumer[binding.consumer.consumer_id]
+            for fulfillment in (plan_result.diagnostic_fulfillments[demand_id],)
+            for source in (
+                fulfillment.observations,
+                tuple(
+                    observation
+                    for attempt in fulfillment.attempts
+                    for observation in attempt.observations
+                ),
+            )
+            for observation in source
+        }
+        temporal_observations[strategy_id] = tuple(
+            snapshot_observation_by_id[observation_id]
+            for observation_id in sorted(relevant_observation_ids)
+            if observation_id in snapshot_observation_by_id
+        )
         expansion = plan_result.expansions_by_consumer[binding.consumer.consumer_id]
         if expansion.unknown_reasons:
             prepared[strategy_id] = expansion.unknown_reasons[0]
@@ -270,4 +323,30 @@ def prepare_subject_knowledge(
             # knowledge for unrelated consumers sharing that evidence boundary.
             prepared[strategy_id] = record_strategy_knowledge_failure(strategy_id, subject)
             continue
-    return prepared
+    return PreparedSubjectKnowledge(
+        tuple(sorted(prepared.items())), tuple(sorted(temporal_observations.items()))
+    )
+
+
+def prepare_subject_knowledge(
+    plan: SubjectAcquisitionPlan,
+    now: datetime,
+    registry: SubjectPreparationRegistry[object],
+    *,
+    subject: str,
+    provider_metadata: tuple[ProviderMetadata, ...],
+    resolution_policy_by_capability: dict[MarketCapability, ResolutionPolicy],
+    capability_reducer_by_capability: Mapping[MarketCapability, CapabilityResultReducer]
+    | None = None,
+) -> dict[str, ReadOnlyStrategyInput[object] | UnknownReason]:
+    """Compatibility projection for callers that need knowledge only."""
+    prepared = prepare_subject_knowledge_with_temporal(
+        plan,
+        now,
+        registry,
+        subject=subject,
+        provider_metadata=provider_metadata,
+        resolution_policy_by_capability=resolution_policy_by_capability,
+        capability_reducer_by_capability=capability_reducer_by_capability,
+    )
+    return dict(prepared.knowledge_by_strategy)
