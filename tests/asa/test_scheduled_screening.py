@@ -212,12 +212,14 @@ def test_default_scheduled_cycle_uses_bounded_sp500_cohort(
     caplog.set_level(logging.INFO)
     slot = SessionRefreshSchedule().slots_for(date(2026, 8, 17))[0]
     repository = InMemoryLatestResultRepository()
+    subject_claims = _InMemorySubjectRefreshRepository()
     outcomes = run_scheduled_refresh(
         repository=repository,
         history_repository=InMemoryObservationHistoryRepository(),
         acquisition_attempt_repository=InMemoryAcquisitionAttemptRepository(),
         historical_skew_repository=_RecordingHistoricalSkewRepository(),
         claim_repository=_SingleUseClaimRepository(),
+        subject_refresh_repository=subject_claims,
         enforce_schedule=True,
         now=slot.scheduled_at,
     )
@@ -228,14 +230,12 @@ def test_default_scheduled_cycle_uses_bounded_sp500_cohort(
     selection = next(
         record
         for record in caplog.records
-        if record.message == "scheduled_universe_cohort_selected"
+        if record.message == "scheduled_oldest_subjects_selected"
     )
     assert selection.source_revision_id == 1369213082
-    assert selection.cohort_count == 17
     assert selection.subject_count == 30
     expanded_symbol = next(
-        symbol
-        for _strategy_id, symbol in scheduled_sp500_universe(slot)
+        symbol for symbol in subject_claims.last_claimed
         if symbol not in APPROVED_LIVE_UNIVERSE
     )
     skew = repository.get_one("skew_momentum", expanded_symbol)
@@ -343,6 +343,147 @@ class _SingleUseClaimRepository:
             return False
         self.claimed.add(slot_id)
         return True
+
+
+class _InMemorySubjectRefreshRepository:
+    def __init__(self) -> None:
+        self.last_completed: dict[str, datetime] = {}
+        self.claimed_until: dict[str, datetime] = {}
+        self.eligible_after: dict[str, datetime] = {}
+        self.failures: dict[str, int] = {}
+        self.last_claimed: tuple[str, ...] = ()
+
+    def claim_oldest(
+        self,
+        subject_ids: tuple[str, ...],
+        *,
+        claimed_at: datetime,
+        maximum_subjects: int,
+        lease: timedelta,
+    ) -> tuple[str, ...]:
+        eligible = (
+            subject
+            for subject in set(subject_ids)
+            if self.claimed_until.get(subject, claimed_at) <= claimed_at
+            and self.eligible_after.get(subject, claimed_at) <= claimed_at
+        )
+        self.last_claimed = tuple(
+            sorted(
+                eligible,
+                key=lambda subject: (
+                    self.last_completed.get(subject, datetime.min.replace(tzinfo=UTC)),
+                    subject,
+                ),
+            )[:maximum_subjects]
+        )
+        for subject in self.last_claimed:
+            self.claimed_until[subject] = claimed_at + lease
+        return self.last_claimed
+
+    def complete(self, subject_id: str, *, completed_at: datetime, succeeded: bool) -> None:
+        self.claimed_until.pop(subject_id, None)
+        if succeeded:
+            self.last_completed[subject_id] = completed_at
+            self.eligible_after.pop(subject_id, None)
+            self.failures[subject_id] = 0
+            return
+        count = self.failures.get(subject_id, 0) + 1
+        self.failures[subject_id] = count
+        delay = (5, 15, 30)[min(count - 1, 2)]
+        self.eligible_after[subject_id] = completed_at + timedelta(minutes=delay)
+
+
+def test_subject_claims_are_never_refreshed_then_oldest_with_canonical_tie_break() -> None:
+    claims = _InMemorySubjectRefreshRepository()
+    now = datetime(2026, 8, 21, 16, 0, tzinfo=UTC)
+    claims.last_completed = {
+        "MSFT": now - timedelta(hours=1),
+        "AAPL": now - timedelta(hours=2),
+    }
+
+    selected = claims.claim_oldest(
+        ("MSFT", "NVDA", "AAPL", "AMD"),
+        claimed_at=now,
+        maximum_subjects=3,
+        lease=timedelta(minutes=30),
+    )
+
+    assert selected == ("AMD", "NVDA", "AAPL")
+
+
+def test_subject_claim_admission_may_be_lower_than_safety_ceiling() -> None:
+    claims = _InMemorySubjectRefreshRepository()
+    selected = claims.claim_oldest(
+        ("AAPL", "MSFT", "NVDA"),
+        claimed_at=datetime(2026, 8, 21, 16, 0, tzinfo=UTC),
+        maximum_subjects=2,
+        lease=timedelta(minutes=30),
+    )
+
+    assert selected == ("AAPL", "MSFT")
+
+
+def test_subject_claims_are_disjoint_until_completion_or_lease_expiry() -> None:
+    claims = _InMemorySubjectRefreshRepository()
+    now = datetime(2026, 8, 21, 16, 0, tzinfo=UTC)
+    first = claims.claim_oldest(
+        ("AAPL", "MSFT", "NVDA"),
+        claimed_at=now,
+        maximum_subjects=2,
+        lease=timedelta(minutes=30),
+    )
+    second = claims.claim_oldest(
+        ("AAPL", "MSFT", "NVDA"),
+        claimed_at=now,
+        maximum_subjects=2,
+        lease=timedelta(minutes=30),
+    )
+
+    assert first == ("AAPL", "MSFT")
+    assert second == ("NVDA",)
+    recovered = claims.claim_oldest(
+        ("AAPL", "MSFT", "NVDA"),
+        claimed_at=now + timedelta(minutes=31),
+        maximum_subjects=2,
+        lease=timedelta(minutes=30),
+    )
+    assert recovered == ("AAPL", "MSFT")
+
+
+def test_failed_subject_backs_off_without_starving_other_stale_subjects() -> None:
+    claims = _InMemorySubjectRefreshRepository()
+    now = datetime(2026, 8, 21, 16, 0, tzinfo=UTC)
+    selected = claims.claim_oldest(
+        ("AAPL", "MSFT"),
+        claimed_at=now,
+        maximum_subjects=1,
+        lease=timedelta(minutes=30),
+    )
+    assert selected == ("AAPL",)
+    claims.complete("AAPL", completed_at=now, succeeded=False)
+
+    assert claims.claim_oldest(
+        ("AAPL", "MSFT"),
+        claimed_at=now + timedelta(minutes=1),
+        maximum_subjects=1,
+        lease=timedelta(minutes=30),
+    ) == ("MSFT",)
+
+
+def test_typed_non_evaluation_completion_advances_subject_freshness() -> None:
+    claims = _InMemorySubjectRefreshRepository()
+    now = datetime(2026, 8, 21, 16, 0, tzinfo=UTC)
+    assert claims.claim_oldest(
+        ("AAPL",),
+        claimed_at=now,
+        maximum_subjects=1,
+        lease=timedelta(minutes=30),
+    ) == ("AAPL",)
+
+    # Scheduler completion is based on infrastructure success, not verdict.
+    claims.complete("AAPL", completed_at=now + timedelta(minutes=1), succeeded=True)
+
+    assert claims.last_completed["AAPL"] == now + timedelta(minutes=1)
 
 
 def test_duplicate_cron_delivery_executes_slot_once(
