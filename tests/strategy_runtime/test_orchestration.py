@@ -41,6 +41,7 @@ from domain import (
     CanonicalFact,
     CapabilityDemand,
     DemandExpansion,
+    FreshnessStatus,
     MarketCapability,
     MarketObservation,
     UnknownReason,
@@ -81,6 +82,7 @@ from strategy_runtime.orchestration import (
     _observations_relevant_to,
     build_subject_acquisition_access,
     prepare_subject_shadow_knowledge,
+    prepare_subject_shadow_knowledge_with_temporal,
     refresh_with_shadow,
     touched_observations,
 )
@@ -250,6 +252,29 @@ def _fake_observation(
         MarketObservation,
         SimpleNamespace(
             capability=capability, effective_time=effective_time, observation_id=observation_id
+        ),
+    )
+
+
+def _temporal_observation(
+    *,
+    capability: MarketCapability = MarketCapability.REAL_TIME_QUOTE_V1,
+    effective_time: datetime = NOW,
+    observation_id: str = "temporal-observation",
+) -> MarketObservation:
+    return cast(
+        MarketObservation,
+        SimpleNamespace(
+            capability=capability,
+            effective_time=effective_time,
+            recorded_time=NOW,
+            observation_id=observation_id,
+            freshness=SimpleNamespace(
+                status=FreshnessStatus.FRESH,
+                age_seconds=max(0, int((NOW - effective_time).total_seconds())),
+            ),
+            subject=SimpleNamespace(subject_identity="AAPL"),
+            provenance=SimpleNamespace(provider_id="fixture"),
         ),
     )
 
@@ -485,6 +510,44 @@ class TestPrepareSubjectShadowKnowledge:
         assert entry.payload.marker == "ok"
         # One bootstrap demand, resolved once -- proves this ran through
         # the real plan/fulfillment, not a stub.
+        assert len(budgets.accounting) == 1
+
+    def test_temporal_variant_returns_consumer_scoped_sealed_evidence(self) -> None:
+        consumer = SubjectPlanConsumer(
+            _SYNTHETIC_STRATEGY_ID,
+            (_synthetic_demand(),),
+            lambda _evidence: DemandExpansion(),
+        )
+        binding: SubjectPreparationBinding[object] = SubjectPreparationBinding(
+            consumer=consumer,
+            prepare_knowledge_mapping=_synthetic_prepare_knowledge_mapping,
+            build_shadow_adapter=lambda _knowledge: _shadow_adapter_matching_legacy(
+                _knowledge
+            ),
+        )
+        registry: SubjectPreparationRegistry[object] = SubjectPreparationRegistry(
+            ((_SYNTHETIC_STRATEGY_ID, binding),)
+        )
+        fulfillment, budgets = service(provider("primary"))
+
+        prepared = prepare_subject_shadow_knowledge_with_temporal(
+            _plan(fulfillment),
+            NOW,
+            registry,
+            subject="AAPL",
+            provider_metadata=(provider("primary").metadata,),
+            resolution_policy_by_capability=_SYNTHETIC_RESOLUTION_POLICY,
+        )
+
+        observations = prepared.temporal_observations_by_strategy[
+            _SYNTHETIC_STRATEGY_ID
+        ]
+        assert isinstance(
+            prepared.knowledge_by_strategy[_SYNTHETIC_STRATEGY_ID],
+            ReadOnlyStrategyInput,
+        )
+        assert len(observations) == 1
+        assert observations[0].capability is CAPABILITY
         assert len(budgets.accounting) == 1
 
     def test_fourth_strategy_plugin_shares_snapshot_request_and_generic_runtime(self) -> None:
@@ -1041,7 +1104,7 @@ class TestCutoverDispatch:
         assert persisted is not None
         assert persisted.to_result().verdict == result.verdict == "WATCH"
 
-    def test_cutover_authoritative_path_never_calls_the_observations_callback(self) -> None:
+    def test_cutover_authoritative_path_uses_sealed_temporal_evidence_only(self) -> None:
         """The cutover-authoritative path performs zero acquisition of its
         own -- proven directly by supplying an observations callback that
         fails the test if it is ever invoked, rather than asserting on a
@@ -1064,13 +1127,16 @@ class TestCutoverDispatch:
             strategy_id=_SYNTHETIC_STRATEGY_ID,
             symbol="AAPL",
             observations=_observations,
+            subject_first_observations=lambda: (_temporal_observation(),),
             shadow_registry=shadow_registry,
             shadow_knowledge_by_subject=knowledge,
             cutover_policy=cutover_policy,
             now=NOW,
         )
 
-        assert result.temporal is None
+        assert result.temporal is not None
+        assert result.temporal.observed_at == NOW
+        assert result.temporal.usability_status == "usable"
 
     def test_unknown_reason_under_cutover_yields_missing_data_never_legacy_execution(
         self,

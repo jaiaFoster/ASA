@@ -142,7 +142,7 @@ class ScreeningResultResponse(TimestampedResource):
     next_refresh_at: datetime | None = None
     data_advanced_on_last_refresh: bool = False
     freshness_status: str = "unknown"
-    usability_status: str = "rejected"
+    usability_status: str = "unknown"
     usability_reason: str = "temporal metadata unavailable"
     warning_codes: list[str] = Field(default_factory=list)
     acquisition_started_at: datetime
@@ -256,7 +256,7 @@ class ScreeningResultResponse(TimestampedResource):
             ),
             freshness_status=freshness_status,
             usability_status=(
-                temporal.usability_status if temporal is not None else "rejected"
+                temporal.usability_status if temporal is not None else "unknown"
             ),
             usability_reason=(
                 temporal.usability_reason

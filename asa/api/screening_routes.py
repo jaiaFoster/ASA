@@ -41,7 +41,7 @@ from asa.api.screening_models import (
     ScreeningResultsEnvelope,
     SignalCapabilityResponse,
 )
-from domain import UnknownReason
+from domain import MarketObservation, UnknownReason
 from market_data import load_market_data_config_from_environment
 from market_data.attempts import AcquisitionAttemptRepository
 from market_data.live_transport import build_live_transport
@@ -68,7 +68,7 @@ from strategy_runtime.market_data_planning import (
 )
 from strategy_runtime.orchestration import (
     build_subject_acquisition_access,
-    prepare_subject_shadow_knowledge,
+    prepare_subject_shadow_knowledge_with_temporal,
     refresh_with_shadow,
 )
 from strategy_runtime.persistence import (
@@ -416,9 +416,12 @@ def build_screening_router(
         shadow_knowledge_by_subject: (
             dict[str, ReadOnlyStrategyInput[object] | UnknownReason] | None
         ) = None
+        shadow_temporal_observations_by_strategy: dict[
+            str, tuple[MarketObservation, ...]
+        ] = {}
         if signal in shadow_registry.strategy_ids():
             try:
-                shadow_knowledge_by_subject = prepare_subject_shadow_knowledge(
+                prepared_subject = prepare_subject_shadow_knowledge_with_temporal(
                     acquisition.plan,
                     clock.now(),
                     shadow_registry,
@@ -429,6 +432,12 @@ def build_screening_router(
                     ),
                     capability_reducer_by_capability=migrated_shadow_capability_reducers(),
                     strategy_ids=(signal,),
+                )
+                shadow_knowledge_by_subject = dict(
+                    prepared_subject.knowledge_by_strategy
+                )
+                shadow_temporal_observations_by_strategy = dict(
+                    prepared_subject.temporal_observations_by_strategy
                 )
             except Exception as failure:
                 _LOGGER.warning(
@@ -449,6 +458,9 @@ def build_screening_router(
                 strategy_id=signal,
                 symbol=symbol,
                 observations=tuple,
+                subject_first_observations=lambda: shadow_temporal_observations_by_strategy.get(
+                    signal, ()
+                ),
                 shadow_registry=shadow_registry,
                 shadow_knowledge_by_subject=shadow_knowledge_by_subject,
                 cutover_policy=cutover_policy,
