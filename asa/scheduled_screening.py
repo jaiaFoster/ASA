@@ -295,6 +295,17 @@ class SubjectRefreshRepository(Protocol):
 
     def complete(self, subject_id: str, *, completed_at: datetime, succeeded: bool) -> None: ...
 
+    def batch_started(self, *, attempted_at: datetime, subject_count: int) -> None: ...
+
+    def batch_completed(
+        self,
+        *,
+        completed_at: datetime,
+        pair_count: int,
+        failure_count: int,
+        incomplete_diagnostic_count: int,
+    ) -> None: ...
+
 
 def run_scheduled_refresh(
     universe: tuple[tuple[str, str], ...] | None = None,
@@ -368,6 +379,9 @@ def run_scheduled_refresh(
             )
             if not claimed_symbols:
                 return ()
+            resolved_subject_repository.batch_started(
+                attempted_at=run_at, subject_count=len(claimed_symbols)
+            )
             resolved_universe = tuple(
                 (strategy_id, symbol)
                 for symbol in claimed_symbols
@@ -745,6 +759,14 @@ def run_scheduled_refresh(
                 succeeded=bool(subject_outcomes)
                 and all(item.error is None for item in subject_outcomes),
             )
+        resolved_subject_repository.batch_completed(
+            completed_at=completed_at,
+            pair_count=len(outcomes),
+            failure_count=sum(item.error is not None for item in outcomes),
+            incomplete_diagnostic_count=sum(
+                not item.attempts_recorded for item in outcomes
+            ),
+        )
     return tuple(outcomes)
 
 

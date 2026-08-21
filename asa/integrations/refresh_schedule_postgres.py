@@ -3,9 +3,22 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 
 from sqlalchemy import Engine, text
+
+
+@dataclass(frozen=True, slots=True)
+class ScreeningOperationalHealth:
+    last_attempted_batch_at: datetime | None
+    last_successful_batch_at: datetime | None
+    oldest_subject_age_seconds: int | None
+    overdue_subject_count: int
+    last_batch_subject_count: int
+    last_batch_pair_count: int
+    last_batch_failure_count: int
+    last_batch_incomplete_diagnostic_count: int
 
 
 class PostgresRefreshScheduleClaimRepository:
@@ -115,3 +128,95 @@ class PostgresSubjectRefreshRepository:
                 """),
                 {"subject_id": subject_id, "completed_at": completed_at},
             )
+
+    def batch_started(self, *, attempted_at: datetime, subject_count: int) -> None:
+        with self._engine.begin() as connection:
+            connection.execute(
+                text("""
+                    UPDATE screening_operational_state
+                    SET last_attempted_batch_at = :attempted_at,
+                        last_batch_subject_count = :subject_count,
+                        last_batch_pair_count = 0,
+                        last_batch_failure_count = 0,
+                        last_batch_incomplete_diagnostic_count = 0
+                    WHERE singleton_id = 1
+                """),
+                {"attempted_at": attempted_at, "subject_count": subject_count},
+            )
+
+    def batch_completed(
+        self,
+        *,
+        completed_at: datetime,
+        pair_count: int,
+        failure_count: int,
+        incomplete_diagnostic_count: int,
+    ) -> None:
+        with self._engine.begin() as connection:
+            connection.execute(
+                text("""
+                    UPDATE screening_operational_state
+                    SET last_successful_batch_at = CASE
+                            WHEN :failure_count = 0 AND :incomplete_count = 0
+                                THEN :completed_at
+                            ELSE last_successful_batch_at
+                        END,
+                        last_batch_pair_count = :pair_count,
+                        last_batch_failure_count = :failure_count,
+                        last_batch_incomplete_diagnostic_count = :incomplete_count
+                    WHERE singleton_id = 1
+                """),
+                {
+                    "completed_at": completed_at,
+                    "pair_count": pair_count,
+                    "failure_count": failure_count,
+                    "incomplete_count": incomplete_diagnostic_count,
+                },
+            )
+
+    def operational_health(self, *, as_of: datetime) -> ScreeningOperationalHealth:
+        with self._engine.connect() as connection:
+            row = connection.execute(
+                text("""
+                    SELECT
+                        operational.last_attempted_batch_at,
+                        operational.last_successful_batch_at,
+                        CASE
+                            WHEN COUNT(subject.subject_id) FILTER (
+                                WHERE subject.last_completed_at IS NULL
+                            ) > 0 THEN NULL
+                            ELSE GREATEST(
+                                0,
+                                EXTRACT(EPOCH FROM (
+                                    :as_of - MIN(subject.last_completed_at)
+                                ))::bigint
+                            )
+                        END AS oldest_subject_age_seconds,
+                        COUNT(subject.subject_id) FILTER (
+                            WHERE subject.last_completed_at IS NULL
+                               OR operational.last_successful_batch_at IS NULL
+                               OR subject.last_completed_at < operational.last_successful_batch_at
+                        ) AS overdue_subject_count,
+                        operational.last_batch_subject_count,
+                        operational.last_batch_pair_count,
+                        operational.last_batch_failure_count,
+                        operational.last_batch_incomplete_diagnostic_count
+                    FROM screening_operational_state AS operational
+                    LEFT JOIN screening_subject_refresh_state AS subject ON TRUE
+                    WHERE operational.singleton_id = 1
+                    GROUP BY operational.singleton_id
+                """),
+                {"as_of": as_of},
+            ).mappings().one()
+        return ScreeningOperationalHealth(
+            last_attempted_batch_at=row["last_attempted_batch_at"],
+            last_successful_batch_at=row["last_successful_batch_at"],
+            oldest_subject_age_seconds=row["oldest_subject_age_seconds"],
+            overdue_subject_count=row["overdue_subject_count"],
+            last_batch_subject_count=row["last_batch_subject_count"],
+            last_batch_pair_count=row["last_batch_pair_count"],
+            last_batch_failure_count=row["last_batch_failure_count"],
+            last_batch_incomplete_diagnostic_count=row[
+                "last_batch_incomplete_diagnostic_count"
+            ],
+        )

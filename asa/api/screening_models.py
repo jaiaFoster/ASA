@@ -100,6 +100,17 @@ class CapabilitiesResponse(BaseModel):
     signals: list[SignalCapabilityResponse]
 
 
+class ScreeningOperationalHealthResponse(BaseModel):
+    last_attempted_batch_at: datetime | None
+    last_successful_batch_at: datetime | None
+    oldest_subject_age: int | None
+    overdue_subject_count: int
+    last_batch_subject_count: int
+    last_batch_pair_count: int
+    last_batch_failure_count: int
+    last_batch_incomplete_diagnostic_count: int
+
+
 class ScreeningResultResponse(TimestampedResource):
     signal_id: str
     signal_version: str
