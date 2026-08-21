@@ -1,0 +1,191 @@
+---
+id: UNI2-TEMP-01
+title: Restore temporal metadata on authoritative subject-first results
+version: 1.0-final
+status: PROPOSED_FOR_ACTIVATION
+priority: P0
+parent_sprint: UNIVERSE-002
+parent_ticket: UNI2-01
+
+baseline:
+  main_sha: 1d6dc55b09c43ce9f37febc5d71f7529a80f72fa
+  root_cause_confidence: high
+
+authority:
+  governance_amendment: GOV-AMD-001-013
+  scope: bounded_UNI2_01_temporal_integrity_corrective
+  delegate: {role: ROLE-WORKER, instance: implementation-worker}
+  auto_merge: enabled_for_qualifying_PRs
+  worker_may:
+    - reproduce_and_fix_within_existing_contracts
+    - add_targeted_temporal_persistence_and_API_regressions
+    - open_PR_enable_auto_merge_and_mechanically_merge_when_all_gates_are_green
+  worker_may_not:
+    - change_strategy_thresholds_scores_gates_or_financial_formulas
+    - change_provider_selection_or_freshness_policy
+    - add_strategy_symbol_or_universe_specific_runtime_logic
+    - redesign_persistence_schema_without_new_evidence
+    - activate_Russell_2000
+    - deploy
+    - bypass_branch_protection
+
+symptom_and_root_cause:
+  symptom: >
+    Public screening rows report usability_status=rejected with reason
+    "temporal metadata unavailable" across subject-first production results,
+    while the same rows may still expose observed_at-derived freshness/age.
+  confirmed_path:
+    - all_three_production_strategies_are_subject_first_authoritative
+    - authoritative_cutover_path_calls_refresh_with_empty_observations_callback
+    - empty_observations_prevent_ResultTemporalMetadata_construction
+    - Postgres_correctly_persists_temporal_None
+    - API_projects_temporal_None_as_rejected_temporal_metadata_unavailable
+  not_root_cause:
+    - provider_failure
+    - S_and_P_universe_growth
+    - persistence_round_trip_loss
+    - strategy_scoring_math
+  important_correction: >
+    The API "rejected" fallback does not prove the underlying sealed evidence
+    was itself rejected. Do not add verdict blocking based solely on that field.
+
+invariant:
+  primary: >
+    Every authoritative screening result must carry temporal metadata derived
+    from the sealed evidence required by that evaluation, independent of
+    legacy-versus-subject-first execution path.
+  ownership:
+    - one_generic_semantic_owner_for_ResultTemporalMetadata
+    - reuse_or_refactor_existing_temporal_classification_logic
+    - do_not_duplicate_freshness_or_usability_rules_in_orchestration
+  evidence_scope: >
+    Temporal inputs must correspond to the strategy's declared required
+    evidence, not every observation present in the full subject snapshot.
+  isolation:
+    - sibling_only_evidence_must_not_shift_another_strategy_temporal_state
+    - one_consumer_temporal_problem_must_not_poison_valid_sibling_results
+  prohibited:
+    - synthetic_clock_only_temporal_metadata
+    - second_provider_acquisition_for_temporal_fields
+    - downstream_score_clamp_or_verdict_suppression_patch
+    - reintroducing_acquisition_authority_into_RuntimeContext
+
+fix_boundary:
+  initial_read_set:
+    - strategy_runtime/orchestration.py
+    - strategy_runtime/service.py
+    - strategy_runtime/knowledge.py
+    - strategy_runtime/subject_preparation.py
+    - asa/api/screening_models.py
+    - asa/api/screening_routes.py
+    - asa/integrations/universal_screening_postgres.py
+    - nearest_subject_first_temporal_runtime_and_API_tests
+  token_efficiency: >
+    Start only with the files above. Expand reads only if the reproduced
+    failure identifies another owning boundary. Do not reread broad S14R or
+    UNIVERSE history unless required by a concrete contract question.
+  investigation:
+    - reproduce_subject_first_result_with_temporal_None_on_baseline
+    - identify_existing_authoritative_temporal_owner
+    - determine_smallest_generic_way_to_supply_required_sealed_evidence_to_that_owner
+    - verify_API_None_fallback_semantics_separately
+  implementation_rule: >
+    Satisfy the invariant at the first incorrect generic owner. Prefer reusing
+    or factoring the existing temporal metadata computation over creating a
+    second temporal projection system.
+  API_rule: >
+    Fix the misleading temporal=None projection only if bounded. Missing
+    temporal metadata may be unavailable/unknown, but must not be asserted as
+    rejected unless an actual temporal usability decision produced rejection.
+  explicit_non_goals:
+    - KHC_or_PCG_score_investigation
+    - Forward_Factor_earnings_policy
+    - Skew_warmup_or_sector_policy
+    - strategy_threshold_tuning
+    - provider_or_vendor_changes
+    - S_and_P_membership_logic
+    - Russell_rollout
+    - persistence_schema_redesign
+
+acceptance_and_validation:
+  red_green:
+    - regression_fails_on_baseline_subject_first_temporal_None
+    - same_regression_passes_on_head
+  functional_acceptance:
+    - Forward_Factor_subject_first_result_has_non_null_temporal_metadata
+    - Skew_Momentum_subject_first_result_has_non_null_temporal_metadata
+    - Earnings_Calendar_subject_first_result_has_non_null_temporal_metadata
+    - temporal_metadata_is_derived_from_required_sealed_evidence
+    - no_additional_provider_requests
+    - no_second_snapshot_or_materialization
+    - sibling_evidence_does_not_contaminate_temporal_state
+    - persistence_round_trip_preserves_temporal_metadata
+    - API_projects_persisted_temporal_semantics_truthfully
+    - temporal_None_is_not_falsely_asserted_as_evidence_rejected
+    - provider_free_replay_is_deterministic
+    - no_strategy_outputs_thresholds_or_formulas_change
+  test_order:
+    - smallest_subject_first_temporal_reproduction
+    - temporal_owner_unit_tests
+    - cross_strategy_subject_first_regressions
+    - Postgres_round_trip_test
+    - API_projection_test
+    - related_architecture_runtime_tests
+    - exact_main_full_validation
+  merge_gates:
+    - targeted_regressions_green
+    - owner_tests_green
+    - architecture_runtime_tests_green
+    - changed_scope_Ruff_green
+    - changed_scope_strict_mypy_green
+    - Lean_integrity_and_entrypoints_green
+    - git_diff_check_green
+    - repository_required_CI_green
+    - Worker_self_review_complete
+    - Manager_stop_status_CLEAR
+    - no_unresolved_Architect_or_Founder_blocker
+  production_proof_after_Founder_authorized_deployment:
+    - exact_deployed_SHA_matches_merged_main
+    - real_scheduled_cohort_completes
+    - zero_runner_failures
+    - zero_subject_preparation_failed
+    - zero_incomplete_diagnostics
+    - newly_written_subject_first_rows_have_non_null_temporal_metadata
+    - API_temporal_fields_match_persisted_metadata
+    - no_blanket_temporal_metadata_unavailable_population
+    - provider_request_counts_remain_within_existing_topology
+    - no_unexplained_strategy_result_distribution_change
+
+loop_breaker_and_merge_policy:
+  first_failure:
+    - reproduce_exact_failure
+    - identify_first_incorrect_owner
+    - apply_one_smallest_reversible_root_cause_correction
+    - rerun_same_acceptance_proof
+  repeated_same_failure:
+    - stop_micro_patching
+    - state_violated_invariant_and_owner_gap
+    - raise_Architect_blocker_if_protected_contract_change_is_required
+  Founder_blocker_only_if:
+    - strategy_policy_change_required
+    - scope_expansion_required
+    - new_provider_vendor_or_paid_data_required
+    - governance_or_risk_floor_change_required
+    - production_deployment_authorization_required
+  auto_merge:
+    enabled: true
+    only_when:
+      - change_is_within_ticket_scope
+      - change_is_small_and_reversible
+      - all_required_validation_is_green
+      - Worker_self_review_complete
+      - Manager_stop_status_CLEAR
+      - no_unresolved_protected_boundary_blocker
+  deployment_authority: Founder_only
+
+completion: >
+  Subject-first authoritative results carry truthful result-level temporal
+  metadata through evaluation, persistence, replay, and API projection for all
+  three production strategies. The blanket temporal-metadata-unavailable
+  artifact is eliminated without strategy, provider, or universe-specific
+  work, restoring the temporal-integrity gate required before Russell preflight.
