@@ -50,6 +50,7 @@ from asa.integrations.observation_history_postgres import PostgresObservationHis
 from asa.integrations.postgres import create_postgres_engine
 from asa.integrations.refresh_schedule_postgres import (
     PostgresRefreshScheduleClaimRepository,
+    PostgresSubjectRefreshRepository,
 )
 from asa.integrations.screening_acquisition_attempts_postgres import (
     PostgresAcquisitionAttemptRepository,
@@ -282,6 +283,19 @@ class RefreshScheduleClaimRepository(Protocol):
     def claim(self, slot_id: str, claimed_at: datetime) -> bool: ...
 
 
+class SubjectRefreshRepository(Protocol):
+    def claim_oldest(
+        self,
+        subject_ids: Sequence[str],
+        *,
+        claimed_at: datetime,
+        maximum_subjects: int,
+        lease: timedelta,
+    ) -> tuple[str, ...]: ...
+
+    def complete(self, subject_id: str, *, completed_at: datetime, succeeded: bool) -> None: ...
+
+
 def run_scheduled_refresh(
     universe: tuple[tuple[str, str], ...] | None = None,
     *,
@@ -291,6 +305,7 @@ def run_scheduled_refresh(
     historical_skew_repository: HistoricalSkewRepository | None = None,
     transport_factory: Callable[[str], object] = build_live_transport,
     claim_repository: RefreshScheduleClaimRepository | None = None,
+    subject_refresh_repository: SubjectRefreshRepository | None = None,
     enforce_schedule: bool = False,
     now: datetime | None = None,
 ) -> tuple[PairOutcome, ...]:
@@ -339,30 +354,48 @@ def run_scheduled_refresh(
         slot = SessionRefreshSchedule().due_slot(run_at)
         if slot is None:
             return ()
-        resolved_claim_repository = claim_repository or (
-            PostgresRefreshScheduleClaimRepository(create_postgres_engine(Settings().database_url))
-        )
-        if not resolved_claim_repository.claim(slot.slot_id, run_at):
-            return ()
         invocation_type = "scheduled"
         slot_id = slot.slot_id
         if universe is None:
-            cohort = scheduled_sp500_cohort(slot)
+            resolved_subject_repository = subject_refresh_repository or (
+                PostgresSubjectRefreshRepository(create_postgres_engine(Settings().database_url))
+            )
+            claimed_symbols = resolved_subject_repository.claim_oldest(
+                SP500_MEMBERSHIP.symbols,
+                claimed_at=run_at,
+                maximum_subjects=SP500_COHORT_MAXIMUM_SUBJECTS,
+                lease=timedelta(minutes=30),
+            )
+            if not claimed_symbols:
+                return ()
             resolved_universe = tuple(
                 (strategy_id, symbol)
-                for symbol in cohort.symbols
+                for symbol in claimed_symbols
                 for strategy_id in ("forward_factor", "skew_momentum", "earnings_calendar")
             )
             _LOGGER.info(
-                "scheduled_universe_cohort_selected",
+                "scheduled_oldest_subjects_selected",
                 extra={
-                    "universe_id": cohort.universe_id,
-                    "source_revision_id": cohort.source_revision_id,
-                    "cohort_ordinal": cohort.cohort_ordinal,
-                    "cohort_count": cohort.cohort_count,
-                    "subject_count": len(cohort.symbols),
+                    "universe_id": SP500_MEMBERSHIP.universe_id,
+                    "source_revision_id": SP500_MEMBERSHIP.source_revision_id,
+                    "subject_count": len(claimed_symbols),
                 },
             )
+        else:
+            # Explicit/custom scheduled scopes retain delivery idempotency.
+            # Production default scheduling uses atomic per-subject claims
+            # instead, allowing overlapping cron processes to safely advance
+            # disjoint portions of the stale backlog.
+            resolved_claim_repository = claim_repository or (
+                PostgresRefreshScheduleClaimRepository(
+                    create_postgres_engine(Settings().database_url)
+                )
+            )
+            if not resolved_claim_repository.claim(slot.slot_id, run_at):
+                return ()
+            resolved_subject_repository = None
+    else:
+        resolved_subject_repository = None
 
     universe = resolved_universe
 
@@ -699,6 +732,19 @@ def run_scheduled_refresh(
             **reuse_counts,
         },
     )
+    if resolved_subject_repository is not None:
+        completed_at = datetime.now(UTC)
+        outcomes_by_subject = {
+            symbol: tuple(item for item in outcomes if item.symbol == symbol)
+            for symbol in unique_symbols
+        }
+        for symbol, subject_outcomes in outcomes_by_subject.items():
+            resolved_subject_repository.complete(
+                symbol,
+                completed_at=completed_at,
+                succeeded=bool(subject_outcomes)
+                and all(item.error is None for item in subject_outcomes),
+            )
     return tuple(outcomes)
 
 

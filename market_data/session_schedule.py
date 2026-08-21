@@ -38,23 +38,12 @@ class SessionRefreshSchedule:
         session = self._calendar.session(session_date)
         if session is None:
             return ()
-        instants: tuple[datetime, ...]
-        if session.early_close:
-            duration = session.closes_at - session.opens_at
-            instants = (
-                session.opens_at + timedelta(minutes=10),
-                session.opens_at + duration / 3,
-                session.opens_at + duration * 2 / 3,
-                session.closes_at - timedelta(minutes=10),
-            )
-        else:
-            instants = (
-                session.opens_at + timedelta(minutes=10),
-                session.opens_at + timedelta(hours=1, minutes=30),
-                session.opens_at + timedelta(hours=3, minutes=30),
-                session.opens_at + timedelta(hours=5, minutes=30),
-                session.closes_at - timedelta(minutes=10),
-            )
+        first = session.opens_at + timedelta(minutes=10)
+        last = session.closes_at - timedelta(minutes=10)
+        instants = tuple(
+            first + timedelta(minutes=10 * offset)
+            for offset in range(int((last - first) / timedelta(minutes=10)) + 1)
+        )
         return tuple(
             ScheduledRefreshSlot(instant.astimezone(UTC), session_date, index)
             for index, instant in enumerate(instants, start=1)

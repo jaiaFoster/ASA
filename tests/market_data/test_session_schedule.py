@@ -8,17 +8,22 @@ from market_data.session_schedule import (
 )
 
 
-def test_normal_session_has_five_exchange_relative_slots() -> None:
+def test_normal_session_has_ten_minute_exchange_relative_slots() -> None:
     slots = SessionRefreshSchedule().slots_for(date(2026, 7, 27))
 
-    assert [item.scheduled_at.hour for item in slots] == [13, 15, 17, 19, 19]
-    assert [item.scheduled_at.minute for item in slots] == [40, 0, 0, 0, 50]
+    assert len(slots) == 38
+    assert slots[0].scheduled_at == datetime(2026, 7, 27, 13, 40, tzinfo=UTC)
+    assert slots[-1].scheduled_at == datetime(2026, 7, 27, 19, 50, tzinfo=UTC)
+    assert all(
+        right.scheduled_at - left.scheduled_at == timedelta(minutes=10)
+        for left, right in zip(slots, slots[1:], strict=False)
+    )
 
 
 def test_early_close_uses_actual_close_minus_ten_minutes() -> None:
     slots = SessionRefreshSchedule().slots_for(date(2026, 11, 27))
 
-    assert len(slots) == 4
+    assert len(slots) == 20
     assert slots[-1].scheduled_at == datetime(2026, 11, 27, 17, 50, tzinfo=UTC)
 
 
@@ -44,11 +49,12 @@ def test_dst_changes_utc_time_but_not_exchange_local_time() -> None:
     } == {40}
 
 
-def test_missed_run_catches_up_only_inside_twenty_minutes() -> None:
+def test_due_slot_advances_every_ten_minutes_and_stops_after_market_window() -> None:
     schedule = SessionRefreshSchedule()
 
     assert schedule.due_slot(datetime(2026, 7, 27, 13, 59, tzinfo=UTC)) is not None
-    assert schedule.due_slot(datetime(2026, 7, 27, 14, 1, tzinfo=UTC)) is None
+    assert schedule.due_slot(datetime(2026, 7, 27, 14, 1, tzinfo=UTC)) is not None
+    assert schedule.due_slot(datetime(2026, 7, 27, 20, 11, tzinfo=UTC)) is None
 
 
 def test_retry_backoff_is_bounded() -> None:
