@@ -1,0 +1,225 @@
+---
+id: SCREENING-FRESHNESS-001
+title: Oldest-first production screening freshness
+version: 1.0-final-draft
+status: PROPOSED_FOR_ACTIVATION
+priority: P0
+baseline_commit: 5ab8a24e6f48c29bedae90a0927c18c47d6cd91c
+
+objective: >
+  Replace fixed-slot cohort rotation with oldest-first subject refresh during
+  eligible market hours, while preserving provider safety and proving the
+  screening pipeline operationally fresh enough for signal use.
+
+authority:
+  activation_required: Founder
+  governance_amendment: GOV-AMD-001-013
+  activation_effect: >
+    Founder activation delegates Worker implementation/auto-merge authority
+    only for FRESH-01 and FRESH-02.
+  delegate: {role: ROLE-WORKER, instance: implementation-worker}
+  auto_merge: enabled_after_activation_for_qualifying_PRs
+  worker_may_not:
+    - deploy_without_Founder_authorization
+    - change_strategy_policy_thresholds_scores_gates_or_formulas
+    - change_provider_vendor_entitlements_or_declared_limits
+    - activate_Russell_2000
+    - change_S_and_P_membership_authority
+    - bypass_branch_protection
+
+architecture:
+  selection_owner: >
+    Modify the smallest existing scheduler/planning owner that determines
+    subject eligibility/order. Do not spread oldest-first logic across API,
+    provider, persistence, and strategy layers.
+  subject_freshness: >
+    A subject's refresh time is the last completed authoritative subject cycle
+    that persisted outcomes for all applicable strategies from one sealed
+    subject snapshot. Fresh typed non-evaluable outcomes count as completed.
+  ordering:
+    - never_refreshed_first
+    - then_oldest_subject_refresh_time_first
+    - deterministic_tie_break_by_canonical_subject_id
+  subject_scope: >
+    Schedule subjects, not strategy rows. One acquisition plan and sealed
+    snapshot must serve all applicable strategies.
+  market_hours: >
+    Exchange calendar decides whether refresh work is eligible now. It must not
+    limit production to five fixed cohorts per day.
+  capacity:
+    initial_max_subjects_per_invocation: 30
+    rule: >
+      Retain the proven 30-subject safety bound initially. The scheduler may
+      admit fewer when current provider capacity requires it. Raising above 30
+      requires measured evidence and Architect acceptance.
+    authority: >
+      Existing provider rolling-window and request-budget owners remain the
+      capacity authority. Do not create a second budget model.
+  failures: >
+    Reuse existing retry/backoff semantics where they can represent truth.
+    Failed subjects remain stale but become temporarily ineligible so they
+    cannot cause head-of-line starvation.
+  concurrency: >
+    Subject selection/claim must be atomic across separate cron processes.
+    Claimed subjects become temporarily unavailable before provider work begins;
+    abandoned claims recover after bounded expiry/backoff.
+
+invariants:
+  - provider_blind_strategies
+  - one_subject_evidence_boundary
+  - compute_once_across_strategy_count_and_order
+  - sealed_snapshot_authoritative
+  - consumer_scoped_temporal_metadata_preserved
+  - typed_non_evaluation_counts_as_completed_refresh
+  - scheduling_is_strategy_neutral
+  - no_PASS_FAIL_WATCH_priority
+  - no_strategy_symbol_or_universe_specific_scheduler_branches
+  - no_second_acquisition_for_scheduling_or_temporal_state
+  - provider_limits_never_exceeded
+  - sibling_failure_isolation
+  - provider_free_replay
+  - Russell_2000_inactive
+
+tickets:
+  - id: FRESH-01
+    title: Oldest-first bounded subject scheduler
+    goal: >
+      Make each eligible 10-minute cron invocation refresh the oldest eligible
+      subjects, up to the proven 30-subject bound and within real provider capacity.
+    acceptance:
+      - baseline_fixed_slot_multi_day_staleness_reproduced
+      - oldest_first_subject_ordering_is_deterministic
+      - never_refreshed_subjects_rank_first
+      - fresh_typed_missing_data_does_not_remain_at_queue_head
+      - one_subject_snapshot_serves_all_applicable_strategies
+      - current_provider_budget_owners_control_admission
+      - scheduler_can_select_fewer_than_30_when_capacity_requires
+      - no_more_than_30_without_measured_Architect_approved_evidence
+      - simultaneous_invocations_claim_disjoint_subject_sets
+      - abandoned_claims_become_eligible_again_after_bounded_recovery
+      - repeated_subject_failure_does_not_starve_others
+      - every_10_minute_market_hours_invocation_can_advance_backlog_when_capacity_exists
+      - outside_market_hours_is_no_op
+      - no_strategy_or_provider_policy_changes
+
+  - id: FRESH-02
+    title: Minimal screening liveness plus production proof
+    depends_on: FRESH-01
+    goal: >
+      Expose the minimum operational freshness state and prove the scheduler,
+      persistence, temporal metadata, API, and strategies end to end in production.
+    observability:
+      required:
+        - last_attempted_batch_at
+        - last_successful_batch_at
+        - oldest_subject_age
+        - overdue_subject_count
+        - last_batch_subject_count
+        - last_batch_pair_count
+        - last_batch_failure_count
+        - last_batch_incomplete_diagnostic_count
+      contract: >
+        Keep generic /health and /readiness semantics unchanged unless separately
+        approved. Add a distinct screening operational-health seam.
+    production_acceptance:
+      - exact_deployed_SHA_matches_merged_main
+      - Railway_10_minute_cron_firing_observed
+      - eligible_invocations_advance_oldest_refresh_frontier_when_capacity_exists
+      - zero_provider_limit_violations
+      - zero_duplicate_claimed_subject_work
+      - zero_runner_failures
+      - zero_subject_preparation_failed
+      - zero_incomplete_diagnostics
+      - temporal_metadata_non_null_when_required_evidence_exists
+      - API_and_persistence_temporal_semantics_match
+      - all_503_active_S_and_P_subjects_accounted_for
+      - all_1509_strategy_subject_pairs_accounted_for
+      - all_remaining_non_evaluable_rows_have_specific_typed_reasons
+      - replay_and_plugin_modularity_green
+      - no_unexplained_strategy_result_distribution_change
+
+freshness_horizon:
+  technical_output: >
+    Measure sustainable production throughput and resulting oldest/p50/p95
+    subject age under real provider limits.
+  technical_pass: >
+    Scheduler continuously reduces the oldest eligible subject age whenever
+    capacity exists, without violating provider limits or correctness invariants.
+  capacity_blocker: >
+    If provider capacity is insufficient to achieve same-session freshness,
+    report that as a typed external capacity finding, not an ASA code failure.
+  product_acceptance: >
+    Founder determines whether the measured sustainable freshness horizon is
+    sufficient for operational signal use. Worker and Architect do not invent
+    that product threshold.
+
+initial_read_set:
+  - this_sprint
+  - asa/scheduled_screening.py
+  - market_data/session_schedule.py
+  - asa/integrations/refresh_schedule_postgres.py
+  - asa/integrations/universal_screening_postgres.py
+  - screening/cycle_identity.py
+  - strategy_runtime/market_data_planning.py
+  - existing_request_budget_and_provider_rolling_window_owner
+  - nearest_scheduler_claim_capacity_and_operability_tests
+token_efficiency: >
+  Start only with the files above. Expand reads only when reproduction proves
+  another owning boundary is required. No broad strategy or historical sprint reread.
+
+validation:
+  per_PR:
+    - targeted_scheduler_tests_green
+    - atomic_claim_and_recovery_tests_green
+    - provider_capacity_tests_green
+    - subject_reuse_and_sibling_isolation_tests_green
+    - minimal_operability_tests_green_where_applicable
+    - related_architecture_runtime_tests_green
+    - changed_scope_Ruff_green
+    - changed_scope_strict_mypy_green
+    - Lean_integrity_and_entrypoints_green
+    - git_diff_check_green
+    - repository_required_CI_green
+    - Worker_self_review_complete
+    - Manager_stop_status_CLEAR
+    - no_unresolved_Architect_or_Founder_blocker
+  exact_main:
+    - full_suite_green
+    - architecture_validation_green
+    - provider_free_replay_green
+    - no_new_runner_failures_or_incomplete_diagnostics
+
+loop_breaker:
+  first_failure:
+    - reproduce
+    - identify_smallest_existing_scheduler_owner
+    - apply_one_smallest_reversible_root_cause_correction
+    - rerun_same_acceptance_proof
+  repeated_same_failure:
+    - stop_micro_patching
+    - state_violated_invariant_and_owner_gap
+    - raise_Architect_if_protected_contract_change_required
+  Founder_blocker_only_if:
+    - deployment_authorization_required
+    - provider_entitlement_or_paid_limit_change_required
+    - strategy_policy_change_required
+    - scope_expansion_required
+    - governance_or_risk_floor_change_required
+
+merge_policy:
+  auto_merge_after_activation: true
+  merge_only_when:
+    - ticket_is_FRESH_01_or_FRESH_02
+    - change_is_in_scope_small_and_reversible
+    - all_required_validation_green
+    - Worker_self_review_complete
+    - Manager_stop_status_CLEAR
+    - no_unresolved_protected_boundary_blocker
+  deployment_authority: Founder_only
+
+completion: >
+  Production screening refreshes the oldest eligible S&P subjects first on each
+  market-hours cron opportunity, remains within proven provider capacity,
+  exposes minimum screening liveness, and passes end-to-end production proof.
+  The measured freshness horizon is then presented to Founder for signal-use
+  acceptance. Russell remains inactive.
