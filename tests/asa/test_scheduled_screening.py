@@ -1459,6 +1459,60 @@ def test_production_root_prepares_all_three_strategies_from_one_subject_snapshot
     )
 
 
+def test_current_subject_refresh_persists_all_consumers_coherently(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """SP500-CORRECTNESS-001: one current snapshot advances all consumers."""
+    import asa.scheduled_screening as scheduled_screening_module
+
+    monkeypatch.setattr(
+        scheduled_screening_module,
+        "build_shared_market_data_access",
+        build_fixture_market_data_access_factory(),
+    )
+    monkeypatch.setenv("ASA_TRADIER_ENABLED", "true")
+    monkeypatch.setenv("ASA_TRADIER_ACCESS_TOKEN", "sandbox-secret-token")
+    repository = InMemoryLatestResultRepository()
+    universe = (
+        ("forward_factor", "AAPL"),
+        ("skew_momentum", "AAPL"),
+        ("earnings_calendar", "AAPL"),
+    )
+    run_scheduled_refresh(
+        universe,
+        repository=repository,
+        history_repository=InMemoryObservationHistoryRepository(),
+        acquisition_attempt_repository=InMemoryAcquisitionAttemptRepository(),
+        historical_skew_repository=_RecordingHistoricalSkewRepository(),
+    )
+    first = {row.signal_id: row for row in repository.get_all()}
+    run_scheduled_refresh(
+        universe,
+        repository=repository,
+        history_repository=InMemoryObservationHistoryRepository(),
+        acquisition_attempt_repository=InMemoryAcquisitionAttemptRepository(),
+        historical_skew_repository=_RecordingHistoricalSkewRepository(),
+    )
+    second = {row.signal_id: row for row in repository.get_all()}
+
+    assert set(second) == {item[0] for item in universe}
+    for signal_id in second:
+        assert first[signal_id].temporal is not None
+        assert second[signal_id].temporal is not None
+        assert (
+            second[signal_id].temporal.evaluated_at
+            > first[signal_id].temporal.evaluated_at
+        )
+        assert (
+            second[signal_id].temporal.persisted_at
+            == second[signal_id].temporal.evaluated_at
+        )
+        assert (
+            second[signal_id].temporal.subject_snapshot_at
+            == second[signal_id].temporal.evaluated_at
+        )
+
+
 def test_production_universe_topology_has_no_universal_preparation_failure(
     monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
 ) -> None:

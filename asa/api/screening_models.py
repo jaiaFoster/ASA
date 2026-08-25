@@ -142,6 +142,7 @@ class ScreeningResultResponse(TimestampedResource):
     structure: str | None = None
     reason_codes: list[str] = Field(default_factory=list)
     assumptions: list[str] = Field(default_factory=list)
+    subject_snapshot_at: datetime
     observed_at: datetime
     received_at: datetime
     evaluated_at: datetime
@@ -165,6 +166,9 @@ class ScreeningResultResponse(TimestampedResource):
         """Build the public response from the canonical universal result."""
         temporal = result.temporal
         observed_at = temporal.observed_at if temporal is not None else result.observed_at
+        subject_snapshot_at = (
+            temporal.subject_snapshot_at if temporal is not None else result.observed_at
+        )
         received_at = temporal.received_at if temporal is not None else result.observed_at
         evaluated_at = temporal.evaluated_at if temporal is not None else result.observed_at
         persisted_at = temporal.persisted_at if temporal is not None else result.observed_at
@@ -235,8 +239,9 @@ class ScreeningResultResponse(TimestampedResource):
             ),
             reason_codes=_decision_sequence(result, "decision.reason_codes"),
             assumptions=_decision_sequence(result, "decision.assumptions"),
-            updated_at=result.observed_at,
+            updated_at=persisted_at,
             age_seconds=canonical_age,
+            subject_snapshot_at=subject_snapshot_at,
             observed_at=observed_at,
             received_at=received_at,
             evaluated_at=evaluated_at,

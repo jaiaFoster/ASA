@@ -20,8 +20,11 @@ from strategy_runtime.service import _temporal_metadata
 EVALUATED = datetime(2026, 7, 27, 18, 0, tzinfo=UTC)
 
 
-def _temporal(*, source: datetime, evaluated: datetime) -> ResultTemporalMetadata:
+def _temporal(
+    *, source: datetime, evaluated: datetime, snapshot: datetime | None = None
+) -> ResultTemporalMetadata:
     return ResultTemporalMetadata(
+        subject_snapshot_at=snapshot or evaluated,
         observed_at=source,
         received_at=evaluated,
         evaluated_at=evaluated,
@@ -44,7 +47,11 @@ def _temporal(*, source: datetime, evaluated: datetime) -> ResultTemporalMetadat
 
 
 def _row(
-    *, observation_id: str, source: datetime, evaluated: datetime
+    *,
+    observation_id: str,
+    source: datetime,
+    evaluated: datetime,
+    snapshot: datetime | None = None,
 ) -> UniversalSignalRow:
     return UniversalSignalRow.from_result(
         UniversalScreeningResult(
@@ -65,7 +72,7 @@ def _row(
             warnings=(),
             provenance=(),
             observed_at=evaluated,
-            temporal=_temporal(source=source, evaluated=evaluated),
+            temporal=_temporal(source=source, evaluated=evaluated, snapshot=snapshot),
         )
     )
 
@@ -83,7 +90,7 @@ def test_later_same_source_evaluation_wins_even_with_lower_hash_identity() -> No
     assert should_replace_latest(later, existing) is False
 
 
-def test_later_evaluation_cannot_regress_an_older_source_observation() -> None:
+def test_current_snapshot_recomputation_is_not_vetoed_by_older_source_evidence() -> None:
     existing = _row(
         observation_id="aaa",
         source=EVALUATED,
@@ -95,7 +102,48 @@ def test_later_evaluation_cannot_regress_an_older_source_observation() -> None:
         evaluated=EVALUATED + timedelta(hours=1),
     )
 
-    assert should_replace_latest(existing, older_source) is False
+    assert should_replace_latest(existing, older_source) is True
+
+
+def test_unchanged_source_advances_evaluation_without_claiming_data_advanced() -> None:
+    source = EVALUATED - timedelta(minutes=1)
+    previous = _row(observation_id="old", source=source, evaluated=EVALUATED)
+    temporal = _temporal_metadata(
+        _registry(),
+        "alpha",
+        EVALUATED + timedelta(hours=1),
+        (
+            _observation(
+                capability=MarketCapability.REAL_TIME_QUOTE_V1,
+                effective_time=source,
+                observation_id="same",
+            ),
+        ),
+        previous=previous,
+    )
+
+    assert temporal is not None
+    assert temporal.observed_at == source
+    assert temporal.evaluated_at == EVALUATED + timedelta(hours=1)
+    assert temporal.persisted_at == temporal.evaluated_at
+    assert temporal.data_advanced_on_last_refresh is False
+
+
+def test_replayed_older_snapshot_cannot_replace_current_authoritative_evaluation() -> None:
+    existing = _row(
+        observation_id="aaa",
+        source=EVALUATED,
+        evaluated=EVALUATED,
+        snapshot=EVALUATED,
+    )
+    replay = _row(
+        observation_id="zzz",
+        source=EVALUATED - timedelta(days=1),
+        evaluated=EVALUATED + timedelta(hours=1),
+        snapshot=EVALUATED - timedelta(days=1),
+    )
+
+    assert should_replace_latest(existing, replay) is False
 
 
 def _observation(

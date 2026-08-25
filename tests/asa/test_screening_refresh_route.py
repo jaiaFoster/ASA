@@ -221,9 +221,11 @@ class TestSuccessfulRefresh:
         assert body["updated_at"] is not None
         assert body["age_seconds"] >= 0
         assert body["observed_at"] is not None
+        assert body["subject_snapshot_at"] is not None
         assert body["received_at"] is not None
         assert body["evaluated_at"] is not None
         assert body["persisted_at"] is not None
+        assert body["updated_at"] == body["persisted_at"]
         # The request completed and persisted even when strategy evidence is
         # insufficient for a verdict; temporal fields are optional then.
         assert body["market_session_status"] in {
@@ -290,6 +292,7 @@ def _seeded_row_with_recent_attempt(signal_id: str, symbol: str) -> UniversalSig
     """
     now = datetime.now(UTC)
     temporal = ResultTemporalMetadata(
+        subject_snapshot_at=now,
         observed_at=now,
         received_at=now,
         evaluated_at=now,

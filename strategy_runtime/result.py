@@ -86,6 +86,7 @@ SUCCESS_EVALUATION_STATES = frozenset({EvaluationState.PASS, EvaluationState.NO_
 class ResultTemporalMetadata:
     """Provider-neutral temporal audit data for one computed result."""
 
+    subject_snapshot_at: datetime
     observed_at: datetime
     received_at: datetime
     evaluated_at: datetime
@@ -107,6 +108,7 @@ class ResultTemporalMetadata:
 
     def __post_init__(self) -> None:
         for name in (
+            "subject_snapshot_at",
             "observed_at",
             "received_at",
             "evaluated_at",

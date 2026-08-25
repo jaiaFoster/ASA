@@ -149,6 +149,7 @@ def _temporal_metadata(
         else None
     )
     return ResultTemporalMetadata(
+        subject_snapshot_at=evaluated,
         observed_at=observed,
         received_at=received,
         evaluated_at=evaluated,

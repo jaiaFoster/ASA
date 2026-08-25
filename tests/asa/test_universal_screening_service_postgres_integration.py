@@ -160,8 +160,11 @@ def test_get_state_never_triggers_a_provider_request(
     assert first == second
 
 
-def _temporal(*, source: datetime, evaluated: datetime) -> ResultTemporalMetadata:
+def _temporal(
+    *, source: datetime, evaluated: datetime, snapshot: datetime | None = None
+) -> ResultTemporalMetadata:
     return ResultTemporalMetadata(
+        subject_snapshot_at=snapshot or evaluated,
         observed_at=source,
         received_at=evaluated,
         evaluated_at=evaluated,
@@ -184,7 +187,11 @@ def _temporal(*, source: datetime, evaluated: datetime) -> ResultTemporalMetadat
 
 
 def _signal_row(
-    *, observation_id: str, source: datetime, evaluated: datetime
+    *,
+    observation_id: str,
+    source: datetime,
+    evaluated: datetime,
+    snapshot: datetime | None = None,
 ) -> UniversalSignalRow:
     return UniversalSignalRow.from_result(
         UniversalScreeningResult(
@@ -205,7 +212,7 @@ def _signal_row(
             warnings=(),
             provenance=(),
             observed_at=evaluated,
-            temporal=_temporal(source=source, evaluated=evaluated),
+            temporal=_temporal(source=source, evaluated=evaluated, snapshot=snapshot),
         )
     )
 
@@ -240,19 +247,44 @@ def test_postgres_write_guard_matches_the_in_memory_should_replace_latest_decisi
     assert stored.observation_id == "aaa"
 
 
-def test_postgres_write_guard_rejects_an_older_source_even_with_a_higher_hash(
+def test_postgres_write_guard_accepts_current_snapshot_with_older_source_evidence(
     repository: PostgresLatestResultRepository,
 ) -> None:
-    same_evaluated = datetime(2026, 7, 27, 18, 0, tzinfo=UTC)
-    existing = _signal_row(observation_id="aaa", source=same_evaluated, evaluated=same_evaluated)
-    older_source_higher_hash = _signal_row(
-        observation_id="zzz", source=same_evaluated - timedelta(days=1), evaluated=same_evaluated
+    initial = datetime(2026, 7, 27, 18, 0, tzinfo=UTC)
+    existing = _signal_row(observation_id="aaa", source=initial, evaluated=initial)
+    current_snapshot = _signal_row(
+        observation_id="zzz",
+        source=initial - timedelta(days=1),
+        evaluated=initial + timedelta(hours=1),
     )
-    assert should_replace_latest(existing, older_source_higher_hash) is False
+    assert should_replace_latest(existing, current_snapshot) is True
 
     repository.upsert(existing)
-    repository.upsert(older_source_higher_hash)
+    repository.upsert(current_snapshot)
 
     stored = repository.get_one(STRATEGY_ID, SYMBOL)
     assert stored is not None
-    assert stored.observation_id == "aaa"  # older source never regressed the stored row
+    assert stored.observation_id == "zzz"
+
+
+def test_postgres_write_guard_rejects_replayed_older_subject_snapshot(
+    repository: PostgresLatestResultRepository,
+) -> None:
+    current = datetime(2026, 7, 27, 18, 0, tzinfo=UTC)
+    existing = _signal_row(
+        observation_id="aaa", source=current, evaluated=current, snapshot=current
+    )
+    replay = _signal_row(
+        observation_id="zzz",
+        source=current - timedelta(days=1),
+        evaluated=current + timedelta(hours=1),
+        snapshot=current - timedelta(days=1),
+    )
+    assert should_replace_latest(existing, replay) is False
+
+    repository.upsert(existing)
+    repository.upsert(replay)
+
+    stored = repository.get_one(STRATEGY_ID, SYMBOL)
+    assert stored is not None
+    assert stored.observation_id == "aaa"
