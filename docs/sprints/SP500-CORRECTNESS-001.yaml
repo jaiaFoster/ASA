@@ -1,0 +1,250 @@
+---
+id: SP500-CORRECTNESS-001
+title: Canonical refresh correctness before strategy expansion
+version: 1.0-final-draft
+status: PROPOSED_FOR_ACTIVATION
+priority: P0
+baseline_commit: ab61a46dbe8aafc9aa5b528b534ec523c91c73c5
+
+objective: >
+  Finish S&P 500 correctness before adding another real strategy. Make
+  subject refresh/canonical knowledge the authoritative update boundary so
+  every registered strategy projection is recomputed and persisted coherently
+  from the same sealed subject snapshot. Resolve or truthfully classify current
+  provider-health blockers. End at exact-main READY_FOR_PRODUCTION_PROOF;
+  production proof itself is intentionally out of scope.
+
+problem:
+  proven:
+    - oldest_first_scheduler_and_atomic_subject_claiming_work
+    - full_503_subject_traversal_worked
+    - 1509_strategy_subject_rows_and_temporal_metadata_were_produced
+    - zero_runner_preparation_and_incomplete_diagnostic_failures_in_prior_proof
+  unresolved:
+    - forward_factor_rows_advance_broadly_while_skew_and_earnings_rows_often_do_not
+    - latest_result_persistence_may_suppress_fresh_recomputation_when_source_evidence_time_does_not_advance
+    - refresh_time_source_evidence_time_and_evaluation_time_are_not_cleanly_separated
+    - Alpha_Vantage_rate_limiting_and_Finnhub_authorization_failure_remain_open_in_issue_359
+  required_invariant: >
+    Refresh is subject/canonical-knowledge owned, never strategy-cadence owned.
+    One sealed subject snapshot may contain unchanged legitimate source evidence,
+    but every applicable strategy must still receive and persist its fresh
+    evaluation from that snapshot.
+
+authority:
+  activation_required: Founder
+  governance_amendment: GOV-AMD-001-013
+  activation_effect: >
+    Founder activation delegates Worker implementation/auto-merge authority
+    only for CORR-01, CORR-02, and CORR-03.
+  delegate: {role: ROLE-WORKER, instance: implementation-worker}
+  auto_merge: enabled_after_activation_for_qualifying_PRs
+  deployment_authority: Founder_only
+  worker_may_not:
+    - deploy_or_run_production_proof_without_Founder_authorization
+    - change_strategy_thresholds_scores_gates_formulas_or_manifest_policy
+    - change_provider_vendor_entitlements_credentials_or_paid_limits
+    - change_provider_priority_or_fallback_policy_without_Architect_scope_extension
+    - activate_Russell_2000
+    - add_a_new_strategy
+    - change_S_and_P_membership_authority
+    - bypass_branch_protection
+
+architecture:
+  temporal_truth:
+    subject_snapshot_at: when_the_authoritative_subject_snapshot_was_sealed
+    source_observed_at: age_and_usability_of_underlying_market_evidence
+    evaluated_at: when_the_strategy_projection_was_recomputed
+    persisted_at: when_that_projection_was_committed
+    rule: >
+      Source evidence chronology may determine usability and whether data
+      advanced, but must not silently veto persistence of a newer valid
+      evaluation from the current authoritative subject snapshot.
+  update_boundary: >
+    Scheduler selects subjects. Generic subject planning acquires once, seals
+    one immutable snapshot, projects canonical facts, materializes registered
+    derived facts, then all applicable strategy consumers evaluate from that
+    knowledge. Strategy identity must not control refresh cadence.
+  unchanged_evidence: >
+    An unchanged earnings event, daily bar, or other legitimate evidence may
+    keep source_observed_at unchanged. The fresh evaluation still exists and
+    must be persisted; data_advanced_on_last_refresh records whether underlying
+    evidence changed.
+  persistence: >
+    Latest-result ordering must distinguish newer evaluation/snapshot state from
+    newer source evidence. No valid fresh recomputation may be silently dropped
+    solely because source_observed_at is equal to or older than the stored row.
+  canonical_scope: >
+    Prefer correction at existing subject preparation/temporal/latest-state
+    boundaries. Do not introduce strategy-specific timestamp patches or a
+    second acquisition/materialization path.
+
+invariants:
+  - one_subject_evidence_boundary
+  - one_sealed_snapshot_per_subject_cycle
+  - canonical_facts_before_derived_facts
+  - derived_facts_named_versioned_and_strategy_neutral_where_reusable
+  - all_applicable_strategies_recompute_from_same_current_subject_knowledge
+  - scheduling_and_acquisition_are_strategy_neutral
+  - unchanged_source_evidence_does_not_mean_unevaluated
+  - source_freshness_still_controls_usability_truth
+  - no_forced_now_timestamp_to_fake_market_freshness
+  - no_strategy_specific_persistence_exceptions
+  - compute_once_and_provider_reuse_preserved
+  - sibling_failure_isolation_preserved
+  - provider_free_replay_preserved
+  - Russell_2000_inactive
+
+tickets:
+  - id: CORR-01
+    title: Prove the 503/2/2 freshness divergence root cause
+    goal: >
+      Reproduce and pin the first incorrect owner before changing behavior.
+    required_evidence:
+      - compare_one_forward_factor_one_skew_and_one_earnings_subject_refresh
+      - capture_subject_refresh_last_completed_at
+      - capture_new_evaluation_observed_at_temporal_observed_at_evaluated_at_and_persisted_at
+      - capture_existing_latest_row_corresponding_times
+      - prove_whether_latest_result_upsert_accepts_or_suppresses_each_new_evaluation
+      - distinguish_API_projection_bug_from_persistence_suppression_from_preparation_failure
+    pass_condition: >
+      Root cause is demonstrated by a red baseline regression at the smallest
+      owning boundary. Do not implement speculative canonical-store redesign if
+      the current contracts can represent the required truth.
+
+  - id: CORR-02
+    title: Separate evidence freshness from evaluation persistence
+    depends_on: CORR-01
+    goal: >
+      Correct the smallest generic temporal/persistence owner so every applicable
+      strategy projection from the current sealed subject snapshot advances
+      coherently without falsifying source freshness.
+    acceptance:
+      - fresh_recomputation_can_replace_prior_row_when_source_evidence_is_unchanged
+      - source_observed_at_and_age_seconds_continue_to_describe_real_evidence
+      - evaluated_at_and_persisted_at_advance_on_recomputation
+      - data_advanced_on_last_refresh_false_when_source_evidence_did_not_advance
+      - fresh_typed_non_evaluable_result_is_persistable
+      - older_or_replayed_snapshot_cannot_overwrite_newer_authoritative_evaluation
+      - all_three_current_strategies_use_same_generic_rule
+      - no_strategy_id_branches
+      - no_extra_provider_calls
+      - no_duplicate_fact_or_derived_fact_materialization
+      - provider_free_replay_green
+      - API_updated_at_freshness_and_usability_semantics_are_explicit_and_consistent
+
+  - id: CORR-03
+    title: Provider health truth and pre-proof readiness
+    depends_on: CORR-02
+    goal: >
+      Resolve what can be resolved inside ASA and leave external provider
+      entitlement/capacity as explicit blockers rather than contaminating
+      correctness conclusions.
+    acceptance:
+      - Finnhub_authorization_failed_is_classified_as_external_account_or_config_if_reproduced
+      - Alpha_Vantage_rate_limited_is_classified_against_declared_account_capacity
+      - no_credentials_logged_committed_or_shared
+      - no_provider_priority_or_fallback_policy_changed
+      - fallback_outcomes_remain_typed_and_observable
+      - screening_operational_health_distinguishes_pipeline_progress_from_provider_degradation
+      - issue_359_is_updated_with_exact_remaining_external_action_or_closed_if_clean
+      - exact_main_is_ready_for_a_separate_multi_strategy_production_proof
+
+pre_proof_gate:
+  required_before_next_real_strategy_sprint:
+    - CORR_01_PASS
+    - CORR_02_PASS
+    - CORR_03_PASS_or_external_provider_blocker_explicitly_accepted_by_Founder
+    - exact_main_full_suite_green
+    - architecture_validation_green
+    - Ruff_green
+    - strict_mypy_changed_scope_green
+    - Lean_integrity_and_entrypoints_green
+    - repository_clean_and_synchronized
+    - no_unresolved_ASA_caused_freshness_divergence
+  expected_behavior: >
+    In deterministic/integration proof, refreshing a subject causes all three
+    registered strategies to be freshly evaluated/persisted from that subject's
+    one current snapshot even when one consumer legitimately reuses unchanged
+    historical or calendar evidence.
+  not_in_scope:
+    - production_multi_strategy_proof
+    - new_strategy_implementation
+    - strategy_execution_fit_or_broker_order_construction
+    - Russell_2000_membership_or_rollout
+    - provider_plan_purchase_or_credential_changes
+
+initial_read_set:
+  - this_sprint
+  - asa/scheduled_screening.py
+  - strategy_runtime/subject_preparation.py
+  - strategy_runtime/knowledge_composition.py
+  - strategy_runtime/orchestration.py
+  - strategy_runtime/service.py
+  - asa/integrations/universal_screening_postgres.py
+  - asa/api/screening_models.py
+  - asa/api/screening_routes.py
+  - asa/integrations/refresh_schedule_postgres.py
+  - nearest_temporal_persistence_subject_first_and_replay_tests
+token_efficiency: >
+  Start with the pinned files and one reproduced affected subject. Expand reads
+  only when a concrete owner contract requires it. No broad strategy review,
+  Russell work, or historical architecture reread.
+
+validation:
+  per_PR:
+    - red_on_baseline_green_on_head_for_exact_defect
+    - targeted_temporal_and_latest_state_tests_green
+    - subject_first_all_consumer_refresh_tests_green
+    - stale_or_replay_overwrite_protection_green
+    - provider_call_count_and_reuse_regressions_green
+    - sibling_isolation_green
+    - API_persistence_semantics_green
+    - changed_scope_Ruff_green
+    - changed_scope_strict_mypy_green
+    - Lean_integrity_and_entrypoints_green
+    - repository_required_CI_green
+    - Worker_self_review_complete
+    - Manager_stop_status_CLEAR
+    - no_unresolved_Architect_or_Founder_blocker
+  exact_main:
+    - full_suite_green
+    - architecture_validation_green
+    - provider_free_replay_green
+    - no_new_runner_failures_or_incomplete_diagnostics
+
+loop_breaker:
+  first_failure:
+    - reproduce_exactly
+    - identify_first_incorrect_generic_owner
+    - apply_one_smallest_reversible_root_cause_fix
+    - rerun_same_proof
+  repeated_same_failure:
+    - stop_micro_patching
+    - state_violated_invariant_and_owner_gap
+    - raise_Architect_if_contract_change_is_required
+  Founder_blocker_only_if:
+    - deployment_or_production_proof_authorization_required
+    - provider_entitlement_credential_or_paid_limit_change_required
+    - strategy_policy_change_required
+    - scope_expansion_required
+    - governance_or_risk_floor_change_required
+
+merge_policy:
+  auto_merge_after_activation: true
+  merge_only_when:
+    - ticket_is_CORR_01_CORR_02_or_CORR_03
+    - change_is_in_scope_small_and_reversible
+    - all_required_validation_green
+    - Worker_self_review_complete
+    - Manager_stop_status_CLEAR
+    - no_unresolved_protected_boundary_blocker
+
+completion: >
+  Exact main has no ASA-caused strategy freshness divergence: one refreshed
+  S&P subject produces coherent freshly persisted projections for all currently
+  registered strategies from one sealed canonical knowledge state, with honest
+  source-evidence freshness and no additional acquisition. Provider degradation
+  is either clean or explicitly external/typed. Sprint ends
+  READY_FOR_PRODUCTION_PROOF; the proof and any new real strategy belong to
+  subsequent Founder-authorized work.
