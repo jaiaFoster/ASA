@@ -111,10 +111,12 @@ def test_tradier_option_chain_live_run_completes_instead_of_crashing(
     """
     monkeypatch.setenv("ASA_TRADIER_ENABLED", "true")
     monkeypatch.setenv("ASA_TRADIER_ACCESS_TOKEN", "sandbox-secret-token")
+    expiration = (datetime.now(UTC) + timedelta(days=30)).date()
+    option_symbol = f"AAPL{expiration:%y%m%d}C00210000"
     option_row = {
-        "symbol": "AAPL260821C00210000",
+        "symbol": option_symbol,
         "underlying": "AAPL",
-        "expiration_date": "2026-08-21",
+        "expiration_date": expiration.isoformat(),
         "strike": "210",
         "option_type": "call",
         "bid": "4.9",
@@ -131,7 +133,9 @@ def test_tradier_option_chain_live_run_completes_instead_of_crashing(
                 "history": {
                     "day": [
                         {
-                            "date": "2026-07-20",
+                            "date": (
+                                datetime.now(UTC) - timedelta(days=1)
+                            ).date().isoformat(),
                             "open": "205.00",
                             "high": "212",
                             "low": "204",
