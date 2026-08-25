@@ -73,17 +73,29 @@ class PostgresLatestResultRepository:
                     WHERE
                         (
                             COALESCE(
-                                EXCLUDED.source_observed_at,
+                                (EXCLUDED.temporal ->> 'subject_snapshot_at')::timestamptz,
                                 EXCLUDED.observed_at
                             ),
-                            EXCLUDED.observed_at,
+                            COALESCE(
+                                (EXCLUDED.temporal ->> 'evaluated_at')::timestamptz,
+                                EXCLUDED.observed_at
+                            ),
                             EXCLUDED.observation_id
                         ) >= (
                             COALESCE(
-                                universal_screening_state.source_observed_at,
+                                (
+                                    universal_screening_state.temporal
+                                    ->> 'subject_snapshot_at'
+                                )::timestamptz,
                                 universal_screening_state.observed_at
                             ),
-                            universal_screening_state.observed_at,
+                            COALESCE(
+                                (
+                                    universal_screening_state.temporal
+                                    ->> 'evaluated_at'
+                                )::timestamptz,
+                                universal_screening_state.observed_at
+                            ),
                             universal_screening_state.observation_id
                         )
                 """),
@@ -153,6 +165,7 @@ def _to_params(row: UniversalSignalRow) -> dict[str, object]:
             if row.temporal is None
             else json.dumps(
                 {
+                    "subject_snapshot_at": row.temporal.subject_snapshot_at.isoformat(),
                     "observed_at": row.temporal.observed_at.isoformat(),
                     "received_at": row.temporal.received_at.isoformat(),
                     "evaluated_at": row.temporal.evaluated_at.isoformat(),
@@ -198,6 +211,9 @@ def _to_row(mapping: RowMapping) -> UniversalSignalRow:
         None
         if temporal_data is None
         else ResultTemporalMetadata(
+            subject_snapshot_at=datetime.fromisoformat(
+                temporal_data.get("subject_snapshot_at", temporal_data["evaluated_at"])
+            ),
             observed_at=datetime.fromisoformat(temporal_data["observed_at"]),
             received_at=datetime.fromisoformat(temporal_data["received_at"]),
             evaluated_at=datetime.fromisoformat(temporal_data["evaluated_at"]),
