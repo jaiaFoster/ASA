@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import replace
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from functools import partial
 from types import MappingProxyType
@@ -29,7 +29,11 @@ from domain import (
 from market_data.snapshot import MarketSnapshot
 from screening.context_builders import build_skew_momentum_context
 from screening.explanations import build_graph_explanation
-from screening.live_context import select_atm_strike_at_expiration, select_nearest_delta_contract
+from screening.live_context import (
+    NoContractsAtExpirationError,
+    select_atm_strike_at_expiration,
+    select_nearest_delta_contract,
+)
 from screening.subject_fact_projection import resolution_for
 from screening.subject_planning import ResolvedEvidenceView, SubjectPlanConsumer
 from strategies import (
@@ -73,6 +77,24 @@ def _spot(quote: Quote) -> Decimal:
     raise ValueError("quote has no usable spot")
 
 
+def _select_atm_strikes(
+    chain: OptionChain, expiration: date, spot: Decimal
+) -> tuple[Decimal, Decimal] | UnknownReason:
+    try:
+        call_strike = select_atm_strike_at_expiration(
+            chain, expiration, spot, OptionType.CALL
+        )
+    except NoContractsAtExpirationError:
+        return UnknownReason("no_call_contracts_at_selected_expiration")
+    try:
+        put_strike = select_atm_strike_at_expiration(
+            chain, expiration, spot, OptionType.PUT
+        )
+    except NoContractsAtExpirationError:
+        return UnknownReason("no_put_contracts_at_selected_expiration")
+    return call_strike, put_strike
+
+
 def _prepare(
     historical_repository: HistoricalSkewRepository | None,
     now: datetime,
@@ -112,8 +134,10 @@ def _prepare(
     expiration = datetime.fromisoformat(expiration_text).date()
     chain = chain_observation.value
     spot = _spot(quote_observation.value)
-    call_strike = select_atm_strike_at_expiration(chain, expiration, spot, OptionType.CALL)
-    put_strike = select_atm_strike_at_expiration(chain, expiration, spot, OptionType.PUT)
+    strikes = _select_atm_strikes(chain, expiration, spot)
+    if isinstance(strikes, UnknownReason):
+        return strikes
+    call_strike, put_strike = strikes
     call_atm = select_canonical_contract(chain, expiration, call_strike, OptionType.CALL)
     put_atm = select_canonical_contract(chain, expiration, put_strike, OptionType.PUT)
     call_wing = select_nearest_delta_contract(
