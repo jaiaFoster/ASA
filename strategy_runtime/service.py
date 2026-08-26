@@ -111,7 +111,6 @@ def _temporal_metadata(
     observations: tuple[MarketObservation, ...],
     previous: UniversalSignalRow | None,
 ) -> ResultTemporalMetadata | None:
-    evaluated = evaluated_at.astimezone(UTC)
     if not observations:
         return None
     current_observations = _current_temporal_observations(observations)
@@ -121,6 +120,12 @@ def _temporal_metadata(
     recorded_times = tuple(item.recorded_time.astimezone(UTC) for item in observations)
     observed = max(effective_times)
     received = max(recorded_times)
+    # The cycle clock is deliberately frozen for deterministic orchestration,
+    # but acquisition can finish after that cycle boundary. Temporal audit
+    # truth must never claim that a snapshot was sealed or evaluated before
+    # its last observation was received.
+    subject_snapshot_at = received
+    evaluated = max(evaluated_at.astimezone(UTC), subject_snapshot_at)
     calendar = UsEquitySessionCalendar()
     session_status = calendar.status_at(evaluated)
     session = calendar.session(evaluated.astimezone(NEW_YORK).date())
@@ -149,7 +154,7 @@ def _temporal_metadata(
         else None
     )
     return ResultTemporalMetadata(
-        subject_snapshot_at=evaluated,
+        subject_snapshot_at=subject_snapshot_at,
         observed_at=observed,
         received_at=received,
         evaluated_at=evaluated,

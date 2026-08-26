@@ -129,6 +129,26 @@ def test_unchanged_source_advances_evaluation_without_claiming_data_advanced() -
     assert temporal.data_advanced_on_last_refresh is False
 
 
+def test_snapshot_and_evaluation_never_precede_acquisition_completion() -> None:
+    cycle_started = EVALUATED
+    acquired = EVALUATED + timedelta(minutes=2)
+    observation = _observation(
+        capability=MarketCapability.REAL_TIME_QUOTE_V1,
+        effective_time=EVALUATED - timedelta(seconds=1),
+        observation_id="late-acquisition",
+    )
+    observation.recorded_time = acquired
+
+    temporal = _temporal_metadata(
+        _registry(), "alpha", cycle_started, (observation,), previous=None
+    )
+
+    assert temporal is not None
+    assert temporal.subject_snapshot_at == acquired
+    assert temporal.evaluated_at == acquired
+    assert temporal.persisted_at == acquired
+
+
 def test_replayed_older_snapshot_cannot_replace_current_authoritative_evaluation() -> None:
     existing = _row(
         observation_id="aaa",
