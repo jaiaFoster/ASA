@@ -87,6 +87,23 @@ def test_broker_provider_contract_is_read_only() -> None:
     assert operations == {"fetch_accounts", "fetch_positions"}
 
 
+def test_robinhood_identity_does_not_leak_into_generic_portfolio_owners() -> None:
+    root = Path(__file__).parents[2] / "asa"
+    inspected = (
+        root / "application" / "ports" / "brokers.py",
+        root / "application" / "portfolio_use_cases.py",
+        root / "contracts" / "portfolio.py",
+    )
+
+    violations = [
+        str(path.relative_to(root))
+        for path in inspected
+        if "robinhood" in path.read_text().lower()
+    ]
+
+    assert not violations, f"Robinhood identity leaked into generic portfolio owners: {violations}"
+
+
 def test_robinhood_adapter_calls_only_approved_read_sdk_operations() -> None:
     adapter = (
         Path(__file__).parents[2] / "asa" / "integrations" / "providers" / "robinhood.py"
@@ -100,10 +117,10 @@ def test_robinhood_adapter_calls_only_approved_read_sdk_operations() -> None:
         and node.value.id == "robinhood"
     }
     assert references == {
-            "login",
-            "load_account_profile",
-            "load_portfolio_profile",
-            "get_open_stock_positions",
+        "login",
+        "load_account_profile",
+        "load_portfolio_profile",
+        "get_open_stock_positions",
         "get_open_option_positions",
         "get_instrument_by_url",
         "get_option_instrument_data_by_id",
