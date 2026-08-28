@@ -1,5 +1,5 @@
 from dataclasses import replace
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import pytest
@@ -13,7 +13,10 @@ from asa.application.portfolio_lifecycle import (
 from asa.application.portfolio_use_cases import RunPortfolioIntelligence
 from asa.bootstrap import DependencyOverrides, build_application
 from asa.config import Settings
-from asa.contracts.portfolio_lifecycle import ReconciliationState
+from asa.contracts.portfolio_lifecycle import (
+    PositionLifecycleState,
+    ReconciliationState,
+)
 from asa.integrations.providers.deterministic_fake_broker import (
     DeterministicFakeBrokerPortfolioProvider,
 )
@@ -28,6 +31,7 @@ class MemoryLifecycleRepository:
     def __init__(self) -> None:
         self.values = {}
         self.associations = []
+        self.observations = []
 
     def add_candidate(self, candidate):
         self.values.setdefault(candidate.id, candidate)
@@ -41,6 +45,15 @@ class MemoryLifecycleRepository:
 
     def append_association(self, association):
         self.associations.append(association)
+
+    def append_lifecycle_observation(self, observation):
+        if observation not in self.observations:
+            self.observations.append(observation)
+
+    def lifecycle_observations(self, candidate_id):
+        return tuple(
+            item for item in self.observations if item.tracked_candidate_id == candidate_id
+        )
 
 
 def _row(observation_id: str = "observation-1") -> UniversalSignalRow:
@@ -85,6 +98,7 @@ def test_track_this_is_idempotent_and_bound_to_exact_latest_observation() -> Non
         "AAPL260918C00200000",
         "AAPL260918C00210000",
     )
+    assert first.evidence_observed_at == NOW
 
 
 def test_track_this_rejects_stale_or_invented_observation_identity() -> None:
@@ -187,3 +201,37 @@ def test_track_this_api_uses_exact_persisted_observation() -> None:
     assert response.status_code == 200
     assert response.json()["originating_observation_id"] == "observation-1"
     assert response.json()["opportunity_id"] == "opportunity-1"
+
+
+def test_lifecycle_observations_append_open_then_closed_with_separate_clocks() -> None:
+    results = InMemoryLatestResultRepository()
+    results.upsert(_row())
+    lifecycle = MemoryLifecycleRepository()
+    candidate = TrackCandidateService(results, lifecycle).track(
+        "earnings_calendar", "AAPL", "observation-1", NOW
+    )
+    candidate = replace(candidate, evidence_observed_at=NOW - timedelta(minutes=5))
+    lifecycle.values[candidate.id] = candidate
+    provider = DeterministicFakeBrokerPortfolioProvider()
+    open_snapshot = RunPortfolioIntelligence._normalize(
+        provider.fetch_accounts(), provider.fetch_positions()
+    )
+    service = PortfolioReconciliationService()
+
+    service.reconcile_and_record(open_snapshot, lifecycle)
+    closed_snapshot = replace(
+        open_snapshot,
+        observed_at=open_snapshot.observed_at + timedelta(hours=1),
+        option_legs=(),
+    )
+    service.reconcile_and_record(closed_snapshot, lifecycle)
+
+    observations = lifecycle.lifecycle_observations(candidate.id)
+    assert [item.state for item in observations] == [
+        PositionLifecycleState.OPEN,
+        PositionLifecycleState.CLOSED,
+    ]
+    assert observations[0].broker_observed_at == open_snapshot.observed_at
+    assert observations[0].strategy_result_observed_at == NOW
+    assert observations[0].evidence_observed_at == NOW - timedelta(minutes=5)
+    assert lifecycle.candidate(candidate.id) == candidate

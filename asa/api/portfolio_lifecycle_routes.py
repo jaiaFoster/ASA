@@ -24,6 +24,7 @@ class TrackedCandidateResponse(BaseModel):
     symbol: str
     tracked_at: datetime
     originating_observed_at: datetime
+    evidence_observed_at: datetime
     exact_option_symbols: list[str]
 
     @classmethod
@@ -37,6 +38,7 @@ class TrackedCandidateResponse(BaseModel):
             symbol=candidate.symbol,
             tracked_at=candidate.tracked_at,
             originating_observed_at=candidate.originating_observed_at,
+            evidence_observed_at=candidate.evidence_observed_at,
             exact_option_symbols=list(candidate.exact_option_symbols),
         )
 

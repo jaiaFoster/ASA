@@ -1,7 +1,11 @@
 from typing import Protocol
 from uuid import UUID
 
-from asa.contracts.portfolio_lifecycle import PositionAssociation, TrackedCandidate
+from asa.contracts.portfolio_lifecycle import (
+    PositionAssociation,
+    PositionLifecycleObservation,
+    TrackedCandidate,
+)
 
 
 class PortfolioLifecycleRepository(Protocol):
@@ -13,3 +17,8 @@ class PortfolioLifecycleRepository(Protocol):
 
     def append_association(self, association: PositionAssociation) -> None: ...
 
+    def append_lifecycle_observation(self, observation: PositionLifecycleObservation) -> None: ...
+
+    def lifecycle_observations(
+        self, candidate_id: UUID
+    ) -> tuple[PositionLifecycleObservation, ...]: ...
