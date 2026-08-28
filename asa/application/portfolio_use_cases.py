@@ -5,12 +5,14 @@ from datetime import UTC, datetime, timedelta
 from typing import TypeVar
 from uuid import UUID, uuid4
 
+from asa.application.portfolio_lifecycle import PortfolioReconciliationService
 from asa.application.ports.brokers import (
     BrokerAccountsResult,
     BrokerPortfolioProvider,
     BrokerPortfolioProviderError,
     BrokerPositionsResult,
 )
+from asa.application.ports.portfolio_lifecycle import PortfolioLifecycleRepository
 from asa.application.ports.runs import RunPublicationRepository
 from asa.contracts.market import FreshnessStatus
 from asa.contracts.portfolio import (
@@ -54,9 +56,12 @@ class RunPortfolioIntelligence:
         provider: BrokerPortfolioProvider,
         repository: RunPublicationRepository,
         clock: Clock = lambda: datetime.now(UTC),
+        *,
+        lifecycle_repository: PortfolioLifecycleRepository | None = None,
     ) -> None:
         self._provider = provider
         self._repository = repository
+        self._lifecycle_repository = lifecycle_repository
         self._clock = clock
         self._logger = logging.getLogger("asa.portfolio_run")
 
@@ -89,6 +94,10 @@ class RunPortfolioIntelligence:
                 provider_name,
                 lambda: validate_snapshot(snapshot),
             )
+            if self._lifecycle_repository is not None:
+                PortfolioReconciliationService().reconcile_and_record(
+                    snapshot, self._lifecycle_repository
+                )
             current_step = RunStepName.PUBLISH
             publication = self._repository.publish_portfolio(run.id, snapshot, self._clock())
             self._log_step(run.id, current_step, snapshot.provider, None)
