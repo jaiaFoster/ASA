@@ -12,6 +12,7 @@ from robin_stocks.robinhood import helper as robinhood_helper
 
 from asa.application.ports.brokers import (
     BrokerAccountsResult,
+    BrokerPortfolioProviderError,
     BrokerPositionsResult,
     ProviderAccount,
     ProviderEquityPosition,
@@ -21,15 +22,34 @@ from asa.application.ports.brokers import (
 T = TypeVar("T")
 RawRecord = Mapping[str, Any]
 
+_BROKERAGE_ACCOUNT_TYPE_MAP = {
+    "individual": "individual",
+    "ira_roth": "roth_ira",
+    "roth_ira": "roth_ira",
+    "ira_traditional": "traditional_ira",
+    "traditional_ira": "traditional_ira",
+    "ira_rollover": "rollover_ira",
+    "rollover_ira": "rollover_ira",
+    "ira_sep": "sep_ira",
+    "sep_ira": "sep_ira",
+    "joint_tenancy_with_ros": "joint",
+    "joint": "joint",
+}
 
-class RobinhoodProviderError(RuntimeError):
+
+class RobinhoodProviderError(BrokerPortfolioProviderError):
     """Sanitized provider failure safe for persistence and API disclosure."""
+
+    def __init__(self, code: str, message: str | None = None) -> None:
+        super().__init__(code, message or code)
 
 
 class RobinhoodReadClient(Protocol):
     def authenticate(self) -> None: ...
 
     def accounts(self) -> list[RawRecord]: ...
+
+    def portfolio(self, account_number: str) -> RawRecord: ...
 
     def equity_positions(self) -> list[RawRecord]: ...
 
@@ -70,13 +90,17 @@ class RobinStocksReadClient:
                 pickle_path="/tmp/asa-robinhood-no-session",
             )
         except RobinhoodProviderError:
-            raise RobinhoodProviderError("Robinhood authentication failed") from None
+            raise RobinhoodProviderError(
+                "broker_authentication_failed", "Robinhood authentication failed"
+            ) from None
         finally:
             self._username = ""
             self._password = ""
             self._totp_secret = None
         if not robinhood_helper.LOGGED_IN:
-            raise RobinhoodProviderError("Robinhood authentication failed")
+            raise RobinhoodProviderError(
+                "broker_authentication_failed", "Robinhood authentication failed"
+            )
         self._authenticated = True
 
     def accounts(self) -> list[RawRecord]:
@@ -91,6 +115,11 @@ class RobinStocksReadClient:
                 for account_number in self._account_numbers
             ]
         return self._records(self._quiet_call(robinhood.load_account_profile, dataType="results"))
+
+    def portfolio(self, account_number: str) -> RawRecord:
+        return self._record(
+            self._quiet_call(robinhood.load_portfolio_profile, account_number=account_number)
+        )
 
     def equity_positions(self) -> list[RawRecord]:
         if self._account_numbers:
@@ -135,18 +164,24 @@ class RobinStocksReadClient:
         except RobinhoodProviderError:
             raise
         except Exception:
-            raise RobinhoodProviderError("Robinhood read request failed") from None
+            raise RobinhoodProviderError(
+                "broker_provider_unavailable", "Robinhood read request failed"
+            ) from None
 
     @staticmethod
     def _record(value: object) -> RawRecord:
         if not isinstance(value, Mapping):
-            raise RobinhoodProviderError("Robinhood returned an invalid record")
+            raise RobinhoodProviderError(
+                "broker_invalid_response", "Robinhood returned an invalid record"
+            )
         return value
 
     @classmethod
     def _records(cls, value: object) -> list[RawRecord]:
         if not isinstance(value, list):
-            raise RobinhoodProviderError("Robinhood returned an invalid collection")
+            raise RobinhoodProviderError(
+                "broker_invalid_response", "Robinhood returned an invalid collection"
+            )
         return [cls._record(item) for item in value]
 
 
@@ -173,7 +208,9 @@ class RobinhoodPortfolioProvider:
         received_at = self._clock()
         accounts = tuple(self._account(item, received_at) for item in self._client.accounts())
         if not accounts:
-            raise RobinhoodProviderError("Robinhood returned no eligible accounts")
+            raise RobinhoodProviderError(
+                "broker_no_eligible_accounts", "Robinhood returned no eligible accounts"
+            )
         return BrokerAccountsResult(
             provider=self.name,
             provider_request_id=f"robinhood-accounts-{uuid4().hex}",
@@ -208,11 +245,14 @@ class RobinhoodPortfolioProvider:
         except RobinhoodProviderError:
             raise
         except Exception:
-            raise RobinhoodProviderError("Robinhood authentication failed") from None
+            raise RobinhoodProviderError(
+                "broker_authentication_failed", "Robinhood authentication failed"
+            ) from None
 
     def _account(self, item: RawRecord, received_at: datetime) -> ProviderAccount:
         account_number = self._required_text(item, "account_number")
-        account_type = str(item.get("type") or "brokerage").strip().lower()
+        account_type = self._account_type(item)
+        portfolio = self._client.portfolio(account_number)
         return ProviderAccount(
             external_account_id=account_number,
             connection_id=f"robinhood:{account_number}",
@@ -220,6 +260,12 @@ class RobinhoodPortfolioProvider:
             account_type=account_type,
             display_name=f"Robinhood {account_type.title()}",
             currency="USD",
+            cash_balance=self._decimal(item.get("cash"), required=False),
+            cash_available_for_withdrawal=self._decimal(
+                item.get("cash_available_for_withdrawal"), required=False
+            ),
+            buying_power=self._decimal(item.get("buying_power"), required=False),
+            account_value=self._decimal(portfolio.get("equity"), required=False),
             observed_at=self._observed_at(item.get("updated_at"), received_at),
         )
 
@@ -239,6 +285,22 @@ class RobinhoodPortfolioProvider:
             original_provider=self.name,
         )
 
+    @staticmethod
+    def _account_type(item: RawRecord) -> str:
+        brokerage_type = str(item.get("brokerage_account_type") or "").strip().lower()
+        if brokerage_type:
+            mapped = _BROKERAGE_ACCOUNT_TYPE_MAP.get(brokerage_type)
+            if mapped is not None:
+                return mapped
+            if "ira" in brokerage_type:
+                return "ira"
+        if item.get("is_pinnacle_account") is True:
+            return "ira"
+        trading_type = str(item.get("type") or "").strip().lower()
+        if trading_type in {"cash", "margin"}:
+            return "individual"
+        return trading_type or "brokerage"
+
     def _option_leg(self, item: RawRecord, received_at: datetime) -> ProviderOptionLeg | None:
         quantity = self._decimal(item.get("quantity"), required=True)
         assert quantity is not None
@@ -248,7 +310,9 @@ class RobinhoodPortfolioProvider:
         instrument = self._client.option_instrument(option_id)
         side = str(item.get("type") or item.get("side") or "").strip().lower()
         if side not in {"long", "short"}:
-            raise RobinhoodProviderError("Robinhood option position has invalid side")
+            raise RobinhoodProviderError(
+                "broker_invalid_response", "Robinhood option position has invalid side"
+            )
         option_symbol = str(instrument.get("symbol") or instrument.get("id") or option_id)
         strike = self._decimal(instrument.get("strike_price"), required=True)
         assert strike is not None
@@ -273,19 +337,25 @@ class RobinhoodPortfolioProvider:
     def _required_text(item: RawRecord, key: str) -> str:
         value = item.get(key)
         if value is None or not str(value).strip():
-            raise RobinhoodProviderError(f"Robinhood record is missing required {key}")
+            raise RobinhoodProviderError(
+                "broker_invalid_response", f"Robinhood record is missing required {key}"
+            )
         return str(value).strip()
 
     @staticmethod
     def _decimal(value: object, required: bool) -> Decimal | None:
         if value is None or value == "":
             if required:
-                raise RobinhoodProviderError("Robinhood record is missing a required number")
+                raise RobinhoodProviderError(
+                    "broker_invalid_response", "Robinhood record is missing a required number"
+                )
             return None
         try:
             return Decimal(str(value))
         except (InvalidOperation, ValueError):
-            raise RobinhoodProviderError("Robinhood record has an invalid number") from None
+            raise RobinhoodProviderError(
+                "broker_invalid_response", "Robinhood record has an invalid number"
+            ) from None
 
     @staticmethod
     def _observed_at(value: object, fallback: datetime) -> datetime:
@@ -295,7 +365,7 @@ class RobinhoodPortfolioProvider:
             parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
         except ValueError:
             raise RobinhoodProviderError(
-                "Robinhood record has an invalid observation time"
+                "broker_invalid_response", "Robinhood record has an invalid observation time"
             ) from None
         if parsed.tzinfo is None:
             parsed = parsed.replace(tzinfo=UTC)

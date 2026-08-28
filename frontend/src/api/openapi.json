@@ -280,6 +280,34 @@
             "type": "string",
             "title": "Currency"
           },
+          "cash_balance": {
+            "anyOf": [
+              {"type": "string", "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"},
+              {"type": "null"}
+            ],
+            "title": "Cash Balance"
+          },
+          "cash_available_for_withdrawal": {
+            "anyOf": [
+              {"type": "string", "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"},
+              {"type": "null"}
+            ],
+            "title": "Cash Available For Withdrawal"
+          },
+          "buying_power": {
+            "anyOf": [
+              {"type": "string", "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"},
+              {"type": "null"}
+            ],
+            "title": "Buying Power"
+          },
+          "account_value": {
+            "anyOf": [
+              {"type": "string", "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"},
+              {"type": "null"}
+            ],
+            "title": "Account Value"
+          },
           "observed_at": {
             "type": "string",
             "format": "date-time",
@@ -294,6 +322,10 @@
           "account_type",
           "display_name",
           "currency",
+          "cash_balance",
+          "cash_available_for_withdrawal",
+          "buying_power",
+          "account_value",
           "observed_at"
         ],
         "title": "AccountResponse"

@@ -8,6 +8,7 @@ from uuid import UUID, uuid4
 from asa.application.ports.brokers import (
     BrokerAccountsResult,
     BrokerPortfolioProvider,
+    BrokerPortfolioProviderError,
     BrokerPositionsResult,
 )
 from asa.application.ports.runs import RunPublicationRepository
@@ -94,11 +95,16 @@ class RunPortfolioIntelligence:
             return RunPortfolioResult(run.id, RunStatus.SUCCEEDED, publication.id)
         except Exception as exc:
             detail = str(exc)[:500] or exc.__class__.__name__
+            failure_code = (
+                exc.code
+                if isinstance(exc, BrokerPortfolioProviderError)
+                else "portfolio_run_failed"
+            )
             self._repository.fail_run(
                 run.id,
                 current_step,
                 self._clock(),
-                "portfolio_run_failed",
+                failure_code,
                 detail,
             )
             self._log_step(run.id, current_step, provider_name, None)
@@ -143,6 +149,10 @@ class RunPortfolioIntelligence:
                 account_type=item.account_type.strip().lower(),
                 display_name=item.display_name.strip(),
                 currency=item.currency.strip().upper(),
+                cash_balance=item.cash_balance,
+                cash_available_for_withdrawal=item.cash_available_for_withdrawal,
+                buying_power=item.buying_power,
+                account_value=item.account_value,
                 observed_at=item.observed_at.astimezone(UTC),
             )
             for item in accounts_result.accounts

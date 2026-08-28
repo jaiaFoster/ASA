@@ -425,9 +425,13 @@ class PostgresRunPublicationRepository:
                     INSERT INTO broker_accounts (
                         id, snapshot_id, connection_id, external_account_id, provider,
                         account_type, display_name, currency, observed_at
+                        , cash_balance, cash_available_for_withdrawal, buying_power,
+                        account_value
                     ) VALUES (
                         :id, :snapshot_id, :connection_id, :external_account_id, :provider,
-                        :account_type, :display_name, :currency, :observed_at
+                        :account_type, :display_name, :currency, :observed_at,
+                        :cash_balance, :cash_available_for_withdrawal, :buying_power,
+                        :account_value
                     )
                 """),
                 {**asdict(account), "snapshot_id": snapshot_id},
@@ -485,6 +489,20 @@ class PostgresRunPublicationRepository:
             account_type=row["account_type"],
             display_name=row["display_name"],
             currency=row["currency"],
+            cash_balance=(
+                None if row["cash_balance"] is None else Decimal(str(row["cash_balance"]))
+            ),
+            cash_available_for_withdrawal=(
+                None
+                if row["cash_available_for_withdrawal"] is None
+                else Decimal(str(row["cash_available_for_withdrawal"]))
+            ),
+            buying_power=(
+                None if row["buying_power"] is None else Decimal(str(row["buying_power"]))
+            ),
+            account_value=(
+                None if row["account_value"] is None else Decimal(str(row["account_value"]))
+            ),
             observed_at=row["observed_at"],
         )
 

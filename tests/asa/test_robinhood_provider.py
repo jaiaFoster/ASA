@@ -20,9 +20,16 @@ class FakeRobinhoodReadClient:
             {
                 "account_number": "RH-ACCOUNT-1",
                 "type": "individual",
+                "cash": "1250.50",
+                "cash_available_for_withdrawal": "1000.25",
+                "buying_power": "2500.75",
                 "updated_at": "2026-07-19T11:00:00Z",
             }
         ]
+
+    def portfolio(self, account_number: str) -> dict[str, object]:
+        assert account_number == "RH-ACCOUNT-1"
+        return {"equity": "50250.75"}
 
     def equity_positions(self) -> list[dict[str, object]]:
         return [
@@ -78,6 +85,10 @@ def test_robinhood_adapter_normalizes_read_only_account_equity_and_option() -> N
     assert accounts.provider == positions.provider == "robinhood"
     assert accounts.accounts[0].external_account_id == "RH-ACCOUNT-1"
     assert accounts.accounts[0].display_name == "Robinhood Individual"
+    assert str(accounts.accounts[0].cash_balance) == "1250.50"
+    assert str(accounts.accounts[0].cash_available_for_withdrawal) == "1000.25"
+    assert str(accounts.accounts[0].buying_power) == "2500.75"
+    assert str(accounts.accounts[0].account_value) == "50250.75"
     assert positions.equities[0].symbol == "AAPL"
     assert str(positions.equities[0].quantity) == "3.5"
     assert positions.option_legs[0].option_symbol == "AAPL260918C00200000"
@@ -101,6 +112,20 @@ def test_robinhood_adapter_filters_configured_accounts() -> None:
     assert positions.option_legs == ()
 
 
+def test_robinhood_account_classification_uses_tax_identity_not_trading_capability() -> None:
+    client = FakeRobinhoodReadClient()
+    client.accounts = lambda: [
+        {
+            "account_number": "RH-ACCOUNT-1",
+            "type": "cash",
+            "brokerage_account_type": "ira_roth",
+        }
+    ]
+    provider = RobinhoodPortfolioProvider(username="unused", password="unused", client=client)
+
+    assert provider.fetch_accounts().accounts[0].account_type == "roth_ira"
+
+
 def test_robinhood_failures_never_disclose_raw_session_or_credentials() -> None:
     class FailingClient(FakeRobinhoodReadClient):
         def authenticate(self) -> None:
@@ -116,4 +141,5 @@ def test_robinhood_failures_never_disclose_raw_session_or_credentials() -> None:
         provider.fetch_accounts()
     message = str(captured.value)
     assert message == "Robinhood authentication failed"
+    assert captured.value.code == "broker_authentication_failed"
     assert "private" not in message

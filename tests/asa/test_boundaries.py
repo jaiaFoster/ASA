@@ -100,9 +100,10 @@ def test_robinhood_adapter_calls_only_approved_read_sdk_operations() -> None:
         and node.value.id == "robinhood"
     }
     assert references == {
-        "login",
-        "load_account_profile",
-        "get_open_stock_positions",
+            "login",
+            "load_account_profile",
+            "load_portfolio_profile",
+            "get_open_stock_positions",
         "get_open_option_positions",
         "get_instrument_by_url",
         "get_option_instrument_data_by_id",

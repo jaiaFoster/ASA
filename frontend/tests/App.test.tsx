@@ -21,7 +21,9 @@ const client: PublishedPortfolioClient = {
       accounts: [{
         id: 'account-a', external_account_id: 'taxable-001',
         provider: 'deterministic_fake_broker', account_type: 'taxable',
-        display_name: 'Primary Taxable', currency: 'USD', observed_at: freshness.as_of,
+        display_name: 'Primary Taxable', currency: 'USD', cash_balance: '1250.00',
+        cash_available_for_withdrawal: '1000.00', buying_power: '2500.00',
+        account_value: '50000.00', observed_at: freshness.as_of,
       }],
     },
   }),

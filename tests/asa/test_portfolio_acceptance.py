@@ -80,6 +80,11 @@ def test_successful_run_publishes_portfolio_and_provider_free_reads(
     assert portfolio_body["data"]["account_count"] == 1
     assert portfolio_body["data"]["equity_position_count"] == 1
     assert portfolio_body["data"]["option_leg_count"] == 2
+    account = portfolio_body["data"]["accounts"][0]
+    assert account["cash_balance"] == "1250.00000000"
+    assert account["cash_available_for_withdrawal"] == "1000.00000000"
+    assert account["buying_power"] == "2500.00000000"
+    assert account["account_value"] == "50000.00000000"
     assert len(positions_body["data"]["equity_positions"]) == 1
     assert len(positions_body["data"]["option_legs"]) == 2
 

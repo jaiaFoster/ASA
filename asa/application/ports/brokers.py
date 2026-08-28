@@ -4,6 +4,14 @@ from decimal import Decimal
 from typing import Protocol
 
 
+class BrokerPortfolioProviderError(RuntimeError):
+    """Typed, sanitized broker-boundary failure."""
+
+    def __init__(self, code: str, message: str) -> None:
+        super().__init__(message)
+        self.code = code
+
+
 @dataclass(frozen=True, slots=True)
 class ProviderAccount:
     external_account_id: str
@@ -12,6 +20,10 @@ class ProviderAccount:
     account_type: str
     display_name: str
     currency: str
+    cash_balance: Decimal | None
+    cash_available_for_withdrawal: Decimal | None
+    buying_power: Decimal | None
+    account_value: Decimal | None
     observed_at: datetime
 
 
