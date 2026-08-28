@@ -31,3 +31,7 @@ class PositionAssociation:
     state: ReconciliationState
     observed_at: datetime
 
+    @property
+    def is_associated(self) -> bool:
+        """Only a unique match confers provenance; ambiguity is evidence, not association."""
+        return self.state is ReconciliationState.MATCHED

@@ -1,5 +1,6 @@
 from dataclasses import replace
 from datetime import UTC, datetime
+from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
@@ -113,6 +114,31 @@ def test_exact_option_evidence_uniquely_associates_held_position() -> None:
     assert len(associations) == 1
     assert associations[0].tracked_candidate_id == candidate.id
     assert associations[0].state is ReconciliationState.MATCHED
+    assert associations[0].is_associated is True
+
+
+def test_duplicate_exact_candidates_remain_ambiguous_and_unassociated() -> None:
+    results = InMemoryLatestResultRepository()
+    results.upsert(_row())
+    lifecycle = MemoryLifecycleRepository()
+    first = TrackCandidateService(results, lifecycle).track(
+        "earnings_calendar", "AAPL", "observation-1", NOW
+    )
+    second = replace(
+        first,
+        id=uuid4(),
+        originating_observation_id="observation-2",
+    )
+    provider = DeterministicFakeBrokerPortfolioProvider()
+    snapshot = RunPortfolioIntelligence._normalize(
+        provider.fetch_accounts(), provider.fetch_positions()
+    )
+
+    findings = PortfolioReconciliationService().reconcile(snapshot, (first, second))
+
+    assert len(findings) == 2
+    assert {item.state for item in findings} == {ReconciliationState.AMBIGUOUS}
+    assert not any(item.is_associated for item in findings)
 
 
 def test_equity_symbol_alone_never_manufactures_provenance() -> None:
@@ -128,7 +154,10 @@ def test_equity_symbol_alone_never_manufactures_provenance() -> None:
         provider.fetch_accounts(), provider.fetch_positions()
     )
 
+    before = snapshot
     assert PortfolioReconciliationService().reconcile(snapshot, (tracked,)) == ()
+    assert snapshot == before
+    assert snapshot.equity_positions[0].symbol == "AAPL"
 
 
 def test_track_this_api_uses_exact_persisted_observation() -> None:
