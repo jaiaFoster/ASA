@@ -132,6 +132,10 @@ class AccountResponse(BaseModel):
     account_type: str
     display_name: str
     currency: str
+    cash_balance: Decimal | None
+    cash_available_for_withdrawal: Decimal | None
+    buying_power: Decimal | None
+    account_value: Decimal | None
     observed_at: datetime
 
 
