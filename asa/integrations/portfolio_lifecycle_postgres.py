@@ -5,6 +5,8 @@ from sqlalchemy.engine import RowMapping
 
 from asa.contracts.portfolio_lifecycle import (
     PositionAssociation,
+    PositionLifecycleObservation,
+    PositionLifecycleState,
     TrackedCandidate,
 )
 
@@ -20,11 +22,11 @@ class PostgresPortfolioLifecycleRepository:
                     INSERT INTO tracked_candidates (
                         id, originating_observation_id, opportunity_id, signal_id,
                         signal_version, symbol, tracked_at, originating_observed_at,
-                        exact_option_symbols
+                        evidence_observed_at, exact_option_symbols
                     ) VALUES (
                         :id, :originating_observation_id, :opportunity_id, :signal_id,
                         :signal_version, :symbol, :tracked_at, :originating_observed_at,
-                        :exact_option_symbols
+                        :evidence_observed_at, :exact_option_symbols
                     ) ON CONFLICT (originating_observation_id) DO NOTHING
                 """),
                 {
@@ -36,6 +38,7 @@ class PostgresPortfolioLifecycleRepository:
                     "symbol": candidate.symbol,
                     "tracked_at": candidate.tracked_at,
                     "originating_observed_at": candidate.originating_observed_at,
+                    "evidence_observed_at": candidate.evidence_observed_at,
                     "exact_option_symbols": list(candidate.exact_option_symbols),
                 },
             )
@@ -53,10 +56,14 @@ class PostgresPortfolioLifecycleRepository:
 
     def candidate(self, candidate_id: UUID) -> TrackedCandidate | None:
         with self._engine.connect() as connection:
-            row = connection.execute(
-                text("SELECT * FROM tracked_candidates WHERE id = :id"),
-                {"id": candidate_id},
-            ).mappings().first()
+            row = (
+                connection.execute(
+                    text("SELECT * FROM tracked_candidates WHERE id = :id"),
+                    {"id": candidate_id},
+                )
+                .mappings()
+                .first()
+            )
             return None if row is None else _candidate(row)
 
     def append_association(self, association: PositionAssociation) -> None:
@@ -77,6 +84,44 @@ class PostgresPortfolioLifecycleRepository:
                 },
             )
 
+    def append_lifecycle_observation(self, observation: PositionLifecycleObservation) -> None:
+        with self._engine.begin() as connection:
+            connection.execute(
+                text("""
+                    INSERT INTO portfolio_lifecycle_observations (
+                        tracked_candidate_id, state, broker_position_key,
+                        broker_observed_at, strategy_result_observed_at,
+                        evidence_observed_at
+                    ) VALUES (
+                        :tracked_candidate_id, :state, :broker_position_key,
+                        :broker_observed_at, :strategy_result_observed_at,
+                        :evidence_observed_at
+                    ) ON CONFLICT DO NOTHING
+                """),
+                {
+                    "tracked_candidate_id": observation.tracked_candidate_id,
+                    "state": observation.state.value,
+                    "broker_position_key": observation.broker_position_key,
+                    "broker_observed_at": observation.broker_observed_at,
+                    "strategy_result_observed_at": observation.strategy_result_observed_at,
+                    "evidence_observed_at": observation.evidence_observed_at,
+                },
+            )
+
+    def lifecycle_observations(
+        self, candidate_id: UUID
+    ) -> tuple[PositionLifecycleObservation, ...]:
+        with self._engine.connect() as connection:
+            rows = connection.execute(
+                text("""
+                    SELECT * FROM portfolio_lifecycle_observations
+                    WHERE tracked_candidate_id = :candidate_id
+                    ORDER BY broker_observed_at, id
+                """),
+                {"candidate_id": candidate_id},
+            ).mappings()
+            return tuple(_lifecycle_observation(row) for row in rows)
+
 
 def _candidate(row: RowMapping) -> TrackedCandidate:
     return TrackedCandidate(
@@ -88,5 +133,17 @@ def _candidate(row: RowMapping) -> TrackedCandidate:
         symbol=row["symbol"],
         tracked_at=row["tracked_at"],
         originating_observed_at=row["originating_observed_at"],
+        evidence_observed_at=row["evidence_observed_at"],
         exact_option_symbols=tuple(row["exact_option_symbols"]),
+    )
+
+
+def _lifecycle_observation(row: RowMapping) -> PositionLifecycleObservation:
+    return PositionLifecycleObservation(
+        tracked_candidate_id=row["tracked_candidate_id"],
+        state=PositionLifecycleState(row["state"]),
+        broker_position_key=row["broker_position_key"],
+        broker_observed_at=row["broker_observed_at"],
+        strategy_result_observed_at=row["strategy_result_observed_at"],
+        evidence_observed_at=row["evidence_observed_at"],
     )

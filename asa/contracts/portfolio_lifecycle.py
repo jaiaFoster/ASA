@@ -11,6 +11,12 @@ class ReconciliationState(StrEnum):
     NO_MATCH = "no_match"
 
 
+class PositionLifecycleState(StrEnum):
+    TRACKED = "tracked"
+    OPEN = "open"
+    CLOSED = "closed"
+
+
 @dataclass(frozen=True, slots=True)
 class TrackedCandidate:
     id: UUID
@@ -21,6 +27,7 @@ class TrackedCandidate:
     symbol: str
     tracked_at: datetime
     originating_observed_at: datetime
+    evidence_observed_at: datetime
     exact_option_symbols: tuple[str, ...]
 
 
@@ -35,3 +42,13 @@ class PositionAssociation:
     def is_associated(self) -> bool:
         """Only a unique match confers provenance; ambiguity is evidence, not association."""
         return self.state is ReconciliationState.MATCHED
+
+
+@dataclass(frozen=True, slots=True)
+class PositionLifecycleObservation:
+    tracked_candidate_id: UUID
+    state: PositionLifecycleState
+    broker_position_key: str | None
+    broker_observed_at: datetime
+    strategy_result_observed_at: datetime
+    evidence_observed_at: datetime

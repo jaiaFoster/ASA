@@ -5,6 +5,8 @@ from asa.application.ports.portfolio_lifecycle import PortfolioLifecycleReposito
 from asa.contracts.portfolio import PortfolioSnapshot
 from asa.contracts.portfolio_lifecycle import (
     PositionAssociation,
+    PositionLifecycleObservation,
+    PositionLifecycleState,
     ReconciliationState,
     TrackedCandidate,
 )
@@ -43,6 +45,36 @@ class PortfolioReconciliationService:
         associations = self.reconcile(snapshot, repository.candidates())
         for association in associations:
             repository.append_association(association)
+        matched = {
+            item.tracked_candidate_id: item
+            for item in associations
+            if item.state is ReconciliationState.MATCHED
+        }
+        for candidate in repository.candidates():
+            matched_association = matched.get(candidate.id)
+            prior = repository.lifecycle_observations(candidate.id)
+            previously_open = any(item.state is PositionLifecycleState.OPEN for item in prior)
+            state = (
+                PositionLifecycleState.OPEN
+                if matched_association is not None
+                else PositionLifecycleState.CLOSED
+                if previously_open
+                else PositionLifecycleState.TRACKED
+            )
+            repository.append_lifecycle_observation(
+                PositionLifecycleObservation(
+                    tracked_candidate_id=candidate.id,
+                    state=state,
+                    broker_position_key=(
+                        None
+                        if matched_association is None
+                        else matched_association.broker_position_key
+                    ),
+                    broker_observed_at=snapshot.observed_at,
+                    strategy_result_observed_at=candidate.originating_observed_at,
+                    evidence_observed_at=candidate.evidence_observed_at,
+                )
+            )
         return associations
 
     def reconcile(
@@ -86,9 +118,7 @@ def _candidate_from_row(row: UniversalSignalRow, tracked_at: datetime) -> Tracke
     option_symbols = row.metrics.get("decision.option_symbols")
     native = None if option_symbols is None else option_symbols.native()
     exact_symbols = (
-        tuple(sorted(str(item).upper() for item in native))
-        if isinstance(native, list)
-        else ()
+        tuple(sorted(str(item).upper() for item in native)) if isinstance(native, list) else ()
     )
     return TrackedCandidate(
         id=uuid5(NAMESPACE_URL, f"asa:tracked:{row.observation_id}"),
@@ -99,5 +129,10 @@ def _candidate_from_row(row: UniversalSignalRow, tracked_at: datetime) -> Tracke
         symbol=row.symbol,
         tracked_at=tracked_at.astimezone(UTC),
         originating_observed_at=row.observed_at.astimezone(UTC),
+        evidence_observed_at=(
+            row.temporal.observed_at.astimezone(UTC)
+            if row.temporal is not None
+            else row.observed_at.astimezone(UTC)
+        ),
         exact_option_symbols=exact_symbols,
     )
