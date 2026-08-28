@@ -1,0 +1,268 @@
+---
+id: PORTFOLIO-LIFECYCLE-001
+version: "1.0"
+title: Portfolio, Trade Tracking, and Strategy Lifecycle v1
+status: AUTHORIZED_PENDING_FOUNDER_MERGE
+type: IMPLEMENTATION_SPRINT
+priority: P0
+baseline_commit: e8bb651319ab58380ea410f3c2859afa386e7e71
+
+activation:
+  id: AMD-013-PORTFOLIO-LIFECYCLE-001-V1.0
+  governance_amendment: GOV-AMD-001-013
+  founder_authorized: true
+  founder_direction: >
+    Build a production-usable, read-only portfolio lifecycle around Robinhood
+    portfolio observations, explicit candidate tracking, conservative
+    reconciliation, immutable provenance, truthful valuation and P&L,
+    strategy-declared exit state, and auditable strategy health.
+  effective_when: this artifact is Founder-merged to the default branch
+  delegate:
+    role: ROLE-WORKER
+    instance: implementation-worker
+  limited_to_sprint: PORTFOLIO-LIFECYCLE-001
+  approved_tickets: [PL1-01, PL1-02, PL1-03, PL1-04, PL1-05, PL1-06]
+  approved_gates: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+  expires:
+    - sprint_complete
+    - sprint_stopped
+    - Founder_revokes_delegation
+    - scope_or_authority_changes
+
+objective: >
+  Turn existing portfolio, broker, screening-history, and strategy foundations
+  into a production-usable lifecycle that observes Robinhood, tracks explicit
+  candidates, conservatively associates positions, preserves genuine immutable
+  provenance, records append-only lifecycle history, and exposes truthful
+  valuation, P&L, exit state, and production strategy attrition.
+
+product_outcome: >
+  ASA remembers what it believed, observes what the user owns, follows
+  positions through time, and preserves outcomes for future evaluation.
+
+broker_authority_v1: robinhood
+execution_authority: none
+deployment_authority: Founder_only
+
+source_of_truth:
+  architecture:
+    - current_ASA_II_portfolio_and_broker_contracts
+    - frozen_architecture_and_governance
+    - subject_first_screening_and_immutable_history_architecture
+  robinhood_reference:
+    repository: jaiaFoster/Stonk
+    inspect_before_implementation: true
+    role: implementation_evidence_only
+    rule: reuse_or_adapt_proven_behavior_only_when_compatible_with_ASA_boundaries
+
+invariants:
+  PL-I01: robinhood_behavior_remains_behind_broker_boundary
+  PL-I02: lifecycle_consumes_authoritative_results_and_broker_state_without_acquiring_strategy_data
+  PL-I03: one_portfolio_and_lifecycle_model_supports_all_positions
+  PL-I04: strategy_provenance_is_optional_immutable_and_never_invented
+  PL-I05: lifecycle_observations_and_originating_evidence_are_append_only
+  PL-I06: exact_broker_instruments_and_legs_remain_canonical
+  PL-I07: structures_are_truthful_and_ambiguous_or_unmatched_legs_remain_unforced
+  PL-I08: broker_strategy_result_and_evidence_freshness_are_distinct_clocks
+  PL-I09: unknown_never_silently_becomes_zero_current_matched_or_valid
+  PL-I10: cash_account_value_and_buying_power_are_observational_only
+  PL-I11: lifecycle_displays_only_strategy_declared_exit_policy
+  PL-I12: no_brokerage_action_or_autonomous_trading
+
+policies:
+  tracking:
+    action: Track This
+    creates: durable_candidate_linked_to_exact_screening_observation
+    implies_ownership_or_execution: false
+  reconciliation:
+    automatic_only_when_unique_and_sufficiently_supported: true
+    exact_option_leg_identity_is_strongest_option_evidence: true
+    equity_symbol_alone_proves_originating_thesis: false
+    ambiguous: unassociated_pending_explicit_resolution
+    no_match: fully_supported_position_without_strategy_provenance
+  valuation:
+    prefer_authoritative_broker_values: true
+    derived_values_must_be_labeled: true
+    unknowns: typed_and_visible
+    duplicate_live_market_data_pipeline: prohibited
+  exit:
+    scope: decision_support_only
+    absent_policy: not_defined
+    invented_targets_stops_time_exits_or_thesis_rules: prohibited
+
+work_packages:
+  PL1-01:
+    title: Robinhood Portfolio Authority
+    requires:
+      - inspect_Stonk_first
+      - account_discovery
+      - authoritative_available_balances_cash_and_account_value
+      - equities_option_legs_and_authoritative_cost_data
+      - typed_provider_and_authentication_failures
+      - coherent_snapshot_and_publication_freshness
+  PL1-02:
+    title: Lifecycle and Reconciliation
+    requires:
+      - track_this
+      - durable_lifecycle_identity
+      - optional_immutable_strategy_provenance
+      - conservative_broker_position_detection_and_reconciliation
+      - explicit_ambiguous_and_no_provenance_states
+      - append_only_lifecycle_observations
+  PL1-03:
+    title: Portfolio Projection
+    requires:
+      - accounts_balances_equities_and_raw_option_legs
+      - deterministic_calendar_double_calendar_and_vertical_recognition
+      - unmatched_and_unknown_structures
+      - authoritative_available_valuation_and_PnL
+      - typed_unknown_valuation
+  PL1-04:
+    title: Tracking and Exit-State Infrastructure
+    requires:
+      - timestamped_lifecycle_observations
+      - current_state_and_historical_valuation_observations
+      - immutable_originating_evidence
+      - observed_open_and_closed_state
+      - declared_exit_state_or_not_defined
+  PL1-05:
+    title: Portfolio Product Surface
+    requires:
+      - portfolio_summary_and_available_balances
+      - equities_and_grouped_options_with_raw_legs
+      - truthful_PnL
+      - tracked_candidates_and_position_history
+      - optional_provenance_and_distinct_freshness
+      - Track_This_and_ambiguous_match_review
+  PL1-06:
+    title: Strategy Health and Production Proof
+    strategies: [forward_factor, earnings_calendar, skew_momentum]
+    funnel:
+      - active_subjects
+      - evaluated
+      - evidence_sufficient
+      - structure_eligible_or_constructible_where_applicable
+      - gates_passed
+      - watch
+      - pass
+    requires:
+      - typed_unknown_and_rejection_counts
+      - top_attrition_and_evidence_insufficiency_reasons
+      - relevant_provider_and_data_limitations
+    strategy_policy_changes: prohibited
+
+sequential_gates:
+  - {gate: 1, work_package: PL1-01, pass: coherent_Robinhood_portfolio_published, merge_required: true}
+  - {gate: 2, work_package: PL1-01, pass: Stonk_reuse_and_broker_boundary_proven, merge_required: true}
+  - {gate: 3, work_package: PL1-02, pass: tracking_and_unique_reconciliation_preserve_origin, merge_required: true}
+  - {gate: 4, work_package: PL1-02, pass: ambiguous_and_no_match_states_are_safe, merge_required: true}
+  - {gate: 5, work_package: PL1-03, pass: canonical_holdings_and_truthful_structures, merge_required: true}
+  - {gate: 6, work_package: PL1-04, pass: append_only_history_and_distinct_freshness, merge_required: true}
+  - {gate: 7, work_packages: [PL1-03, PL1-04], pass: truthful_valuation_PnL_and_exit_status, merge_required: true}
+  - {gate: 8, work_package: PL1-05, pass: minimum_usable_portfolio_lifecycle_surface, merge_required: true}
+  - {gate: 9, work_package: PL1-06, pass: all_three_strategy_funnels_are_explainable, merge_required: true}
+  - {gate: 10, work_package: PL1-06, pass: end_to_end_production_proof, merge_required: true}
+
+execution_policy:
+  sequential_and_mainline_first: true
+  each_gate_must_merge_and_be_verified_before_next: true
+  corrections_remain_attached_to_active_gate: true
+  root_cause_corrections_preferred: true
+  continue_autonomously_while_delegation_active: true
+  routine_implementation_review_test_and_CI_repairs_do_not_stop_sprint: true
+  production_deployment_requires_separate_Founder_authorization: true
+
+authority:
+  worker:
+    may:
+      - implement_approved_work_packages_and_gates
+      - perform_bounded_in_scope_corrections
+      - inspect_Stonk_reference_repository
+      - add_tests_diagnostics_API_UI_and_documentation_in_scope
+      - open_and_update_pull_requests
+      - perform_self_review
+      - enable_auto_merge_when_available
+      - mechanically_merge_qualifying_sprint_PRs
+    may_not:
+      - merge_this_activation_artifact
+      - deploy
+      - change_governance_or_constitution
+      - redefine_protected_architecture_or_domain_contracts_outside_scope
+      - expand_scope
+      - reduce_risk_floor
+      - introduce_broker_execution
+  manager: {merge: prohibited}
+  architect: {merge: prohibited}
+
+merge_policy:
+  activation_merge_authority: Founder_only
+  implementation_merge_authority: active_Amendment_013_delegate
+  branch_protection_bypass: prohibited
+  before_every_delegated_merge:
+    - gate_and_assigned_Worker_recorded
+    - PR_is_within_enumerated_scope
+    - dependencies_and_previous_gate_merged
+    - required_CI_green
+    - relevant_unit_integration_replay_and_immutable_contract_tests_green
+    - architecture_and_integrity_validation_green
+    - Ruff_and_mypy_green_for_changed_scope
+    - Worker_self_review_complete
+    - Manager_stop_status_CLEAR
+    - no_unresolved_blocker_or_authority_violation
+
+validation:
+  per_gate:
+    - focused_regression_and_related_integration_tests
+    - architecture_and_authority_review
+    - repository_required_CI
+    - merged_main_gate_verification
+  closure:
+    - relevant_unit_and_integration_tests
+    - full_repository_test_suite
+    - architecture_tests
+    - static_analysis_and_type_checks
+    - lint
+    - production_authoritative_evidence
+
+Founder_blockers:
+  - missing_Robinhood_credential_or_account_action
+  - provider_entitlement_or_external_account_change
+  - undefined_product_or_strategy_exit_policy
+  - scope_expansion
+  - governance_or_authority_change
+  - deployment_authorization
+  - risk_floor_change
+  - irreducible_Founder_product_ambiguity
+
+production_proof:
+  must_demonstrate:
+    - Robinhood_acquisition_through_ASA_broker_boundary
+    - authoritative_available_balance_and_cash_state
+    - equity_and_raw_option_leg_projection
+    - truthful_recognized_and_unmatched_option_structures
+    - Track_This_and_safe_reconciliation
+    - positions_without_ASA_provenance
+    - immutable_originating_evidence_and_advancing_lifecycle_history
+    - truthful_valuation_PnL_or_typed_unknown
+    - declared_exit_status_or_not_defined
+    - distinct_broker_strategy_and_evidence_freshness
+    - health_funnels_for_all_three_strategies
+    - zero_invented_provenance
+    - zero_broker_execution_actions
+
+explicitly_out_of_scope:
+  - broker_order_placement_modification_or_cancellation
+  - automatic_closing_rolling_position_sizing_or_trade_management
+  - cash_or_buying_power_strategy_gates
+  - new_strategy_activation_formulas_thresholds_or_exit_policy
+  - Russell_2000_activation
+  - prospective_structure_search_or_advanced_payoff_visualization
+  - advanced_portfolio_allocation_or_performance_analytics
+  - speculative_roll_assignment_or_adjustment_framework
+  - deployment_without_separate_Founder_authorization
+
+completion: >
+  PASS only after all ten gates are merged and verified and production proof
+  shows ASA can observe Robinhood, track candidates, reconcile without
+  invented history, preserve lifecycle evidence, expose truthful valuation and
+  declared exit state, and explain active strategy attrition.
