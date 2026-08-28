@@ -8,20 +8,26 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import Engine
 
 from asa.api.agent_auth import build_agent_authorizer
+from asa.api.portfolio_lifecycle_routes import build_portfolio_lifecycle_router
 from asa.api.routes import build_router
 from asa.api.screening_routes import build_screening_router
+from asa.application.portfolio_lifecycle import TrackCandidateService
 from asa.application.portfolio_use_cases import (
     PublishedPortfolioQuery,
     RunPortfolioIntelligence,
     RunQueryService,
 )
 from asa.application.ports.brokers import BrokerPortfolioProvider
+from asa.application.ports.portfolio_lifecycle import PortfolioLifecycleRepository
 from asa.application.ports.quotes import QuoteProvider
 from asa.application.ports.repositories import MarketObservationRepository
 from asa.application.ports.runs import RunPublicationRepository
 from asa.application.use_cases import MarketQuoteService
 from asa.config import Settings
 from asa.integrations.observation_history_postgres import PostgresObservationHistoryRepository
+from asa.integrations.portfolio_lifecycle_postgres import (
+    PostgresPortfolioLifecycleRepository,
+)
 from asa.integrations.postgres import PostgresMarketObservationRepository, create_postgres_engine
 from asa.integrations.providers.deterministic_fake import DeterministicFakeQuoteProvider
 from asa.integrations.providers.deterministic_fake_broker import (
@@ -59,6 +65,7 @@ class DependencyOverrides:
     latest_result_repository: LatestResultRepository | None = None
     observation_history_repository: ObservationHistoryRepository | None = None
     acquisition_attempt_repository: AcquisitionAttemptRepository | None = None
+    portfolio_lifecycle_repository: PortfolioLifecycleRepository | None = None
     screening_operational_health: Callable[[], dict[str, object]] | None = None
 
 
@@ -76,6 +83,10 @@ def build_application(
     provider = selected.quote_provider or _build_provider(settings)
     run_repository = selected.run_repository or PostgresRunPublicationRepository(
         engine_factory(settings.database_url)
+    )
+    portfolio_lifecycle_repository = (
+        selected.portfolio_lifecycle_repository
+        or PostgresPortfolioLifecycleRepository(engine_factory(settings.database_url))
     )
     broker_provider = selected.broker_provider or _build_broker_provider(settings)
     latest_result_repository = selected.latest_result_repository or PostgresLatestResultRepository(
@@ -120,7 +131,11 @@ def build_application(
         repository=repository,
         fresh_for=timedelta(seconds=settings.fresh_for_seconds),
     )
-    portfolio_runner = RunPortfolioIntelligence(broker_provider, run_repository)
+    portfolio_runner = RunPortfolioIntelligence(
+        broker_provider,
+        run_repository,
+        lifecycle_repository=portfolio_lifecycle_repository,
+    )
     portfolio_query = PublishedPortfolioQuery(
         run_repository,
         timedelta(seconds=settings.portfolio_fresh_for_seconds),
@@ -167,6 +182,14 @@ def build_application(
             operational_health=screening_operational_health,
         )
     )
+    app.include_router(
+        build_portfolio_lifecycle_router(
+            TrackCandidateService(
+                latest_result_repository, portfolio_lifecycle_repository
+            ),
+            agent_authorize,
+        )
+    )
     mount_ui(app)
 
     @app.middleware("http")
@@ -199,6 +222,7 @@ def build_application(
         "portfolio_query": portfolio_query,
         "latest_result_repository": latest_result_repository,
         "observation_history_repository": observation_history_repository,
+        "portfolio_lifecycle_repository": portfolio_lifecycle_repository,
         "agent_authorize": agent_authorize,
     }
     return app
