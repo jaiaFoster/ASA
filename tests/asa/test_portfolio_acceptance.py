@@ -87,6 +87,12 @@ def test_successful_run_publishes_portfolio_and_provider_free_reads(
     assert account["account_value"] == "50000.00000000"
     assert len(positions_body["data"]["equity_positions"]) == 1
     assert len(positions_body["data"]["option_legs"]) == 2
+    assert positions_body["data"]["option_structures"][0]["kind"] == "vertical"
+    assert positions_body["data"]["unmatched_option_legs"] == []
+    assert (
+        positions_body["data"]["equity_valuations"][0]["market_value"]["authority"]
+        == "unknown"
+    )
 
 
 def test_failed_run_preserves_publication_and_discloses_last_success(

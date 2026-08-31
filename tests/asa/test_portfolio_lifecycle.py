@@ -30,7 +30,7 @@ NOW = datetime(2026, 8, 28, 12, tzinfo=UTC)
 class MemoryLifecycleRepository:
     def __init__(self) -> None:
         self.values = {}
-        self.associations = []
+        self.associations_values = []
         self.observations = []
 
     def add_candidate(self, candidate):
@@ -44,7 +44,7 @@ class MemoryLifecycleRepository:
         return self.values.get(candidate_id)
 
     def append_association(self, association):
-        self.associations.append(association)
+        self.associations_values.append(association)
 
     def append_lifecycle_observation(self, observation):
         if observation not in self.observations:
@@ -53,6 +53,11 @@ class MemoryLifecycleRepository:
     def lifecycle_observations(self, candidate_id):
         return tuple(
             item for item in self.observations if item.tracked_candidate_id == candidate_id
+        )
+
+    def associations(self, candidate_id):
+        return tuple(
+            item for item in self.associations_values if item.tracked_candidate_id == candidate_id
         )
 
 
@@ -201,6 +206,18 @@ def test_track_this_api_uses_exact_persisted_observation() -> None:
     assert response.status_code == 200
     assert response.json()["originating_observation_id"] == "observation-1"
     assert response.json()["opportunity_id"] == "opportunity-1"
+
+    listing = client.get(
+        "/api/v1/portfolio/tracked-candidates",
+        headers={"Authorization": "Bearer test-token"},
+    )
+    detail = client.get(
+        f"/api/v1/portfolio/tracked-candidates/{response.json()['id']}",
+        headers={"Authorization": "Bearer test-token"},
+    )
+    assert len(listing.json()) == 1
+    assert detail.json()["candidate"]["originating_observation_id"] == "observation-1"
+    assert detail.json()["exit_policy_status"] == "not_defined"
 
 
 def test_lifecycle_observations_append_open_then_closed_with_separate_clocks() -> None:

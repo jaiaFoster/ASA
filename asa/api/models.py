@@ -4,7 +4,9 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
+from asa.application.portfolio_structures import project_option_structures
 from asa.application.portfolio_use_cases import PublishedPortfolioView
+from asa.application.portfolio_valuation import project_portfolio_valuation
 from asa.contracts.market import MarketObservation
 from asa.contracts.runs import PublicationRecord, RunRecord
 
@@ -162,6 +164,30 @@ class OptionLegResponse(BaseModel):
     original_provider: str
 
 
+class MonetaryValueResponse(BaseModel):
+    amount: Decimal | None
+    currency: str
+    authority: str
+    observed_at: datetime
+    unknown_reason: str | None
+
+
+class PositionValuationResponse(BaseModel):
+    position_key: str
+    market_value: MonetaryValueResponse
+    profit_and_loss: MonetaryValueResponse
+
+
+class OptionStructureResponse(BaseModel):
+    kind: str
+    option_symbols: list[str]
+
+
+class UnmatchedOptionLegResponse(BaseModel):
+    option_symbol: str
+    reason: str
+
+
 class PortfolioDataResponse(BaseModel):
     publication_id: UUID
     snapshot_id: UUID
@@ -177,6 +203,10 @@ class PositionsDataResponse(BaseModel):
     snapshot_id: UUID
     equity_positions: list[EquityPositionResponse]
     option_legs: list[OptionLegResponse]
+    option_structures: list[OptionStructureResponse]
+    unmatched_option_legs: list[UnmatchedOptionLegResponse]
+    equity_valuations: list[PositionValuationResponse]
+    option_leg_valuations: list[PositionValuationResponse]
 
 
 class PortfolioEnvelope(BaseModel):
@@ -241,6 +271,8 @@ class PositionsEnvelope(BaseModel):
             status=view.freshness_status.value,
             serving_last_success=view.serving_last_success,
         )
+        structures = project_option_structures(snapshot.option_legs)
+        valuation = project_portfolio_valuation(snapshot)
         return cls(
             run=run_response,
             freshness=freshness,
@@ -266,6 +298,28 @@ class PositionsEnvelope(BaseModel):
                         original_provider=item.original_provider,
                     )
                     for item in snapshot.option_legs
+                ],
+                option_structures=[
+                    OptionStructureResponse(
+                        kind=item.kind.value,
+                        option_symbols=[leg.option_symbol for leg in item.legs],
+                    )
+                    for item in structures.structures
+                ],
+                unmatched_option_legs=[
+                    UnmatchedOptionLegResponse(
+                        option_symbol=item.leg.option_symbol,
+                        reason=item.reason.value,
+                    )
+                    for item in structures.unmatched_legs
+                ],
+                equity_valuations=[
+                    PositionValuationResponse.model_validate(item, from_attributes=True)
+                    for item in valuation.equity_positions
+                ],
+                option_leg_valuations=[
+                    PositionValuationResponse.model_validate(item, from_attributes=True)
+                    for item in valuation.option_legs
                 ],
             ),
         )
