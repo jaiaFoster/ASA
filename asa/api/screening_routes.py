@@ -36,11 +36,14 @@ from asa.api.agent_models import agent_api_error
 from asa.api.screening_models import (
     CapabilitiesResponse,
     OpportunityHistoryResponse,
+    ReasonCountResponse,
     RefreshResultResponse,
     ScreeningOperationalHealthResponse,
     ScreeningResultResponse,
     ScreeningResultsEnvelope,
     SignalCapabilityResponse,
+    StrategyHealthFunnelResponse,
+    StrategyHealthResponse,
 )
 from domain import MarketObservation, UnknownReason
 from market_data import load_market_data_config_from_environment
@@ -61,6 +64,7 @@ from strategy_runtime.adapters import (
     migrated_shadow_resolution_policy,
 )
 from strategy_runtime.catalog import SignalCatalogEntry
+from strategy_runtime.health import build_strategy_health
 from strategy_runtime.knowledge import ReadOnlyStrategyInput
 from strategy_runtime.lifecycle import RecommendedAction
 from strategy_runtime.market_data_planning import (
@@ -293,6 +297,40 @@ def build_screening_router(
             offset=offset,
         )
 
+    @router.get("/screening-health", response_model=StrategyHealthResponse)
+    def strategy_health() -> StrategyHealthResponse:
+        state = get_state(repository)
+        funnels = [
+            build_strategy_health(
+                strategy_id,
+                tuple(item for item in state if item.strategy_id == strategy_id),
+            )
+            for strategy_id in registry.strategy_ids()
+        ]
+        return StrategyHealthResponse(
+            strategies=[
+                StrategyHealthFunnelResponse(
+                    strategy_id=item.strategy_id,
+                    active_subjects=item.active_subjects,
+                    evaluated=item.evaluated,
+                    evidence_sufficient=item.evidence_sufficient,
+                    structure_eligible_or_constructible=(item.structure_eligible_or_constructible),
+                    gates_passed=item.gates_passed,
+                    watch=item.watch,
+                    passed=item.passed,
+                    typed_unknown_counts=[
+                        ReasonCountResponse(reason=reason, count=count)
+                        for reason, count in item.typed_unknown_counts
+                    ],
+                    typed_rejection_counts=[
+                        ReasonCountResponse(reason=reason, count=count)
+                        for reason, count in item.typed_rejection_counts
+                    ],
+                )
+                for item in funnels
+            ]
+        )
+
     @router.get(
         "/screening/opportunities/{opportunity_id}/history",
         response_model=OpportunityHistoryResponse,
@@ -425,9 +463,7 @@ def build_screening_router(
         shadow_knowledge_by_subject: (
             dict[str, ReadOnlyStrategyInput[object] | UnknownReason] | None
         ) = None
-        shadow_temporal_observations_by_strategy: dict[
-            str, tuple[MarketObservation, ...]
-        ] = {}
+        shadow_temporal_observations_by_strategy: dict[str, tuple[MarketObservation, ...]] = {}
         if signal in shadow_registry.strategy_ids():
             try:
                 prepared_subject = prepare_subject_shadow_knowledge_with_temporal(
@@ -442,9 +478,7 @@ def build_screening_router(
                     capability_reducer_by_capability=migrated_shadow_capability_reducers(),
                     strategy_ids=(signal,),
                 )
-                shadow_knowledge_by_subject = dict(
-                    prepared_subject.knowledge_by_strategy
-                )
+                shadow_knowledge_by_subject = dict(prepared_subject.knowledge_by_strategy)
                 shadow_temporal_observations_by_strategy = dict(
                     prepared_subject.temporal_observations_by_strategy
                 )

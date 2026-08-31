@@ -816,6 +816,24 @@
         }
       }
     },
+    "/api/v1/screening-health": {
+      "get": {
+        "summary": "Strategy Health",
+        "operationId": "strategy_health_api_v1_screening_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StrategyHealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/screening/opportunities/{opportunity_id}/history": {
       "get": {
         "summary": "Opportunity History",
@@ -2328,6 +2346,24 @@
         ],
         "title": "QuoteResponse"
       },
+      "ReasonCountResponse": {
+        "properties": {
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "reason",
+          "count"
+        ],
+        "title": "ReasonCountResponse"
+      },
       "RefreshResultResponse": {
         "properties": {
           "updated_at": {
@@ -3439,6 +3475,86 @@
           "effective_config_hash"
         ],
         "title": "StartRunRequest"
+      },
+      "StrategyHealthFunnelResponse": {
+        "properties": {
+          "strategy_id": {
+            "type": "string",
+            "title": "Strategy Id"
+          },
+          "active_subjects": {
+            "type": "integer",
+            "title": "Active Subjects"
+          },
+          "evaluated": {
+            "type": "integer",
+            "title": "Evaluated"
+          },
+          "evidence_sufficient": {
+            "type": "integer",
+            "title": "Evidence Sufficient"
+          },
+          "structure_eligible_or_constructible": {
+            "type": "integer",
+            "title": "Structure Eligible Or Constructible"
+          },
+          "gates_passed": {
+            "type": "integer",
+            "title": "Gates Passed"
+          },
+          "watch": {
+            "type": "integer",
+            "title": "Watch"
+          },
+          "passed": {
+            "type": "integer",
+            "title": "Passed"
+          },
+          "typed_unknown_counts": {
+            "items": {
+              "$ref": "#/components/schemas/ReasonCountResponse"
+            },
+            "type": "array",
+            "title": "Typed Unknown Counts"
+          },
+          "typed_rejection_counts": {
+            "items": {
+              "$ref": "#/components/schemas/ReasonCountResponse"
+            },
+            "type": "array",
+            "title": "Typed Rejection Counts"
+          }
+        },
+        "type": "object",
+        "required": [
+          "strategy_id",
+          "active_subjects",
+          "evaluated",
+          "evidence_sufficient",
+          "structure_eligible_or_constructible",
+          "gates_passed",
+          "watch",
+          "passed",
+          "typed_unknown_counts",
+          "typed_rejection_counts"
+        ],
+        "title": "StrategyHealthFunnelResponse"
+      },
+      "StrategyHealthResponse": {
+        "properties": {
+          "strategies": {
+            "items": {
+              "$ref": "#/components/schemas/StrategyHealthFunnelResponse"
+            },
+            "type": "array",
+            "title": "Strategies"
+          }
+        },
+        "type": "object",
+        "required": [
+          "strategies"
+        ],
+        "title": "StrategyHealthResponse"
       },
       "TrackCandidateRequest": {
         "properties": {

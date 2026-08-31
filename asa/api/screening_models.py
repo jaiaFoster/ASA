@@ -54,9 +54,7 @@ def _wire_metrics(result: UniversalScreeningResult) -> dict[str, str]:
     }
 
 
-def _prefixed_values(
-    result: UniversalScreeningResult, prefix: str
-) -> dict[str, str]:
+def _prefixed_values(result: UniversalScreeningResult, prefix: str) -> dict[str, str]:
     return {
         key.removeprefix(prefix): str(value.native())
         for key, value in result.metrics.items()
@@ -109,6 +107,28 @@ class ScreeningOperationalHealthResponse(BaseModel):
     last_batch_pair_count: int
     last_batch_failure_count: int
     last_batch_incomplete_diagnostic_count: int
+
+
+class ReasonCountResponse(BaseModel):
+    reason: str
+    count: int
+
+
+class StrategyHealthFunnelResponse(BaseModel):
+    strategy_id: str
+    active_subjects: int
+    evaluated: int
+    evidence_sufficient: int
+    structure_eligible_or_constructible: int
+    gates_passed: int
+    watch: int
+    passed: int
+    typed_unknown_counts: list[ReasonCountResponse]
+    typed_rejection_counts: list[ReasonCountResponse]
+
+
+class StrategyHealthResponse(BaseModel):
+    strategies: list[StrategyHealthFunnelResponse]
 
 
 class ScreeningResultResponse(TimestampedResource):
@@ -207,16 +227,12 @@ class ScreeningResultResponse(TimestampedResource):
             status=result.recommendation_state,
             data_quality=result.data_quality,
             freshness=(
-                "fresh"
-                if freshness_status in {"fresh", "live", "prior_session"}
-                else "stale"
+                "fresh" if freshness_status in {"fresh", "live", "prior_session"} else "stale"
             ),
             economics=_wire_values(
                 {key: value.native() for key, value in result.economics.items()}
             ),
-            metric_types={
-                key: value.value_type.value for key, value in result.metrics.items()
-            },
+            metric_types={key: value.value_type.value for key, value in result.metrics.items()},
             economics_types={
                 key: value.value_type.value for key, value in result.economics.items()
             },
@@ -246,51 +262,33 @@ class ScreeningResultResponse(TimestampedResource):
             received_at=received_at,
             evaluated_at=evaluated_at,
             persisted_at=persisted_at,
-            market_session_date=(
-                temporal.market_session_date if temporal is not None else None
-            ),
+            market_session_date=(temporal.market_session_date if temporal is not None else None),
             market_session_status=(
                 temporal.market_session_status if temporal is not None else "unknown"
             ),
             last_refresh_attempt_at=(
-                temporal.last_refresh_attempt_at
-                if temporal is not None
-                else result.observed_at
+                temporal.last_refresh_attempt_at if temporal is not None else result.observed_at
             ),
             last_successful_refresh_at=(
-                temporal.last_successful_refresh_at
-                if temporal is not None
-                else result.observed_at
+                temporal.last_successful_refresh_at if temporal is not None else result.observed_at
             ),
-            next_refresh_at=(
-                temporal.next_refresh_at if temporal is not None else None
-            ),
+            next_refresh_at=(temporal.next_refresh_at if temporal is not None else None),
             data_advanced_on_last_refresh=(
-                temporal.data_advanced_on_last_refresh
-                if temporal is not None
-                else False
+                temporal.data_advanced_on_last_refresh if temporal is not None else False
             ),
             freshness_status=freshness_status,
-            usability_status=(
-                temporal.usability_status if temporal is not None else "unknown"
-            ),
+            usability_status=(temporal.usability_status if temporal is not None else "unknown"),
             usability_reason=(
                 temporal.usability_reason
                 if temporal is not None
                 else "temporal metadata unavailable"
             ),
-            warning_codes=(
-                list(temporal.warning_codes) if temporal is not None else []
-            ),
+            warning_codes=(list(temporal.warning_codes) if temporal is not None else []),
             acquisition_started_at=(
-                temporal.acquisition_started_at
-                if temporal is not None
-                else result.observed_at
+                temporal.acquisition_started_at if temporal is not None else result.observed_at
             ),
             acquisition_completed_at=(
-                temporal.acquisition_completed_at
-                if temporal is not None
-                else result.observed_at
+                temporal.acquisition_completed_at if temporal is not None else result.observed_at
             ),
             input_time_skew_seconds=(
                 temporal.input_time_skew_seconds if temporal is not None else 0

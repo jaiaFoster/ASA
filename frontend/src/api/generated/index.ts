@@ -35,6 +35,7 @@ export type { PositionValuationResponse } from './models/PositionValuationRespon
 export type { ProvenanceResponse } from './models/ProvenanceResponse';
 export type { ProviderResultResponse } from './models/ProviderResultResponse';
 export type { QuoteResponse } from './models/QuoteResponse';
+export type { ReasonCountResponse } from './models/ReasonCountResponse';
 export type { RefreshResultResponse } from './models/RefreshResultResponse';
 export type { RunResponse } from './models/RunResponse';
 export type { RunStepResponse } from './models/RunStepResponse';
@@ -43,6 +44,8 @@ export type { ScreeningResultResponse } from './models/ScreeningResultResponse';
 export type { ScreeningResultsEnvelope } from './models/ScreeningResultsEnvelope';
 export type { SignalCapabilityResponse } from './models/SignalCapabilityResponse';
 export type { StartRunRequest } from './models/StartRunRequest';
+export type { StrategyHealthFunnelResponse } from './models/StrategyHealthFunnelResponse';
+export type { StrategyHealthResponse } from './models/StrategyHealthResponse';
 export type { TrackCandidateRequest } from './models/TrackCandidateRequest';
 export type { TrackedCandidateDetailResponse } from './models/TrackedCandidateDetailResponse';
 export type { TrackedCandidateResponse } from './models/TrackedCandidateResponse';
