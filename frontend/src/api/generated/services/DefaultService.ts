@@ -19,6 +19,7 @@ import type { ScreeningOperationalHealthResponse } from '../models/ScreeningOper
 import type { ScreeningResultResponse } from '../models/ScreeningResultResponse';
 import type { ScreeningResultsEnvelope } from '../models/ScreeningResultsEnvelope';
 import type { StartRunRequest } from '../models/StartRunRequest';
+import type { StrategyHealthResponse } from '../models/StrategyHealthResponse';
 import type { TrackCandidateRequest } from '../models/TrackCandidateRequest';
 import type { TrackedCandidateDetailResponse } from '../models/TrackedCandidateDetailResponse';
 import type { TrackedCandidateResponse } from '../models/TrackedCandidateResponse';
@@ -337,6 +338,17 @@ export class DefaultService {
             errors: {
                 422: `Validation Error`,
             },
+        });
+    }
+    /**
+     * Strategy Health
+     * @returns StrategyHealthResponse Successful Response
+     * @throws ApiError
+     */
+    public static strategyHealthApiV1ScreeningHealthGet(): CancelablePromise<StrategyHealthResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v1/screening-health',
         });
     }
     /**

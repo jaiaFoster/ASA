@@ -81,6 +81,21 @@ def _auth(token: str = "correct-token") -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
 
 
+def test_strategy_health_exposes_all_registered_production_funnels() -> None:
+    repository = InMemoryLatestResultRepository()
+    for signal in ("forward_factor", "earnings_calendar", "skew_momentum"):
+        repository.upsert(_record(signal, "AAPL"))
+
+    response = _client(repository).get("/api/v1/screening-health", headers=_auth())
+
+    assert response.status_code == 200
+    funnels = {item["strategy_id"]: item for item in response.json()["strategies"]}
+    assert set(funnels) == {"forward_factor", "earnings_calendar", "skew_momentum"}
+    assert all(item["active_subjects"] == 1 for item in funnels.values())
+    assert all(item["evaluated"] == 1 for item in funnels.values())
+    assert all(item["typed_rejection_counts"] for item in funnels.values())
+
+
 class TestAuthentication:
     def test_capabilities_without_authorization_header_is_404(self) -> None:
         response = _client().get("/api/v1/capabilities")
@@ -177,12 +192,8 @@ class TestListScreening:
                 "gate.eligible": TypedValue.of_boolean(True),
                 "decision.direction": TypedValue.of_string("NEUTRAL"),
                 "decision.structure": TypedValue.of_string("structure-1"),
-                "decision.reason_codes": TypedValue.of_structured(
-                    ["verdict:watch"]
-                ),
-                "decision.assumptions": TypedValue.of_structured(
-                    ["threshold=0.20"]
-                ),
+                "decision.reason_codes": TypedValue.of_structured(["verdict:watch"]),
+                "decision.assumptions": TypedValue.of_structured(["threshold=0.20"]),
             }
         )
         repository.upsert(row)
@@ -214,9 +225,7 @@ class TestListScreening:
         assert [item["symbol"] for item in body["results"]] == ["MSFT"]
 
     def test_limit_above_maximum_is_rejected(self) -> None:
-        response = _client().get(
-            "/api/v1/screening", headers=_auth(), params={"limit": 501}
-        )
+        response = _client().get("/api/v1/screening", headers=_auth(), params={"limit": 501})
         assert response.status_code == 422
 
     def test_exposes_complete_generic_result_semantics_and_history_link(self) -> None:
@@ -230,14 +239,10 @@ class TestListScreening:
                 recommendation_state="monitor",
             )
         )
-        result = _client(repository).get("/api/v1/screening", headers=_auth()).json()[
-            "results"
-        ][0]
+        result = _client(repository).get("/api/v1/screening", headers=_auth()).json()["results"][0]
         assert result["observation_id"] == "earnings_calendar-AAPL-obs"
         assert result["opportunity_id"] == "opportunity-1"
-        assert result["opportunity_history_url"].endswith(
-            "/opportunities/opportunity-1/history"
-        )
+        assert result["opportunity_history_url"].endswith("/opportunities/opportunity-1/history")
         assert result["lifecycle_stage"] == "watching"
         assert result["status"] == "monitor"
         assert result["data_quality"] == "complete"
@@ -352,9 +357,7 @@ class TestGetScreeningResult:
     def test_returns_the_single_result(self) -> None:
         repository = InMemoryLatestResultRepository()
         repository.upsert(_record("forward_factor", "AAPL"))
-        response = _client(repository).get(
-            "/api/v1/screening/forward_factor/AAPL", headers=_auth()
-        )
+        response = _client(repository).get("/api/v1/screening/forward_factor/AAPL", headers=_auth())
         assert response.status_code == 200
         body = response.json()
         assert body["signal_id"] == "forward_factor"
