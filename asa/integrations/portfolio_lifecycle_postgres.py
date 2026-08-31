@@ -7,6 +7,7 @@ from asa.contracts.portfolio_lifecycle import (
     PositionAssociation,
     PositionLifecycleObservation,
     PositionLifecycleState,
+    ReconciliationState,
     TrackedCandidate,
 )
 
@@ -121,6 +122,26 @@ class PostgresPortfolioLifecycleRepository:
                 {"candidate_id": candidate_id},
             ).mappings()
             return tuple(_lifecycle_observation(row) for row in rows)
+
+    def associations(self, candidate_id: UUID) -> tuple[PositionAssociation, ...]:
+        with self._engine.connect() as connection:
+            rows = connection.execute(
+                text("""
+                    SELECT * FROM portfolio_position_associations
+                    WHERE tracked_candidate_id = :candidate_id
+                    ORDER BY observed_at, id
+                """),
+                {"candidate_id": candidate_id},
+            ).mappings()
+            return tuple(
+                PositionAssociation(
+                    tracked_candidate_id=row["tracked_candidate_id"],
+                    broker_position_key=row["broker_position_key"],
+                    state=ReconciliationState(row["state"]),
+                    observed_at=row["observed_at"],
+                )
+                for row in rows
+            )
 
 
 def _candidate(row: RowMapping) -> TrackedCandidate:

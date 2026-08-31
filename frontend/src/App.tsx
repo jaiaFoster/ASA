@@ -65,6 +65,8 @@ function PortfolioDashboard({ portfolio, positions }: DashboardData) {
           <article key={account.id} className="account-card">
             <strong>{account.display_name}</strong>
             <span>{account.account_type} · {account.currency}</span>
+            <span>Account value {account.account_value ?? 'unknown'} · Cash {account.cash_balance ?? 'unknown'}</span>
+            <span>Buying power {account.buying_power ?? 'unknown'}</span>
             <small>{account.provider} · {account.external_account_id}</small>
           </article>
         ))}
@@ -90,6 +92,23 @@ function PortfolioDashboard({ portfolio, positions }: DashboardData) {
               <strong>{leg.underlying_symbol} {leg.option_type}</strong>
               <span>{leg.side} · {leg.quantity} · strike {leg.strike}</span>
               <small>{leg.expiration} · {leg.option_symbol} · {leg.original_provider}</small>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section>
+        <h2>Recognized option structures</h2>
+        <div className="position-list">
+          {positions.data.option_structures.map((structure) => (
+            <article key={`${structure.kind}-${structure.option_symbols.join('-')}`}>
+              <strong>{structure.kind.replace('_', ' ')}</strong>
+              <small>{structure.option_symbols.join(' · ')}</small>
+            </article>
+          ))}
+          {positions.data.unmatched_option_legs.map((item) => (
+            <article key={item.option_symbol}>
+              <strong>Unmatched</strong><span>{item.option_symbol}</span><small>{item.reason}</small>
             </article>
           ))}
         </div>

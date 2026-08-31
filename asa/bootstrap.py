@@ -187,6 +187,7 @@ def build_application(
             TrackCandidateService(
                 latest_result_repository, portfolio_lifecycle_repository
             ),
+            portfolio_lifecycle_repository,
             agent_authorize,
         )
     )

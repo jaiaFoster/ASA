@@ -39,6 +39,10 @@ const client: PublishedPortfolioClient = {
         { account_id: 'account-a', underlying_symbol: 'AAPL', option_symbol: 'AAPL-LONG', option_type: 'call', strike: '200', expiration: '2026-09-18', quantity: '1', side: 'long', average_price: '8.40', observed_at: freshness.as_of, original_provider: 'deterministic_fake_broker' },
         { account_id: 'account-a', underlying_symbol: 'AAPL', option_symbol: 'AAPL-SHORT', option_type: 'call', strike: '210', expiration: '2026-09-18', quantity: '1', side: 'short', average_price: '5.10', observed_at: freshness.as_of, original_provider: 'deterministic_fake_broker' },
       ],
+      option_structures: [{ kind: 'vertical', option_symbols: ['AAPL-LONG', 'AAPL-SHORT'] }],
+      unmatched_option_legs: [],
+      equity_valuations: [],
+      option_leg_valuations: [],
     },
   }),
 }
@@ -51,9 +55,11 @@ describe('App', () => {
     expect(screen.getByText('stale')).toBeInTheDocument()
     expect(screen.getByText('Serving last successful publication')).toBeInTheDocument()
     expect(screen.getByText('Primary Taxable')).toBeInTheDocument()
+    expect(screen.getByText('Account value 50000.00 · Cash 1250.00')).toBeInTheDocument()
     expect(screen.getByText('12 shares')).toBeInTheDocument()
     expect(screen.getByText('long · 1 · strike 200')).toBeInTheDocument()
     expect(screen.getByText('short · 1 · strike 210')).toBeInTheDocument()
+    expect(screen.getByText('vertical')).toBeInTheDocument()
   })
 
   it('renders unavailable and error states', async () => {
