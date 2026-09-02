@@ -1,8 +1,10 @@
 import io
+import os
 from collections.abc import Callable, Mapping
 from contextlib import redirect_stderr, redirect_stdout
 from datetime import UTC, date, datetime
 from decimal import Decimal, InvalidOperation
+from pathlib import Path
 from typing import Any, Protocol, TypeVar
 from uuid import uuid4
 
@@ -21,6 +23,7 @@ from asa.application.ports.brokers import (
 
 T = TypeVar("T")
 RawRecord = Mapping[str, Any]
+_SESSION_PICKLE_NAME = "asa_trusted_session"
 
 _BROKERAGE_ACCOUNT_TYPE_MAP = {
     "individual": "individual",
@@ -69,39 +72,70 @@ class RobinStocksReadClient:
         password: str,
         totp_secret: str | None,
         account_numbers: tuple[str, ...],
+        session_path: str,
     ) -> None:
         self._username = username
         self._password = password
         self._totp_secret = totp_secret
         self._account_numbers = account_numbers
+        self._session_path = Path(session_path)
         self._authenticated = False
 
     def authenticate(self) -> None:
         if self._authenticated:
             return
         mfa_code = None if self._totp_secret is None else pyotp.TOTP(self._totp_secret).now()
+        self._prepare_session_directory()
         try:
             self._quiet_call(
                 robinhood.login,
                 username=self._username,
                 password=self._password,
                 mfa_code=mfa_code,
-                store_session=False,
-                pickle_path="/tmp/asa-robinhood-no-session",
+                store_session=True,
+                pickle_path=str(self._session_path),
+                pickle_name=_SESSION_PICKLE_NAME,
             )
-        except RobinhoodProviderError:
+        except RobinhoodProviderError as exc:
+            if exc.code == "broker_provider_unavailable":
+                raise
             raise RobinhoodProviderError(
                 "broker_authentication_failed", "Robinhood authentication failed"
             ) from None
-        finally:
-            self._username = ""
-            self._password = ""
-            self._totp_secret = None
         if not robinhood_helper.LOGGED_IN:
             raise RobinhoodProviderError(
-                "broker_authentication_failed", "Robinhood authentication failed"
+                "broker_manual_approval_required",
+                "Robinhood manual approval or trusted-session renewal is required",
             )
+        self._secure_session_file()
         self._authenticated = True
+        # Secrets remain available only until a trusted session has been established.
+        # A failed approval must remain retryable without reconstructing the provider.
+        self._username = ""
+        self._password = ""
+        self._totp_secret = None
+
+    def _prepare_session_directory(self) -> None:
+        try:
+            self._session_path.mkdir(mode=0o700, parents=True, exist_ok=True)
+            os.chmod(self._session_path, 0o700)
+        except OSError:
+            raise RobinhoodProviderError(
+                "broker_session_storage_unavailable",
+                "Robinhood trusted-session storage is unavailable",
+            ) from None
+
+    def _secure_session_file(self) -> None:
+        session_file = self._session_path / f"robinhood{_SESSION_PICKLE_NAME}.pickle"
+        if not session_file.exists():
+            return
+        try:
+            os.chmod(session_file, 0o600)
+        except OSError:
+            raise RobinhoodProviderError(
+                "broker_session_storage_unavailable",
+                "Robinhood trusted-session storage is unavailable",
+            ) from None
 
     def accounts(self) -> list[RawRecord]:
         if self._account_numbers:
@@ -194,11 +228,12 @@ class RobinhoodPortfolioProvider:
         password: str,
         totp_secret: str | None = None,
         account_numbers: tuple[str, ...] = (),
+        session_path: str = "/data/asa-robinhood",
         client: RobinhoodReadClient | None = None,
         clock: Callable[[], datetime] = lambda: datetime.now(UTC),
     ) -> None:
         self._client = client or RobinStocksReadClient(
-            username, password, totp_secret, account_numbers
+            username, password, totp_secret, account_numbers, session_path
         )
         self._account_numbers = set(account_numbers)
         self._clock = clock

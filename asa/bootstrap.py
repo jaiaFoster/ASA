@@ -250,5 +250,6 @@ def _build_broker_provider(settings: Settings) -> BrokerPortfolioProvider:
                 else settings.robinhood_totp_secret.get_secret_value()
             ),
             account_numbers=settings.selected_robinhood_accounts,
+            session_path=settings.robinhood_session_path,
         )
     raise ValueError(f"unsupported broker portfolio provider: {settings.broker_portfolio_provider}")

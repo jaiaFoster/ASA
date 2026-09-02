@@ -17,6 +17,19 @@ def test_robinhood_mode_fails_closed_without_credentials() -> None:
         Settings(_env_file=None, broker_portfolio_provider="robinhood")
 
 
+def test_robinhood_session_path_is_centralized_configuration(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("ASA_ROBINHOOD_SESSION_PATH", "/sealed/runtime/robinhood")
+
+    assert Settings(_env_file=None).robinhood_session_path == "/sealed/runtime/robinhood"
+
+
+def test_robinhood_session_path_cannot_write_relative_to_repository() -> None:
+    with pytest.raises(ValidationError, match="session path must be absolute"):
+        Settings(_env_file=None, robinhood_session_path="repository/session")
+
+
 def test_robinhood_secrets_are_redacted_and_excluded_from_config_hash() -> None:
     first = Settings(
         _env_file=None,
