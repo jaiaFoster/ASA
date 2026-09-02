@@ -1,5 +1,6 @@
 from hashlib import sha256
 from json import dumps
+from pathlib import Path
 
 from pydantic import AliasChoices, Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -27,6 +28,7 @@ class Settings(BaseSettings):
     robinhood_password: SecretStr | None = None
     robinhood_totp_secret: SecretStr | None = None
     robinhood_account_numbers: str | None = None
+    robinhood_session_path: str = "/data/asa-robinhood"
     operations_token: SecretStr | None = None
     agent_api_token: SecretStr | None = None
     fresh_for_seconds: int = Field(default=300, ge=1)
@@ -46,6 +48,14 @@ class Settings(BaseSettings):
             stripped = value.strip()
             return stripped or None
         return value
+
+    @field_validator("robinhood_session_path")
+    @classmethod
+    def validate_robinhood_session_path(cls, value: str) -> str:
+        path = Path(value.strip())
+        if not path.is_absolute():
+            raise ValueError("Robinhood session path must be absolute")
+        return str(path)
 
     @field_validator("database_url")
     @classmethod

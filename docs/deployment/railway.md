@@ -112,11 +112,20 @@ After deployment:
 1. Confirm the pre-deploy migration completed.
 2. Confirm `/api/v1/health` returns 200 and `/api/v1/readiness` reports `ready`.
 3. In deterministic mode, POST one run and verify `/api/v1/portfolio` and `/api/v1/positions`.
-4. In Robinhood mode, POST one run, approve any Robinhood challenge if required, and verify the published account/equity/option facts through those same endpoints.
+4. In Robinhood mode, mount a persistent Railway volume at `/data`, leave
+   `ASA_ROBINHOOD_SESSION_PATH=/data/asa-robinhood` (the default), then POST one run.
+   Approve Robinhood's device challenge only when establishing or renewing trust; normal
+   refreshes reuse the sealed session. Verify the published account/equity/option facts through
+   those same endpoints. Never download, print, or attach the session pickle.
 5. Review structured logs only for request, run, step, provider, and account correlation fields. Stop if credential, token, cookie, or raw response material appears.
 6. With `ASA_AGENT_API_TOKEN` set, confirm `GET /api/v1/capabilities` with a correct bearer token returns 200 and lists the registered signals, and that an omitted or incorrect token returns 404.
 
-Robinhood authentication is an unofficial integration and may require interactive approval. ASA remains synchronous and preserves the prior successful publication if authentication or acquisition fails.
+Robinhood authentication is an unofficial integration and may require interactive approval. ASA
+persists the trusted session in the configured runtime-only directory, following the proven Stonk
+`store_session=True` behavior while retaining ASA's narrower read-only boundary. A missing or
+expired trusted session is reported as `broker_manual_approval_required`; ASA preserves the prior
+successful publication if authentication or acquisition fails. A TOTP seed is not required for
+this trusted-device flow.
 
 Run the bounded authenticated smoke without placing the token on the command line:
 

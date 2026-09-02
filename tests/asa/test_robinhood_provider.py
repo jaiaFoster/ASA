@@ -1,10 +1,13 @@
 from datetime import UTC, datetime
+from pathlib import Path
 
 import pytest
 
+from asa.integrations.providers import robinhood as robinhood_module
 from asa.integrations.providers.robinhood import (
     RobinhoodPortfolioProvider,
     RobinhoodProviderError,
+    RobinStocksReadClient,
 )
 
 
@@ -68,6 +71,52 @@ class FakeRobinhoodReadClient:
             "strike_price": "200.00",
             "expiration_date": "2026-09-18",
         }
+
+
+def test_robin_stocks_client_persists_and_reuses_trusted_session(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    calls: list[dict[str, object]] = []
+
+    def login(**kwargs: object) -> dict[str, str]:
+        calls.append(kwargs)
+        session_file = tmp_path / "robinhoodasa_trusted_session.pickle"
+        if not session_file.exists():
+            session_file.write_bytes(b"opaque-test-session")
+        monkeypatch.setattr(robinhood_module.robinhood_helper, "LOGGED_IN", True)
+        return {"detail": "trusted session available"}
+
+    monkeypatch.setattr(robinhood_module.robinhood, "login", login)
+    first = RobinStocksReadClient("user", "password", None, (), str(tmp_path))
+    second = RobinStocksReadClient("user", "password", None, (), str(tmp_path))
+
+    first.authenticate()
+    second.authenticate()
+
+    assert len(calls) == 2
+    assert all(call["store_session"] is True for call in calls)
+    assert all(call["pickle_path"] == str(tmp_path) for call in calls)
+    assert all(call["pickle_name"] == "asa_trusted_session" for call in calls)
+    assert (tmp_path.stat().st_mode & 0o777) == 0o700
+    assert ((tmp_path / "robinhoodasa_trusted_session.pickle").stat().st_mode & 0o777) == 0o600
+
+
+@pytest.mark.parametrize("expired_session_exists", [False, True])
+def test_robin_stocks_client_reports_manual_approval_without_disclosure(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, expired_session_exists: bool
+) -> None:
+    if expired_session_exists:
+        (tmp_path / "robinhoodasa_trusted_session.pickle").write_bytes(b"expired")
+    monkeypatch.setattr(robinhood_module.robinhood, "login", lambda **_: None)
+    monkeypatch.setattr(robinhood_module.robinhood_helper, "LOGGED_IN", False)
+    client = RobinStocksReadClient("private-user", "private-password", None, (), str(tmp_path))
+
+    with pytest.raises(RobinhoodProviderError) as captured:
+        client.authenticate()
+
+    assert captured.value.code == "broker_manual_approval_required"
+    assert str(captured.value) == "Robinhood manual approval or trusted-session renewal is required"
+    assert "private" not in str(captured.value)
 
 
 def test_robinhood_adapter_normalizes_read_only_account_equity_and_option() -> None:
