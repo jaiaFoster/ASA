@@ -284,6 +284,57 @@ function detailView(item) {
     ["Structure", exactValue(item, "structure").text, exactValue(item, "structure").kind],
   ]));
   fragment.append(decision);
+  const readiness = item.execution_assessment;
+  if (readiness) {
+    const section = element("section", "audit-section execution-readiness");
+    section.append(element("h3", null, "Execution readiness — analytical only"));
+    section.append(definitionList([
+      ["Signal verdict (unchanged)", exactValue(item, "verdict").text],
+      ["Intended structure", readiness.intended_structure_kind],
+      ["Constructibility", readiness.status],
+      ["Available structure", readiness.available_structure_kind || "Unknown"],
+      ["Reason", readiness.reason_code || "None"],
+    ]));
+    for (const leg of readiness.exact_legs || []) {
+      section.append(element("h4", null, `Exact leg — ${leg.role}`));
+      section.append(definitionList([
+        ["Contract identity", leg.canonical_contract_identity],
+        ["Contract", `${leg.call_or_put} ${leg.expiration} ${leg.strike}`],
+        ["Position / quantity", `${leg.long_or_short} / ${leg.quantity}`],
+        ["Bid / ask / midpoint", `${leg.bid ?? "Unknown"} / ${leg.ask ?? "Unknown"} / ${leg.midpoint ?? "Unknown"}`],
+        ["Target / actual delta", `${leg.target_delta ?? "Not declared"} / ${leg.actual_delta ?? "Unknown"}`],
+      ]));
+    }
+    const entry = readiness.modeled_entry;
+    if (entry) section.append(definitionList([
+      ["Modeled entry", entry.modeled_net_debit_or_credit],
+      ["Fill assumption", `${entry.reference}; ${entry.semantics}`],
+    ]));
+    const surface = item.modeled_pnl;
+    if (surface) {
+      section.append(element("h4", null, "Modeled P&L at front expiration"));
+      section.append(definitionList([
+        ["Spot reference", surface.spot_reference],
+        ["Model", surface.valuation_model_and_version],
+        ["Fill assumption", surface.entry_fill_assumption],
+        ["Rate / dividend", `${surface.annual_risk_free_rate} / ${surface.annual_dividend_yield}`],
+        ["Disclosure", surface.semantics],
+      ]));
+      const graph = element("div", "pnl-graph");
+      const values = surface.points.map((point) => Number(point.modeled_pnl));
+      const maximum = Math.max(1, ...values.map((value) => Math.abs(value)));
+      for (const point of surface.points) {
+        const row = element("div", "pnl-point");
+        const value = Number(point.modeled_pnl);
+        const bar = element("span", value >= 0 ? "pnl-bar pnl-bar--gain" : "pnl-bar pnl-bar--loss");
+        bar.style.width = `${Math.max(1, Math.abs(value) / maximum * 100)}%`;
+        row.append(element("code", null, point.underlying_price), bar, element("code", null, point.modeled_pnl));
+        graph.append(row);
+      }
+      section.append(graph);
+    }
+    fragment.append(section);
+  }
   fragment.append(gateSection(item.gate_results));
   fragment.append(objectSection("Canonical facts", item.canonical_facts));
   fragment.append(objectSection("Named derived facts", item.named_derived_facts, item.formula_versions));

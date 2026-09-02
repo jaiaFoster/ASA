@@ -17,6 +17,7 @@ from asa.api.agent_models import TimestampedResource
 from strategy_runtime.catalog import SignalCatalogEntry
 from strategy_runtime.executable_structures import ExecutableStructureAssessment
 from strategy_runtime.lifecycle import OpportunityHistory, OpportunityObservation
+from strategy_runtime.modeled_pnl import ModeledPnLSurface
 from strategy_runtime.result import EvaluationState, UniversalScreeningResult
 
 # SPRINT-009R/EPIC-R5: the public wire vocabulary predates strategy_runtime and must not
@@ -429,11 +430,56 @@ class ExecutableStructureAssessmentResponse(BaseModel):
         )
 
 
+class ModeledPnLPointResponse(BaseModel):
+    underlying_price: str
+    modeled_pnl: str
+
+
+class ModeledPnLSurfaceResponse(BaseModel):
+    surface_identity: str
+    structure_assessment_identity: str
+    valuation_model_and_version: str
+    valuation_time: datetime
+    spot_reference: str
+    points: list[ModeledPnLPointResponse]
+    entry_fill_assumption: str
+    volatility_assumptions: dict[str, str]
+    annual_risk_free_rate: str
+    annual_dividend_yield: str
+    contract_multiplier: str
+    semantics: str = "modeled_PnL_not_guaranteed_payoff"
+
+    @classmethod
+    def from_surface(cls, surface: ModeledPnLSurface) -> ModeledPnLSurfaceResponse:
+        return cls(
+            surface_identity=surface.identity,
+            structure_assessment_identity=surface.structure_assessment_identity,
+            valuation_model_and_version=surface.valuation_model_and_version,
+            valuation_time=surface.valuation_time,
+            spot_reference=str(surface.spot_reference),
+            points=[
+                ModeledPnLPointResponse(
+                    underlying_price=str(item.underlying_price),
+                    modeled_pnl=str(item.modeled_pnl),
+                )
+                for item in surface.points
+            ],
+            entry_fill_assumption=surface.entry_fill_assumption,
+            volatility_assumptions={
+                identity: str(value) for identity, value in surface.volatility_assumptions
+            },
+            annual_risk_free_rate=str(surface.annual_risk_free_rate),
+            annual_dividend_yield=str(surface.annual_dividend_yield),
+            contract_multiplier=str(surface.contract_multiplier),
+        )
+
+
 class ScreeningExecutionReadinessResponse(BaseModel):
     """Additive composition; the signal and assessment remain independent."""
 
     signal: ScreeningResultResponse
     execution_assessment: ExecutableStructureAssessmentResponse
+    modeled_pnl: ModeledPnLSurfaceResponse | None = None
 
 
 class RefreshResultResponse(ScreeningResultResponse):
