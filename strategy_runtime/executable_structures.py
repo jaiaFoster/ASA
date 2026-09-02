@@ -13,8 +13,9 @@ from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 from enum import StrEnum
+from typing import cast
 
-from domain import OptionLeg
+from domain import OptionLeg, deserialize_financial_contract, serialize_financial_contract
 from strategy_runtime.contract import StructureKind
 
 
@@ -209,3 +210,184 @@ class ExecutableStructureAssessment:
         }
         encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
         return hashlib.sha256(encoded).hexdigest()
+
+
+def execution_assessment_to_data(
+    assessment: ExecutableStructureAssessment,
+) -> dict[str, object]:
+    """Canonical JSON-safe public projection, owned with the artifact."""
+
+    return {
+        "assessment_identity": assessment.identity,
+        "originating_result_identity": assessment.originating_result_identity,
+        "subject": assessment.subject,
+        "intended_structure_kind": assessment.intended_structure_kind.value,
+        "status": assessment.status.value,
+        "available_structure_kind": (
+            None
+            if assessment.available_structure_kind is None
+            else assessment.available_structure_kind.value
+        ),
+        "exact_legs": [
+            {
+                "canonical_contract_identity": item.canonical_contract_identity,
+                "instrument_id_scheme": item.leg.contract.option_contract_id.scheme,
+                "instrument_id_value": item.leg.contract.option_contract_id.value,
+                "role": item.leg.role,
+                "call_or_put": item.leg.contract.option_type.value,
+                "expiration": item.leg.contract.expiration.isoformat(),
+                "strike": str(item.leg.contract.strike),
+                "long_or_short": item.leg.position.value,
+                "quantity": str(item.leg.quantity),
+                "bid": None if item.leg.contract.bid is None else str(item.leg.contract.bid),
+                "ask": None if item.leg.contract.ask is None else str(item.leg.contract.ask),
+                "midpoint": None if item.midpoint is None else str(item.midpoint),
+                "actual_delta": (
+                    None if item.leg.contract.delta is None else str(item.leg.contract.delta)
+                ),
+                "target_delta": None if item.target_delta is None else str(item.target_delta),
+                "source_observed_at": item.leg.contract.observed_at.isoformat(),
+            }
+            for item in assessment.exact_legs
+        ],
+        "selection_diagnostics": [
+            {
+                "role": item.role,
+                "target_delta": None if item.target_delta is None else str(item.target_delta),
+                "actual_delta": None if item.actual_delta is None else str(item.actual_delta),
+                "absolute_delta_deviation": (
+                    None
+                    if item.absolute_delta_deviation is None
+                    else str(item.absolute_delta_deviation)
+                ),
+            }
+            for item in assessment.selection_diagnostics
+        ],
+        "modeled_entry": (
+            None
+            if assessment.modeled_entry_economics is None
+            else {
+                "reference": "midpoint",
+                "semantics": "modeled_reference_only",
+                "per_leg_references": {
+                    identity: str(value)
+                    for identity, value in assessment.modeled_entry_economics.per_leg_midpoints
+                },
+                "modeled_net_debit_or_credit": str(
+                    assessment.modeled_entry_economics.modeled_net_debit_or_credit
+                ),
+                "model_version": assessment.modeled_entry_economics.model_version,
+                "calculated_at": assessment.modeled_entry_economics.calculated_at.isoformat(),
+            }
+        ),
+        "evidence_snapshot_identity": assessment.evidence_snapshot_identity,
+        "assessed_at": assessment.assessed_at.isoformat(),
+        "reason_code": assessment.reason_code,
+    }
+
+
+def serialize_execution_assessment(assessment: ExecutableStructureAssessment) -> str:
+    """Canonical durable form retaining exact legs for later analytical modeling."""
+
+    payload = {
+        "originating_result_identity": assessment.originating_result_identity,
+        "subject": assessment.subject,
+        "intended_structure_kind": assessment.intended_structure_kind.value,
+        "status": assessment.status.value,
+        "exact_legs": [
+            {
+                "leg": json.loads(serialize_financial_contract(item.leg)),
+                "target_delta": None if item.target_delta is None else str(item.target_delta),
+            }
+            for item in assessment.exact_legs
+        ],
+        "selection_diagnostics": [
+            {
+                "role": item.role,
+                "target_delta": None if item.target_delta is None else str(item.target_delta),
+                "actual_delta": None if item.actual_delta is None else str(item.actual_delta),
+            }
+            for item in assessment.selection_diagnostics
+        ],
+        "modeled_entry": (
+            None
+            if assessment.modeled_entry_economics is None
+            else {
+                "per_leg_midpoints": [
+                    [identity, str(value)]
+                    for identity, value in assessment.modeled_entry_economics.per_leg_midpoints
+                ],
+                "modeled_net_debit_or_credit": str(
+                    assessment.modeled_entry_economics.modeled_net_debit_or_credit
+                ),
+                "model_version": assessment.modeled_entry_economics.model_version,
+                "calculated_at": assessment.modeled_entry_economics.calculated_at.isoformat(),
+            }
+        ),
+        "evidence_snapshot_identity": assessment.evidence_snapshot_identity,
+        "assessed_at": assessment.assessed_at.isoformat(),
+        "reason_code": assessment.reason_code,
+        "available_structure_kind": (
+            None
+            if assessment.available_structure_kind is None
+            else assessment.available_structure_kind.value
+        ),
+    }
+    return json.dumps(payload, sort_keys=True, separators=(",", ":"))
+
+
+def deserialize_execution_assessment(payload: str) -> ExecutableStructureAssessment:
+    """Decode only the canonical form produced above and verify its identity."""
+
+    raw = json.loads(payload)
+    exact_legs = tuple(
+        ResolvedOptionLeg(
+            cast(
+                OptionLeg,
+                deserialize_financial_contract(
+                json.dumps(item["leg"], sort_keys=True, separators=(",", ":")).encode()
+                ),
+            ),
+            None if item["target_delta"] is None else Decimal(item["target_delta"]),
+        )
+        for item in raw["exact_legs"]
+    )
+    if any(not isinstance(item.leg, OptionLeg) for item in exact_legs):
+        raise ValueError("execution assessment legs must decode as OptionLeg")
+    entry = raw["modeled_entry"]
+    assessment = ExecutableStructureAssessment(
+        raw["originating_result_identity"],
+        raw["subject"],
+        StructureKind(raw["intended_structure_kind"]),
+        ExecutableStructureStatus(raw["status"]),
+        exact_legs,
+        tuple(
+            SelectionDiagnostic(
+                item["role"],
+                None if item["target_delta"] is None else Decimal(item["target_delta"]),
+                None if item["actual_delta"] is None else Decimal(item["actual_delta"]),
+            )
+            for item in raw["selection_diagnostics"]
+        ),
+        (
+            None
+            if entry is None
+            else ModeledEntryEconomics(
+                tuple((item[0], Decimal(item[1])) for item in entry["per_leg_midpoints"]),
+                Decimal(entry["modeled_net_debit_or_credit"]),
+                entry["model_version"],
+                datetime.fromisoformat(entry["calculated_at"]),
+            )
+        ),
+        raw["evidence_snapshot_identity"],
+        datetime.fromisoformat(raw["assessed_at"]),
+        raw["reason_code"],
+        (
+            None
+            if raw["available_structure_kind"] is None
+            else StructureKind(raw["available_structure_kind"])
+        ),
+    )
+    if serialize_execution_assessment(assessment) != payload:
+        raise ValueError("execution assessment serialization is not canonical")
+    return assessment

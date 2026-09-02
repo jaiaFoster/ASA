@@ -114,6 +114,9 @@ input:focus, select:focus, button:focus, a:focus { outline: 2px solid var(--cyan
 .empty-state--large { padding: 4rem 1rem; text-align: center; border: 1px dashed var(--line); }
 .footer { display: flex; justify-content: space-between; gap: 1rem; padding: 1.2rem clamp(1rem, 4vw, 4.5rem); color: var(--muted); border-top: 1px solid var(--line); font: 700 .68rem/1 var(--mono); letter-spacing: .08em; }
 .footer span:first-child { color: var(--acid); }
+.pnl-assumptions { display: grid; gap: .75rem; margin-top: 1rem; }
+.pnl-assumptions label { display: grid; gap: .25rem; }
+.pnl-assumptions input { width: 100%; }
 
 @media (max-width: 900px) {
   .summary-grid, .fact-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }

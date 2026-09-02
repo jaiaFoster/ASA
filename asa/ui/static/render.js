@@ -262,7 +262,7 @@ function resultsView(model, handlers) {
   return fragment;
 }
 
-function detailView(item) {
+function detailView(item, handlers) {
   const fragment = document.createDocumentFragment();
   const back = element("a", "back-link", "← Latest results"); back.href = "#/results"; fragment.append(back);
   const heading = element("section", "page-heading detail-heading");
@@ -332,6 +332,40 @@ function detailView(item) {
         graph.append(row);
       }
       section.append(graph);
+    }
+    if (readiness.status === "constructible_as_intended") {
+      const form = element("form", "pnl-assumptions");
+      form.append(element("h4", null, "Model with explicit assumptions"));
+      const fields = [
+        ["valuation_time", "Front-expiration valuation time (ISO UTC)"],
+        ["spot_reference", "Spot reference"],
+        ["underlying_price_grid", "Price grid (comma separated)"],
+        ["volatility_by_contract", "Back-leg IV by contract identity (JSON object)"],
+        ["annual_risk_free_rate", "Annual risk-free rate"],
+        ["annual_dividend_yield", "Annual dividend yield"],
+        ["contract_multiplier", "Contract multiplier"],
+      ];
+      for (const [name, labelText] of fields) {
+        const label = element("label", null, labelText);
+        const input = element("input"); input.name = name; input.required = true;
+        label.append(input); form.append(label);
+      }
+      const button = element("button", "button", "Calculate modeled P&L");
+      button.type = "submit"; form.append(button);
+      form.addEventListener("submit", (event) => {
+        event.preventDefault();
+        const values = Object.fromEntries(new FormData(form));
+        handlers.modelPnl(item, {
+          valuation_time: values.valuation_time,
+          spot_reference: values.spot_reference,
+          underlying_price_grid: String(values.underlying_price_grid).split(",").map((value) => value.trim()),
+          volatility_by_contract: JSON.parse(String(values.volatility_by_contract)),
+          annual_risk_free_rate: values.annual_risk_free_rate,
+          annual_dividend_yield: values.annual_dividend_yield,
+          contract_multiplier: values.contract_multiplier,
+        });
+      });
+      section.append(form);
     }
     fragment.append(section);
   }
@@ -415,7 +449,7 @@ export function renderApp(root, model, handlers) {
   }
   if (model.loading) main.append(element("div", "loading-bar", "Reading persisted state…"));
   if (model.route.name === "detail") {
-    if (model.detail) main.append(detailView(model.detail));
+    if (model.detail) main.append(detailView(model.detail, handlers));
     else main.append(element("p", "empty-state empty-state--large", "Result not found in the persisted snapshot."));
   } else if (model.route.name === "health") {
     main.append(healthView(model));

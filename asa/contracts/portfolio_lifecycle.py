@@ -29,6 +29,27 @@ class TrackedCandidate:
     originating_observed_at: datetime
     evidence_observed_at: datetime
     exact_option_symbols: tuple[str, ...]
+    resolved_proposal_identity: str | None = None
+    resolved_proposal_json: str | None = None
+
+    def __post_init__(self) -> None:
+        if (self.resolved_proposal_identity is None) != (
+            self.resolved_proposal_json is None
+        ):
+            raise ValueError("resolved proposal identity and payload must appear together")
+
+
+@dataclass(frozen=True, slots=True)
+class ExecutionReadinessArtifact:
+    """Immutable API-ready proposal captured downstream of one result."""
+
+    originating_observation_id: str
+    strategy_id: str
+    symbol: str
+    assessment_identity: str
+    canonical_json: str
+    assessment_json: str
+    assessed_at: datetime
 
 
 @dataclass(frozen=True, slots=True)

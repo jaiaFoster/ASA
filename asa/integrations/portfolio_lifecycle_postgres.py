@@ -4,6 +4,7 @@ from sqlalchemy import Engine, text
 from sqlalchemy.engine import RowMapping
 
 from asa.contracts.portfolio_lifecycle import (
+    ExecutionReadinessArtifact,
     PositionAssociation,
     PositionLifecycleObservation,
     PositionLifecycleState,
@@ -23,11 +24,13 @@ class PostgresPortfolioLifecycleRepository:
                     INSERT INTO tracked_candidates (
                         id, originating_observation_id, opportunity_id, signal_id,
                         signal_version, symbol, tracked_at, originating_observed_at,
-                        evidence_observed_at, exact_option_symbols
+                        evidence_observed_at, exact_option_symbols,
+                        resolved_proposal_identity, resolved_proposal_json
                     ) VALUES (
                         :id, :originating_observation_id, :opportunity_id, :signal_id,
                         :signal_version, :symbol, :tracked_at, :originating_observed_at,
-                        :evidence_observed_at, :exact_option_symbols
+                        :evidence_observed_at, :exact_option_symbols,
+                        :resolved_proposal_identity, :resolved_proposal_json
                     ) ON CONFLICT (originating_observation_id) DO NOTHING
                 """),
                 {
@@ -41,12 +44,70 @@ class PostgresPortfolioLifecycleRepository:
                     "originating_observed_at": candidate.originating_observed_at,
                     "evidence_observed_at": candidate.evidence_observed_at,
                     "exact_option_symbols": list(candidate.exact_option_symbols),
+                    "resolved_proposal_identity": candidate.resolved_proposal_identity,
+                    "resolved_proposal_json": candidate.resolved_proposal_json,
                 },
             )
         stored = self.candidate(candidate.id)
         if stored is None:
             raise RuntimeError("tracked candidate could not be read after insertion")
         return stored
+
+    def put_execution_readiness(self, artifact: ExecutionReadinessArtifact) -> None:
+        with self._engine.begin() as connection:
+            connection.execute(
+                text("""
+                    INSERT INTO execution_readiness_artifacts (
+                        originating_observation_id, signal_id, symbol,
+                        assessment_identity, canonical_json, assessment_json, assessed_at
+                    ) VALUES (
+                        :originating_observation_id, :signal_id, :symbol,
+                        :assessment_identity, :canonical_json, :assessment_json, :assessed_at
+                    ) ON CONFLICT (signal_id, symbol) DO UPDATE SET
+                        originating_observation_id = EXCLUDED.originating_observation_id,
+                        assessment_identity = EXCLUDED.assessment_identity,
+                        canonical_json = EXCLUDED.canonical_json,
+                        assessment_json = EXCLUDED.assessment_json,
+                        assessed_at = EXCLUDED.assessed_at
+                    WHERE execution_readiness_artifacts.assessed_at <= EXCLUDED.assessed_at
+                """),
+                {
+                    "originating_observation_id": artifact.originating_observation_id,
+                    "signal_id": artifact.strategy_id,
+                    "symbol": artifact.symbol,
+                    "assessment_identity": artifact.assessment_identity,
+                    "canonical_json": artifact.canonical_json,
+                    "assessment_json": artifact.assessment_json,
+                    "assessed_at": artifact.assessed_at,
+                },
+            )
+
+    def execution_readiness(
+        self, strategy_id: str, symbol: str
+    ) -> ExecutionReadinessArtifact | None:
+        with self._engine.connect() as connection:
+            row = (
+                connection.execute(
+                    text("""
+                        SELECT * FROM execution_readiness_artifacts
+                        WHERE signal_id = :signal_id AND symbol = :symbol
+                    """),
+                    {"signal_id": strategy_id, "symbol": symbol.upper()},
+                )
+                .mappings()
+                .first()
+            )
+        if row is None:
+            return None
+        return ExecutionReadinessArtifact(
+            originating_observation_id=row["originating_observation_id"],
+            strategy_id=row["signal_id"],
+            symbol=row["symbol"],
+            assessment_identity=row["assessment_identity"],
+            canonical_json=row["canonical_json"],
+            assessment_json=row["assessment_json"],
+            assessed_at=row["assessed_at"],
+        )
 
     def candidates(self) -> tuple[TrackedCandidate, ...]:
         with self._engine.connect() as connection:
@@ -156,6 +217,8 @@ def _candidate(row: RowMapping) -> TrackedCandidate:
         originating_observed_at=row["originating_observed_at"],
         evidence_observed_at=row["evidence_observed_at"],
         exact_option_symbols=tuple(row["exact_option_symbols"]),
+        resolved_proposal_identity=row["resolved_proposal_identity"],
+        resolved_proposal_json=row["resolved_proposal_json"],
     )
 
 

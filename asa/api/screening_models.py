@@ -307,6 +307,8 @@ class ScreeningResultsEnvelope(BaseModel):
 
 class ExactOptionLegResponse(BaseModel):
     canonical_contract_identity: str
+    instrument_id_scheme: str
+    instrument_id_value: str
     role: str
     call_or_put: str
     expiration: date
@@ -369,6 +371,8 @@ class ExecutableStructureAssessmentResponse(BaseModel):
             exact_legs=[
                 ExactOptionLegResponse(
                     canonical_contract_identity=item.canonical_contract_identity,
+                    instrument_id_scheme=item.leg.contract.option_contract_id.scheme,
+                    instrument_id_value=item.leg.contract.option_contract_id.value,
                     role=item.leg.role,
                     call_or_put=item.leg.contract.option_type.value,
                     expiration=item.leg.contract.expiration,

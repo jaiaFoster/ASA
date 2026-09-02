@@ -1120,6 +1120,205 @@
         }
       }
     },
+    "/api/v1/screening/{signal}/{symbol}/execution-readiness": {
+      "get": {
+        "summary": "Get Execution Readiness",
+        "operationId": "get_execution_readiness_api_v1_screening__signal___symbol__execution_readiness_get",
+        "parameters": [
+          {
+            "name": "signal",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Signal"
+            }
+          },
+          {
+            "name": "symbol",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Symbol"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScreeningExecutionReadinessResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/screening/{signal}/{symbol}/execution-readiness/modeled-pnl": {
+      "get": {
+        "summary": "Model Execution Readiness Pnl",
+        "operationId": "model_execution_readiness_pnl_api_v1_screening__signal___symbol__execution_readiness_modeled_pnl_get",
+        "parameters": [
+          {
+            "name": "signal",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Signal"
+            }
+          },
+          {
+            "name": "symbol",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Symbol"
+            }
+          },
+          {
+            "name": "valuation_time",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "title": "Valuation Time"
+            }
+          },
+          {
+            "name": "spot_reference",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "string",
+                  "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                }
+              ],
+              "title": "Spot Reference"
+            }
+          },
+          {
+            "name": "underlying_price_grid",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Underlying Price Grid"
+            }
+          },
+          {
+            "name": "volatility_by_contract",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Volatility By Contract"
+            }
+          },
+          {
+            "name": "annual_risk_free_rate",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "string",
+                  "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Annual Risk Free Rate"
+            }
+          },
+          {
+            "name": "annual_dividend_yield",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "string",
+                  "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Annual Dividend Yield"
+            }
+          },
+          {
+            "name": "contract_multiplier",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "string",
+                  "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                }
+              ],
+              "default": "100",
+              "title": "Contract Multiplier"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModeledPnLSurfaceResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/screening/{signal}/{symbol}/refresh": {
       "post": {
         "summary": "Refresh Screening Result",
@@ -1706,6 +1905,221 @@
         ],
         "title": "EquityPositionResponse"
       },
+      "ExactOptionLegResponse": {
+        "properties": {
+          "canonical_contract_identity": {
+            "type": "string",
+            "title": "Canonical Contract Identity"
+          },
+          "instrument_id_scheme": {
+            "type": "string",
+            "title": "Instrument Id Scheme"
+          },
+          "instrument_id_value": {
+            "type": "string",
+            "title": "Instrument Id Value"
+          },
+          "role": {
+            "type": "string",
+            "title": "Role"
+          },
+          "call_or_put": {
+            "type": "string",
+            "title": "Call Or Put"
+          },
+          "expiration": {
+            "type": "string",
+            "format": "date",
+            "title": "Expiration"
+          },
+          "strike": {
+            "type": "string",
+            "title": "Strike"
+          },
+          "long_or_short": {
+            "type": "string",
+            "title": "Long Or Short"
+          },
+          "quantity": {
+            "type": "string",
+            "title": "Quantity"
+          },
+          "bid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bid"
+          },
+          "ask": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ask"
+          },
+          "midpoint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Midpoint"
+          },
+          "actual_delta": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actual Delta"
+          },
+          "target_delta": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Delta"
+          },
+          "source_observed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Source Observed At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "canonical_contract_identity",
+          "instrument_id_scheme",
+          "instrument_id_value",
+          "role",
+          "call_or_put",
+          "expiration",
+          "strike",
+          "long_or_short",
+          "quantity",
+          "bid",
+          "ask",
+          "midpoint",
+          "actual_delta",
+          "target_delta",
+          "source_observed_at"
+        ],
+        "title": "ExactOptionLegResponse"
+      },
+      "ExecutableStructureAssessmentResponse": {
+        "properties": {
+          "assessment_identity": {
+            "type": "string",
+            "title": "Assessment Identity"
+          },
+          "originating_result_identity": {
+            "type": "string",
+            "title": "Originating Result Identity"
+          },
+          "subject": {
+            "type": "string",
+            "title": "Subject"
+          },
+          "intended_structure_kind": {
+            "type": "string",
+            "title": "Intended Structure Kind"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "available_structure_kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Available Structure Kind"
+          },
+          "exact_legs": {
+            "items": {
+              "$ref": "#/components/schemas/ExactOptionLegResponse"
+            },
+            "type": "array",
+            "title": "Exact Legs"
+          },
+          "selection_diagnostics": {
+            "items": {
+              "$ref": "#/components/schemas/SelectionDiagnosticResponse"
+            },
+            "type": "array",
+            "title": "Selection Diagnostics"
+          },
+          "modeled_entry": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ModeledEntryResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "evidence_snapshot_identity": {
+            "type": "string",
+            "title": "Evidence Snapshot Identity"
+          },
+          "assessed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Assessed At"
+          },
+          "reason_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason Code"
+          }
+        },
+        "type": "object",
+        "required": [
+          "assessment_identity",
+          "originating_result_identity",
+          "subject",
+          "intended_structure_kind",
+          "status",
+          "available_structure_kind",
+          "exact_legs",
+          "selection_diagnostics",
+          "modeled_entry",
+          "evidence_snapshot_identity",
+          "assessed_at",
+          "reason_code"
+        ],
+        "title": "ExecutableStructureAssessmentResponse"
+      },
       "FreshnessResponse": {
         "properties": {
           "as_of": {
@@ -1832,6 +2246,141 @@
           "evidence_observed_at"
         ],
         "title": "LifecycleObservationResponse"
+      },
+      "ModeledEntryResponse": {
+        "properties": {
+          "reference": {
+            "type": "string",
+            "title": "Reference",
+            "default": "midpoint"
+          },
+          "semantics": {
+            "type": "string",
+            "title": "Semantics",
+            "default": "modeled_reference_only"
+          },
+          "per_leg_references": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Per Leg References"
+          },
+          "modeled_net_debit_or_credit": {
+            "type": "string",
+            "title": "Modeled Net Debit Or Credit"
+          },
+          "model_version": {
+            "type": "string",
+            "title": "Model Version"
+          },
+          "calculated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Calculated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "per_leg_references",
+          "modeled_net_debit_or_credit",
+          "model_version",
+          "calculated_at"
+        ],
+        "title": "ModeledEntryResponse"
+      },
+      "ModeledPnLPointResponse": {
+        "properties": {
+          "underlying_price": {
+            "type": "string",
+            "title": "Underlying Price"
+          },
+          "modeled_pnl": {
+            "type": "string",
+            "title": "Modeled Pnl"
+          }
+        },
+        "type": "object",
+        "required": [
+          "underlying_price",
+          "modeled_pnl"
+        ],
+        "title": "ModeledPnLPointResponse"
+      },
+      "ModeledPnLSurfaceResponse": {
+        "properties": {
+          "surface_identity": {
+            "type": "string",
+            "title": "Surface Identity"
+          },
+          "structure_assessment_identity": {
+            "type": "string",
+            "title": "Structure Assessment Identity"
+          },
+          "valuation_model_and_version": {
+            "type": "string",
+            "title": "Valuation Model And Version"
+          },
+          "valuation_time": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Valuation Time"
+          },
+          "spot_reference": {
+            "type": "string",
+            "title": "Spot Reference"
+          },
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/ModeledPnLPointResponse"
+            },
+            "type": "array",
+            "title": "Points"
+          },
+          "entry_fill_assumption": {
+            "type": "string",
+            "title": "Entry Fill Assumption"
+          },
+          "volatility_assumptions": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Volatility Assumptions"
+          },
+          "annual_risk_free_rate": {
+            "type": "string",
+            "title": "Annual Risk Free Rate"
+          },
+          "annual_dividend_yield": {
+            "type": "string",
+            "title": "Annual Dividend Yield"
+          },
+          "contract_multiplier": {
+            "type": "string",
+            "title": "Contract Multiplier"
+          },
+          "semantics": {
+            "type": "string",
+            "title": "Semantics",
+            "default": "modeled_PnL_not_guaranteed_payoff"
+          }
+        },
+        "type": "object",
+        "required": [
+          "surface_identity",
+          "structure_assessment_identity",
+          "valuation_model_and_version",
+          "valuation_time",
+          "spot_reference",
+          "points",
+          "entry_fill_assumption",
+          "volatility_assumptions",
+          "annual_risk_free_rate",
+          "annual_dividend_yield",
+          "contract_multiplier"
+        ],
+        "title": "ModeledPnLSurfaceResponse"
       },
       "MonetaryValueResponse": {
         "properties": {
@@ -2928,6 +3477,33 @@
         ],
         "title": "RunStepResponse"
       },
+      "ScreeningExecutionReadinessResponse": {
+        "properties": {
+          "signal": {
+            "$ref": "#/components/schemas/ScreeningResultResponse"
+          },
+          "execution_assessment": {
+            "$ref": "#/components/schemas/ExecutableStructureAssessmentResponse"
+          },
+          "modeled_pnl": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ModeledPnLSurfaceResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "signal",
+          "execution_assessment"
+        ],
+        "title": "ScreeningExecutionReadinessResponse",
+        "description": "Additive composition; the signal and assessment remain independent."
+      },
       "ScreeningOperationalHealthResponse": {
         "properties": {
           "last_attempted_batch_at": {
@@ -3417,6 +3993,55 @@
         ],
         "title": "ScreeningResultsEnvelope"
       },
+      "SelectionDiagnosticResponse": {
+        "properties": {
+          "role": {
+            "type": "string",
+            "title": "Role"
+          },
+          "target_delta": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Delta"
+          },
+          "actual_delta": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actual Delta"
+          },
+          "absolute_delta_deviation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Absolute Delta Deviation"
+          }
+        },
+        "type": "object",
+        "required": [
+          "role",
+          "target_delta",
+          "actual_delta",
+          "absolute_delta_deviation"
+        ],
+        "title": "SelectionDiagnosticResponse"
+      },
       "SignalCapabilityResponse": {
         "properties": {
           "signal_id": {
@@ -3673,6 +4298,29 @@
             },
             "type": "array",
             "title": "Exact Option Symbols"
+          },
+          "resolved_proposal_identity": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved Proposal Identity"
+          },
+          "resolved_proposal": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved Proposal"
           }
         },
         "type": "object",
@@ -3686,7 +4334,9 @@
           "tracked_at",
           "originating_observed_at",
           "evidence_observed_at",
-          "exact_option_symbols"
+          "exact_option_symbols",
+          "resolved_proposal_identity",
+          "resolved_proposal"
         ],
         "title": "TrackedCandidateResponse"
       },

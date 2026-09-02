@@ -1,3 +1,4 @@
+import json
 from collections.abc import Callable
 from datetime import UTC, datetime
 from uuid import UUID
@@ -32,6 +33,8 @@ class TrackedCandidateResponse(BaseModel):
     originating_observed_at: datetime
     evidence_observed_at: datetime
     exact_option_symbols: list[str]
+    resolved_proposal_identity: str | None
+    resolved_proposal: dict[str, object] | None
 
     @classmethod
     def from_domain(cls, candidate: TrackedCandidate) -> "TrackedCandidateResponse":
@@ -46,6 +49,12 @@ class TrackedCandidateResponse(BaseModel):
             originating_observed_at=candidate.originating_observed_at,
             evidence_observed_at=candidate.evidence_observed_at,
             exact_option_symbols=list(candidate.exact_option_symbols),
+            resolved_proposal_identity=candidate.resolved_proposal_identity,
+            resolved_proposal=(
+                None
+                if candidate.resolved_proposal_json is None
+                else json.loads(candidate.resolved_proposal_json)
+            ),
         )
 
 

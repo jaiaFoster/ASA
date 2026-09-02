@@ -2,6 +2,7 @@ from typing import Protocol
 from uuid import UUID
 
 from asa.contracts.portfolio_lifecycle import (
+    ExecutionReadinessArtifact,
     PositionAssociation,
     PositionLifecycleObservation,
     TrackedCandidate,
@@ -9,6 +10,12 @@ from asa.contracts.portfolio_lifecycle import (
 
 
 class PortfolioLifecycleRepository(Protocol):
+    def put_execution_readiness(self, artifact: ExecutionReadinessArtifact) -> None: ...
+
+    def execution_readiness(
+        self, strategy_id: str, symbol: str
+    ) -> ExecutionReadinessArtifact | None: ...
+
     def add_candidate(self, candidate: TrackedCandidate) -> TrackedCandidate: ...
 
     def candidates(self) -> tuple[TrackedCandidate, ...]: ...

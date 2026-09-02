@@ -48,6 +48,18 @@ export const api = Object.freeze({
     requestJson(
       `/api/v1/screening/${encodeURIComponent(signalId)}/${encodeURIComponent(symbol)}`,
     ),
+  executionReadiness: (signalId, symbol) =>
+    requestJson(
+      `/api/v1/screening/${encodeURIComponent(signalId)}/${encodeURIComponent(symbol)}/execution-readiness`,
+    ),
+  modelPnl: (signalId, symbol, assumptions) =>
+    requestJson(
+      `/api/v1/screening/${encodeURIComponent(signalId)}/${encodeURIComponent(symbol)}/execution-readiness/modeled-pnl?${new URLSearchParams({
+        ...assumptions,
+        underlying_price_grid: assumptions.underlying_price_grid.join(","),
+        volatility_by_contract: JSON.stringify(assumptions.volatility_by_contract),
+      })}`,
+    ),
   history: (opportunityId) =>
     requestJson(
       `/api/v1/screening/opportunities/${encodeURIComponent(opportunityId)}/history`,
