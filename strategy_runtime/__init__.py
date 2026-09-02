@@ -98,6 +98,11 @@ from strategy_runtime.market_data_planning import (
     build_shared_market_data_access,
     declared_rolling_window_policies,
 )
+from strategy_runtime.option_structure_resolver import (
+    OptionLegIntent,
+    OptionStructureIntent,
+    resolve_option_structure,
+)
 from strategy_runtime.registry import (
     StrategyAdapter,
     StrategyRegistry,
@@ -127,6 +132,8 @@ __all__ = [
     "LifecycleDeclaration",
     "LifecycleModel",
     "ModeledEntryEconomics",
+    "OptionLegIntent",
+    "OptionStructureIntent",
     "OutputKind",
     "RequirementCategory",
     "ResolvedOptionLeg",
@@ -154,6 +161,7 @@ __all__ = [
     "describe_contract",
     "describe_registry",
     "register",
+    "resolve_option_structure",
     "run_strategies",
     "validate_result",
 ]
