@@ -98,6 +98,14 @@ from strategy_runtime.market_data_planning import (
     build_shared_market_data_access,
     declared_rolling_window_policies,
 )
+from strategy_runtime.modeled_pnl import (
+    MODEL_VERSION,
+    ModeledPnLAssumptions,
+    ModeledPnLPoint,
+    ModeledPnLSurface,
+    ModeledPnLUnknown,
+    model_front_expiration_pnl,
+)
 from strategy_runtime.option_structure_resolver import (
     OptionLegIntent,
     OptionStructureIntent,
@@ -131,7 +139,12 @@ __all__ = [
     "ExecutableStructureStatus",
     "LifecycleDeclaration",
     "LifecycleModel",
+    "MODEL_VERSION",
     "ModeledEntryEconomics",
+    "ModeledPnLAssumptions",
+    "ModeledPnLPoint",
+    "ModeledPnLSurface",
+    "ModeledPnLUnknown",
     "OptionLegIntent",
     "OptionStructureIntent",
     "OutputKind",
@@ -161,6 +174,7 @@ __all__ = [
     "describe_contract",
     "describe_registry",
     "register",
+    "model_front_expiration_pnl",
     "resolve_option_structure",
     "run_strategies",
     "validate_result",
