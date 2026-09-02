@@ -22,6 +22,7 @@ the runtime executes. It has no separate legacy registry authority.
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 from collections.abc import Callable
@@ -35,9 +36,11 @@ from fastapi import APIRouter, Depends, Query, Request
 from asa.api.agent_models import agent_api_error
 from asa.api.screening_models import (
     CapabilitiesResponse,
+    ModeledPnLSurfaceResponse,
     OpportunityHistoryResponse,
     ReasonCountResponse,
     RefreshResultResponse,
+    ScreeningExecutionReadinessResponse,
     ScreeningOperationalHealthResponse,
     ScreeningResultResponse,
     ScreeningResultsEnvelope,
@@ -45,6 +48,7 @@ from asa.api.screening_models import (
     StrategyHealthFunnelResponse,
     StrategyHealthResponse,
 )
+from asa.application.ports.portfolio_lifecycle import PortfolioLifecycleRepository
 from domain import MarketObservation, UnknownReason
 from market_data import load_market_data_config_from_environment
 from market_data.attempts import AcquisitionAttemptRepository
@@ -64,12 +68,18 @@ from strategy_runtime.adapters import (
     migrated_shadow_resolution_policy,
 )
 from strategy_runtime.catalog import SignalCatalogEntry
+from strategy_runtime.executable_structures import deserialize_execution_assessment
 from strategy_runtime.health import build_strategy_health
 from strategy_runtime.knowledge import ReadOnlyStrategyInput
 from strategy_runtime.lifecycle import RecommendedAction
 from strategy_runtime.market_data_planning import (
     build_shared_market_data_access,
     enabled_provider_configs,
+)
+from strategy_runtime.modeled_pnl import (
+    ModeledPnLAssumptions,
+    ModeledPnLUnknown,
+    model_front_expiration_pnl,
 )
 from strategy_runtime.orchestration import (
     build_subject_acquisition_access,
@@ -242,6 +252,7 @@ def build_screening_router(
     history_repository: ObservationHistoryRepository,
     acquisition_attempt_repository: AcquisitionAttemptRepository,
     operational_health: Callable[[], dict[str, object]],
+    portfolio_lifecycle_repository: PortfolioLifecycleRepository | None = None,
 ) -> APIRouter:
     router = APIRouter(prefix="/api/v1", dependencies=[Depends(authorize)])
 
@@ -391,6 +402,103 @@ def build_screening_router(
                 404, "NO_SCREENING_RESULT", f"No screening result for {signal!r}/{symbol!r}"
             )
         return ScreeningResultResponse.from_universal_result(records[0])
+
+    @router.get(
+        "/screening/{signal}/{symbol}/execution-readiness",
+        response_model=ScreeningExecutionReadinessResponse,
+    )
+    def get_execution_readiness(
+        signal: str, symbol: str
+    ) -> ScreeningExecutionReadinessResponse:
+        _require_registered_signal(signal)
+        records = get_state(repository, strategy_id=signal, symbol=symbol)
+        artifact = (
+            None
+            if portfolio_lifecycle_repository is None
+            else portfolio_lifecycle_repository.execution_readiness(signal, symbol.upper())
+        )
+        if not records or artifact is None:
+            raise agent_api_error(
+                404,
+                "NO_EXECUTION_READINESS",
+                f"No execution readiness for {signal!r}/{symbol!r}",
+            )
+        if artifact.originating_observation_id != records[0].observation_id:
+            raise agent_api_error(
+                409,
+                "STALE_EXECUTION_READINESS",
+                "Execution readiness does not match the current screening observation",
+            )
+        payload = json.loads(artifact.canonical_json)
+        return ScreeningExecutionReadinessResponse.model_validate(
+            {
+                "signal": ScreeningResultResponse.from_universal_result(records[0]),
+                "execution_assessment": payload,
+                "modeled_pnl": None,
+            }
+        )
+
+    @router.get(
+        "/screening/{signal}/{symbol}/execution-readiness/modeled-pnl",
+        response_model=ModeledPnLSurfaceResponse,
+    )
+    def model_execution_readiness_pnl(
+        signal: str,
+        symbol: str,
+        valuation_time: datetime,
+        spot_reference: Decimal,
+        underlying_price_grid: str,
+        volatility_by_contract: str,
+        annual_risk_free_rate: Decimal | None = None,
+        annual_dividend_yield: Decimal | None = None,
+        contract_multiplier: Decimal = Decimal("100"),
+    ) -> ModeledPnLSurfaceResponse:
+        _require_registered_signal(signal)
+        artifact = (
+            None
+            if portfolio_lifecycle_repository is None
+            else portfolio_lifecycle_repository.execution_readiness(signal, symbol.upper())
+        )
+        if artifact is None:
+            raise agent_api_error(404, "NO_EXECUTION_READINESS", "No execution readiness")
+        records = get_state(repository, strategy_id=signal, symbol=symbol)
+        if not records or artifact.originating_observation_id != records[0].observation_id:
+            raise agent_api_error(
+                409,
+                "STALE_EXECUTION_READINESS",
+                "Execution readiness does not match the current screening observation",
+            )
+        assessment = deserialize_execution_assessment(artifact.assessment_json)
+        if assessment.identity != artifact.assessment_identity:
+            raise agent_api_error(
+                409, "EXECUTION_READINESS_INTEGRITY", "Execution readiness identity mismatch"
+            )
+        try:
+            prices = tuple(Decimal(item.strip()) for item in underlying_price_grid.split(","))
+            volatility_raw = json.loads(volatility_by_contract)
+            volatility = tuple(
+                (str(identity), Decimal(str(value)))
+                for identity, value in volatility_raw.items()
+            )
+        except (AttributeError, json.JSONDecodeError, ArithmeticError, ValueError):
+            raise agent_api_error(
+                422, "INVALID_MODEL_ASSUMPTIONS", "Model assumptions are malformed"
+            ) from None
+        result = model_front_expiration_pnl(
+            assessment=assessment,
+            valuation_time=valuation_time,
+            spot_reference=spot_reference,
+            underlying_price_grid=prices,
+            assumptions=ModeledPnLAssumptions(
+                volatility,
+                annual_risk_free_rate,
+                annual_dividend_yield,
+                contract_multiplier,
+            ),
+        )
+        if isinstance(result, ModeledPnLUnknown):
+            raise agent_api_error(422, result.reason_code.upper(), result.reason_code)
+        return ModeledPnLSurfaceResponse.from_surface(result)
 
     @router.post(
         "/screening/{signal}/{symbol}/refresh",

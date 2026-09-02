@@ -14,6 +14,7 @@ from asa.application.portfolio_use_cases import RunPortfolioIntelligence
 from asa.bootstrap import DependencyOverrides, build_application
 from asa.config import Settings
 from asa.contracts.portfolio_lifecycle import (
+    ExecutionReadinessArtifact,
     PositionLifecycleState,
     ReconciliationState,
 )
@@ -32,6 +33,13 @@ class MemoryLifecycleRepository:
         self.values = {}
         self.associations_values = []
         self.observations = []
+        self.readiness = {}
+
+    def put_execution_readiness(self, artifact):
+        self.readiness[(artifact.strategy_id, artifact.symbol)] = artifact
+
+    def execution_readiness(self, strategy_id, symbol):
+        return self.readiness.get((strategy_id, symbol))
 
     def add_candidate(self, candidate):
         self.values.setdefault(candidate.id, candidate)
@@ -104,6 +112,38 @@ def test_track_this_is_idempotent_and_bound_to_exact_latest_observation() -> Non
         "AAPL260918C00210000",
     )
     assert first.evidence_observed_at == NOW
+
+
+def test_track_this_freezes_resolved_proposal_across_later_chain_refresh() -> None:
+    results = InMemoryLatestResultRepository()
+    results.upsert(_row())
+    lifecycle = MemoryLifecycleRepository()
+    original = ExecutionReadinessArtifact(
+        "observation-1",
+        "earnings_calendar",
+        "AAPL",
+        "assessment-1",
+        '{"status":"constructible_as_intended"}',
+        '{"internal":"assessment-1"}',
+        NOW,
+    )
+    lifecycle.put_execution_readiness(original)
+
+    tracked = TrackCandidateService(results, lifecycle).track(
+        "earnings_calendar", "AAPL", "observation-1", NOW
+    )
+    lifecycle.put_execution_readiness(
+        replace(
+            original,
+            assessment_identity="assessment-2",
+            canonical_json='{"status":"not_constructible"}',
+            assessed_at=NOW + timedelta(minutes=10),
+        )
+    )
+
+    assert lifecycle.candidate(tracked.id) == tracked
+    assert tracked.resolved_proposal_identity == "assessment-1"
+    assert tracked.resolved_proposal_json == '{"status":"constructible_as_intended"}'
 
 
 def test_track_this_rejects_stale_or_invented_observation_identity() -> None:
@@ -218,6 +258,69 @@ def test_track_this_api_uses_exact_persisted_observation() -> None:
     assert len(listing.json()) == 1
     assert detail.json()["candidate"]["originating_observation_id"] == "observation-1"
     assert detail.json()["exit_policy_status"] == "not_defined"
+
+
+def test_execution_readiness_api_and_tracking_share_immutable_artifact() -> None:
+    results = InMemoryLatestResultRepository()
+    results.upsert(_row())
+    lifecycle = MemoryLifecycleRepository()
+    payload = {
+        "assessment_identity": "assessment-1",
+        "originating_result_identity": "observation-1",
+        "subject": "AAPL",
+        "intended_structure_kind": "calendar",
+        "status": "not_constructible",
+        "available_structure_kind": None,
+        "exact_legs": [],
+        "selection_diagnostics": [],
+        "modeled_entry": None,
+        "evidence_snapshot_identity": "snapshot-1",
+        "assessed_at": NOW.isoformat().replace("+00:00", "Z"),
+        "reason_code": "no_compatible_contract",
+    }
+    import json
+
+    lifecycle.put_execution_readiness(
+        ExecutionReadinessArtifact(
+            "observation-1",
+            "earnings_calendar",
+            "AAPL",
+            "assessment-1",
+            json.dumps(payload, sort_keys=True, separators=(",", ":")),
+            '{"internal":"assessment-1"}',
+            NOW,
+        )
+    )
+    app = build_application(
+        Settings(agent_api_token="test-token", _env_file=None),
+        DependencyOverrides(
+            repository=InMemoryObservationRepository(),
+            latest_result_repository=results,
+            portfolio_lifecycle_repository=lifecycle,
+        ),
+    )
+    client = TestClient(app)
+    headers = {"Authorization": "Bearer test-token"}
+
+    readiness = client.get(
+        "/api/v1/screening/earnings_calendar/AAPL/execution-readiness",
+        headers=headers,
+    )
+    tracked = client.post(
+        "/api/v1/portfolio/tracked-candidates",
+        headers=headers,
+        json={
+            "strategy_id": "earnings_calendar",
+            "symbol": "AAPL",
+            "observation_id": "observation-1",
+        },
+    )
+
+    assert readiness.status_code == 200
+    assert readiness.json()["signal"]["observation_id"] == "observation-1"
+    assert readiness.json()["execution_assessment"]["status"] == "not_constructible"
+    assert tracked.json()["resolved_proposal_identity"] == "assessment-1"
+    assert tracked.json()["resolved_proposal"]["reason_code"] == "no_compatible_contract"
 
 
 def test_lifecycle_observations_append_open_then_closed_with_separate_clocks() -> None:

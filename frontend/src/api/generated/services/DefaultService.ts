@@ -9,12 +9,14 @@ import type { CapabilitiesResponse } from '../models/CapabilitiesResponse';
 import type { HealthResponse } from '../models/HealthResponse';
 import type { IngestQuotesRequest } from '../models/IngestQuotesRequest';
 import type { IngestQuotesResponse } from '../models/IngestQuotesResponse';
+import type { ModeledPnLSurfaceResponse } from '../models/ModeledPnLSurfaceResponse';
 import type { OpportunityHistoryResponse } from '../models/OpportunityHistoryResponse';
 import type { PortfolioEnvelope } from '../models/PortfolioEnvelope';
 import type { PositionsEnvelope } from '../models/PositionsEnvelope';
 import type { QuoteResponse } from '../models/QuoteResponse';
 import type { RefreshResultResponse } from '../models/RefreshResultResponse';
 import type { RunResponse } from '../models/RunResponse';
+import type { ScreeningExecutionReadinessResponse } from '../models/ScreeningExecutionReadinessResponse';
 import type { ScreeningOperationalHealthResponse } from '../models/ScreeningOperationalHealthResponse';
 import type { ScreeningResultResponse } from '../models/ScreeningResultResponse';
 import type { ScreeningResultsEnvelope } from '../models/ScreeningResultsEnvelope';
@@ -445,6 +447,75 @@ export class DefaultService {
             path: {
                 'signal': signal,
                 'symbol': symbol,
+            },
+            errors: {
+                422: `Validation Error`,
+            },
+        });
+    }
+    /**
+     * Get Execution Readiness
+     * @param signal
+     * @param symbol
+     * @returns ScreeningExecutionReadinessResponse Successful Response
+     * @throws ApiError
+     */
+    public static getExecutionReadinessApiV1ScreeningSignalSymbolExecutionReadinessGet(
+        signal: string,
+        symbol: string,
+    ): CancelablePromise<ScreeningExecutionReadinessResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v1/screening/{signal}/{symbol}/execution-readiness',
+            path: {
+                'signal': signal,
+                'symbol': symbol,
+            },
+            errors: {
+                422: `Validation Error`,
+            },
+        });
+    }
+    /**
+     * Model Execution Readiness Pnl
+     * @param signal
+     * @param symbol
+     * @param valuationTime
+     * @param spotReference
+     * @param underlyingPriceGrid
+     * @param volatilityByContract
+     * @param annualRiskFreeRate
+     * @param annualDividendYield
+     * @param contractMultiplier
+     * @returns ModeledPnLSurfaceResponse Successful Response
+     * @throws ApiError
+     */
+    public static modelExecutionReadinessPnlApiV1ScreeningSignalSymbolExecutionReadinessModeledPnlGet(
+        signal: string,
+        symbol: string,
+        valuationTime: string,
+        spotReference: (number | string),
+        underlyingPriceGrid: string,
+        volatilityByContract: string,
+        annualRiskFreeRate?: (number | string | null),
+        annualDividendYield?: (number | string | null),
+        contractMultiplier?: (number | string),
+    ): CancelablePromise<ModeledPnLSurfaceResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v1/screening/{signal}/{symbol}/execution-readiness/modeled-pnl',
+            path: {
+                'signal': signal,
+                'symbol': symbol,
+            },
+            query: {
+                'valuation_time': valuationTime,
+                'spot_reference': spotReference,
+                'underlying_price_grid': underlyingPriceGrid,
+                'volatility_by_contract': volatilityByContract,
+                'annual_risk_free_rate': annualRiskFreeRate,
+                'annual_dividend_yield': annualDividendYield,
+                'contract_multiplier': contractMultiplier,
             },
             errors: {
                 422: `Validation Error`,

@@ -15,6 +15,10 @@ from domain import (
     SecurityAssetType,
 )
 from strategy_runtime.contract import StructureKind
+from strategy_runtime.executable_structures import (
+    deserialize_execution_assessment,
+    serialize_execution_assessment,
+)
 from strategy_runtime.modeled_pnl import (
     MODEL_VERSION,
     ModeledPnLAssumptions,
@@ -129,6 +133,15 @@ def test_calendar_back_leg_retains_time_value_with_pinned_vector() -> None:
     # At-the-money back-leg value exceeds intrinsic zero at front expiry.
     assert result.points[1].modeled_pnl > Decimal("-200.00")
     assert result.identity == result.identity
+
+
+def test_assessment_round_trip_preserves_exact_identity_for_deferred_modeling() -> None:
+    assessment = _assessment()
+
+    restored = deserialize_execution_assessment(serialize_execution_assessment(assessment))
+
+    assert restored == assessment
+    assert restored.identity == assessment.identity
 
 
 def test_unknown_rate_dividend_and_back_volatility_fail_typed() -> None:

@@ -4,6 +4,7 @@ export const state = {
   buildIdentity: null,
   capabilities: null,
   results: [],
+  executionReadiness: {},
   apiVersion: null,
   fetchedAt: null,
   loading: false,

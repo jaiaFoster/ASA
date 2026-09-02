@@ -180,6 +180,7 @@ def build_application(
             history_repository=observation_history_repository,
             acquisition_attempt_repository=acquisition_attempt_repository,
             operational_health=screening_operational_health,
+            portfolio_lifecycle_repository=portfolio_lifecycle_repository,
         )
     )
     app.include_router(

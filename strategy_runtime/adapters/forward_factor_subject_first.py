@@ -14,6 +14,7 @@ from domain import (
     ExpirationCollection,
     MarketCapability,
     OptionChain,
+    OptionLegPosition,
     OptionType,
     Quote,
     UnknownReason,
@@ -37,7 +38,14 @@ from strategies.knowledge_contracts import KnowledgeMapping
 from strategy_runtime.adapters._screening_bridge import explanation_metrics
 from strategy_runtime.adapters.forward_factor import FORWARD_FACTOR_CONTRACT
 from strategy_runtime.context import RuntimeContext
+from strategy_runtime.contract import StructureKind
+from strategy_runtime.executable_structures import ExecutableStructureAssessment
 from strategy_runtime.knowledge import ReadOnlyStrategyInput
+from strategy_runtime.option_structure_resolver import (
+    OptionLegIntent,
+    OptionStructureIntent,
+    resolve_option_structure,
+)
 from strategy_runtime.registry import StrategyAdapter
 from strategy_runtime.result import (
     EvaluationState,
@@ -158,6 +166,44 @@ def build_forward_factor_subject_preparation_binding(
         ),
         _prepare,
         build_forward_factor_subject_first_adapter,
+        build_execution_assessment=_build_execution_assessment,
+    )
+
+
+def _build_execution_assessment(
+    knowledge: ReadOnlyStrategyInput[ForwardFactorPayload],
+    result: UniversalScreeningResult,
+    assessed_at: datetime,
+) -> ExecutableStructureAssessment:
+    payload = knowledge.payload
+    intent = OptionStructureIntent(
+        subject=knowledge.payload.chain.underlying.symbol,
+        intended_structure_kind=StructureKind.CALENDAR,
+        legs=(
+            OptionLegIntent(
+                "short_front",
+                OptionType.CALL,
+                payload.front_cycle.expiration_date,
+                OptionLegPosition.SHORT,
+                Decimal(1),
+                selected_strike=payload.front_strike,
+            ),
+            OptionLegIntent(
+                "long_back",
+                OptionType.CALL,
+                payload.back_cycle.expiration_date,
+                OptionLegPosition.LONG,
+                Decimal(1),
+                selected_strike=payload.back_strike,
+            ),
+        ),
+    )
+    return resolve_option_structure(
+        intent=intent,
+        chain=payload.chain,
+        originating_result_identity=result.observation_id,
+        evidence_snapshot_identity=knowledge.snapshot_digest,
+        assessed_at=assessed_at,
     )
 
 

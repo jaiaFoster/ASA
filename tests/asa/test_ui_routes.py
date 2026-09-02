@@ -83,6 +83,18 @@ def test_ui_client_is_get_only_and_never_persists_token_in_local_storage() -> No
 
     assert 'method: "GET"' in client_source
     assert "POST" not in client_source
+    assert "/execution-readiness" in client_source
     assert "refresh" not in client_source.lower()
     assert "localStorage" not in client_source + application_source
     assert "sessionStorage" in client_source
+
+
+def test_ui_exposes_exact_structure_and_explicit_modeled_pnl_assumptions() -> None:
+    render_source = (
+        files("asa.ui").joinpath("static", "render.js").read_text(encoding="utf-8")
+    )
+
+    assert "Execution readiness — analytical only" in render_source
+    assert "Exact leg" in render_source
+    assert "Model with explicit assumptions" in render_source
+    assert "Modeled P&L at front expiration" in render_source

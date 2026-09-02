@@ -1,3 +1,4 @@
+import json
 from datetime import UTC, datetime
 from uuid import NAMESPACE_URL, UUID, uuid5
 
@@ -32,7 +33,32 @@ class TrackCandidateService:
         row = self._results.get_one(strategy_id, symbol.upper())
         if row is None or row.observation_id != observation_id:
             raise CandidateNotFoundError("originating screening observation is unavailable")
+        proposal = self._lifecycle.execution_readiness(row.signal_id, row.symbol)
         candidate = _candidate_from_row(row, tracked_at)
+        if proposal is not None and proposal.originating_observation_id == row.observation_id:
+            payload = json.loads(proposal.canonical_json)
+            proposal_symbols = tuple(
+                sorted(
+                    str(item["instrument_id_value"]).upper()
+                    for item in payload.get("exact_legs", ())
+                    if isinstance(item, dict)
+                    and item.get("instrument_id_scheme") == "occ"
+                )
+            )
+            candidate = TrackedCandidate(
+                id=candidate.id,
+                originating_observation_id=candidate.originating_observation_id,
+                opportunity_id=candidate.opportunity_id,
+                strategy_id=candidate.strategy_id,
+                strategy_version=candidate.strategy_version,
+                symbol=candidate.symbol,
+                tracked_at=candidate.tracked_at,
+                originating_observed_at=candidate.originating_observed_at,
+                evidence_observed_at=candidate.evidence_observed_at,
+                exact_option_symbols=proposal_symbols or candidate.exact_option_symbols,
+                resolved_proposal_identity=proposal.assessment_identity,
+                resolved_proposal_json=proposal.canonical_json,
+            )
         return self._lifecycle.add_candidate(candidate)
 
 

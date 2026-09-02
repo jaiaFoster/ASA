@@ -13,4 +13,6 @@ export type TrackedCandidateResponse = {
     originating_observed_at: string;
     evidence_observed_at: string;
     exact_option_symbols: Array<string>;
+    resolved_proposal_identity: (string | null);
+    resolved_proposal: (Record<string, any> | null);
 };

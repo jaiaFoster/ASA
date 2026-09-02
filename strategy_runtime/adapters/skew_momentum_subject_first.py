@@ -22,6 +22,7 @@ from domain import (
     MarketCapability,
     OHLCVSeries,
     OptionChain,
+    OptionLegPosition,
     OptionType,
     Quote,
     UnknownReason,
@@ -53,8 +54,18 @@ from strategies.skew_momentum_planning import bootstrap_demands, expand_demands
 from strategy_runtime.adapters._screening_bridge import explanation_metrics
 from strategy_runtime.adapters.skew_momentum_vertical import SKEW_MOMENTUM_VERTICAL_CONTRACT
 from strategy_runtime.context import RuntimeContext
+from strategy_runtime.contract import StructureKind
+from strategy_runtime.executable_structures import (
+    ExecutableStructureAssessment,
+    ExecutableStructureStatus,
+)
 from strategy_runtime.historical_evidence import HistoricalSkewRepository
 from strategy_runtime.knowledge import ReadOnlyStrategyInput
+from strategy_runtime.option_structure_resolver import (
+    OptionLegIntent,
+    OptionStructureIntent,
+    resolve_option_structure,
+)
 from strategy_runtime.registry import StrategyAdapter
 from strategy_runtime.result import (
     EvaluationState,
@@ -238,9 +249,64 @@ def build_skew_momentum_subject_preparation_binding(
         SubjectPlanConsumer(_STRATEGY_ID, bootstrap_demands(now), partial(expand_demands, now=now)),
         partial(_prepare, historical_repository, now),
         build_skew_momentum_subject_first_adapter,
-        "twenty_session_return_v1",
-        _extract_cross_subject_return,
-        _bind_cross_subject_facts,
+        cross_subject_family_id="twenty_session_return_v1",
+        extract_cross_subject_return=_extract_cross_subject_return,
+        bind_cross_subject_facts=_bind_cross_subject_facts,
+        build_execution_assessment=_build_execution_assessment,
+    )
+
+
+def _build_execution_assessment(
+    knowledge: ReadOnlyStrategyInput[SkewMomentumPayload],
+    result: UniversalScreeningResult,
+    assessed_at: datetime,
+) -> ExecutableStructureAssessment:
+    direction_value = result.metrics.get("decision.direction")
+    direction = None if direction_value is None else direction_value.native()
+    if direction not in {"BULLISH", "BEARISH"}:
+        return ExecutableStructureAssessment(
+            result.observation_id,
+            knowledge.payload.chain.underlying.symbol,
+            StructureKind.VERTICAL,
+            ExecutableStructureStatus.UNKNOWN,
+            (),
+            (),
+            None,
+            knowledge.snapshot_digest,
+            assessed_at,
+            reason_code="strategy_did_not_select_structure",
+        )
+    option_type = OptionType.CALL if direction == "BULLISH" else OptionType.PUT
+    signed_long = Decimal("0.50") if option_type is OptionType.CALL else Decimal("-0.50")
+    signed_short = Decimal("0.25") if option_type is OptionType.CALL else Decimal("-0.25")
+    intent = OptionStructureIntent(
+        knowledge.payload.chain.underlying.symbol,
+        StructureKind.VERTICAL,
+        (
+            OptionLegIntent(
+                "long",
+                option_type,
+                knowledge.payload.expiration,
+                OptionLegPosition.LONG,
+                Decimal(1),
+                target_delta=signed_long,
+            ),
+            OptionLegIntent(
+                "short",
+                option_type,
+                knowledge.payload.expiration,
+                OptionLegPosition.SHORT,
+                Decimal(1),
+                target_delta=signed_short,
+            ),
+        ),
+    )
+    return resolve_option_structure(
+        intent=intent,
+        chain=knowledge.payload.chain,
+        originating_result_identity=result.observation_id,
+        evidence_snapshot_identity=knowledge.snapshot_digest,
+        assessed_at=assessed_at,
     )
 
 

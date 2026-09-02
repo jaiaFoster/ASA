@@ -45,6 +45,7 @@ from screening.subject_planning import (
     SubjectPlanConsumer,
     run_subject_plan,
 )
+from strategy_runtime.executable_structures import ExecutableStructureAssessment
 from strategy_runtime.knowledge import ReadOnlyStrategyInput, TPayload
 from strategy_runtime.knowledge_composition import compose_strategy_knowledge
 from strategy_runtime.knowledge_registry import KnowledgeBinding, KnowledgeCompositionRegistry
@@ -83,6 +84,10 @@ BindCrossSubjectFacts = Callable[
     ["ReadOnlyStrategyInput[TPayload]", object],
     "ReadOnlyStrategyInput[TPayload]",
 ]
+BuildExecutionAssessment = Callable[
+    ["ReadOnlyStrategyInput[TPayload]", UniversalScreeningResult, datetime],
+    ExecutableStructureAssessment,
+]
 
 
 @dataclass(frozen=True, slots=True)
@@ -100,6 +105,7 @@ class SubjectPreparationBinding(Generic[TPayload]):  # noqa: UP046
     cross_subject_family_id: str | None = None
     extract_cross_subject_return: ExtractCrossSubjectReturn[TPayload] | None = None
     bind_cross_subject_facts: BindCrossSubjectFacts[TPayload] | None = None
+    build_execution_assessment: BuildExecutionAssessment[TPayload] | None = None
 
     def __post_init__(self) -> None:
         callbacks = (

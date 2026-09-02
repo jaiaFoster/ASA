@@ -44,9 +44,12 @@ from datetime import UTC, datetime, timedelta
 from types import MappingProxyType
 from typing import Protocol
 
+from asa.application.ports.portfolio_lifecycle import PortfolioLifecycleRepository
 from asa.config import Settings
+from asa.contracts.portfolio_lifecycle import ExecutionReadinessArtifact
 from asa.integrations.historical_skew_postgres import PostgresHistoricalSkewRepository
 from asa.integrations.observation_history_postgres import PostgresObservationHistoryRepository
+from asa.integrations.portfolio_lifecycle_postgres import PostgresPortfolioLifecycleRepository
 from asa.integrations.postgres import create_postgres_engine
 from asa.integrations.refresh_schedule_postgres import (
     PostgresRefreshScheduleClaimRepository,
@@ -89,6 +92,10 @@ from strategy_runtime.comparison_universe import (
     SECTOR_BY_INSTRUMENT,
 )
 from strategy_runtime.cross_subject_knowledge import compose_cross_subject_knowledge
+from strategy_runtime.executable_structures import (
+    execution_assessment_to_data,
+    serialize_execution_assessment,
+)
 from strategy_runtime.historical_evidence import HistoricalSkewRepository
 from strategy_runtime.knowledge import ReadOnlyStrategyInput
 from strategy_runtime.lifecycle import RecommendedAction
@@ -314,6 +321,7 @@ def run_scheduled_refresh(
     history_repository: ObservationHistoryRepository | None = None,
     acquisition_attempt_repository: AcquisitionAttemptRepository | None = None,
     historical_skew_repository: HistoricalSkewRepository | None = None,
+    portfolio_lifecycle_repository: PortfolioLifecycleRepository | None = None,
     transport_factory: Callable[[str], object] = build_live_transport,
     claim_repository: RefreshScheduleClaimRepository | None = None,
     subject_refresh_repository: SubjectRefreshRepository | None = None,
@@ -427,6 +435,11 @@ def run_scheduled_refresh(
         historical_skew_repository
         or PostgresHistoricalSkewRepository(create_postgres_engine(Settings().database_url))
     )
+    resolved_portfolio_lifecycle_repository = portfolio_lifecycle_repository
+    if resolved_portfolio_lifecycle_repository is None and repository is None:
+        resolved_portfolio_lifecycle_repository = PostgresPortfolioLifecycleRepository(
+            create_postgres_engine(Settings().database_url)
+        )
     config = live_only_config(load_market_data_config_from_environment())
     if not enabled_provider_configs(config):
         raise RuntimeError(
@@ -653,6 +666,43 @@ def run_scheduled_refresh(
                 shadow_knowledge_by_subject=shadow_knowledge_by_symbol.get(symbol),
                 cutover_policy=cutover_policy,
             )
+            knowledge = shadow_knowledge_by_symbol.get(symbol, {}).get(signal_id)
+            binding = (
+                shadow_registry.binding_for(signal_id)
+                if shadow_registry.is_registered(signal_id)
+                else None
+            )
+            if (
+                isinstance(knowledge, ReadOnlyStrategyInput)
+                and binding is not None
+                and binding.build_execution_assessment is not None
+                and resolved_portfolio_lifecycle_repository is not None
+            ):
+                try:
+                    assessment = binding.build_execution_assessment(
+                        knowledge, result, clock.now()
+                    )
+                    resolved_portfolio_lifecycle_repository.put_execution_readiness(
+                        ExecutionReadinessArtifact(
+                            originating_observation_id=result.observation_id,
+                            strategy_id=result.strategy_id,
+                            symbol=result.symbol,
+                            assessment_identity=assessment.identity,
+                            canonical_json=json.dumps(
+                                execution_assessment_to_data(assessment),
+                                sort_keys=True,
+                                separators=(",", ":"),
+                            ),
+                            assessment_json=serialize_execution_assessment(assessment),
+                            assessed_at=assessment.assessed_at,
+                        )
+                    )
+                except Exception:
+                    _LOGGER.warning(
+                        "execution_readiness_projection_failed",
+                        extra={"signal_id": signal_id, "symbol": symbol},
+                        exc_info=True,
+                    )
             _tally_new_calls(symbol, call_log_start)
             if shadow_diagnostic is not None:
                 # Diagnostic-only (Architect checkpoint: sixteenth review,

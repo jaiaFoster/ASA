@@ -10,6 +10,7 @@ from strategy_runtime.contract import StructureKind
 from strategy_runtime.executable_structures import (
     ExecutableStructureAssessment,
     ExecutableStructureStatus,
+    execution_assessment_to_data,
 )
 from strategy_runtime.modeled_pnl import MODEL_VERSION, ModeledPnLPoint, ModeledPnLSurface
 from strategy_runtime.result import EvaluationState, RowType, UniversalScreeningResult
@@ -63,6 +64,7 @@ def test_execution_assessment_is_additive_to_unchanged_signal_projection() -> No
     assert projected.status == "not_constructible"
     assert projected.originating_result_identity == before["observation_id"]
     assert projected.reason_code == "no_compatible_contract"
+    assert execution_assessment_to_data(assessment)["assessment_identity"] == assessment.identity
 
 
 def test_execution_assessment_schema_uses_exact_decimal_strings() -> None:
