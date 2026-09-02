@@ -15,6 +15,7 @@ from pydantic import BaseModel, Field
 
 from asa.api.agent_models import TimestampedResource
 from strategy_runtime.catalog import SignalCatalogEntry
+from strategy_runtime.executable_structures import ExecutableStructureAssessment
 from strategy_runtime.lifecycle import OpportunityHistory, OpportunityObservation
 from strategy_runtime.result import EvaluationState, UniversalScreeningResult
 
@@ -301,6 +302,138 @@ class ScreeningResultsEnvelope(BaseModel):
     total: int
     limit: int
     offset: int
+
+
+class ExactOptionLegResponse(BaseModel):
+    canonical_contract_identity: str
+    role: str
+    call_or_put: str
+    expiration: date
+    strike: str
+    long_or_short: str
+    quantity: str
+    bid: str | None
+    ask: str | None
+    midpoint: str | None
+    actual_delta: str | None
+    target_delta: str | None
+    source_observed_at: datetime
+
+
+class SelectionDiagnosticResponse(BaseModel):
+    role: str
+    target_delta: str | None
+    actual_delta: str | None
+    absolute_delta_deviation: str | None
+
+
+class ModeledEntryResponse(BaseModel):
+    reference: str = "midpoint"
+    semantics: str = "modeled_reference_only"
+    per_leg_references: dict[str, str]
+    modeled_net_debit_or_credit: str
+    model_version: str
+    calculated_at: datetime
+
+
+class ExecutableStructureAssessmentResponse(BaseModel):
+    assessment_identity: str
+    originating_result_identity: str
+    subject: str
+    intended_structure_kind: str
+    status: str
+    available_structure_kind: str | None
+    exact_legs: list[ExactOptionLegResponse]
+    selection_diagnostics: list[SelectionDiagnosticResponse]
+    modeled_entry: ModeledEntryResponse | None
+    evidence_snapshot_identity: str
+    assessed_at: datetime
+    reason_code: str | None
+
+    @classmethod
+    def from_assessment(
+        cls, assessment: ExecutableStructureAssessment
+    ) -> ExecutableStructureAssessmentResponse:
+        return cls(
+            assessment_identity=assessment.identity,
+            originating_result_identity=assessment.originating_result_identity,
+            subject=assessment.subject,
+            intended_structure_kind=assessment.intended_structure_kind.value,
+            status=assessment.status.value,
+            available_structure_kind=(
+                None
+                if assessment.available_structure_kind is None
+                else assessment.available_structure_kind.value
+            ),
+            exact_legs=[
+                ExactOptionLegResponse(
+                    canonical_contract_identity=item.canonical_contract_identity,
+                    role=item.leg.role,
+                    call_or_put=item.leg.contract.option_type.value,
+                    expiration=item.leg.contract.expiration,
+                    strike=str(item.leg.contract.strike),
+                    long_or_short=item.leg.position.value,
+                    quantity=str(item.leg.quantity),
+                    bid=None
+                    if item.leg.contract.bid is None
+                    else str(item.leg.contract.bid),
+                    ask=None
+                    if item.leg.contract.ask is None
+                    else str(item.leg.contract.ask),
+                    midpoint=None if item.midpoint is None else str(item.midpoint),
+                    actual_delta=None
+                    if item.leg.contract.delta is None
+                    else str(item.leg.contract.delta),
+                    target_delta=None
+                    if item.target_delta is None
+                    else str(item.target_delta),
+                    source_observed_at=item.leg.contract.observed_at,
+                )
+                for item in assessment.exact_legs
+            ],
+            selection_diagnostics=[
+                SelectionDiagnosticResponse(
+                    role=item.role,
+                    target_delta=None
+                    if item.target_delta is None
+                    else str(item.target_delta),
+                    actual_delta=None
+                    if item.actual_delta is None
+                    else str(item.actual_delta),
+                    absolute_delta_deviation=(
+                        None
+                        if item.absolute_delta_deviation is None
+                        else str(item.absolute_delta_deviation)
+                    ),
+                )
+                for item in assessment.selection_diagnostics
+            ],
+            modeled_entry=(
+                None
+                if assessment.modeled_entry_economics is None
+                else ModeledEntryResponse(
+                    per_leg_references={
+                        identity: str(value)
+                        for identity, value in assessment.modeled_entry_economics.per_leg_midpoints
+                    },
+                    modeled_net_debit_or_credit=str(
+                        assessment.modeled_entry_economics.modeled_net_debit_or_credit
+                    ),
+                    model_version=assessment.modeled_entry_economics.model_version,
+                    calculated_at=assessment.modeled_entry_economics.calculated_at,
+                )
+            ),
+            evidence_snapshot_identity=assessment.evidence_snapshot_identity,
+            assessed_at=assessment.assessed_at,
+            reason_code=assessment.reason_code,
+        )
+
+
+class ScreeningExecutionReadinessResponse(BaseModel):
+    """Additive composition; the signal and assessment remain independent."""
+
+    signal: ScreeningResultResponse
+    execution_assessment: ExecutableStructureAssessmentResponse
 
 
 class RefreshResultResponse(ScreeningResultResponse):
