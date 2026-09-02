@@ -1,8 +1,9 @@
-from datetime import UTC, date, datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 
 from asa.api.screening_models import (
     ExecutableStructureAssessmentResponse,
+    ModeledPnLSurfaceResponse,
     ScreeningResultResponse,
 )
 from strategy_runtime.contract import StructureKind
@@ -10,6 +11,7 @@ from strategy_runtime.executable_structures import (
     ExecutableStructureAssessment,
     ExecutableStructureStatus,
 )
+from strategy_runtime.modeled_pnl import MODEL_VERSION, ModeledPnLPoint, ModeledPnLSurface
 from strategy_runtime.result import EvaluationState, RowType, UniversalScreeningResult
 
 NOW = datetime(2026, 9, 1, 15, tzinfo=UTC)
@@ -69,5 +71,23 @@ def test_execution_assessment_schema_uses_exact_decimal_strings() -> None:
     assert "exact_legs" in schema["properties"]
     assert "modeled_entry" in schema["properties"]
     assert "status" in schema["properties"]
-    assert date(2026, 9, 1).isoformat() == "2026-09-01"
-    assert str(Decimal("2.10")) == "2.10"
+    surface = ModeledPnLSurface(
+        "assessment-1",
+        MODEL_VERSION,
+        NOW,
+        Decimal("200.00"),
+        (
+            ModeledPnLPoint(Decimal("190.00"), Decimal("-12.34")),
+            ModeledPnLPoint(Decimal("200.00"), Decimal("45.60")),
+        ),
+        "midpoint",
+        (("contract-1", Decimal("0.30")),),
+        Decimal("0.04"),
+        Decimal("0.01"),
+        Decimal("100"),
+    )
+    projected = ModeledPnLSurfaceResponse.from_surface(surface)
+
+    assert projected.spot_reference == "200.00"
+    assert projected.points[0].modeled_pnl == "-12.34"
+    assert projected.semantics == "modeled_PnL_not_guaranteed_payoff"
