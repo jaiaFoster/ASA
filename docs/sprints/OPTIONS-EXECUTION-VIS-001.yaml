@@ -1,0 +1,55 @@
+---
+id: OPTIONS-EXECUTION-VIS-001
+version: "1.0"
+title: Executable Option Structure and Modeled P&L v1
+status: ACTIVE
+type: IMPLEMENTATION_SPRINT
+priority: P0
+baseline_commit: ee7d6eea3d6904b99d2ee45fb450f2a6a76a1713
+activation:
+  id: AMD-013-OPTIONS-EXECUTION-VIS-001-V1.0
+  governance_amendment: GOV-AMD-001-013
+  founder_authorized: true
+  authorized_at: "2026-09-01"
+  delegate: {role: ROLE-WORKER, instance: implementation-worker}
+  approved_tickets: [EXVIS-01, EXVIS-02, EXVIS-03, EXVIS-04, EXVIS-05, EXVIS-06]
+  approved_gates: [1, 2, 3, 4, 5, 6]
+  expires: [sprint_complete, sprint_stopped, Founder_revokes_delegation, scope_or_authority_changes]
+deployment_authority: Founder_only
+broker_execution_authority: none
+objective: >
+  Connect existing strategy results to truthful exact-contract executable
+  assessments and deterministic modeled front-expiration P&L without changing
+  strategy signals, substituting structures, or introducing broker execution.
+invariants:
+  - strategy_signal_and_executable_assessment_are_separate_facts
+  - exact_option_contract_identity_is_canonical
+  - intended_calendar_never_silently_becomes_diagonal
+  - strategies_remain_provider_blind
+  - resolver_consumes_one_sealed_subject_evidence_boundary
+  - modeled_fill_is_never_an_executed_fill
+  - modeled_PnL_is_versioned_and_assumption_explicit
+  - back_expiry_legs_retain_time_value_at_front_expiry
+  - unknown_inputs_remain_typed_unknown
+  - proposal_artifacts_are_immutable
+  - no_broker_mutation
+  - no_strategy_policy_change
+gates:
+  - {gate: 1, ticket: EXVIS-01, pass: minimal_provider_neutral_assessment_authority_exists}
+  - {gate: 2, ticket: EXVIS-02, pass: exact_intended_resolution_is_truthful_and_deterministic}
+  - {gate: 3, ticket: EXVIS-03, pass: readiness_projects_without_signal_semantic_regression}
+  - {gate: 4, ticket: EXVIS-04, pass: deterministic_assumption_explicit_front_expiration_modeled_PnL}
+  - {gate: 5, ticket: EXVIS-05, pass: exact_trade_and_modeled_PnL_are_understandable}
+  - {gate: 6, ticket: EXVIS-06, pass: immutable_lifecycle_attachment_and_production_proof}
+execution_policy:
+  sequential_and_mainline_first: true
+  each_gate_must_merge_and_verify_before_next: true
+  delegated_worker_merge_when_all_gates_green: true
+  deployment_requires_separate_Founder_authorization: true
+out_of_scope:
+  - broker_orders_or_mutation
+  - strategy_policy_changes
+  - generalized_options_builder_or_execution_platform
+  - Monte_Carlo_or_generalized_Greeks_engine
+  - Russell_2000_or_new_strategies
+
