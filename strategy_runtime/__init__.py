@@ -79,6 +79,13 @@ from strategy_runtime.errors import (
     StrategyContractViolationError,
     UnknownStrategyIdError,
 )
+from strategy_runtime.executable_structures import (
+    ExecutableStructureAssessment,
+    ExecutableStructureStatus,
+    ModeledEntryEconomics,
+    ResolvedOptionLeg,
+    SelectionDiagnostic,
+)
 from strategy_runtime.execution import (
     ExecutionStatus,
     RuntimeExecutionSummary,
@@ -115,10 +122,14 @@ __all__ = [
     "DuplicateStrategyRegistrationError",
     "EvaluationState",
     "ExecutionStatus",
+    "ExecutableStructureAssessment",
+    "ExecutableStructureStatus",
     "LifecycleDeclaration",
     "LifecycleModel",
+    "ModeledEntryEconomics",
     "OutputKind",
     "RequirementCategory",
+    "ResolvedOptionLeg",
     "RowType",
     "RuntimeContext",
     "RuntimeExecutionSummary",
@@ -130,6 +141,7 @@ __all__ = [
     "StrategyExecutionResult",
     "StrategyRegistry",
     "StructureKind",
+    "SelectionDiagnostic",
     "SubjectMarketDataAccess",
     "TypedValue",
     "UniversalScreeningResult",
