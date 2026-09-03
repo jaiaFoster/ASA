@@ -29,6 +29,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal
+from hashlib import sha256
 from typing import Literal
 
 from fastapi import APIRouter, Depends, Query, Request
@@ -100,6 +101,16 @@ DEFAULT_LIMIT = 100
 MAX_LIMIT = 500
 FRESHNESS_THRESHOLD_SECONDS = 86_400
 _LOGGER = logging.getLogger(__name__)
+
+
+def _latest_state_identity(records: tuple[UniversalScreeningResult, ...]) -> str:
+    payload = [
+        (item.strategy_id, item.symbol, item.observation_id)
+        for item in sorted(records, key=lambda item: (item.strategy_id, item.symbol))
+    ]
+    return sha256(
+        json.dumps(payload, separators=(",", ":"), ensure_ascii=True).encode("utf-8")
+    ).hexdigest()
 
 
 @dataclass(frozen=True, slots=True)
@@ -306,6 +317,7 @@ def build_screening_router(
             total=total,
             limit=limit,
             offset=offset,
+            snapshot_identity=_latest_state_identity(records),
         )
 
     @router.get("/screening-health", response_model=StrategyHealthResponse)
@@ -391,6 +403,7 @@ def build_screening_router(
             total=total,
             limit=limit,
             offset=offset,
+            snapshot_identity=_latest_state_identity(records),
         )
 
     @router.get("/screening/{signal}/{symbol}", response_model=ScreeningResultResponse)

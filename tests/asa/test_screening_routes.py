@@ -160,7 +160,15 @@ class TestListScreening:
         response = _client().get("/api/v1/screening", headers=_auth())
         assert response.status_code == 200
         body = response.json()
-        assert body == {"results": [], "total": 0, "limit": 100, "offset": 0}
+        assert body == {
+            "results": [],
+            "total": 0,
+            "limit": 100,
+            "offset": 0,
+            "snapshot_identity": (
+                "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            ),
+        }
 
     def test_returns_every_result_deterministically_ordered(self) -> None:
         repository = InMemoryLatestResultRepository()
@@ -173,6 +181,31 @@ class TestListScreening:
             ("skew_momentum", "MSFT"),
         ]
         assert body["total"] == 2
+
+    def test_snapshot_identity_fences_multi_page_latest_state(self) -> None:
+        repository = InMemoryLatestResultRepository()
+        for index in range(501):
+            repository.upsert(_record("earnings_calendar", f"E{index:04d}"))
+        repository.upsert(_record("forward_factor", "F0000"))
+        client = _client(repository)
+
+        first = client.get("/api/v1/screening?limit=500&offset=0", headers=_auth()).json()
+        second = client.get("/api/v1/screening?limit=500&offset=500", headers=_auth()).json()
+
+        identities = {
+            (item["signal_id"], item["symbol"])
+            for item in first["results"] + second["results"]
+        }
+        assert first["total"] == second["total"] == 502
+        assert first["snapshot_identity"] == second["snapshot_identity"]
+        assert len(identities) == 502
+        assert ("forward_factor", "F0000") in identities
+
+        repository.upsert(_record("skew_momentum", "S0000"))
+        changed = client.get(
+            "/api/v1/screening?limit=500&offset=500", headers=_auth()
+        ).json()
+        assert changed["snapshot_identity"] != first["snapshot_identity"]
 
     def test_every_result_exposes_updated_at_and_age_seconds(self) -> None:
         repository = InMemoryLatestResultRepository()
