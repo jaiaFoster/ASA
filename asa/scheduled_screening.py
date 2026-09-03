@@ -872,6 +872,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     print(
         json.dumps(
             {
+                "artifact_type": "bounded_run_cohort",
                 "total": len(outcomes),
                 "failed": len(failures),
                 # Never silently report complete acquisition accounting

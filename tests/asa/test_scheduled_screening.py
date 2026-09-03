@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 from datetime import UTC, date, datetime, timedelta
 
@@ -30,6 +31,28 @@ from tests.asa._fixture_market_data_access import (
 )
 from tests.asa.fakes import InMemoryLatestResultRepository, InMemoryObservationHistoryRepository
 from tests.asa.market_data_ops.fakes import ScriptedTransport, tradier_quote_response
+
+
+def test_operational_json_labels_bounded_cohort_semantics(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    import asa.scheduled_screening as scheduled_screening_module
+
+    monkeypatch.setattr(
+        scheduled_screening_module,
+        "run_scheduled_refresh",
+        lambda **_kwargs: (
+            scheduled_screening_module.PairOutcome(
+                "forward_factor", "AAPL", "no_signal", 3, None, True
+            ),
+        ),
+    )
+
+    assert scheduled_screening_module.main(["--json"]) == 0
+    report = json.loads(capsys.readouterr().out)
+    assert report["artifact_type"] == "bounded_run_cohort"
+    assert report["total"] == 1
 
 
 def _tradier_option(
