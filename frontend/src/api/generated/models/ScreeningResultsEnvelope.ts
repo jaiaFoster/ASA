@@ -8,4 +8,5 @@ export type ScreeningResultsEnvelope = {
     total: number;
     limit: number;
     offset: number;
+    snapshot_identity: string;
 };

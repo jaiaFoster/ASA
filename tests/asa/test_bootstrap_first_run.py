@@ -99,7 +99,13 @@ def test_bootstrap_first_run_from_a_genuinely_empty_deployment(
     # Step 2: confirm the empty state is 200 + empty list, never 404.
     empty_list = client.get("/api/v1/screening", headers=_auth())
     assert empty_list.status_code == 200
-    assert empty_list.json() == {"results": [], "total": 0, "limit": 100, "offset": 0}
+    assert empty_list.json() == {
+        "results": [],
+        "total": 0,
+        "limit": 100,
+        "offset": 0,
+        "snapshot_identity": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    }
 
     # A specific pair that has never been refreshed still 404s, distinguishably.
     no_result_yet = client.get("/api/v1/screening/skew_momentum/AAPL", headers=_auth())

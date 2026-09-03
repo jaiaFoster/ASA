@@ -3982,6 +3982,10 @@
           "offset": {
             "type": "integer",
             "title": "Offset"
+          },
+          "snapshot_identity": {
+            "type": "string",
+            "title": "Snapshot Identity"
           }
         },
         "type": "object",
@@ -3989,7 +3993,8 @@
           "results",
           "total",
           "limit",
-          "offset"
+          "offset",
+          "snapshot_identity"
         ],
         "title": "ScreeningResultsEnvelope"
       },

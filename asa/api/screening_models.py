@@ -303,6 +303,7 @@ class ScreeningResultsEnvelope(BaseModel):
     total: int
     limit: int
     offset: int
+    snapshot_identity: str
 
 
 class ExactOptionLegResponse(BaseModel):

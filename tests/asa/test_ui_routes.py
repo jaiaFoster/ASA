@@ -34,7 +34,14 @@ def test_ui_shell_and_packaged_assets_return_200() -> None:
     assert shell.status_code == 200
     assert "ASA Intelligence Console" in shell.text
     assert "Content-Security-Policy" in shell.text
-    for asset in ("app.js", "api-client.js", "state.js", "render.js", "styles.css"):
+    for asset in (
+        "app.js",
+        "api-client.js",
+        "pagination.js",
+        "state.js",
+        "render.js",
+        "styles.css",
+    ):
         response = client.get(f"/ui/static/{asset}")
         assert response.status_code == 200
         assert response.content
@@ -87,6 +94,19 @@ def test_ui_client_is_get_only_and_never_persists_token_in_local_storage() -> No
     assert "refresh" not in client_source.lower()
     assert "localStorage" not in client_source + application_source
     assert "sessionStorage" in client_source
+
+
+def test_ui_traverses_all_pages_and_rejects_incompatible_snapshots() -> None:
+    static = files("asa.ui").joinpath("static")
+    client_source = static.joinpath("api-client.js").read_text(encoding="utf-8")
+    pagination_source = static.joinpath("pagination.js").read_text(encoding="utf-8")
+
+    assert "collectCompleteScreeningState" in client_source
+    assert "while (authoritativeTotal === null || results.length < authoritativeTotal)" in (
+        pagination_source
+    )
+    assert "page.snapshot_identity !== snapshotIdentity" in pagination_source
+    assert "Duplicate screening identity across pages" in pagination_source
 
 
 def test_ui_exposes_exact_structure_and_explicit_modeled_pnl_assumptions() -> None:
