@@ -5,6 +5,8 @@ export const state = {
   capabilities: null,
   strategyHealth: null,
   results: [],
+  resultsTotal: 0,
+  resultsSnapshotIdentity: null,
   executionReadiness: {},
   apiVersion: null,
   fetchedAt: null,

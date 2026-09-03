@@ -132,6 +132,24 @@ def test_build_identity_strips_configuration_whitespace() -> None:
     assert settings.release_sha == "abc123"
 
 
+def test_build_identity_uses_railway_commit_when_asa_override_is_absent(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("ASA_RELEASE_SHA", raising=False)
+    monkeypatch.setenv("RAILWAY_GIT_COMMIT_SHA", "railway-commit-123")
+
+    assert Settings(_env_file=None).release_sha == "railway-commit-123"
+
+
+def test_explicit_asa_release_sha_precedes_railway_commit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("ASA_RELEASE_SHA", "asa-release")
+    monkeypatch.setenv("RAILWAY_GIT_COMMIT_SHA", "railway-commit")
+
+    assert Settings(_env_file=None).release_sha == "asa-release"
+
+
 def test_robinhood_provider_is_selected_from_railway_variables(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

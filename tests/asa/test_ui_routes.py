@@ -119,6 +119,22 @@ def test_ui_separates_strategy_analytical_state_from_infrastructure_health() -> 
     assert "separate from service health and data freshness" in render_source
     assert "missing_data: funnel.missing_data" in render_source
     assert "no_signal: funnel.no_signal" in render_source
+    assert "Fresh missing-data rows remain analytically incomplete" in render_source
+
+
+def test_ui_distinguishes_visible_loaded_and_authoritative_total_and_build() -> None:
+    static = files("asa.ui").joinpath("static")
+    application_source = static.joinpath("app.js").read_text(encoding="utf-8")
+    render_source = static.joinpath("render.js").read_text(encoding="utf-8")
+
+    assert "state.resultsTotal = results.data.total" in application_source
+    assert "state.resultsSnapshotIdentity = results.data.snapshot_identity" in (
+        application_source
+    )
+    assert '["Visible rows", String(model.visible.length)]' in render_source
+    assert '["Loaded rows", String(model.results.length)]' in render_source
+    assert '["Persisted rows", String(model.resultsTotal)]' in render_source
+    assert 'model.buildIdentity?.release_sha || "Unavailable"' in render_source
 
 
 def test_ui_exposes_exact_structure_and_explicit_modeled_pnl_assumptions() -> None:
