@@ -190,6 +190,8 @@ class TestListScreening:
             "snapshot_identity": (
                 "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
             ),
+            "scope": "all_latest",
+            "retained_nonactive_total": 0,
         }
 
     def test_returns_every_result_deterministically_ordered(self) -> None:
@@ -228,6 +230,41 @@ class TestListScreening:
             "/api/v1/screening?limit=500&offset=500", headers=_auth()
         ).json()
         assert changed["snapshot_identity"] != first["snapshot_identity"]
+
+    def test_active_projection_uses_membership_without_deleting_retained_rows(self) -> None:
+        repository = InMemoryLatestResultRepository()
+        repository.upsert(_record("forward_factor", "AAPL"))
+        repository.upsert(_record("forward_factor", "SPY"))
+        client = _client(repository)
+
+        current = client.get(
+            "/api/v1/screening?active_only=true", headers=_auth()
+        ).json()
+        retained = client.get("/api/v1/screening", headers=_auth()).json()
+
+        assert current["scope"] == "active_universe"
+        assert current["total"] == 1
+        assert current["results"][0]["symbol"] == "AAPL"
+        assert current["retained_nonactive_total"] == 1
+        assert retained["scope"] == "all_latest"
+        assert retained["total"] == 2
+        assert {item["symbol"] for item in retained["results"]} == {"AAPL", "SPY"}
+
+
+    def test_strategy_health_uses_active_membership_and_reports_retained_rows(self) -> None:
+        repository = InMemoryLatestResultRepository()
+        repository.upsert(_record("forward_factor", "AAPL"))
+        repository.upsert(_record("forward_factor", "SPY"))
+
+        response = _client(repository).get("/api/v1/screening-health", headers=_auth())
+
+        funnel = next(
+            item
+            for item in response.json()["strategies"]
+            if item["strategy_id"] == "forward_factor"
+        )
+        assert funnel["active_subjects"] == 1
+        assert funnel["retained_nonactive"] == 1
 
     def test_every_result_exposes_updated_at_and_age_seconds(self) -> None:
         repository = InMemoryLatestResultRepository()

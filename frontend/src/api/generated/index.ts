@@ -47,7 +47,7 @@ export type { RunStepResponse } from './models/RunStepResponse';
 export type { ScreeningExecutionReadinessResponse } from './models/ScreeningExecutionReadinessResponse';
 export type { ScreeningOperationalHealthResponse } from './models/ScreeningOperationalHealthResponse';
 export type { ScreeningResultResponse } from './models/ScreeningResultResponse';
-export type { ScreeningResultsEnvelope } from './models/ScreeningResultsEnvelope';
+export { ScreeningResultsEnvelope } from './models/ScreeningResultsEnvelope';
 export type { SelectionDiagnosticResponse } from './models/SelectionDiagnosticResponse';
 export type { SignalCapabilityResponse } from './models/SignalCapabilityResponse';
 export type { StartRunRequest } from './models/StartRunRequest';

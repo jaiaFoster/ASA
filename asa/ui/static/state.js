@@ -7,6 +7,7 @@ export const state = {
   results: [],
   resultsTotal: 0,
   resultsSnapshotIdentity: null,
+  retainedNonactiveTotal: 0,
   executionReadiness: {},
   apiVersion: null,
   fetchedAt: null,

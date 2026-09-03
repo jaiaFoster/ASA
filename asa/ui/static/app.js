@@ -84,6 +84,7 @@ async function loadPersistedState() {
     state.results = results.data.results;
     state.resultsTotal = results.data.total;
     state.resultsSnapshotIdentity = results.data.snapshot_identity;
+    state.retainedNonactiveTotal = results.data.retained_nonactive_total;
     state.strategyHealth = strategyHealth.data;
     state.apiVersion = results.apiVersion || capabilities.apiVersion;
     state.fetchedAt = new Date().toISOString();
@@ -108,6 +109,7 @@ const handlers = {
     state.results = [];
     state.resultsTotal = 0;
     state.resultsSnapshotIdentity = null;
+    state.retainedNonactiveTotal = 0;
     state.capabilities = null;
     state.strategyHealth = null;
     state.error = null;

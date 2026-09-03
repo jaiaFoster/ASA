@@ -102,11 +102,13 @@ def test_ui_traverses_all_pages_and_rejects_incompatible_snapshots() -> None:
     pagination_source = static.joinpath("pagination.js").read_text(encoding="utf-8")
 
     assert "collectCompleteScreeningState" in client_source
+    assert "active_only=true" in client_source
     assert "while (authoritativeTotal === null || results.length < authoritativeTotal)" in (
         pagination_source
     )
     assert "page.snapshot_identity !== snapshotIdentity" in pagination_source
     assert "Duplicate screening identity across pages" in pagination_source
+    assert "page.retained_nonactive_total !== retainedNonactiveTotal" in pagination_source
 
 
 def test_ui_separates_strategy_analytical_state_from_infrastructure_health() -> None:

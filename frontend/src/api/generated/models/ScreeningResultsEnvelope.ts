@@ -9,4 +9,12 @@ export type ScreeningResultsEnvelope = {
     limit: number;
     offset: number;
     snapshot_identity: string;
+    scope: ScreeningResultsEnvelope.scope;
+    retained_nonactive_total: number;
 };
+export namespace ScreeningResultsEnvelope {
+    export enum scope {
+        ALL_LATEST = 'all_latest',
+        ACTIVE_UNIVERSE = 'active_universe',
+    }
+}

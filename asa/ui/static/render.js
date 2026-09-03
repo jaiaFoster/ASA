@@ -176,6 +176,7 @@ function resultsView(model, handlers) {
     ["Visible rows", String(model.visible.length)],
     ["Loaded rows", String(model.results.length)],
     ["Persisted rows", String(model.resultsTotal)],
+    ["Retained non-active rows", String(model.retainedNonactiveTotal)],
     ["Last fetched", model.fetchedAt || "Not fetched"],
     ["Revision", model.buildIdentity?.release_sha || "Unavailable"],
   ];
@@ -447,6 +448,7 @@ function healthView(model) {
     ["Release revision", model.buildIdentity?.release_sha || "Unavailable"],
     ["Loaded rows", String(model.results.length)],
     ["Persisted rows", String(model.resultsTotal)],
+    ["Retained non-active rows", String(model.retainedNonactiveTotal)],
     ["Latest-state identity", model.resultsSnapshotIdentity || "Unavailable"],
     ["Earliest evaluated", model.evaluatedRange.earliest],
     ["Latest evaluated", model.evaluatedRange.latest],

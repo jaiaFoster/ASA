@@ -263,6 +263,7 @@ def build_screening_router(
     history_repository: ObservationHistoryRepository,
     acquisition_attempt_repository: AcquisitionAttemptRepository,
     operational_health: Callable[[], dict[str, object]],
+    active_symbols: frozenset[str],
     portfolio_lifecycle_repository: PortfolioLifecycleRepository | None = None,
 ) -> APIRouter:
     router = APIRouter(prefix="/api/v1", dependencies=[Depends(authorize)])
@@ -299,8 +300,9 @@ def build_screening_router(
         status: str | None = None,
         sort_by: str | None = None,
         sort_order: Literal["asc", "desc"] = "desc",
+        active_only: bool = False,
     ) -> ScreeningResultsEnvelope:
-        records = _filter_and_sort(
+        all_records = _filter_and_sort(
             get_state(repository),
             signal=signal,
             symbol=symbol,
@@ -311,6 +313,14 @@ def build_screening_router(
             sort_by=sort_by,
             sort_order=sort_order,
         )
+        retained_nonactive_total = sum(
+            item.symbol not in active_symbols for item in all_records
+        )
+        records = (
+            tuple(item for item in all_records if item.symbol in active_symbols)
+            if active_only
+            else all_records
+        )
         page, total = _paginate(records, limit, offset)
         return ScreeningResultsEnvelope(
             results=[ScreeningResultResponse.from_universal_result(item) for item in page],
@@ -318,15 +328,18 @@ def build_screening_router(
             limit=limit,
             offset=offset,
             snapshot_identity=_latest_state_identity(records),
+            scope="active_universe" if active_only else "all_latest",
+            retained_nonactive_total=retained_nonactive_total,
         )
 
     @router.get("/screening-health", response_model=StrategyHealthResponse)
     def strategy_health() -> StrategyHealthResponse:
         state = get_state(repository)
+        active_state = tuple(item for item in state if item.symbol in active_symbols)
         funnels = [
             build_strategy_health(
                 strategy_id,
-                tuple(item for item in state if item.strategy_id == strategy_id),
+                tuple(item for item in active_state if item.strategy_id == strategy_id),
             )
             for strategy_id in registry.strategy_ids()
         ]
@@ -338,6 +351,11 @@ def build_screening_router(
                     evaluated=item.evaluated,
                     missing_data=item.missing_data,
                     no_signal=item.no_signal,
+                    retained_nonactive=sum(
+                        record.strategy_id == item.strategy_id
+                        and record.symbol not in active_symbols
+                        for record in state
+                    ),
                     evidence_sufficient=item.evidence_sufficient,
                     structure_eligible_or_constructible=(item.structure_eligible_or_constructible),
                     gates_passed=item.gates_passed,
@@ -386,9 +404,10 @@ def build_screening_router(
         status: str | None = None,
         sort_by: str | None = None,
         sort_order: Literal["asc", "desc"] = "desc",
+        active_only: bool = False,
     ) -> ScreeningResultsEnvelope:
         _require_registered_signal(signal)
-        records = _filter_and_sort(
+        all_records = _filter_and_sort(
             get_state(repository, strategy_id=signal),
             signal=None,
             symbol=symbol,
@@ -399,6 +418,14 @@ def build_screening_router(
             sort_by=sort_by,
             sort_order=sort_order,
         )
+        retained_nonactive_total = sum(
+            item.symbol not in active_symbols for item in all_records
+        )
+        records = (
+            tuple(item for item in all_records if item.symbol in active_symbols)
+            if active_only
+            else all_records
+        )
         page, total = _paginate(records, limit, offset)
         return ScreeningResultsEnvelope(
             results=[ScreeningResultResponse.from_universal_result(item) for item in page],
@@ -406,6 +433,8 @@ def build_screening_router(
             limit=limit,
             offset=offset,
             snapshot_identity=_latest_state_identity(records),
+            scope="active_universe" if active_only else "all_latest",
+            retained_nonactive_total=retained_nonactive_total,
         )
 
     @router.get("/screening/{signal}/{symbol}", response_model=ScreeningResultResponse)

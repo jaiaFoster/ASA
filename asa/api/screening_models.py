@@ -10,6 +10,7 @@ timestamped").
 from __future__ import annotations
 
 from datetime import date, datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -122,6 +123,7 @@ class StrategyHealthFunnelResponse(BaseModel):
     evaluated: int
     missing_data: int
     no_signal: int
+    retained_nonactive: int
     evidence_sufficient: int
     structure_eligible_or_constructible: int
     gates_passed: int
@@ -306,6 +308,8 @@ class ScreeningResultsEnvelope(BaseModel):
     limit: int
     offset: int
     snapshot_identity: str
+    scope: Literal["all_latest", "active_universe"]
+    retained_nonactive_total: int
 
 
 class ExactOptionLegResponse(BaseModel):

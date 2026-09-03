@@ -45,6 +45,7 @@ from asa.market_data_ops.routes import build_operations_router
 from asa.ui import mount_ui
 from market_data.attempts import AcquisitionAttemptRepository
 from market_data.live_transport import build_live_transport as build_transport_for_provider
+from screening.universe_membership import SP500_MEMBERSHIP
 from strategy_runtime.adapters import (
     build_migrated_signal_catalog,
     build_migrated_strategy_registry,
@@ -180,6 +181,7 @@ def build_application(
             history_repository=observation_history_repository,
             acquisition_attempt_repository=acquisition_attempt_repository,
             operational_health=screening_operational_health,
+            active_symbols=frozenset(SP500_MEMBERSHIP.symbols),
             portfolio_lifecycle_repository=portfolio_lifecycle_repository,
         )
     )
