@@ -672,11 +672,20 @@ def run_scheduled_refresh(
                 if shadow_registry.is_registered(signal_id)
                 else None
             )
+            # Latest-result persistence may correctly reject an out-of-order
+            # refresh (for example, a manual after-hours proof whose sealed
+            # evidence predates the current production row).  Execution
+            # readiness is a projection of the authoritative screening row,
+            # so it must not advance independently and make the API's two
+            # identities disagree.
+            authoritative_row = resolved_repository.get_one(signal_id, symbol)
             if (
                 isinstance(knowledge, ReadOnlyStrategyInput)
                 and binding is not None
                 and binding.build_execution_assessment is not None
                 and resolved_portfolio_lifecycle_repository is not None
+                and authoritative_row is not None
+                and authoritative_row.observation_id == result.observation_id
             ):
                 try:
                     assessment = binding.build_execution_assessment(
@@ -703,6 +712,15 @@ def run_scheduled_refresh(
                         extra={"signal_id": signal_id, "symbol": symbol},
                         exc_info=True,
                     )
+            elif (
+                resolved_portfolio_lifecycle_repository is not None
+                and authoritative_row is not None
+                and authoritative_row.observation_id != result.observation_id
+            ):
+                _LOGGER.info(
+                    "execution_readiness_projection_skipped_stale_result",
+                    extra={"signal_id": signal_id, "symbol": symbol},
+                )
             _tally_new_calls(symbol, call_log_start)
             if shadow_diagnostic is not None:
                 # Diagnostic-only (Architect checkpoint: sixteenth review,
