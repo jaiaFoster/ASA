@@ -790,6 +790,16 @@
               "default": "desc",
               "title": "Sort Order"
             }
+          },
+          {
+            "name": "active_only",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Active Only"
+            }
           }
         ],
         "responses": {
@@ -1045,6 +1055,16 @@
               "type": "string",
               "default": "desc",
               "title": "Sort Order"
+            }
+          },
+          {
+            "name": "active_only",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Active Only"
             }
           }
         ],
@@ -3986,6 +4006,18 @@
           "snapshot_identity": {
             "type": "string",
             "title": "Snapshot Identity"
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "all_latest",
+              "active_universe"
+            ],
+            "title": "Scope"
+          },
+          "retained_nonactive_total": {
+            "type": "integer",
+            "title": "Retained Nonactive Total"
           }
         },
         "type": "object",
@@ -3994,7 +4026,9 @@
           "total",
           "limit",
           "offset",
-          "snapshot_identity"
+          "snapshot_identity",
+          "scope",
+          "retained_nonactive_total"
         ],
         "title": "ScreeningResultsEnvelope"
       },
@@ -4128,6 +4162,10 @@
             "type": "integer",
             "title": "No Signal"
           },
+          "retained_nonactive": {
+            "type": "integer",
+            "title": "Retained Nonactive"
+          },
           "evidence_sufficient": {
             "type": "integer",
             "title": "Evidence Sufficient"
@@ -4170,6 +4208,7 @@
           "evaluated",
           "missing_data",
           "no_signal",
+          "retained_nonactive",
           "evidence_sufficient",
           "structure_eligible_or_constructible",
           "gates_passed",

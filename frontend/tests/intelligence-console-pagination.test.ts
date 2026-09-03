@@ -14,7 +14,7 @@ function pages(rows: Row[], snapshots: string[] = ['snapshot-a']) {
     return {
       data: {
         results: rows.slice(offset, offset + limit), total: rows.length,
-        limit, offset, snapshot_identity,
+        limit, offset, snapshot_identity, scope: 'active_universe', retained_nonactive_total: 16,
       },
       apiVersion: 'v1',
     }
@@ -34,6 +34,8 @@ describe('Intelligence Console complete latest-state pagination', () => {
 
     expect(result.data.results).toEqual(source)
     expect(result.data.total).toBe(total)
+    expect(result.data.scope).toBe('active_universe')
+    expect(result.data.retained_nonactive_total).toBe(16)
     expect(new Set(result.data.results.map((item: Row) => item.signal_id))).toContain('signal-2')
   })
 

@@ -307,6 +307,7 @@ export class DefaultService {
      * @param status
      * @param sortBy
      * @param sortOrder
+     * @param activeOnly
      * @returns ScreeningResultsEnvelope Successful Response
      * @throws ApiError
      */
@@ -321,6 +322,7 @@ export class DefaultService {
         status?: (string | null),
         sortBy?: (string | null),
         sortOrder: 'asc' | 'desc' = 'desc',
+        activeOnly: boolean = false,
     ): CancelablePromise<ScreeningResultsEnvelope> {
         return __request(OpenAPI, {
             method: 'GET',
@@ -336,6 +338,7 @@ export class DefaultService {
                 'status': status,
                 'sort_by': sortBy,
                 'sort_order': sortOrder,
+                'active_only': activeOnly,
             },
             errors: {
                 422: `Validation Error`,
@@ -393,6 +396,7 @@ export class DefaultService {
      * @param status
      * @param sortBy
      * @param sortOrder
+     * @param activeOnly
      * @returns ScreeningResultsEnvelope Successful Response
      * @throws ApiError
      */
@@ -407,6 +411,7 @@ export class DefaultService {
         status?: (string | null),
         sortBy?: (string | null),
         sortOrder: 'asc' | 'desc' = 'desc',
+        activeOnly: boolean = false,
     ): CancelablePromise<ScreeningResultsEnvelope> {
         return __request(OpenAPI, {
             method: 'GET',
@@ -424,6 +429,7 @@ export class DefaultService {
                 'status': status,
                 'sort_by': sortBy,
                 'sort_order': sortOrder,
+                'active_only': activeOnly,
             },
             errors: {
                 422: `Validation Error`,

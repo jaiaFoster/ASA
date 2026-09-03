@@ -9,6 +9,7 @@ export type StrategyHealthFunnelResponse = {
     evaluated: number;
     missing_data: number;
     no_signal: number;
+    retained_nonactive: number;
     evidence_sufficient: number;
     structure_eligible_or_constructible: number;
     gates_passed: number;

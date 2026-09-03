@@ -3,6 +3,8 @@ export async function collectCompleteScreeningState(fetchPage, pageLimit = 500) 
   const identities = new Set();
   let authoritativeTotal = null;
   let snapshotIdentity = null;
+  let scope = null;
+  let retainedNonactiveTotal = null;
   let apiVersion = null;
 
   while (authoritativeTotal === null || results.length < authoritativeTotal) {
@@ -15,10 +17,14 @@ export async function collectCompleteScreeningState(fetchPage, pageLimit = 500) 
     if (authoritativeTotal === null) {
       authoritativeTotal = page.total;
       snapshotIdentity = page.snapshot_identity;
+      scope = page.scope;
+      retainedNonactiveTotal = page.retained_nonactive_total;
       apiVersion = response.apiVersion;
     } else if (
       page.total !== authoritativeTotal ||
-      page.snapshot_identity !== snapshotIdentity
+      page.snapshot_identity !== snapshotIdentity ||
+      page.scope !== scope ||
+      page.retained_nonactive_total !== retainedNonactiveTotal
     ) {
       throw new Error("Screening state changed during pagination; retry required");
     }
@@ -44,6 +50,8 @@ export async function collectCompleteScreeningState(fetchPage, pageLimit = 500) 
       limit: pageLimit,
       offset: 0,
       snapshot_identity: snapshotIdentity,
+      scope,
+      retained_nonactive_total: retainedNonactiveTotal,
     },
     apiVersion,
   };
