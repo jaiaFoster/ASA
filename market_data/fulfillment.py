@@ -33,7 +33,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 
-from domain import FreshnessStatus, MarketObservation
+from domain import FreshnessStatus, MarketCapability, MarketObservation
 from domain.values import DomainInvariantError
 from market_data.budget import (
     BudgetExhaustedError,
@@ -264,6 +264,23 @@ class CapabilityFulfillmentService:
         request: CapabilityRequest,
         observations: tuple[MarketObservation, ...],
     ) -> NormalizedProviderError | None:
+        # Resolution compares one canonical value from each provider. Reject
+        # competing values from the same provider/subject here so audited
+        # fallback can proceed instead of crashing the shared subject seal.
+        provider_subjects = tuple(
+            (value.provenance.provider_id, value.subject.subject_identity)
+            for value in observations
+        )
+        if (
+            request.capability is MarketCapability.EARNINGS_CALENDAR_V1
+            and len(provider_subjects) != len(set(provider_subjects))
+        ):
+            return normalized_provider_error(
+                ProviderErrorCode.SCHEMA_MISMATCH,
+                "provider returned multiple canonical values for one subject and capability",
+                provider_id,
+                request.capability,
+            )
         usable_freshness = {
             FreshnessStatus.FRESH,
             FreshnessStatus.DELAYED,
