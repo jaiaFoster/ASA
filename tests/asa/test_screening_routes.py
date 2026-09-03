@@ -31,6 +31,7 @@ def _record(
     recommendation_state: str | None = None,
     score: Decimal = Decimal("75"),
     verdict: str | None = "PASS",
+    blockers: tuple[str, ...] = ("capital unavailable",),
 ) -> UniversalSignalRow:
     return UniversalSignalRow(
         signal_id=signal_id,
@@ -46,7 +47,7 @@ def _record(
         data_quality="complete",
         metrics={"strategy_native_score": TypedValue.of_decimal(score)},
         economics={"estimated_return": TypedValue.of_decimal(Decimal("0.12"))},
-        blockers=("capital unavailable",),
+        blockers=blockers,
         warnings=("monitor liquidity",),
         provenance=("fixture:screening",),
         observed_at=observed_at,
@@ -116,6 +117,35 @@ def test_strategy_health_distinguishes_missing_data_from_no_signal() -> None:
     assert funnel["evaluated"] == 1
     assert funnel["missing_data"] == 1
     assert funnel["no_signal"] == 1
+
+
+def test_strategy_health_collapses_detailed_unknown_to_stable_primary_reason() -> None:
+    repository = InMemoryLatestResultRepository()
+    detail = (
+        "typed unknown evidence gap: no_valid_expiration_pair "
+        "(listed=2026-09-18;target_gap=30)"
+    )
+    repository.upsert(
+        _record(
+            "earnings_calendar",
+            "AAPL",
+            outcome="missing_data",
+            verdict=None,
+            blockers=(detail,),
+        )
+    )
+
+    response = _client(repository).get("/api/v1/screening-health", headers=_auth())
+
+    funnel = next(
+        item
+        for item in response.json()["strategies"]
+        if item["strategy_id"] == "earnings_calendar"
+    )
+    assert funnel["typed_unknown_counts"] == [
+        {"reason": "no_valid_expiration_pair", "count": 1}
+    ]
+    assert sum(item["count"] for item in funnel["typed_unknown_counts"]) == 1
 
 
 class TestAuthentication:
