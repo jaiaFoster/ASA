@@ -35,8 +35,11 @@ from domain import (
 from domain.references import EvidenceReference
 from market_data import (
     CapabilityFulfillmentService,
+    CapabilityRequest,
     FixtureScenario,
     ProviderDependencies,
+    ProviderFetchResult,
+    RequestBudgetAuthorization,
     load_market_data_config,
 )
 from market_data.attempts import InMemoryAcquisitionAttemptRepository
@@ -112,6 +115,23 @@ class WatchEarningsFixtureProvider(MultiExpirationFixtureProvider):
             for contract in value.contracts
         )
         return dataclasses.replace(value, contracts=contracts)
+
+
+class DuplicateEarningsFixtureProvider(MultiExpirationFixtureProvider):
+    """Reproduces Finnhub returning competing events for one subject."""
+
+    def fetch(
+        self, request: CapabilityRequest, budget: RequestBudgetAuthorization
+    ) -> ProviderFetchResult:
+        fetched: ProviderFetchResult = super().fetch(  # type: ignore[no-untyped-call]
+            request, budget
+        )
+        if request.capability.value != "earnings_calendar_v1" or fetched.error is not None:
+            return fetched
+        return dataclasses.replace(
+            fetched,
+            observations=(fetched.observations[0], fetched.observations[0]),
+        )
 
 
 @dataclass(frozen=True, slots=True)

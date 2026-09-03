@@ -24,6 +24,7 @@ from market_data.transport import ReadOnlyHttpResponse
 from screening import APPROVED_LIVE_UNIVERSE, EARNINGS_CALENDAR_UNIVERSE
 from strategy_runtime.orchestration import ShadowParityDiagnostic
 from tests.asa._fixture_market_data_access import (
+    DuplicateEarningsFixtureProvider,
     WatchEarningsFixtureProvider,
     build_fixture_market_data_access_factory,
     capturing_market_data_access_factory,
@@ -1477,6 +1478,50 @@ def test_production_root_prepares_all_three_strategies_from_one_subject_snapshot
     assert len(outcomes) == 3
     assert all(item.error is None for item in outcomes)
     assert all(item.outcome != "missing_data" for item in outcomes)
+    assert not any(
+        record.message == "shadow_subject_preparation_failed" for record in caplog.records
+    )
+
+
+def test_duplicate_provider_earnings_cannot_destroy_sibling_strategy_preparation(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """AC02-D01: competing same-provider earnings fail at acquisition."""
+    import asa.scheduled_screening as scheduled_screening_module
+
+    monkeypatch.setattr(
+        scheduled_screening_module,
+        "build_shared_market_data_access",
+        build_fixture_market_data_access_factory(
+            provider_cls_by_symbol={"CPRT": DuplicateEarningsFixtureProvider}
+        ),
+    )
+    monkeypatch.setenv("ASA_TRADIER_ENABLED", "true")
+    monkeypatch.setenv("ASA_TRADIER_ACCESS_TOKEN", "sandbox-secret-token")
+    repository = InMemoryLatestResultRepository()
+    caplog.set_level(logging.WARNING)
+
+    outcomes = run_scheduled_refresh(
+        (
+            ("forward_factor", "CPRT"),
+            ("skew_momentum", "CPRT"),
+            ("earnings_calendar", "CPRT"),
+        ),
+        repository=repository,
+        acquisition_attempt_repository=InMemoryAcquisitionAttemptRepository(),
+        historical_skew_repository=_RecordingHistoricalSkewRepository(),
+    )
+
+    assert len(outcomes) == 3
+    assert all(item.error is None for item in outcomes)
+    forward = repository.get_one("forward_factor", "CPRT")
+    skew = repository.get_one("skew_momentum", "CPRT")
+    assert forward is not None and forward.evaluation_state != "missing_data"
+    assert skew is not None and skew.evaluation_state != "missing_data"
+    earnings = repository.get_one("earnings_calendar", "CPRT")
+    assert earnings is not None
+    assert earnings.evaluation_state == "missing_data"
+    assert earnings.blockers == ("typed unknown evidence gap: missing_earnings_date",)
     assert not any(
         record.message == "shadow_subject_preparation_failed" for record in caplog.records
     )

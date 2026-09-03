@@ -159,6 +159,20 @@ class ScriptedProvider:
         return ProviderShutdownReport(self.provider_id, NOW)
 
 
+class DuplicateValueProvider(ScriptedProvider):
+    """Adapter defect: two canonical values for one provider/subject."""
+
+    def fetch(
+        self, capability_request: CapabilityRequest, budget: RequestBudgetAuthorization
+    ) -> ProviderFetchResult:
+        fetched = super().fetch(capability_request, budget)
+        assert fetched.error is None
+        return dataclasses.replace(
+            fetched,
+            observations=(fetched.observations[0], fetched.observations[0]),
+        )
+
+
 def fixture_provider(scenario: FixtureScenario) -> DeterministicFixtureProvider:
     base = next(
         item
@@ -220,6 +234,30 @@ def test_primary_failure_secondary_success_is_explicitly_degraded() -> None:
     assert result.attempts[0].error.code is ProviderErrorCode.TIMEOUT
     assert result.attempts[1].observations
     assert len(budgets.accounting) == 2
+
+
+def test_duplicate_earnings_values_fail_at_provider_quality_boundary() -> None:
+    fetched = DuplicateValueProvider("primary", FixtureScenario()).fetch(
+        request(), RequestBudgetAuthorization("auth", "primary", 1, 1)
+    )
+    base_request = request()
+    earnings_subject = dataclasses.replace(
+        base_request.subjects[0],
+        requested_capability=MarketCapability.EARNINGS_CALENDAR_V1,
+        subject_type=MarketDataSubjectType.EARNINGS_SECURITY,
+    )
+    earnings_request = dataclasses.replace(
+        base_request,
+        capability=MarketCapability.EARNINGS_CALENDAR_V1,
+        subjects=(earnings_subject,),
+    )
+
+    error = CapabilityFulfillmentService._quality_error(
+        "primary", earnings_request, fetched.observations
+    )
+
+    assert error is not None
+    assert error.code is ProviderErrorCode.SCHEMA_MISMATCH
 
 
 def test_all_providers_fail_closed_with_aggregated_evidence() -> None:
