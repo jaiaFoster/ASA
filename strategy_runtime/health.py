@@ -34,12 +34,11 @@ def build_strategy_health(
     unknowns: Counter[str] = Counter()
     rejections: Counter[str] = Counter()
     for item in records:
-        reasons = _reasons(item)
-        destination = (
-            unknowns if item.evaluation_state not in SUCCESS_EVALUATION_STATES else rejections
-        )
-        for reason in reasons:
-            destination[reason] += 1
+        if item.evaluation_state not in SUCCESS_EVALUATION_STATES:
+            unknowns[_primary_unknown_reason(item)] += 1
+        else:
+            for reason in _reasons(item):
+                rejections[reason] += 1
     watch = sum(_verdict(item) == "WATCH" for item in evaluated_records)
     passed = sum(_verdict(item) == "PASS" for item in evaluated_records)
     structure_eligible = sum("decision.structure" in item.metrics for item in evaluated_records)
@@ -86,3 +85,13 @@ def _reasons(item: UniversalScreeningResult) -> tuple[str, ...]:
         if item.verdict
         else (f"evaluation_state:{item.evaluation_state.value}",)
     )
+
+
+def _primary_unknown_reason(item: UniversalScreeningResult) -> str:
+    """One stable reason per incomplete evaluation, preserving exact census totals."""
+    candidates = _reasons(item)
+    reason = candidates[0]
+    prefix = "typed unknown evidence gap: "
+    if reason.startswith(prefix):
+        return reason.removeprefix(prefix).partition(" (")[0]
+    return reason
