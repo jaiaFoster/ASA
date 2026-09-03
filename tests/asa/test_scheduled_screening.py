@@ -1826,6 +1826,54 @@ def test_scheduled_subject_first_path_publishes_execution_readiness_without_new_
     assert '"intended_structure_kind":"calendar"' in artifact.canonical_json
 
 
+def test_scheduled_readiness_does_not_advance_past_authoritative_screening_row(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An out-of-order refresh rejected by latest-state persistence must not
+    overwrite readiness with an identity the read API will reject as stale.
+    """
+    import asa.scheduled_screening as scheduled_screening_module
+
+    monkeypatch.setattr(
+        scheduled_screening_module,
+        "build_shared_market_data_access",
+        build_fixture_market_data_access_factory(),
+    )
+    monkeypatch.setenv("ASA_TRADIER_ENABLED", "true")
+    monkeypatch.setenv("ASA_TRADIER_ACCESS_TOKEN", "sandbox-secret-token")
+
+    class RejectOutOfOrderResult:
+        def __init__(self) -> None:
+            self.reads = 0
+
+        def get_one(self, signal_id: str, symbol: str) -> object | None:
+            self.reads += 1
+            if self.reads == 1:
+                return None
+            return type("CurrentRow", (), {"observation_id": "newer-current-row"})()
+
+        def upsert(self, row: object) -> None:
+            return None
+
+    class CaptureReadiness:
+        def __init__(self) -> None:
+            self.artifacts = []
+
+        def put_execution_readiness(self, artifact) -> None:
+            self.artifacts.append(artifact)
+
+    readiness = CaptureReadiness()
+    outcomes = run_scheduled_refresh(
+        (("forward_factor", "AAPL"),),
+        repository=RejectOutOfOrderResult(),  # type: ignore[arg-type]
+        acquisition_attempt_repository=InMemoryAcquisitionAttemptRepository(),
+        portfolio_lifecycle_repository=readiness,  # type: ignore[arg-type]
+    )
+
+    assert outcomes[0].error is None
+    assert readiness.artifacts == []
+
+
 # -- SPRINT-014 S14-PR-05A: real Earnings PASS/WATCH/UNKNOWN evidence at
 # the scheduled production root (Architect checkpoint: eighteenth review,
 # "SPRINT-014 PR-05 requires exact output parity before Architect
