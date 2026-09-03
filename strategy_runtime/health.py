@@ -13,6 +13,8 @@ class StrategyHealthFunnel:
     strategy_id: str
     active_subjects: int
     evaluated: int
+    missing_data: int
+    no_signal: int
     evidence_sufficient: int
     structure_eligible_or_constructible: int
     gates_passed: int
@@ -45,6 +47,12 @@ def build_strategy_health(
         strategy_id=strategy_id,
         active_subjects=len(records),
         evaluated=len(evaluated_records),
+        missing_data=sum(
+            item.evaluation_state is EvaluationState.MISSING_DATA for item in records
+        ),
+        no_signal=sum(
+            item.evaluation_state is EvaluationState.NO_SIGNAL for item in records
+        ),
         evidence_sufficient=len(evaluated_records),
         structure_eligible_or_constructible=structure_eligible,
         gates_passed=watch + passed,

@@ -336,6 +336,8 @@ def build_screening_router(
                     strategy_id=item.strategy_id,
                     active_subjects=item.active_subjects,
                     evaluated=item.evaluated,
+                    missing_data=item.missing_data,
+                    no_signal=item.no_signal,
                     evidence_sufficient=item.evidence_sufficient,
                     structure_eligible_or_constructible=(item.structure_eligible_or_constructible),
                     gates_passed=item.gates_passed,
