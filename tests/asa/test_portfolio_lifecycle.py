@@ -1,3 +1,4 @@
+import json
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
@@ -17,7 +18,9 @@ from asa.contracts.portfolio_lifecycle import (
     ExecutionReadinessArtifact,
     PositionLifecycleState,
     ReconciliationState,
+    TrackedCandidate,
 )
+from asa.integrations.portfolio_lifecycle_postgres import _candidate_params
 from asa.integrations.providers.deterministic_fake_broker import (
     DeterministicFakeBrokerPortfolioProvider,
 )
@@ -26,6 +29,26 @@ from strategy_runtime.values import TypedValue
 from tests.asa.fakes import InMemoryLatestResultRepository, InMemoryObservationRepository
 
 NOW = datetime(2026, 8, 28, 12, tzinfo=UTC)
+
+
+def test_postgres_candidate_params_encode_exact_symbols_as_jsonb_text() -> None:
+    candidate = TrackedCandidate(
+        id=uuid4(),
+        originating_observation_id="observation-1",
+        opportunity_id=None,
+        strategy_id="forward_factor",
+        strategy_version="1.3.0",
+        symbol="BKNG",
+        tracked_at=NOW,
+        originating_observed_at=NOW,
+        evidence_observed_at=NOW,
+        exact_option_symbols=("BKNG261120C00200000", "BKNG261218C00200000"),
+    )
+
+    encoded = _candidate_params(candidate)["exact_option_symbols"]
+
+    assert isinstance(encoded, str)
+    assert json.loads(encoded) == list(candidate.exact_option_symbols)
 
 
 class MemoryLifecycleRepository:

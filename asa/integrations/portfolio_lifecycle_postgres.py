@@ -1,3 +1,4 @@
+import json
 from uuid import UUID
 
 from sqlalchemy import Engine, text
@@ -33,20 +34,7 @@ class PostgresPortfolioLifecycleRepository:
                         :resolved_proposal_identity, :resolved_proposal_json
                     ) ON CONFLICT (originating_observation_id) DO NOTHING
                 """),
-                {
-                    "id": candidate.id,
-                    "originating_observation_id": candidate.originating_observation_id,
-                    "opportunity_id": candidate.opportunity_id,
-                    "signal_id": candidate.strategy_id,
-                    "signal_version": candidate.strategy_version,
-                    "symbol": candidate.symbol,
-                    "tracked_at": candidate.tracked_at,
-                    "originating_observed_at": candidate.originating_observed_at,
-                    "evidence_observed_at": candidate.evidence_observed_at,
-                    "exact_option_symbols": list(candidate.exact_option_symbols),
-                    "resolved_proposal_identity": candidate.resolved_proposal_identity,
-                    "resolved_proposal_json": candidate.resolved_proposal_json,
-                },
+                _candidate_params(candidate),
             )
         stored = self.candidate(candidate.id)
         if stored is None:
@@ -203,6 +191,29 @@ class PostgresPortfolioLifecycleRepository:
                 )
                 for row in rows
             )
+
+
+def _candidate_params(candidate: TrackedCandidate) -> dict[str, object]:
+    """Encode JSONB explicitly for raw ``text()`` SQL.
+
+    psycopg cannot infer that a plain Python list targets JSONB when SQLAlchemy
+    has no column metadata, so passing the list directly is interpreted as a
+    PostgreSQL array and rejected as invalid JSON.
+    """
+    return {
+        "id": candidate.id,
+        "originating_observation_id": candidate.originating_observation_id,
+        "opportunity_id": candidate.opportunity_id,
+        "signal_id": candidate.strategy_id,
+        "signal_version": candidate.strategy_version,
+        "symbol": candidate.symbol,
+        "tracked_at": candidate.tracked_at,
+        "originating_observed_at": candidate.originating_observed_at,
+        "evidence_observed_at": candidate.evidence_observed_at,
+        "exact_option_symbols": json.dumps(candidate.exact_option_symbols),
+        "resolved_proposal_identity": candidate.resolved_proposal_identity,
+        "resolved_proposal_json": candidate.resolved_proposal_json,
+    }
 
 
 def _candidate(row: RowMapping) -> TrackedCandidate:
