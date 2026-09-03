@@ -120,6 +120,8 @@ class StrategyHealthFunnelResponse(BaseModel):
     strategy_id: str
     active_subjects: int
     evaluated: int
+    missing_data: int
+    no_signal: int
     evidence_sufficient: int
     structure_eligible_or_constructible: int
     gates_passed: int

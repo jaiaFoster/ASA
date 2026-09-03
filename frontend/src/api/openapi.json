@@ -4120,6 +4120,14 @@
             "type": "integer",
             "title": "Evaluated"
           },
+          "missing_data": {
+            "type": "integer",
+            "title": "Missing Data"
+          },
+          "no_signal": {
+            "type": "integer",
+            "title": "No Signal"
+          },
           "evidence_sufficient": {
             "type": "integer",
             "title": "Evidence Sufficient"
@@ -4160,6 +4168,8 @@
           "strategy_id",
           "active_subjects",
           "evaluated",
+          "missing_data",
+          "no_signal",
           "evidence_sufficient",
           "structure_eligible_or_constructible",
           "gates_passed",

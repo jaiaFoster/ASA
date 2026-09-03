@@ -77,9 +77,12 @@ async function loadPersistedState() {
     return;
   }
   try {
-    const [capabilities, results] = await Promise.all([api.capabilities(), api.results()]);
+    const [capabilities, results, strategyHealth] = await Promise.all([
+      api.capabilities(), api.results(), api.strategyHealth(),
+    ]);
     state.capabilities = capabilities.data;
     state.results = results.data.results;
+    state.strategyHealth = strategyHealth.data;
     state.apiVersion = results.apiVersion || capabilities.apiVersion;
     state.fetchedAt = new Date().toISOString();
     void loadExecutionReadiness();
@@ -102,6 +105,7 @@ const handlers = {
     clearToken();
     state.results = [];
     state.capabilities = null;
+    state.strategyHealth = null;
     state.error = null;
     render();
   },

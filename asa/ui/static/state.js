@@ -3,6 +3,7 @@ export const state = {
   readiness: null,
   buildIdentity: null,
   capabilities: null,
+  strategyHealth: null,
   results: [],
   executionReadiness: {},
   apiVersion: null,

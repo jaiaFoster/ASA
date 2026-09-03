@@ -109,6 +109,18 @@ def test_ui_traverses_all_pages_and_rejects_incompatible_snapshots() -> None:
     assert "Duplicate screening identity across pages" in pagination_source
 
 
+def test_ui_separates_strategy_analytical_state_from_infrastructure_health() -> None:
+    static = files("asa.ui").joinpath("static")
+    client_source = static.joinpath("api-client.js").read_text(encoding="utf-8")
+    render_source = static.joinpath("render.js").read_text(encoding="utf-8")
+
+    assert "/api/v1/screening-health" in client_source
+    assert "ANALYTICAL COMPLETENESS" in render_source
+    assert "separate from service health and data freshness" in render_source
+    assert "missing_data: funnel.missing_data" in render_source
+    assert "no_signal: funnel.no_signal" in render_source
+
+
 def test_ui_exposes_exact_structure_and_explicit_modeled_pnl_assumptions() -> None:
     render_source = (
         files("asa.ui").joinpath("static", "render.js").read_text(encoding="utf-8")

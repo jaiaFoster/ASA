@@ -30,7 +30,7 @@ def _record(
     lifecycle_stage: str | None = None,
     recommendation_state: str | None = None,
     score: Decimal = Decimal("75"),
-    verdict: str = "PASS",
+    verdict: str | None = "PASS",
 ) -> UniversalSignalRow:
     return UniversalSignalRow(
         signal_id=signal_id,
@@ -93,7 +93,29 @@ def test_strategy_health_exposes_all_registered_production_funnels() -> None:
     assert set(funnels) == {"forward_factor", "earnings_calendar", "skew_momentum"}
     assert all(item["active_subjects"] == 1 for item in funnels.values())
     assert all(item["evaluated"] == 1 for item in funnels.values())
+    assert all(item["missing_data"] == 0 for item in funnels.values())
+    assert all(item["no_signal"] == 0 for item in funnels.values())
     assert all(item["typed_rejection_counts"] for item in funnels.values())
+
+
+def test_strategy_health_distinguishes_missing_data_from_no_signal() -> None:
+    repository = InMemoryLatestResultRepository()
+    repository.upsert(
+        _record("forward_factor", "AAPL", outcome="missing_data", verdict=None)
+    )
+    repository.upsert(_record("forward_factor", "MSFT", outcome="no_signal"))
+
+    response = _client(repository).get("/api/v1/screening-health", headers=_auth())
+
+    funnel = next(
+        item
+        for item in response.json()["strategies"]
+        if item["strategy_id"] == "forward_factor"
+    )
+    assert funnel["active_subjects"] == 2
+    assert funnel["evaluated"] == 1
+    assert funnel["missing_data"] == 1
+    assert funnel["no_signal"] == 1
 
 
 class TestAuthentication:

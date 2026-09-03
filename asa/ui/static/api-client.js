@@ -45,6 +45,7 @@ export const api = Object.freeze({
   readiness: () => requestJson("/api/v1/readiness", false),
   version: () => requestJson("/api/v1/version", false),
   capabilities: () => requestJson("/api/v1/capabilities"),
+  strategyHealth: () => requestJson("/api/v1/screening-health"),
   results: () => collectCompleteScreeningState(
     (limit, offset) => requestJson(`/api/v1/screening?limit=${limit}&offset=${offset}`),
   ),

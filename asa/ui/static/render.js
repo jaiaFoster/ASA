@@ -413,6 +413,29 @@ function healthView(model) {
   heading.append(element("h2", null, "Service state"));
   heading.append(element("p", null, "Infrastructure checks and exact counts from the latest persisted rows—not a single run."));
   fragment.append(heading);
+  const analyticalHeading = element("section", "page-heading");
+  analyticalHeading.append(element("p", "eyebrow", "ANALYTICAL COMPLETENESS"));
+  analyticalHeading.append(element("h2", null, "Strategy evaluation state"));
+  analyticalHeading.append(element("p", null, "Latest persisted state by strategy. This is separate from service health and data freshness."));
+  fragment.append(analyticalHeading);
+  const analyticalGrid = element("div", "health-grid");
+  for (const funnel of model.strategyHealth?.strategies || []) {
+    const value = {
+      subjects: funnel.active_subjects,
+      evaluated: funnel.evaluated,
+      missing_data: funnel.missing_data,
+      no_signal: funnel.no_signal,
+      watch: funnel.watch,
+      pass: funnel.passed,
+    };
+    const card = element("article", "health-card");
+    card.append(element("h3", null, funnel.strategy_id), element("code", null, JSON.stringify(value)));
+    analyticalGrid.append(card);
+  }
+  if (!(model.strategyHealth?.strategies || []).length) {
+    analyticalGrid.append(element("p", null, "Analytical state unavailable."));
+  }
+  fragment.append(analyticalGrid);
   const grid = element("div", "health-grid");
   const cards = [
     ["Health endpoint", JSON.stringify(model.health || "Unavailable")],
