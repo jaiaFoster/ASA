@@ -21,7 +21,12 @@ class Settings(BaseSettings):
     )
     environment: str = "development"
     application_version: str = Field(default="0.1.0", min_length=1, max_length=64)
-    release_sha: str | None = Field(default=None, min_length=1, max_length=64)
+    release_sha: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=64,
+        validation_alias=AliasChoices("ASA_RELEASE_SHA", "RAILWAY_GIT_COMMIT_SHA"),
+    )
     quote_provider: str = "deterministic_fake"
     broker_portfolio_provider: str = "deterministic_fake_broker"
     robinhood_username: SecretStr | None = None

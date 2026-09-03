@@ -168,14 +168,16 @@ function resultsView(model, handlers) {
   heading.append(element("p", "eyebrow", "LATEST PERSISTED SNAPSHOT"));
   heading.append(element("h2", null, "Strategy results"));
   heading.append(element("p", null, "Rows may span refresh times; the API exposes no cycle identifier."));
+  heading.append(element("p", null, "Freshness and usability describe evidence; evaluation state describes whether analysis completed. Fresh missing-data rows remain analytically incomplete."));
   fragment.append(heading);
 
   const summary = element("section", "summary-grid");
   const summaries = [
     ["Visible rows", String(model.visible.length)],
-    ["Persisted rows", String(model.results.length)],
+    ["Loaded rows", String(model.results.length)],
+    ["Persisted rows", String(model.resultsTotal)],
     ["Last fetched", model.fetchedAt || "Not fetched"],
-    ["Revision", "Unavailable from API"],
+    ["Revision", model.buildIdentity?.release_sha || "Unavailable"],
   ];
   for (const [label, value] of summaries) {
     const card = element("article", "summary-card");
@@ -443,7 +445,9 @@ function healthView(model) {
     ["API contract", model.apiVersion || "Revision unavailable"],
     ["Application version", model.buildIdentity?.application_version || "Unavailable"],
     ["Release revision", model.buildIdentity?.release_sha || "Unavailable"],
-    ["Persisted rows", String(model.results.length)],
+    ["Loaded rows", String(model.results.length)],
+    ["Persisted rows", String(model.resultsTotal)],
+    ["Latest-state identity", model.resultsSnapshotIdentity || "Unavailable"],
     ["Earliest evaluated", model.evaluatedRange.earliest],
     ["Latest evaluated", model.evaluatedRange.latest],
     ["Verdicts", JSON.stringify(model.counts.verdict)],
