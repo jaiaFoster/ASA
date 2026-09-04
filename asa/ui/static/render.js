@@ -175,7 +175,7 @@ function resultsView(model, handlers) {
   const summaries = [
     ["Visible rows", String(model.visible.length)],
     ["Loaded rows", String(model.results.length)],
-    ["Persisted rows", String(model.resultsTotal)],
+    ["Active latest-state rows", String(model.resultsTotal)],
     ["Retained non-active rows", String(model.retainedNonactiveTotal)],
     ["Last fetched", model.fetchedAt || "Not fetched"],
     ["Revision", model.buildIdentity?.release_sha || "Unavailable"],
@@ -430,6 +430,9 @@ function healthView(model) {
       no_signal: funnel.no_signal,
       watch: funnel.watch,
       pass: funnel.passed,
+      missing_data_reasons: Object.fromEntries(
+        (funnel.typed_unknown_counts || []).map((item) => [item.reason, item.count]),
+      ),
     };
     const card = element("article", "health-card");
     card.append(element("h3", null, funnel.strategy_id), element("code", null, JSON.stringify(value)));
@@ -447,7 +450,7 @@ function healthView(model) {
     ["Application version", model.buildIdentity?.application_version || "Unavailable"],
     ["Release revision", model.buildIdentity?.release_sha || "Unavailable"],
     ["Loaded rows", String(model.results.length)],
-    ["Persisted rows", String(model.resultsTotal)],
+    ["Active latest-state rows", String(model.resultsTotal)],
     ["Retained non-active rows", String(model.retainedNonactiveTotal)],
     ["Latest-state identity", model.resultsSnapshotIdentity || "Unavailable"],
     ["Earliest evaluated", model.evaluatedRange.earliest],
