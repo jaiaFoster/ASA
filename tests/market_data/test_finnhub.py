@@ -2,10 +2,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 
 import pytest
 
 from domain import (
+    AdjustedCloseBasis,
     CanonicalInstrumentIdentity,
     EarningsEvent,
     EvidenceKind,
@@ -191,6 +193,11 @@ def test_candle_success_validates_status_arrays_and_utc_timestamps() -> None:
     assert result.error is None and isinstance(result.observations[0].value, OHLCVSeries)
     assert len(result.observations) == 1
     assert result.observations[0].value.bars[0].start_at.tzinfo is UTC
+    assert result.observations[0].value.bars[0].adjusted_close == Decimal("210")
+    assert (
+        result.observations[0].value.bars[0].adjusted_close_basis
+        is AdjustedCloseBasis.SPLIT_ADJUSTED
+    )
     assert dict(transport.requests[0].query)["resolution"] == "D"
 
 

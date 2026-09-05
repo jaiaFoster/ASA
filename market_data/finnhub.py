@@ -9,6 +9,7 @@ from decimal import Decimal, InvalidOperation
 from typing import cast
 
 from domain import (
+    AdjustedCloseBasis,
     AnnouncementTime,
     CompletenessMetadata,
     EarningsEvent,
@@ -322,6 +323,8 @@ class FinnhubProvider:
                     _decimal(arrays[2][index]),
                     _decimal(arrays[3][index]),
                     _decimal(arrays[4][index]),
+                    _decimal(arrays[3][index]),
+                    AdjustedCloseBasis.SPLIT_ADJUSTED,
                 )
                 for index in range(len(arrays[0]))
             )

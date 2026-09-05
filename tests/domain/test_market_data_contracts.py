@@ -8,6 +8,7 @@ from decimal import Decimal
 import pytest
 
 from domain import (
+    AdjustedCloseBasis,
     CanonicalInstrumentIdentity,
     CompletenessMetadata,
     CorporateActionPlaceholder,
@@ -30,8 +31,8 @@ from domain import (
     NormalizedProviderErrorMetadata,
     OHLCVBar,
     OHLCVSeries,
-    ProviderErrorKind,
     ProviderAddressProjection,
+    ProviderErrorKind,
     ProviderProvenance,
     Quote,
     TradingCalendarEvent,
@@ -173,6 +174,24 @@ def test_bar_requires_utc_aware_coherent_window_and_prices() -> None:
         dataclasses.replace(bar(), start_at=NOW.replace(tzinfo=None))
     with pytest.raises(DomainInvariantError, match="high is incoherent"):
         dataclasses.replace(bar(), high=Decimal("200"))
+
+
+def test_adjusted_close_is_typed_optional_and_backward_compatible() -> None:
+    adjusted = dataclasses.replace(
+        bar(),
+        adjusted_close=Decimal("208.50"),
+        adjusted_close_basis=AdjustedCloseBasis.SPLIT_AND_DIVIDEND_ADJUSTED,
+    )
+    assert deserialize_market_data(serialize_market_data(adjusted)) == adjusted
+    with pytest.raises(DomainInvariantError, match="supplied together"):
+        dataclasses.replace(bar(), adjusted_close=Decimal("208.50"))
+
+    legacy = json.loads(serialize_market_data(bar()))
+    del legacy["fields"]["adjusted_close"]
+    del legacy["fields"]["adjusted_close_basis"]
+    assert deserialize_market_data(
+        json.dumps(legacy, sort_keys=True, separators=(",", ":")).encode()
+    ) == bar()
 
 
 def test_stale_evidence_can_never_report_fresh() -> None:

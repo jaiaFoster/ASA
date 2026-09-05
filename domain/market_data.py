@@ -88,6 +88,13 @@ class FreshnessStatus(str, Enum):
     UNAVAILABLE = "unavailable"
 
 
+class AdjustedCloseBasis(str, Enum):  # noqa: UP042 -- preserve sibling contract enum style
+    """Corporate-action basis of an explicitly supplied adjusted close."""
+
+    SPLIT_ADJUSTED = "split_adjusted"
+    SPLIT_AND_DIVIDEND_ADJUSTED = "split_and_dividend_adjusted"
+
+
 class ProviderErrorKind(str, Enum):
     AUTHENTICATION = "authentication"
     AUTHORIZATION = "authorization"
@@ -278,6 +285,8 @@ class OHLCVBar:
     low: Decimal
     close: Decimal
     volume: Decimal
+    adjusted_close: Decimal | None = None
+    adjusted_close_basis: AdjustedCloseBasis | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.instrument, Instrument):
@@ -294,6 +303,11 @@ class OHLCVBar:
             raise DomainInvariantError("OHLCVBar interval must match its time window")
         for name in ("open", "high", "low", "close", "volume"):
             _decimal(getattr(self, name), "OHLCVBar", name)
+        _decimal(self.adjusted_close, "OHLCVBar", "adjusted_close", positive=True)
+        if (self.adjusted_close is None) != (self.adjusted_close_basis is None):
+            raise DomainInvariantError(
+                "OHLCVBar adjusted_close and adjusted_close_basis must be supplied together"
+            )
         if self.high < max(self.open, self.close, self.low):
             raise DomainInvariantError("OHLCVBar high is incoherent")
         if self.low > min(self.open, self.close, self.high):
@@ -569,6 +583,7 @@ _ENUM_TYPES = {
     value.__name__: value
     for value in (
         MarketCapability,
+        AdjustedCloseBasis,
         FreshnessStatus,
         ProviderErrorKind,
         TradingCalendarEventType,
