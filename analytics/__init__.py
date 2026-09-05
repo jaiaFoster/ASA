@@ -32,6 +32,7 @@ from analytics.derived_facts import (
     compute_option_volume_band,
     compute_sector_relative_momentum,
     compute_skew_stretch_distributions,
+    compute_sma_10m_completed_months,
 )
 from analytics.engine import FeatureComputation, compute_feature
 from analytics.errors import (
@@ -80,6 +81,7 @@ __all__ = [
     "DerivedFactQualityStatus",
     "DerivedFactSet",
     "DerivedFactValue",
+    "compute_sma_10m_completed_months",
     "DuplicateFeatureRegistrationError",
     "ExpirationCandidate",
     "FeatureComputation",

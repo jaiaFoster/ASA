@@ -61,6 +61,7 @@ from domain.guardrail import GuardrailOutcome
 from domain.indicator import Indicator
 from domain.market_data import (
     MARKET_DATA_CONTRACT_VERSION,
+    AdjustedCloseBasis,
     CompletenessMetadata,
     CorporateActionPlaceholder,
     CorporateActionStatus,
@@ -176,6 +177,7 @@ __all__ = [
     "MarketDataSubjectType",
     "MarketObservation",
     "Quote",
+    "AdjustedCloseBasis",
     "OHLCVBar",
     "OHLCVSeries",
     "TradingCalendarEvent",

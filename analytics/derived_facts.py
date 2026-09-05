@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from datetime import date
+from datetime import UTC, date, datetime
 from decimal import ROUND_HALF_EVEN, Context, Decimal, localcontext
 
 from analytics.registry import AnalyticsFeatureDefinition, AnalyticsRegistry
@@ -11,6 +11,7 @@ from domain import (
     ComparisonUniverseReturns,
     HistoricalSkewObservations,
     MarketCapability,
+    OHLCVBar,
     SectorReferenceReturns,
 )
 
@@ -38,6 +39,47 @@ SECTOR_RELATIVE_MOMENTUM = "sector_relative_momentum"
 OPTION_VOLUME_BAND = "option_volume_band"
 SPREAD_QUALITY = "spread_quality"
 OPEN_INTEREST_QUALITY = "open_interest_quality"
+SMA_10M_COMPLETED_MONTHS = "sma_10m_completed_months"
+
+
+def compute_sma_10m_completed_months(
+    bars: Sequence[OHLCVBar], as_of: datetime
+) -> Decimal:
+    """Mean of the last ten completed month-end adjusted closes.
+
+    A month is completed only when it precedes ``as_of``'s calendar month.
+    The latest bar in each completed month is its month-end observation.
+    """
+
+    if as_of.tzinfo is None or as_of.utcoffset() is None:
+        raise ValueError("as_of must be timezone-aware")
+    as_of_utc = as_of.astimezone(UTC)
+    eligible = tuple(
+        bar
+        for bar in bars
+        if (bar.end_at.astimezone(UTC).year, bar.end_at.astimezone(UTC).month)
+        < (as_of_utc.year, as_of_utc.month)
+    )
+    month_ends: dict[tuple[int, int], OHLCVBar] = {}
+    for bar in eligible:
+        end_at = bar.end_at.astimezone(UTC)
+        key = (end_at.year, end_at.month)
+        current = month_ends.get(key)
+        if current is None or bar.end_at > current.end_at:
+            month_ends[key] = bar
+    selected = tuple(month_ends[key] for key in sorted(month_ends)[-10:])
+    if len(selected) != 10:
+        raise ValueError("ten completed months of adjusted-close history are required")
+    if any(bar.adjusted_close is None for bar in selected):
+        raise ValueError("adjusted close is required for every selected month end")
+    bases = {bar.adjusted_close_basis for bar in selected}
+    if len(bases) != 1:
+        raise ValueError("selected adjusted closes must use one adjustment basis")
+    with localcontext(DERIVED_FACT_DECIMAL_CONTEXT):
+        return sum(
+            (bar.adjusted_close for bar in selected if bar.adjusted_close is not None),
+            Decimal(0),
+        ) / Decimal(10)
 
 
 def compute_implied_forward_volatility(
@@ -270,6 +312,11 @@ def _definition(
 
 
 DERIVED_FACT_DEFINITIONS = (
+    _definition(
+        SMA_10M_COMPLETED_MONTHS,
+        "Arithmetic mean of the previous ten completed month-end adjusted closes.",
+        MarketCapability.HISTORICAL_BARS_V1,
+    ),
     _definition(
         REALIZED_VOLATILITY,
         "Annualized population volatility of canonical daily log returns.",

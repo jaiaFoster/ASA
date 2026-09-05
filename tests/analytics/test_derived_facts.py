@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 
 import pytest
@@ -24,8 +24,16 @@ from analytics.derived_facts import (
     compute_normalized_skew,
     compute_open_interest_quality,
     compute_option_volume_band,
+    compute_sma_10m_completed_months,
 )
 from analytics.realized_volatility import compute_realized_volatility
+from domain import (
+    AdjustedCloseBasis,
+    CanonicalInstrumentIdentity,
+    Instrument,
+    InstrumentKind,
+    OHLCVBar,
+)
 
 
 def test_forward_variance_and_factor_independent_vector() -> None:
@@ -34,6 +42,53 @@ def test_forward_variance_and_factor_independent_vector() -> None:
     assert compute_forward_factor(Decimal("0.40"), forward) == (
         Decimal("0.371988681140070699029212441775431")
     )
+
+
+def test_sma10m_uses_previous_ten_completed_month_ends() -> None:
+    instrument = Instrument(
+        CanonicalInstrumentIdentity("ticker", "SPY"), InstrumentKind.EQUITY, "SPY", "USD"
+    )
+    bars = []
+    for index, month in enumerate(range(1, 12), start=1):
+        start = datetime(2025, month, 27, tzinfo=UTC)
+        bars.append(
+            OHLCVBar(
+                instrument,
+                86400,
+                start,
+                start + timedelta(days=1),
+                Decimal(index),
+                Decimal(index),
+                Decimal(index),
+                Decimal(index),
+                Decimal("100"),
+                Decimal(index),
+                AdjustedCloseBasis.SPLIT_AND_DIVIDEND_ADJUSTED,
+            )
+        )
+    assert compute_sma_10m_completed_months(
+        bars, datetime(2025, 11, 15, tzinfo=UTC)
+    ) == Decimal("5.5")
+
+
+def test_sma10m_rejects_insufficient_history() -> None:
+    instrument = Instrument(
+        CanonicalInstrumentIdentity("ticker", "SPY"), InstrumentKind.EQUITY, "SPY", "USD"
+    )
+    start = datetime(2025, 1, 30, tzinfo=UTC)
+    raw = OHLCVBar(
+        instrument,
+        86400,
+        start,
+        start + timedelta(days=1),
+        Decimal("1"),
+        Decimal("1"),
+        Decimal("1"),
+        Decimal("1"),
+        Decimal("100"),
+    )
+    with pytest.raises(ValueError, match="ten completed months"):
+        compute_sma_10m_completed_months((raw,), datetime(2026, 1, 1, tzinfo=UTC))
 
 
 def test_earnings_and_expiration_temporal_facts() -> None:
@@ -88,9 +143,10 @@ def test_named_momentum_dimensions_are_replay_stable() -> None:
 
 
 def test_initial_registry_is_closed_versioned_and_complete() -> None:
-    assert len(DERIVED_FACT_REGISTRY.registered_ids()) == 22
+    assert len(DERIVED_FACT_REGISTRY.registered_ids()) == 23
     assert DERIVED_FACT_REGISTRY.get("forward_factor").feature_version == "1.0.0"
     assert DERIVED_FACT_REGISTRY.get("iv_term_structure_spread").feature_version == "1.0.0"
+    assert DERIVED_FACT_REGISTRY.get("sma_10m_completed_months").feature_version == "1.0.0"
 
 
 def test_confirmed_earnings_through_back_expiration_is_ineligible() -> None:
