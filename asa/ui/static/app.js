@@ -76,6 +76,11 @@ async function loadPersistedState() {
     render();
     return;
   }
+  // Portfolio/positions run alongside the main screening fetch, not inside
+  // its own try/catch: an absent published portfolio (404, e.g. no
+  // successful broker run has ever completed) is a normal, distinguishable
+  // state -- never conflated with a broken screening fetch below.
+  const portfolioAndPositions = Promise.allSettled([api.portfolio(), api.positions()]);
   try {
     const [capabilities, results, strategyHealth] = await Promise.all([
       api.capabilities(), api.results(), api.strategyHealth(),
@@ -94,6 +99,9 @@ async function loadPersistedState() {
       ? "The token is missing, invalid, or the protected API is unavailable."
       : String(error.message || error);
   } finally {
+    const [portfolio, positions] = await portfolioAndPositions;
+    state.portfolio = portfolio.status === "fulfilled" ? portfolio.value.data : null;
+    state.positions = positions.status === "fulfilled" ? positions.value.data : null;
     state.loading = false;
     render();
   }
@@ -112,6 +120,8 @@ const handlers = {
     state.retainedNonactiveTotal = 0;
     state.capabilities = null;
     state.strategyHealth = null;
+    state.portfolio = null;
+    state.positions = null;
     state.error = null;
     render();
   },
