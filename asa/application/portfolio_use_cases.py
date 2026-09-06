@@ -1,5 +1,5 @@
 import logging
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import TypeVar
@@ -16,6 +16,7 @@ from asa.application.ports.portfolio_lifecycle import PortfolioLifecycleReposito
 from asa.application.ports.runs import RunPublicationRepository
 from asa.contracts.market import FreshnessStatus
 from asa.contracts.portfolio import (
+    AccountHoldingsSummary,
     BrokerAccount,
     EquityPosition,
     OptionPositionLeg,
@@ -23,6 +24,8 @@ from asa.contracts.portfolio import (
     PortfolioSnapshot,
     PositionSide,
     PublishedPortfolio,
+    account_holdings_status,
+    mask_account_identifier,
     validate_snapshot,
 )
 from asa.contracts.runs import PublicationRecord, RunRecord, RunStatus, RunStepName
@@ -48,6 +51,7 @@ class PublishedPortfolioView:
     account_count: int
     equity_position_count: int
     option_leg_count: int
+    account_holdings: Mapping[UUID, AccountHoldingsSummary]
 
 
 class RunPortfolioIntelligence:
@@ -127,7 +131,11 @@ class RunPortfolioIntelligence:
         if accounts.provider != positions.provider:
             raise ValueError("broker account and position providers must match")
         self._repository.complete_step(run_id, step, self._clock())
-        account_id = accounts.accounts[0].external_account_id if accounts.accounts else None
+        account_id = (
+            mask_account_identifier(accounts.accounts[0].external_account_id)
+            if accounts.accounts
+            else None
+        )
         self._log_step(run_id, step, accounts.provider, account_id)
         return accounts, positions
 
@@ -246,22 +254,41 @@ class PublishedPortfolioQuery:
         latest_run = self._repository.latest_run()
         if run is None or latest_run is None:
             raise RuntimeError("published portfolio has incomplete run provenance")
+        now = self._clock()
         freshness = (
             FreshnessStatus.FRESH
-            if publication.snapshot.observed_at >= self._clock() - self._fresh_for
+            if publication.snapshot.observed_at >= now - self._fresh_for
             else FreshnessStatus.STALE
         )
+        serving_last_success = (
+            latest_run.id != run.id and latest_run.status is RunStatus.FAILED
+        )
+        accounts_with_positions = {
+            position.account_id for position in publication.snapshot.equity_positions
+        } | {leg.account_id for leg in publication.snapshot.option_legs}
+        account_holdings = {
+            account.id: AccountHoldingsSummary(
+                status=account_holdings_status(
+                    account_observed_at=account.observed_at,
+                    has_positions=account.id in accounts_with_positions,
+                    now=now,
+                    fresh_for=self._fresh_for,
+                    serving_last_success=serving_last_success,
+                ),
+                as_of=account.observed_at,
+            )
+            for account in publication.snapshot.accounts
+        }
         return PublishedPortfolioView(
             publication=publication,
             run=run,
             latest_run=latest_run,
             freshness_status=freshness,
-            serving_last_success=(
-                latest_run.id != run.id and latest_run.status is RunStatus.FAILED
-            ),
+            serving_last_success=serving_last_success,
             account_count=len(publication.snapshot.accounts),
             equity_position_count=len(publication.snapshot.equity_positions),
             option_leg_count=len(publication.snapshot.option_legs),
+            account_holdings=account_holdings,
         )
 
 
