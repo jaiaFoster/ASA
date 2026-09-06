@@ -131,6 +131,20 @@ PRODUCTION_SCREENING_UNIVERSE: tuple[tuple[str, str], ...] = tuple(
     for symbol in APPROVED_LIVE_UNIVERSE
 ) + tuple(("earnings_calendar", symbol) for symbol in EARNINGS_CALENDAR_UNIVERSE)
 
+# STOCK-RUNTIME-001 STK-03: B001/B002 are frozen, SPY-only, no-lifecycle
+# benchmarks (project/reports/STOCK-RUNTIME-001-STK-01.md) with their own
+# independent scheduling need -- always evaluate, every invocation, never
+# subject to the SP500 options universe's cohort rotation/claiming. Kept
+# deliberately OUT of PRODUCTION_SCREENING_UNIVERSE and the scheduled
+# cohort-claim branch below: both are pinned by existing fixture-driven
+# tests (tests/asa/_fixture_market_data_access.py's MultiExpirationFixture
+# Provider) built around a single-bar-per-request HISTORICAL_BARS_V1
+# fixture with no adjusted-close evidence at all, which can never satisfy
+# B002's ten-completed-month requirement -- run via
+# run_scheduled_stock_benchmark_refresh() below instead, a separate
+# invocation the production scheduler (Railway cron) calls independently.
+STOCK_BENCHMARK_UNIVERSE: tuple[tuple[str, str], ...] = (("B001", "SPY"), ("B002", "SPY"))
+
 # UNI-01's current proven live capacity. Increasing this is a measured
 # capacity decision, never a CLI/environment override.
 SP500_COHORT_MAXIMUM_SUBJECTS = 30
@@ -836,6 +850,38 @@ def run_scheduled_refresh(
             ),
         )
     return tuple(outcomes)
+
+
+def run_scheduled_stock_benchmark_refresh(
+    *,
+    repository: LatestResultRepository | None = None,
+    history_repository: ObservationHistoryRepository | None = None,
+    acquisition_attempt_repository: AcquisitionAttemptRepository | None = None,
+    historical_skew_repository: HistoricalSkewRepository | None = None,
+    portfolio_lifecycle_repository: PortfolioLifecycleRepository | None = None,
+    transport_factory: Callable[[str], object] = build_live_transport,
+    now: datetime | None = None,
+) -> tuple[PairOutcome, ...]:
+    """B001/B002's own independent scheduled entry point (STOCK-RUNTIME-001
+    STK-03): always evaluates the fixed two-pair STOCK_BENCHMARK_UNIVERSE,
+    unconditionally, every invocation -- a benchmark has no "stale subject"
+    queue to wait its turn in, so this deliberately never routes through
+    run_scheduled_refresh's own enforce_schedule=True SP500 cohort-claim
+    path. The production scheduler (Railway cron) invokes this as its own
+    separate trigger, independent of the options universe's scheduled
+    refresh.
+    """
+    return run_scheduled_refresh(
+        STOCK_BENCHMARK_UNIVERSE,
+        repository=repository,
+        history_repository=history_repository,
+        acquisition_attempt_repository=acquisition_attempt_repository,
+        historical_skew_repository=historical_skew_repository,
+        portfolio_lifecycle_repository=portfolio_lifecycle_repository,
+        transport_factory=transport_factory,
+        enforce_schedule=False,
+        now=now,
+    )
 
 
 def main(argv: Sequence[str] | None = None) -> int:
