@@ -212,7 +212,7 @@ class TestB001PrepareAndAdapter:
         assert result.opportunity_id is None
         assert result.lifecycle_stage is None
         assert result.metrics["price"].native() == Decimal("560.25")
-        assert result.metrics["direction"].native() == "BUY"
+        assert result.metrics["decision.direction"].native() == "BUY"
 
     def test_unusable_quote_is_a_typed_unknown_not_a_fabricated_result(self) -> None:
         snapshot = _b001_snapshot(price=None)
@@ -244,7 +244,7 @@ class TestB002PrepareAndAdapter:
         assert result.verdict == "PASS"
         assert result.evaluation_state is EvaluationState.PASS
         assert result.metrics["sma_10m_completed_months"].native() == Decimal("405.5")
-        assert result.metrics["direction"].native() == "BUY"
+        assert result.metrics["decision.direction"].native() == "BUY"
 
     def test_price_at_or_below_sma_is_no_signal_without_direction(self) -> None:
         bars = _ten_completed_months(price_above_sma=False)
@@ -259,7 +259,7 @@ class TestB002PrepareAndAdapter:
 
         assert result.verdict == "NO_SIGNAL"
         assert result.evaluation_state is EvaluationState.NO_SIGNAL
-        assert "direction" not in result.metrics
+        assert "decision.direction" not in result.metrics
 
     def test_insufficient_adjusted_history_is_a_typed_unknown_never_a_raw_close_fallback(
         self,
