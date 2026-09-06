@@ -11,6 +11,7 @@ import pytest
 from asa.scheduled_screening import (
     PRODUCTION_SCREENING_UNIVERSE,
     SP500_COHORT_MAXIMUM_SUBJECTS,
+    main,
     run_scheduled_refresh,
     scheduled_sp500_universe,
 )
@@ -2308,3 +2309,64 @@ def test_scheduled_forward_factor_unaffected_by_earnings_cutover(
     assert all(entry.signal_id != "forward_factor" for entry in entries)
     forward_factor_persisted = repository.get_one("forward_factor", "AAPL")
     assert forward_factor_persisted is not None
+
+
+def test_main_also_runs_the_stock_benchmark_refresh_on_the_same_tick(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """STOCK-RUNTIME-001 STK-06: the production cron tick (python -m
+    asa.scheduled_screening) must actually produce B001/B002 results --
+    a second, independent call, never merged into the options universe.
+    """
+    import asa.scheduled_screening as scheduled_screening_module
+
+    options_outcome = scheduled_screening_module.PairOutcome(
+        "forward_factor", "AAPL", "pass", 1, None, True
+    )
+    stock_outcome = scheduled_screening_module.PairOutcome("B001", "SPY", "pass", 1, None, True)
+    monkeypatch.setattr(
+        scheduled_screening_module, "run_scheduled_refresh", lambda **_kwargs: (options_outcome,)
+    )
+    monkeypatch.setattr(
+        scheduled_screening_module,
+        "run_scheduled_stock_benchmark_refresh",
+        lambda **_kwargs: (stock_outcome,),
+    )
+
+    exit_code = main(["--json"])
+
+    assert exit_code == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert {(item["signal_id"], item["symbol"]) for item in payload["results"]} == {
+        ("forward_factor", "AAPL"),
+        ("B001", "SPY"),
+    }
+    assert payload["total"] == 2
+
+
+def test_main_reports_options_outcomes_even_when_the_stock_benchmark_refresh_fails(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    import asa.scheduled_screening as scheduled_screening_module
+
+    options_outcome = scheduled_screening_module.PairOutcome(
+        "forward_factor", "AAPL", "pass", 1, None, True
+    )
+    monkeypatch.setattr(
+        scheduled_screening_module, "run_scheduled_refresh", lambda **_kwargs: (options_outcome,)
+    )
+
+    def _broken_stock_refresh(**_kwargs: object) -> tuple[object, ...]:
+        raise RuntimeError("no enabled live market data provider")
+
+    monkeypatch.setattr(
+        scheduled_screening_module,
+        "run_scheduled_stock_benchmark_refresh",
+        _broken_stock_refresh,
+    )
+    caplog.set_level(logging.WARNING)
+
+    exit_code = main(["--json"])
+
+    assert exit_code == 0
+    assert any(record.message == "stock_benchmark_refresh_failed" for record in caplog.records)
