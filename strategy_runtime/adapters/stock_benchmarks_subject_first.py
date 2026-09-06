@@ -159,7 +159,13 @@ def build_b001_subject_first_adapter(
             data_quality=None,
             metrics={
                 "price": TypedValue.of_decimal(knowledge.payload.price),
-                "direction": TypedValue.of_string("BUY"),
+                # "decision.direction" is the established wire-vocabulary key
+                # every migrated strategy's own direction surfaces through
+                # (strategy_runtime/adapters/_screening_bridge.py's own
+                # explanation_metrics()) -- a bare "direction" key would
+                # populate the generic metrics dict but never the API's
+                # own top-level ScreeningResultResponse.direction field.
+                "decision.direction": TypedValue.of_string("BUY"),
             },
             economics={},
             blockers=(),
@@ -186,7 +192,7 @@ def build_b002_subject_first_adapter(
             "sma_10m_completed_months": TypedValue.of_decimal(payload.sma_10m),
         }
         if successful_pass:
-            metrics["direction"] = TypedValue.of_string("BUY")
+            metrics["decision.direction"] = TypedValue.of_string("BUY")
         return UniversalScreeningResult(
             strategy_id=_B002_STRATEGY_ID,
             strategy_version=B002_CONTRACT.version,
