@@ -104,8 +104,13 @@ function shellHeader(model, handlers) {
 
   const nav = element("nav", "primary-nav");
   nav.setAttribute("aria-label", "Primary navigation");
-  for (const [href, label] of [["#/results", "Latest results"], ["#/health", "Runtime health"]]) {
-    const link = element("a", model.route.name === (href.includes("health") ? "health" : "results") ? "active" : "", label);
+  const primaryLinks = [
+    { href: "#/results", label: "Latest results", routeName: "results" },
+    { href: "#/stocks", label: "Stocks", routeName: "stocks" },
+    { href: "#/health", label: "Runtime health", routeName: "health" },
+  ];
+  for (const { href, label, routeName } of primaryLinks) {
+    const link = element("a", model.route.name === routeName ? "active" : "", label);
     link.href = href;
     nav.append(link);
   }
@@ -409,6 +414,157 @@ function detailView(item, handlers) {
   return fragment;
 }
 
+const STOCK_STRATEGY_SIGNAL_IDS = new Set(["B001", "B002"]);
+
+function stockPortfolioView(model) {
+  const fragment = document.createDocumentFragment();
+  const portfolio = model.portfolio;
+  if (!portfolio) {
+    fragment.append(
+      element("p", "empty-state empty-state--large", "No published portfolio is available."),
+    );
+    return fragment;
+  }
+
+  const summary = element("section", "summary-grid");
+  const summaries = [
+    ["Accounts", String(portfolio.data.account_count)],
+    ["Equity positions", String(portfolio.data.equity_position_count)],
+    ["Option legs", String(portfolio.data.option_leg_count)],
+    ["Provider", portfolio.data.provider],
+    ["Freshness", portfolio.freshness.status],
+    ["Serving last success", String(portfolio.freshness.serving_last_success)],
+  ];
+  for (const [label, value] of summaries) {
+    const card = element("article", "summary-card");
+    card.append(element("span", null, label), element("strong", null, value));
+    summary.append(card);
+  }
+  fragment.append(summary);
+
+  const grid = element("div", "health-grid");
+  for (const account of portfolio.data.accounts) {
+    const card = element("article", "health-card");
+    card.append(element("h3", null, `${account.display_name} (${account.account_type})`));
+    const badges = element("div", "badge-row");
+    badges.append(badge(account.holdings_status, "holdings"));
+    card.append(badges);
+    card.append(
+      definitionList([
+        ["Identifier", account.external_account_id],
+        ["Provider", account.provider],
+        ["Currency", account.currency],
+        [
+          "Cash balance",
+          exactValue(account, "cash_balance").text,
+          exactValue(account, "cash_balance").kind,
+        ],
+        [
+          "Buying power",
+          exactValue(account, "buying_power").text,
+          exactValue(account, "buying_power").kind,
+        ],
+        [
+          "Account value",
+          exactValue(account, "account_value").text,
+          exactValue(account, "account_value").kind,
+        ],
+        ["Holdings as of", account.holdings_as_of],
+        ["Observed", account.observed_at],
+      ]),
+    );
+    grid.append(card);
+  }
+  if (!portfolio.data.accounts.length) {
+    grid.append(element("p", "empty-state", "No accounts in the published snapshot."));
+  }
+  fragment.append(grid);
+  return fragment;
+}
+
+function stockStrategiesView(model) {
+  const fragment = document.createDocumentFragment();
+  const items = model.results.filter((item) => STOCK_STRATEGY_SIGNAL_IDS.has(item.signal_id));
+
+  const tableWrap = element("div", "table-wrap");
+  const table = element("table", "results-table");
+  const head = element("thead");
+  const headRow = element("tr");
+  for (const title of [
+    "Benchmark",
+    "Symbol",
+    "Verdict",
+    "Direction",
+    "Price",
+    "SMA 10M",
+    "Evaluated",
+    "Freshness",
+    "Usability",
+  ]) {
+    headRow.append(element("th", null, title));
+  }
+  head.append(headRow);
+  table.append(head);
+  const body = element("tbody");
+  for (const item of items) {
+    const row = element("tr");
+    const identity = element("td");
+    identity.append(resultLink(item), element("small", null, `v${item.signal_version}`));
+    row.append(identity);
+    row.append(element("td", null, item.symbol));
+    const verdict = element("td");
+    verdict.append(badge(item.verdict, "verdict"));
+    row.append(verdict);
+    row.append(element("td", null, exactValue(item, "direction").text));
+    row.append(element("td", null, exactValue(item.metrics, "price").text));
+    row.append(element("td", null, exactValue(item.metrics, "sma_10m_completed_months").text));
+    row.append(element("td", "timestamp", String(item.evaluated_at)));
+    const freshness = element("td");
+    freshness.append(badge(item.freshness_status, "freshness"));
+    row.append(freshness);
+    const usability = element("td");
+    usability.append(badge(item.usability_status, "usability"));
+    row.append(usability);
+    body.append(row);
+  }
+  table.append(body);
+  tableWrap.append(table);
+  fragment.append(tableWrap);
+  if (!items.length) {
+    fragment.append(
+      element("p", "empty-state empty-state--large", "No persisted stock-benchmark results yet."),
+    );
+  }
+  return fragment;
+}
+
+function stocksView(model) {
+  const fragment = document.createDocumentFragment();
+  const heading = element("section", "page-heading");
+  heading.append(element("p", "eyebrow", "STOCK BENCHMARKS AND HOLDINGS"));
+  heading.append(element("h2", null, "Stocks"));
+  heading.append(element("p", null, "Portfolio holdings and SPY benchmark results, read-only."));
+  fragment.append(heading);
+
+  const subnav = element("nav", "secondary-nav");
+  subnav.setAttribute("aria-label", "Stocks sections");
+  const subLinks = [
+    { href: "#/stocks/portfolio", label: "Portfolio", subview: "portfolio" },
+    { href: "#/stocks/strategies", label: "Stock strategies", subview: "strategies" },
+  ];
+  for (const { href, label, subview } of subLinks) {
+    const link = element("a", model.route.subview === subview ? "active" : "", label);
+    link.href = href;
+    subnav.append(link);
+  }
+  fragment.append(subnav);
+
+  fragment.append(
+    model.route.subview === "strategies" ? stockStrategiesView(model) : stockPortfolioView(model),
+  );
+  return fragment;
+}
+
 function healthView(model) {
   const fragment = document.createDocumentFragment();
   const heading = element("section", "page-heading");
@@ -485,6 +641,8 @@ export function renderApp(root, model, handlers) {
     else main.append(element("p", "empty-state empty-state--large", "Result not found in the persisted snapshot."));
   } else if (model.route.name === "health") {
     main.append(healthView(model));
+  } else if (model.route.name === "stocks") {
+    main.append(stocksView(model));
   } else {
     main.append(resultsView(model, handlers));
   }

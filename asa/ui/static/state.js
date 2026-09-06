@@ -9,6 +9,8 @@ export const state = {
   resultsSnapshotIdentity: null,
   retainedNonactiveTotal: 0,
   executionReadiness: {},
+  portfolio: null,
+  positions: null,
   apiVersion: null,
   fetchedAt: null,
   loading: false,
@@ -48,6 +50,9 @@ export function routeFromHash(hash) {
   const route = (hash || "#/results").replace(/^#/, "");
   const parts = route.split("/").filter(Boolean).map(decodeURIComponent);
   if (parts[0] === "health") return { name: "health" };
+  if (parts[0] === "stocks") {
+    return { name: "stocks", subview: parts[1] === "strategies" ? "strategies" : "portfolio" };
+  }
   if (parts[0] === "results" && parts.length === 3) {
     return { name: "detail", signalId: parts[1], symbol: parts[2] };
   }

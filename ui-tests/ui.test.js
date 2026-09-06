@@ -43,6 +43,8 @@ function model(overrides = {}) {
     results: [fixture],
     visible: [fixture],
     detail: null,
+    portfolio: null,
+    positions: null,
     fetchedAt: "2026-07-29T13:46:00Z",
     filters: { signal: "", symbol: "", verdict: "", evaluationState: "" },
     loading: false,
@@ -57,6 +59,82 @@ function model(overrides = {}) {
     ...overrides,
   };
 }
+
+const b001Result = {
+  ...fixture,
+  signal_id: "B001",
+  signal_version: "1.0.0",
+  symbol: "SPY",
+  outcome: "pass",
+  evaluation_state: "pass",
+  verdict: "PASS",
+  direction: "BUY",
+  structure: null,
+  lifecycle_stage: null,
+  opportunity_id: null,
+  opportunity_history_url: null,
+  metrics: { price: "560.25" },
+  metric_types: { price: "decimal" },
+  canonical_facts: {},
+  named_derived_facts: {},
+  formula_versions: {},
+  gate_results: {},
+  reason_codes: [],
+  assumptions: [],
+  blockers: [],
+  warnings: [],
+};
+
+const b002Result = {
+  ...b001Result,
+  signal_id: "B002",
+  metrics: { price: "560.25", sma_10m_completed_months: "540.10" },
+  metric_types: { price: "decimal", sma_10m_completed_months: "decimal" },
+};
+
+const portfolioFixture = {
+  freshness: { as_of: "2026-09-05T12:00:00Z", status: "fresh", serving_last_success: false },
+  data: {
+    publication_id: "pub-1",
+    snapshot_id: "snap-1",
+    provider: "robinhood",
+    account_count: 2,
+    equity_position_count: 1,
+    option_leg_count: 0,
+    accounts: [
+      {
+        id: "acct-1",
+        external_account_id: "***********1234",
+        provider: "robinhood",
+        account_type: "individual",
+        display_name: "Individual",
+        currency: "USD",
+        cash_balance: "1250.00",
+        cash_available_for_withdrawal: "1000.00",
+        buying_power: "2500.00",
+        account_value: "50000.00",
+        observed_at: "2026-09-05T12:00:00Z",
+        holdings_status: "success",
+        holdings_as_of: "2026-09-05T12:00:00Z",
+      },
+      {
+        id: "acct-2",
+        external_account_id: "***********5678",
+        provider: "robinhood",
+        account_type: "roth_ira",
+        display_name: "Roth IRA",
+        currency: "USD",
+        cash_balance: null,
+        cash_available_for_withdrawal: null,
+        buying_power: null,
+        account_value: null,
+        observed_at: "2026-09-05T12:00:00Z",
+        holdings_status: "success_empty",
+        holdings_as_of: "2026-09-05T12:00:00Z",
+      },
+    ],
+  },
+};
 
 test("shared public fixture renders exact audit identity, decision, evidence, and time", () => {
   const root = document.createElement("div");
@@ -158,6 +236,99 @@ test("responsive contract declares desktop table and narrow card modes", () => {
   assert.match(styles, /@media \(max-width: 900px\)/);
   assert.match(styles, /\.desktop-results\s*\{\s*display:\s*none/);
   assert.match(styles, /\.mobile-results\s*\{\s*display:\s*block/);
+});
+
+test("stocks hash routes carry an explicit portfolio/strategies subview", () => {
+  assert.deepEqual(routeFromHash("#/stocks"), { name: "stocks", subview: "portfolio" });
+  assert.deepEqual(routeFromHash("#/stocks/portfolio"), {
+    name: "stocks",
+    subview: "portfolio",
+  });
+  assert.deepEqual(routeFromHash("#/stocks/strategies"), {
+    name: "stocks",
+    subview: "strategies",
+  });
+});
+
+test("primary nav includes a Stocks link, active only on the stocks route", () => {
+  const root = document.createElement("div");
+  renderApp(root, model({ route: { name: "stocks", subview: "portfolio" } }), noOpHandlers);
+  const links = [...root.querySelectorAll(".primary-nav a")];
+  const stocksLink = links.find((link) => link.textContent === "Stocks");
+  assert.ok(stocksLink, "expected a Stocks link in the primary nav");
+  assert.ok(stocksLink.classList.contains("active"));
+
+  renderApp(root, model({ route: { name: "results" } }), noOpHandlers);
+  const stocksLinkOnResults = [...root.querySelectorAll(".primary-nav a")].find(
+    (link) => link.textContent === "Stocks",
+  );
+  assert.ok(!stocksLinkOnResults.classList.contains("active"));
+});
+
+test("stock strategies subview renders only B001/B002 rows with truthful BUY direction and SMA10M", () => {
+  const root = document.createElement("div");
+  renderApp(
+    root,
+    model({
+      route: { name: "stocks", subview: "strategies" },
+      results: [fixture, b001Result, b002Result],
+    }),
+    noOpHandlers,
+  );
+
+  const text = root.textContent;
+  assert.match(text, /B001 \/ SPY/);
+  assert.match(text, /B002 \/ SPY/);
+  assert.doesNotMatch(text, /skew_momentum \/ AAPL/);
+  // B001 has no SMA10M metric at all -- must read ABSENT, never a fabricated
+  // or silently blank cell (this codebase's own exact-value convention).
+  const rows = [...root.querySelectorAll(".results-table tbody tr")];
+  const b001Row = rows.find((row) => row.textContent.includes("B001"));
+  const b002Row = rows.find((row) => row.textContent.includes("B002"));
+  assert.match(b001Row.textContent, /BUY/);
+  assert.match(b001Row.textContent, /ABSENT/);
+  assert.match(b002Row.textContent, /BUY/);
+  assert.match(b002Row.textContent, /540\.10/);
+});
+
+test("stock strategies subview declares an explicit empty state with no rows", () => {
+  const root = document.createElement("div");
+  renderApp(
+    root,
+    model({ route: { name: "stocks", subview: "strategies" }, results: [fixture] }),
+    noOpHandlers,
+  );
+  assert.match(root.textContent, /No persisted stock-benchmark results yet\./);
+});
+
+test("stock portfolio subview renders masked identifiers and per-account holdings status", () => {
+  const root = document.createElement("div");
+  renderApp(
+    root,
+    model({ route: { name: "stocks", subview: "portfolio" }, portfolio: portfolioFixture }),
+    noOpHandlers,
+  );
+
+  const text = root.textContent;
+  assert.match(text, /Individual/);
+  assert.match(text, /\*{11}1234/);
+  assert.match(text, /Roth IRA/);
+  assert.match(text, /\*{11}5678/);
+  assert.ok(root.querySelector(".badge--success"));
+  assert.ok(root.querySelector(".badge--success_empty"));
+  // A genuinely absent cash balance for the empty account must read as an
+  // explicit null, never "0" or a blank cell.
+  assert.match(text, /null/);
+});
+
+test("stock portfolio subview declares an explicit unavailable state, never a fabricated empty portfolio", () => {
+  const root = document.createElement("div");
+  renderApp(
+    root,
+    model({ route: { name: "stocks", subview: "portfolio" }, portfolio: null }),
+    noOpHandlers,
+  );
+  assert.match(root.textContent, /No published portfolio is available\./);
 });
 
 test.after(() => window.close());
