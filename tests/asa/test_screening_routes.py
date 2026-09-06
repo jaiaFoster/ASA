@@ -84,19 +84,27 @@ def _auth(token: str = "correct-token") -> dict[str, str]:
 
 def test_strategy_health_exposes_all_registered_production_funnels() -> None:
     repository = InMemoryLatestResultRepository()
-    for signal in ("forward_factor", "earnings_calendar", "skew_momentum"):
+    seeded_signals = ("forward_factor", "earnings_calendar", "skew_momentum")
+    for signal in seeded_signals:
         repository.upsert(_record(signal, "AAPL"))
 
     response = _client(repository).get("/api/v1/screening-health", headers=_auth())
 
     assert response.status_code == 200
     funnels = {item["strategy_id"]: item for item in response.json()["strategies"]}
-    assert set(funnels) == {"forward_factor", "earnings_calendar", "skew_momentum"}
-    assert all(item["active_subjects"] == 1 for item in funnels.values())
-    assert all(item["evaluated"] == 1 for item in funnels.values())
-    assert all(item["missing_data"] == 0 for item in funnels.values())
-    assert all(item["no_signal"] == 0 for item in funnels.values())
-    assert all(item["typed_rejection_counts"] for item in funnels.values())
+    assert set(funnels) == {
+        "B001",
+        "B002",
+        "earnings_calendar",
+        "forward_factor",
+        "skew_momentum",
+    }
+    seeded_funnels = {signal_id: funnels[signal_id] for signal_id in seeded_signals}
+    assert all(item["active_subjects"] == 1 for item in seeded_funnels.values())
+    assert all(item["evaluated"] == 1 for item in seeded_funnels.values())
+    assert all(item["missing_data"] == 0 for item in seeded_funnels.values())
+    assert all(item["no_signal"] == 0 for item in seeded_funnels.values())
+    assert all(item["typed_rejection_counts"] for item in seeded_funnels.values())
 
 
 def test_strategy_health_distinguishes_missing_data_from_no_signal() -> None:
@@ -179,7 +187,13 @@ class TestCapabilities:
         response = _client().get("/api/v1/capabilities", headers=_auth())
         assert response.status_code == 200
         signal_ids = {item["signal_id"] for item in response.json()["signals"]}
-        assert signal_ids == {"earnings_calendar", "forward_factor", "skew_momentum"}
+        assert signal_ids == {
+            "B001",
+            "B002",
+            "earnings_calendar",
+            "forward_factor",
+            "skew_momentum",
+        }
 
     def test_each_signal_declares_required_capabilities(self) -> None:
         response = _client().get("/api/v1/capabilities", headers=_auth())

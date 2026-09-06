@@ -5,13 +5,14 @@ from __future__ import annotations
 from collections.abc import Sequence
 from datetime import UTC, date, datetime
 from decimal import ROUND_HALF_EVEN, Context, Decimal, localcontext
+from typing import Protocol
 
 from analytics.registry import AnalyticsFeatureDefinition, AnalyticsRegistry
 from domain import (
+    AdjustedCloseBasis,
     ComparisonUniverseReturns,
     HistoricalSkewObservations,
     MarketCapability,
-    OHLCVBar,
     SectorReferenceReturns,
 )
 
@@ -42,8 +43,32 @@ OPEN_INTEREST_QUALITY = "open_interest_quality"
 SMA_10M_COMPLETED_MONTHS = "sma_10m_completed_months"
 
 
+class AdjustedCloseBarLike(Protocol):
+    """The exact three fields SMA10M reads off a bar -- deliberately a
+    Protocol, not the concrete ``domain.market_data.OHLCVBar``, so a
+    caller carrying month-end evidence through a normalized canonical-fact
+    projection (which cannot hold a raw OHLCVBar -- CanonicalFact.value
+    must be an immutable normalized scalar/tuple, per domain/values.py's
+    own require_normalized) can pass a lightweight reconstruction of just
+    these three real fields instead of fabricating a full, mostly-unused
+    OHLCVBar. Every real OHLCVBar already satisfies this structurally.
+
+    Declared as read-only properties, not plain attributes: mypy treats a
+    plain Protocol attribute as requiring a *settable* member, which a
+    frozen dataclass (every real OHLCVBar, and the lightweight
+    reconstruction below) never has.
+    """
+
+    @property
+    def end_at(self) -> datetime: ...
+    @property
+    def adjusted_close(self) -> Decimal | None: ...
+    @property
+    def adjusted_close_basis(self) -> AdjustedCloseBasis | None: ...
+
+
 def compute_sma_10m_completed_months(
-    bars: Sequence[OHLCVBar], as_of: datetime
+    bars: Sequence[AdjustedCloseBarLike], as_of: datetime
 ) -> Decimal:
     """Mean of the last ten completed month-end adjusted closes.
 
@@ -60,7 +85,7 @@ def compute_sma_10m_completed_months(
         if (bar.end_at.astimezone(UTC).year, bar.end_at.astimezone(UTC).month)
         < (as_of_utc.year, as_of_utc.month)
     )
-    month_ends: dict[tuple[int, int], OHLCVBar] = {}
+    month_ends: dict[tuple[int, int], AdjustedCloseBarLike] = {}
     for bar in eligible:
         end_at = bar.end_at.astimezone(UTC)
         key = (end_at.year, end_at.month)

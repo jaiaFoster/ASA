@@ -94,7 +94,13 @@ def test_bootstrap_first_run_from_a_genuinely_empty_deployment(
     capabilities = client.get("/api/v1/capabilities", headers=_auth())
     assert capabilities.status_code == 200
     signal_ids = {item["signal_id"] for item in capabilities.json()["signals"]}
-    assert signal_ids == {"earnings_calendar", "forward_factor", "skew_momentum"}
+    assert signal_ids == {
+        "B001",
+        "B002",
+        "earnings_calendar",
+        "forward_factor",
+        "skew_momentum",
+    }
 
     # Step 2: confirm the empty state is 200 + empty list, never 404.
     empty_list = client.get("/api/v1/screening", headers=_auth())

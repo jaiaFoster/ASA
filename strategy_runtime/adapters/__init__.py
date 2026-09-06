@@ -30,6 +30,10 @@ from strategies.forward_factor_planning import (
 from strategies.skew_momentum_planning import (
     resolved_field_requirements as skew_momentum_resolved_field_requirements,
 )
+from strategies.stock_benchmark_planning import (
+    b001_resolved_field_requirements,
+    b002_resolved_field_requirements,
+)
 from strategy_runtime.adapters.earnings_calendar import (
     EARNINGS_CALENDAR_CONTRACT,
 )
@@ -47,6 +51,11 @@ from strategy_runtime.adapters.skew_momentum_subject_first import (
 )
 from strategy_runtime.adapters.skew_momentum_vertical import (
     SKEW_MOMENTUM_VERTICAL_CONTRACT,
+)
+from strategy_runtime.adapters.stock_benchmarks import B001_CONTRACT, B002_CONTRACT
+from strategy_runtime.adapters.stock_benchmarks_subject_first import (
+    build_b001_subject_preparation_binding,
+    build_b002_subject_preparation_binding,
 )
 from strategy_runtime.catalog import SignalCatalogEntry
 from strategy_runtime.context import RuntimeContext
@@ -86,6 +95,12 @@ def build_migrated_strategy_registry() -> StrategyRegistry[UniversalScreeningRes
             (FORWARD_FACTOR_CONTRACT, _subject_first_only),
             (SKEW_MOMENTUM_VERTICAL_CONTRACT, _subject_first_only),
             (EARNINGS_CALENDAR_CONTRACT, _subject_first_only),
+            # B001/B002 (STOCK-RUNTIME-001 STK-03): StructureKind.NONE,
+            # NO_LIFECYCLE, no manifest-graph -- there is no legacy adapter
+            # for either benchmark at all, so validate_manifest_contract
+            # never applies to them (nothing to validate against).
+            (B001_CONTRACT, _subject_first_only),
+            (B002_CONTRACT, _subject_first_only),
         )
     )
 
@@ -120,6 +135,8 @@ def build_migrated_shadow_registry(
                 EARNINGS_CALENDAR_CONTRACT.strategy_id,
                 build_earnings_calendar_subject_preparation_binding(now),
             ),
+            (B001_CONTRACT.strategy_id, build_b001_subject_preparation_binding(now)),
+            (B002_CONTRACT.strategy_id, build_b002_subject_preparation_binding(now)),
         )
     )
 
@@ -157,6 +174,8 @@ def migrated_shadow_resolution_policy(
             EARNINGS_CALENDAR_CONTRACT.strategy_id,
             FORWARD_FACTOR_CONTRACT.strategy_id,
             SKEW_MOMENTUM_VERTICAL_CONTRACT.strategy_id,
+            B001_CONTRACT.strategy_id,
+            B002_CONTRACT.strategy_id,
         )
     )
     requirements: dict[MarketCapability, tuple[tuple[str, ...], int]] = {}
@@ -166,7 +185,20 @@ def migrated_shadow_resolution_policy(
         requirements.update(forward_factor_resolved_field_requirements())
     if SKEW_MOMENTUM_VERTICAL_CONTRACT.strategy_id in selected:
         requirements.update(skew_momentum_resolved_field_requirements())
+    if B001_CONTRACT.strategy_id in selected:
+        requirements.update(b001_resolved_field_requirements())
+    if B002_CONTRACT.strategy_id in selected:
+        requirements.update(b002_resolved_field_requirements())
     return resolution_policy_for_capabilities(capability_registry, requirements)
+
+
+
+# B001/B002 have no StrategyManifest -- StructureKind.NONE strategies with
+# no option structure never compile/execute a graph, so there is nothing
+# for a manifest_id to identify. SignalCatalogEntry.manifest_id has no
+# default, so this stable sentinel documents "no manifest" explicitly
+# rather than fabricating a fake manifest identity.
+_NO_MANIFEST = "none"
 
 
 def build_migrated_signal_catalog() -> tuple[SignalCatalogEntry, ...]:
@@ -184,6 +216,8 @@ def build_migrated_signal_catalog() -> tuple[SignalCatalogEntry, ...]:
             SKEW_MOMENTUM_VERTICAL_CONTRACT,
             manifest_id=SKEW_MOMENTUM_VERTICAL_MANIFEST.manifest_id,
         ),
+        SignalCatalogEntry.from_contract(B001_CONTRACT, manifest_id=_NO_MANIFEST),
+        SignalCatalogEntry.from_contract(B002_CONTRACT, manifest_id=_NO_MANIFEST),
     )
     return tuple(sorted(entries, key=lambda item: item.signal_id))
 
@@ -201,5 +235,10 @@ def build_migrated_cutover_policy(values: Mapping[str, str]) -> CutoverPolicy:
             FORWARD_FACTOR_CONTRACT.strategy_id: True,
             SKEW_MOMENTUM_VERTICAL_CONTRACT.strategy_id: True,
             EARNINGS_CALENDAR_CONTRACT.strategy_id: True,
+            # B001/B002 have no legacy adapter at all (their production
+            # registry entry is _subject_first_only, which raises) -- the
+            # subject-first path must be authoritative from day one.
+            B001_CONTRACT.strategy_id: True,
+            B002_CONTRACT.strategy_id: True,
         }
     )

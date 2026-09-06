@@ -41,6 +41,10 @@ B002_CONTRACT = StrategyContract(
                 MarketCapability.HISTORICAL_BARS_V1,
             ),
         ),
+        DataRequirement(
+            RequirementCategory.CUSTOM,
+            identifier="sma_10m_completed_months@1.0.0",
+        ),
     ),
     lifecycle=NO_LIFECYCLE,
     structure=StructureKind.NONE,

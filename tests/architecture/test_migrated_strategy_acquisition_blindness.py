@@ -10,6 +10,7 @@ ADAPTERS = (
     ROOT / "strategy_runtime/adapters/earnings_calendar_subject_first.py",
     ROOT / "strategy_runtime/adapters/forward_factor_subject_first.py",
     ROOT / "strategy_runtime/adapters/skew_momentum_subject_first.py",
+    ROOT / "strategy_runtime/adapters/stock_benchmarks_subject_first.py",
 )
 FORBIDDEN = {
     "CapabilityFulfiller",
@@ -39,6 +40,8 @@ def test_all_production_strategies_have_subject_first_bindings() -> None:
 
     registry = build_migrated_shadow_registry(datetime(2026, 8, 11, tzinfo=UTC))
     assert registry.strategy_ids() == (
+        "B001",
+        "B002",
         "earnings_calendar",
         "forward_factor",
         "skew_momentum",
