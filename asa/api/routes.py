@@ -120,6 +120,15 @@ def build_router(
         view = portfolio_query.current()
         if view is None:
             raise HTTPException(status_code=404, detail="positions unavailable")
-        return PositionsEnvelope.from_view(view)
+        # A pure read against the already-persisted canonical quote store,
+        # per equity symbol held -- never a new acquisition/provider call.
+        # Option legs have no canonical quote lookup and are unaffected.
+        symbols = {position.symbol for position in view.publication.snapshot.equity_positions}
+        quotes_by_symbol = {
+            symbol: observation
+            for symbol in symbols
+            if (observation := quote_service.get_latest_quote(symbol)) is not None
+        }
+        return PositionsEnvelope.from_view(view, quotes_by_symbol)
 
     return router

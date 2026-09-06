@@ -1,3 +1,4 @@
+from collections.abc import Mapping
 from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID
@@ -273,7 +274,11 @@ class PositionsEnvelope(BaseModel):
     data: PositionsDataResponse
 
     @classmethod
-    def from_view(cls, view: PublishedPortfolioView) -> "PositionsEnvelope":
+    def from_view(
+        cls,
+        view: PublishedPortfolioView,
+        quotes_by_symbol: Mapping[str, MarketObservation] | None = None,
+    ) -> "PositionsEnvelope":
         publication = view.publication
         snapshot = publication.snapshot
         run_response = RunResponse.from_domain(
@@ -291,7 +296,7 @@ class PositionsEnvelope(BaseModel):
             serving_last_success=view.serving_last_success,
         )
         structures = project_option_structures(snapshot.option_legs)
-        valuation = project_portfolio_valuation(snapshot)
+        valuation = project_portfolio_valuation(snapshot, quotes_by_symbol)
         return cls(
             run=run_response,
             freshness=freshness,
