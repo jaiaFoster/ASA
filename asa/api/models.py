@@ -8,6 +8,7 @@ from asa.application.portfolio_structures import project_option_structures
 from asa.application.portfolio_use_cases import PublishedPortfolioView
 from asa.application.portfolio_valuation import project_portfolio_valuation
 from asa.contracts.market import MarketObservation
+from asa.contracts.portfolio import mask_account_identifier
 from asa.contracts.runs import PublicationRecord, RunRecord
 
 
@@ -139,6 +140,8 @@ class AccountResponse(BaseModel):
     buying_power: Decimal | None
     account_value: Decimal | None
     observed_at: datetime
+    holdings_status: str
+    holdings_as_of: datetime
 
 
 class EquityPositionResponse(BaseModel):
@@ -241,7 +244,23 @@ class PortfolioEnvelope(BaseModel):
                 equity_position_count=view.equity_position_count,
                 option_leg_count=view.option_leg_count,
                 accounts=[
-                    AccountResponse.model_validate(account, from_attributes=True)
+                    AccountResponse(
+                        id=account.id,
+                        external_account_id=mask_account_identifier(
+                            account.external_account_id
+                        ),
+                        provider=account.provider,
+                        account_type=account.account_type,
+                        display_name=account.display_name,
+                        currency=account.currency,
+                        cash_balance=account.cash_balance,
+                        cash_available_for_withdrawal=account.cash_available_for_withdrawal,
+                        buying_power=account.buying_power,
+                        account_value=account.account_value,
+                        observed_at=account.observed_at,
+                        holdings_status=view.account_holdings[account.id].status.value,
+                        holdings_as_of=view.account_holdings[account.id].as_of,
+                    )
                     for account in snapshot.accounts
                 ],
             ),

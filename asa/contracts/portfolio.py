@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from enum import StrEnum
 from uuid import UUID
@@ -13,6 +13,66 @@ class OptionType(StrEnum):
 class PositionSide(StrEnum):
     LONG = "long"
     SHORT = "short"
+
+
+class AccountHoldingsStatus(StrEnum):
+    """One account's own truthful fetch outcome (STOCK-RUNTIME-001 STK-04).
+
+    SUCCESS/SUCCESS_EMPTY are both genuine, current data -- the only
+    difference is whether this account happens to hold anything right now.
+    STALE_FALLBACK means the most recent refresh attempt failed and this is
+    the last known-good snapshot for this account; STALE means nobody has
+    refreshed recently but no refresh is known to have failed. A wholly
+    unseen portfolio (never any successful run) has no accounts to report
+    a per-account status for at all -- that case surfaces at the portfolio
+    level (no publication exists), never fabricated here.
+    """
+
+    SUCCESS = "success"
+    SUCCESS_EMPTY = "success_empty"
+    STALE_FALLBACK = "stale_fallback"
+    STALE = "stale"
+
+
+@dataclass(frozen=True, slots=True)
+class AccountHoldingsSummary:
+    status: AccountHoldingsStatus
+    as_of: datetime
+
+
+def account_holdings_status(
+    *,
+    account_observed_at: datetime,
+    has_positions: bool,
+    now: datetime,
+    fresh_for: timedelta,
+    serving_last_success: bool,
+) -> AccountHoldingsStatus:
+    """Pure derivation from already-known evidence -- no acquisition, no
+    clock read, no fabricated failure isolation the underlying single-call
+    broker fetch doesn't actually support (see project/reports/
+    STOCK-RUNTIME-001-STK-04.md).
+    """
+    if account_observed_at >= now - fresh_for:
+        if has_positions:
+            return AccountHoldingsStatus.SUCCESS
+        return AccountHoldingsStatus.SUCCESS_EMPTY
+    if serving_last_success:
+        return AccountHoldingsStatus.STALE_FALLBACK
+    return AccountHoldingsStatus.STALE
+
+
+def mask_account_identifier(value: str) -> str:
+    """Never expose a raw broker account identifier outside the system
+    boundary (API responses, application logs) -- at most the last four
+    characters survive, matching the masking convention brokerages
+    themselves use. Internal persistence keeps the real value: this is a
+    presentation/logging-boundary transform, not a storage change.
+    """
+    trimmed = value.strip()
+    if len(trimmed) <= 4:
+        return "*" * len(trimmed)
+    return f"{'*' * (len(trimmed) - 4)}{trimmed[-4:]}"
 
 
 @dataclass(frozen=True, slots=True)
