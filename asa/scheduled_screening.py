@@ -893,6 +893,22 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     outcomes = run_scheduled_refresh(enforce_schedule=True)
+    # STOCK-RUNTIME-001 STK-06: B001/B002 ride the same cron tick as a
+    # second, independent call -- never merged into the SP500 options
+    # universe or its due-slot gating (see STOCK_BENCHMARK_UNIVERSE's own
+    # comment above) -- so this stays a genuinely separate invocation, not
+    # a widened shared universe. Isolated in its own try/except so a
+    # stock-benchmark-side infrastructure failure (e.g. no enabled
+    # provider) never prevents this tick's own options outcomes from
+    # being reported, and vice versa.
+    try:
+        outcomes = outcomes + run_scheduled_stock_benchmark_refresh()
+    except Exception as exc:
+        _LOGGER.warning(
+            "stock_benchmark_refresh_failed",
+            extra={"failure_class": type(exc).__name__, "detail": str(exc)[:500]},
+            exc_info=True,
+        )
     failures = [item for item in outcomes if item.error is not None]
     incomplete_diagnostics = [item for item in outcomes if not item.attempts_recorded]
     outcome_counts: dict[str, int] = {}
