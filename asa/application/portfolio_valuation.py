@@ -1,6 +1,8 @@
+from collections.abc import Mapping
 from datetime import datetime
 
-from asa.contracts.portfolio import PortfolioSnapshot
+from asa.contracts.market import MarketObservation
+from asa.contracts.portfolio import EquityPosition, PortfolioSnapshot
 from asa.contracts.portfolio_valuation import (
     AccountValuation,
     DeclaredExitState,
@@ -13,7 +15,25 @@ from asa.contracts.portfolio_valuation import (
 )
 
 
-def project_portfolio_valuation(snapshot: PortfolioSnapshot) -> PortfolioValuationProjection:
+def project_portfolio_valuation(
+    snapshot: PortfolioSnapshot,
+    quotes_by_symbol: Mapping[str, MarketObservation] | None = None,
+) -> PortfolioValuationProjection:
+    """Broker (asa/integrations/providers/robinhood.py) remains the sole
+    authority for account identity, quantity, and cost basis -- nothing
+    here acquires a quote. ``quotes_by_symbol`` is a caller-supplied,
+    already-read lookup from ASA's own existing canonical market-data
+    authority (asa.application.use_cases.MarketQuoteService.get_latest_quote,
+    a pure read against the persisted market_observations table -- never a
+    new acquisition/provider call issued by this module or its caller).
+    Equity market value/P&L are DERIVED from that canonical price where
+    one is available for the position's own symbol and currency; option
+    legs are unaffected (no options capability exists in that lookup) and
+    stay exactly as before. Account-level total_value/profit_and_loss are
+    also unaffected -- Robinhood's own broker-computed account equity
+    remains BROKER_OBSERVED, never silently blended with canonical pricing.
+    """
+    quotes = quotes_by_symbol or {}
     account_currency = {account.id: account.currency for account in snapshot.accounts}
     accounts = tuple(
         AccountValuation(
@@ -35,18 +55,8 @@ def project_portfolio_valuation(snapshot: PortfolioSnapshot) -> PortfolioValuati
         for account in snapshot.accounts
     )
     equities = tuple(
-        PositionValuation(
-            position_key=f"{position.account_id}:equity:{position.symbol}",
-            market_value=_unknown(
-                account_currency[position.account_id],
-                position.observed_at,
-                "broker_position_value_unavailable",
-            ),
-            profit_and_loss=_unknown(
-                account_currency[position.account_id],
-                position.observed_at,
-                "broker_position_pnl_unavailable",
-            ),
+        _equity_valuation(
+            position, account_currency[position.account_id], quotes.get(position.symbol)
         )
         for position in snapshot.equity_positions
     )
@@ -67,6 +77,42 @@ def project_portfolio_valuation(snapshot: PortfolioSnapshot) -> PortfolioValuati
         for leg in snapshot.option_legs
     )
     return PortfolioValuationProjection(accounts, equities, option_legs)
+
+
+def _equity_valuation(
+    position: EquityPosition, currency: str, quote: MarketObservation | None
+) -> PositionValuation:
+    key = f"{position.account_id}:equity:{position.symbol}"
+    if quote is None:
+        return PositionValuation(
+            key,
+            _unknown(currency, position.observed_at, "canonical_price_unavailable"),
+            _unknown(currency, position.observed_at, "canonical_price_unavailable"),
+        )
+    if quote.currency != currency:
+        return PositionValuation(
+            key,
+            _unknown(currency, position.observed_at, "canonical_price_currency_mismatch"),
+            _unknown(currency, position.observed_at, "canonical_price_currency_mismatch"),
+        )
+    market_value = MonetaryValue(
+        amount=position.quantity * quote.price,
+        currency=currency,
+        authority=ValueAuthority.DERIVED,
+        observed_at=quote.observed_at,
+    )
+    if position.average_cost is None:
+        profit_and_loss = _unknown(
+            currency, position.observed_at, "broker_cost_basis_unavailable"
+        )
+    else:
+        profit_and_loss = MonetaryValue(
+            amount=(quote.price - position.average_cost) * position.quantity,
+            currency=currency,
+            authority=ValueAuthority.DERIVED,
+            observed_at=quote.observed_at,
+        )
+    return PositionValuation(key, market_value, profit_and_loss)
 
 
 def project_exit_state(
