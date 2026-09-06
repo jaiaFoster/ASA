@@ -266,6 +266,8 @@ def test_ai_agent_workflow_discovers_reads_refreshes_and_briefs(
     assert capabilities_response.status_code == 200
     signals = capabilities_response.json()["signals"]
     assert {item["signal_id"] for item in signals} == {
+        "B001",
+        "B002",
         "earnings_calendar",
         "forward_factor",
         "skew_momentum",
