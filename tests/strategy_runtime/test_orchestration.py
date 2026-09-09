@@ -53,7 +53,7 @@ from market_data.registry import CapabilityRegistry, ProviderRegistry
 from market_data.resolution import ResolutionPolicy
 from market_data.subject_plan import PlanBackedFulfillment, SubjectAcquisitionPlan
 from screening.live_acquisition import build_capability_registry, build_request_budget_manager
-from screening.subject_planning import ResolvedEvidenceView, SubjectPlanConsumer
+from screening.subject_planning import ResolvedEvidenceView, SubjectPlanConsumer, run_subject_plan
 from strategies.earnings_calendar_planning import (
     earnings_calendar_resolved_field_requirements,
     earnings_demand,
@@ -95,6 +95,8 @@ from strategy_runtime.result import (
 from strategy_runtime.subject_preparation import (
     SubjectPreparationBinding,
     SubjectPreparationRegistry,
+    prepare_strategy_knowledge,
+    replay_strategy_knowledge,
 )
 from strategy_runtime.values import TypedValue
 from tests.market_data.test_fulfillment import CAPABILITY, provider, request, service
@@ -1464,3 +1466,143 @@ class TestEarningsCalendarSharedPlanEndToEnd:
         assert legacy_registry.adapter_for("forward_factor") is not None
         assert fixture.access.plan_backed_fulfillment.plan is fixture.access.plan
         assert fixture.access.plan.plan_id == "cycle-1:AAPL"
+
+
+# ---------------------------------------------------------------------------
+# SPRINT-014 S14-PR-06 ("prove replay"), Architect-confirmed scope:
+# replay_strategy_knowledge() reproduces prepare_strategy_knowledge()'s own
+# output deterministically from already-sealed evidence alone -- no
+# SubjectAcquisitionPlan, no CapabilityFulfiller, zero provider calls by
+# construction (I-09/I-11).
+# ---------------------------------------------------------------------------
+
+
+class TestReplayStrategyKnowledge:
+    def test_replay_from_captured_evidence_reproduces_the_original_synthetic_knowledge(
+        self,
+    ) -> None:
+        consumer = SubjectPlanConsumer(
+            _SYNTHETIC_STRATEGY_ID, (_synthetic_demand(),), lambda _evidence: DemandExpansion()
+        )
+        binding: SubjectPreparationBinding[object] = SubjectPreparationBinding(
+            consumer=consumer,
+            prepare_knowledge_mapping=_synthetic_prepare_knowledge_mapping,
+            build_shadow_adapter=_shadow_adapter_matching_legacy,
+        )
+        registry: SubjectPreparationRegistry[object] = SubjectPreparationRegistry(
+            ((_SYNTHETIC_STRATEGY_ID, binding),)
+        )
+        fulfillment, _budgets = service(provider("primary"))
+        plan = _plan(fulfillment)
+
+        original = prepare_strategy_knowledge(
+            plan,
+            NOW,
+            registry,
+            _SYNTHETIC_STRATEGY_ID,
+            subject="AAPL",
+            provider_metadata=(provider("primary").metadata,),
+            resolution_policy_by_capability=_SYNTHETIC_RESOLUTION_POLICY,
+        )
+        assert isinstance(original, ReadOnlyStrategyInput)
+
+        # A second, entirely independent plan/fulfillment against the
+        # identical deterministic fixture -- captured, then discarded
+        # before replay ever runs, so replay cannot secretly be reading
+        # from it.
+        second_fulfillment, _second_budgets = service(provider("primary"))
+        second_plan = _plan(second_fulfillment)
+        plan_result = run_subject_plan(
+            second_plan,
+            NOW,
+            (consumer,),
+            provider_metadata=(provider("primary").metadata,),
+            resolution_policy_by_capability=_SYNTHETIC_RESOLUTION_POLICY,
+        )
+        expansion = plan_result.expansions_by_consumer[consumer.consumer_id]
+        snapshot = plan_result.snapshot
+        projected_evidence = plan_result.projected_evidence
+        selections = expansion.selections
+        del plan_result, second_plan, second_fulfillment
+
+        replayed = replay_strategy_knowledge(
+            snapshot,
+            projected_evidence,
+            selections,
+            registry,
+            _SYNTHETIC_STRATEGY_ID,
+            subject="AAPL",
+        )
+
+        assert replayed == original
+
+    def test_replay_reproduces_the_real_earnings_calendar_evaluation(self) -> None:
+        """The real production strategy, not a synthetic stand-in: replay
+        from captured evidence reproduces the identical ReadOnlyStrategyInput
+        AND, run through the same real build_shadow_adapter with the same
+        RuntimeContext, the identical UniversalScreeningResult -- I-11
+        ("replay makes zero provider calls and reproduces the persisted
+        result") proven end to end for Earnings Calendar.
+        """
+        fixture = _build_earnings_calendar_fixture()
+        binding = fixture.shadow_registry.binding_for("earnings_calendar")
+        legacy_registry = build_migrated_strategy_registry(fixture.access.plan_backed_fulfillment)
+        contract = legacy_registry.contract_for("earnings_calendar")
+
+        original_knowledge = prepare_strategy_knowledge(
+            fixture.access.plan,
+            NOW,
+            fixture.shadow_registry,
+            "earnings_calendar",
+            subject="AAPL",
+            provider_metadata=fixture.provider_metadata,
+            resolution_policy_by_capability=fixture.resolution_policy_by_capability,
+            capability_reducer_by_capability={
+                MarketCapability.OPTION_CHAIN_V1: reduce_option_chain_results
+            },
+        )
+        assert isinstance(original_knowledge, ReadOnlyStrategyInput)
+        calls_after_original = len(fixture.fulfillment.call_log)
+
+        # Re-run the same subject plan for the same consumer -- a
+        # plan-cache hit, zero additional provider calls -- purely to
+        # capture the exact sealed evidence it already produced, then
+        # replay from ONLY that captured evidence.
+        plan_result = run_subject_plan(
+            fixture.access.plan,
+            NOW,
+            (binding.consumer,),
+            provider_metadata=fixture.provider_metadata,
+            resolution_policy_by_capability=fixture.resolution_policy_by_capability,
+            capability_reducer_by_capability={
+                MarketCapability.OPTION_CHAIN_V1: reduce_option_chain_results
+            },
+        )
+        assert len(fixture.fulfillment.call_log) == calls_after_original, (
+            "capturing already-sealed evidence for replay must never make an "
+            "additional provider call"
+        )
+        expansion = plan_result.expansions_by_consumer[binding.consumer.consumer_id]
+        snapshot = plan_result.snapshot
+        projected_evidence = plan_result.projected_evidence
+        selections = expansion.selections
+        replay_registry: SubjectPreparationRegistry[object] = SubjectPreparationRegistry(
+            (("earnings_calendar", binding),)
+        )
+        del plan_result, fixture  # replay must never touch the plan/fulfillment again
+
+        replayed_knowledge = replay_strategy_knowledge(
+            snapshot,
+            projected_evidence,
+            selections,
+            replay_registry,
+            "earnings_calendar",
+            subject="AAPL",
+        )
+
+        assert replayed_knowledge == original_knowledge
+
+        context = RuntimeContext(contract, "AAPL", _FrozenClock(NOW), "replay-proof-run")
+        original_result = binding.build_shadow_adapter({"AAPL": original_knowledge})(context)
+        replayed_result = binding.build_shadow_adapter({"AAPL": replayed_knowledge})(context)
+        assert replayed_result == original_result

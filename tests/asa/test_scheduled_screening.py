@@ -24,7 +24,7 @@ from tests.asa._fixture_market_data_access import (
     capturing_market_data_access_factory,
     shadow_alone_call_count,
 )
-from tests.asa.fakes import InMemoryLatestResultRepository
+from tests.asa.fakes import InMemoryLatestResultRepository, InMemoryObservationHistoryRepository
 from tests.asa.market_data_ops.fakes import ScriptedTransport, tradier_quote_response
 
 
@@ -1742,3 +1742,121 @@ def test_scheduled_forward_factor_unaffected_by_earnings_cutover(
     assert all(entry.signal_id != "forward_factor" for entry in entries)
     forward_factor_persisted = repository.get_one("forward_factor", "AAPL")
     assert forward_factor_persisted is not None
+
+
+# ---------------------------------------------------------------------------
+# SPRINT-014 S14-PR-06 ("prove replay and history"): the durable, generic
+# query surfaces SPRINT-009R/SPRINT-013 already built (ObservationHistoryRepository,
+# AcquisitionAttemptRepository/AttemptQuery) exercised through Earnings
+# Calendar's own cutover-authoritative path specifically -- proving "signal
+# evolution reconstructible across effective times" and "missing/failed
+# evidence remains visible with provenance" hold for the new path, not just
+# legacy.
+# ---------------------------------------------------------------------------
+
+
+def test_scheduled_earnings_cutover_signal_evolution_is_reconstructible_across_effective_times(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Two cutover-authoritative evaluations of the SAME real opportunity
+    (same calendar day for both runs, so the fixture's own observed_at-
+    derived earnings event_date -- and therefore opportunity_id -- stays
+    identical across both), at two different effective times, with a
+    different verdict each time: the durable ObservationHistoryRepository
+    reflects both, oldest first, and the latest-result repository holds
+    only the later one.
+    """
+    import asa.scheduled_screening as scheduled_screening_module
+
+    monkeypatch.setenv("ASA_TRADIER_ENABLED", "true")
+    monkeypatch.setenv("ASA_TRADIER_ACCESS_TOKEN", "sandbox-secret-token")
+    monkeypatch.setenv("ASA_EARNINGS_CALENDAR_CUTOVER_ENABLED", "true")
+    repository = InMemoryLatestResultRepository()
+    history_repository = InMemoryObservationHistoryRepository()
+    first_now = datetime(2026, 8, 6, 14, 0, tzinfo=UTC)
+    second_now = datetime(2026, 8, 6, 18, 0, tzinfo=UTC)
+
+    monkeypatch.setattr(
+        scheduled_screening_module,
+        "build_shared_market_data_access",
+        build_fixture_market_data_access_factory(),
+    )
+    first_outcomes = run_scheduled_refresh(
+        (("earnings_calendar", "AAPL"),),
+        repository=repository,
+        history_repository=history_repository,
+        acquisition_attempt_repository=InMemoryAcquisitionAttemptRepository(),
+        now=first_now,
+    )
+
+    monkeypatch.setattr(
+        scheduled_screening_module,
+        "build_shared_market_data_access",
+        build_fixture_market_data_access_factory(
+            provider_cls_by_symbol={"AAPL": WatchEarningsFixtureProvider}
+        ),
+    )
+    second_outcomes = run_scheduled_refresh(
+        (("earnings_calendar", "AAPL"),),
+        repository=repository,
+        history_repository=history_repository,
+        acquisition_attempt_repository=InMemoryAcquisitionAttemptRepository(),
+        now=second_now,
+    )
+
+    assert first_outcomes[0].error is None
+    assert second_outcomes[0].error is None
+    persisted = repository.get_one("earnings_calendar", "AAPL")
+    assert persisted is not None
+    assert persisted.verdict == "WATCH"
+    assert persisted.opportunity_id is not None
+
+    history = history_repository.history_for(persisted.opportunity_id)
+    assert history is not None
+    assert len(history.observations) == 2
+    assert history.observations[0].verdict == "PASS"
+    assert history.observations[1].verdict == "WATCH"
+    assert history.observations[0].observed_at < history.observations[1].observed_at
+
+
+def test_scheduled_earnings_cutover_outage_failed_attempts_are_queryable_with_provenance(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """SPRINT-014 S14-PR-06 accept: 'Missing and failed evidence remains
+    visible with provenance.' A genuine, shared EARNINGS_CALENDAR_V1
+    outage under cutover: the plan's own durable attempt records for it
+    are queryable via AttemptQuery afterwards, carrying the real typed
+    diagnostic code and a non-empty safe_summary -- not merely "some
+    attempts got recorded," but retrievable with the specific provenance
+    that explains why they failed.
+    """
+    import asa.scheduled_screening as scheduled_screening_module
+
+    scenario = FixtureScenario(
+        failures=((MarketCapability.EARNINGS_CALENDAR_V1, ProviderErrorCode.NO_DATA),)
+    )
+    monkeypatch.setattr(
+        scheduled_screening_module,
+        "build_shared_market_data_access",
+        build_fixture_market_data_access_factory({"AAPL": scenario}),
+    )
+    monkeypatch.setenv("ASA_TRADIER_ENABLED", "true")
+    monkeypatch.setenv("ASA_TRADIER_ACCESS_TOKEN", "sandbox-secret-token")
+    monkeypatch.setenv("ASA_EARNINGS_CALENDAR_CUTOVER_ENABLED", "true")
+    attempt_repository = InMemoryAcquisitionAttemptRepository()
+
+    outcomes = run_scheduled_refresh(
+        (("earnings_calendar", "AAPL"),),
+        repository=InMemoryLatestResultRepository(),
+        acquisition_attempt_repository=attempt_repository,
+    )
+
+    assert outcomes[0].error is None
+    assert outcomes[0].outcome == "missing_data"
+    failed = attempt_repository.query(
+        AttemptQuery(capability=MarketCapability.EARNINGS_CALENDAR_V1)
+    )
+    assert failed != ()
+    for record in failed:
+        assert record.diagnostic_code is not None
+        assert record.safe_summary is not None

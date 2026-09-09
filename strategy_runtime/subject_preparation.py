@@ -17,9 +17,19 @@ as that harness already proved. No strategy name, no strategy-specific
 import, and no branch on strategy_id beyond one generic
 SubjectPreparationRegistry.binding_for() lookup.
 
-Still unwired (Architect checkpoint item 8 remains separate, larger,
-production-composition-root work): this module has no caller in
-asa/scheduled_screening.py or asa/api/screening_routes.py yet.
+Wired into both production roots as of S14-PR-05A (Architect checkpoint:
+sixteenth review): asa/scheduled_screening.py and asa/api/screening_routes.py
+both call prepare_strategy_knowledge() (via
+strategy_runtime.orchestration.prepare_subject_shadow_knowledge()) once per
+subject before any pair-level evaluation.
+
+replay_strategy_knowledge() (SPRINT-014 S14-PR-06, "prove replay") is
+prepare_strategy_knowledge()'s own back half, factored out so it can be
+called directly from already-sealed evidence -- no SubjectAcquisitionPlan,
+no CapabilityFulfiller, zero provider calls by construction (I-09/I-11).
+prepare_strategy_knowledge() itself is unchanged in behavior: it still
+acquires via a plan, then delegates its composition step to this same
+function.
 """
 
 from __future__ import annotations
@@ -127,6 +137,41 @@ class SubjectPreparationRegistry(Generic[TPayload]):
             raise UnknownSubjectPreparationBindingError(strategy_id) from None
 
 
+def replay_strategy_knowledge(
+    snapshot: MarketSnapshot,
+    projected_evidence: ResolvedEvidenceView,
+    selections: tuple[tuple[str, object], ...],
+    registry: SubjectPreparationRegistry[TPayload],
+    strategy_id: str,
+    *,
+    subject: str,
+) -> ReadOnlyStrategyInput[TPayload] | UnknownReason:
+    """SPRINT-014 S14-PR-06 ("prove replay"), Architect-confirmed scope:
+    ``prepare_strategy_knowledge``'s own back half, taking already-sealed
+    evidence directly instead of deriving it by running a plan. No
+    SubjectAcquisitionPlan and no CapabilityFulfiller appears anywhere in
+    this function's own signature -- zero acquisition capability by
+    construction (I-09), zero provider calls by construction (I-11).
+
+    Structural selection (phase-two expansion) has already happened by
+    the time a caller has ``snapshot``/``projected_evidence``/
+    ``selections`` in hand -- this function never re-derives them, it
+    only replays what a real ``prepare_strategy_knowledge`` (or an
+    earlier ``run_subject_plan``) call already produced. Given the exact
+    same three inputs, this is a pure function of them: it always
+    reproduces the identical ReadOnlyStrategyInput (or identical
+    UnknownReason) prepare_strategy_knowledge itself would have.
+    """
+    binding = registry.binding_for(strategy_id)
+    mapping = binding.prepare_knowledge_mapping(snapshot, projected_evidence, selections, subject)
+    if isinstance(mapping, UnknownReason):
+        return mapping
+    knowledge_registry: KnowledgeCompositionRegistry[TPayload] = KnowledgeCompositionRegistry(
+        ((strategy_id, mapping),)
+    )
+    return compose_strategy_knowledge(snapshot, knowledge_registry, strategy_id, subject=subject)
+
+
 def prepare_strategy_knowledge(
     plan: SubjectAcquisitionPlan,
     now: datetime,
@@ -140,15 +185,14 @@ def prepare_strategy_knowledge(
     | None = None,
 ) -> ReadOnlyStrategyInput[TPayload] | UnknownReason:
     """Run ``registry.binding_for(strategy_id)``'s own consumer through
-    one already-built subject plan, hand its resolved evidence to that
-    same binding's own ``prepare_knowledge_mapping`` callback, then
-    compose the result exactly as
-    strategy_runtime.knowledge_composition.compose_strategy_knowledge
-    already does for a directly-supplied KnowledgeMapping. Raises
-    UnknownSubjectPreparationBindingError (via ``registry.binding_for``)
-    for an unregistered strategy_id -- a genuine caller-side defect,
-    never a typed UNKNOWN. Returns a typed UnknownReason (never raises
-    otherwise) if the binding's own callback returns one, or if
+    one already-built subject plan, seal its resolved evidence, then hand
+    that sealed evidence to replay_strategy_knowledge() -- the acquiring
+    half and the (pure, provider-free, separately reusable for replay)
+    composing half. Raises UnknownSubjectPreparationBindingError (via
+    ``registry.binding_for``) for an unregistered strategy_id -- a
+    genuine caller-side defect, never a typed UNKNOWN. Returns a typed
+    UnknownReason (never raises otherwise) if phase-two expansion itself
+    found a gap, if the binding's own callback returns one, or if
     compose_strategy_knowledge itself does (an unresolved grounding
     resolution).
     """
@@ -168,14 +212,11 @@ def prepare_strategy_knowledge(
         # reason directly, generically, never rediscovered less precisely
         # downstream by the binding's own callback.
         return expansion.unknown_reasons[0]
-    mapping = binding.prepare_knowledge_mapping(
-        plan_result.snapshot, plan_result.projected_evidence, expansion.selections, subject
-    )
-    if isinstance(mapping, UnknownReason):
-        return mapping
-    knowledge_registry: KnowledgeCompositionRegistry[TPayload] = KnowledgeCompositionRegistry(
-        ((strategy_id, mapping),)
-    )
-    return compose_strategy_knowledge(
-        plan_result.snapshot, knowledge_registry, strategy_id, subject=subject
+    return replay_strategy_knowledge(
+        plan_result.snapshot,
+        plan_result.projected_evidence,
+        expansion.selections,
+        registry,
+        strategy_id,
+        subject=subject,
     )
