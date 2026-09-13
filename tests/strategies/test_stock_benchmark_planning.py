@@ -27,6 +27,12 @@ def test_b002_bootstrap_demands_is_quote_and_bars() -> None:
         MarketCapability.REAL_TIME_QUOTE_V1,
         MarketCapability.HISTORICAL_BARS_V1,
     }
+    bars = next(
+        demand
+        for demand in demands
+        if demand.capability is MarketCapability.HISTORICAL_BARS_V1
+    )
+    assert bars.required_fields == ("adjusted_close",)
 
 
 def test_no_op_expand_never_adds_a_second_phase() -> None:

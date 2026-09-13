@@ -174,12 +174,38 @@ class MonetaryValueResponse(BaseModel):
     authority: str
     observed_at: datetime
     unknown_reason: str | None
+    lineage: "FactLineageResponse | None" = None
+
+
+class FactReferenceResponse(BaseModel):
+    fact_id: str
+    semantic_name: str
+    source: str
+    observed_at: datetime | None
+    fetched_at: datetime
+    snapshot_id: str | None
+
+
+class FactLineageResponse(BaseModel):
+    fact_id: str
+    semantic_name: str
+    source: str
+    observed_at: datetime | None
+    fetched_at: datetime
+    computed_at: datetime | None
+    snapshot_id: str | None
+    freshness_status: str
+    usability_status: str
+    formula_id: str | None
+    formula_version: str | None
+    inputs: list[FactReferenceResponse]
 
 
 class PositionValuationResponse(BaseModel):
     position_key: str
     market_value: MonetaryValueResponse
     profit_and_loss: MonetaryValueResponse
+    profit_and_loss_percent: MonetaryValueResponse
 
 
 class OptionStructureResponse(BaseModel):
@@ -247,9 +273,7 @@ class PortfolioEnvelope(BaseModel):
                 accounts=[
                     AccountResponse(
                         id=account.id,
-                        external_account_id=mask_account_identifier(
-                            account.external_account_id
-                        ),
+                        external_account_id=mask_account_identifier(account.external_account_id),
                         provider=account.provider,
                         account_type=account.account_type,
                         display_name=account.display_name,
@@ -296,7 +320,12 @@ class PositionsEnvelope(BaseModel):
             serving_last_success=view.serving_last_success,
         )
         structures = project_option_structures(snapshot.option_legs)
-        valuation = project_portfolio_valuation(snapshot, quotes_by_symbol)
+        valuation = project_portfolio_valuation(
+            snapshot,
+            quotes_by_symbol,
+            snapshot_id=publication.snapshot_id,
+            computed_at=publication.published_at,
+        )
         return cls(
             run=run_response,
             freshness=freshness,

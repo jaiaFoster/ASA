@@ -44,6 +44,7 @@ from datetime import UTC, datetime, timedelta
 from types import MappingProxyType
 from typing import Protocol
 
+from asa.application.portfolio_use_cases import RunPortfolioIntelligence, RunPortfolioResult
 from asa.application.ports.portfolio_lifecycle import PortfolioLifecycleRepository
 from asa.config import Settings
 from asa.contracts.portfolio_lifecycle import ExecutionReadinessArtifact
@@ -55,6 +56,7 @@ from asa.integrations.refresh_schedule_postgres import (
     PostgresRefreshScheduleClaimRepository,
     PostgresSubjectRefreshRepository,
 )
+from asa.integrations.runs_postgres import PostgresRunPublicationRepository
 from asa.integrations.screening_acquisition_attempts_postgres import (
     PostgresAcquisitionAttemptRepository,
 )
@@ -884,6 +886,36 @@ def run_scheduled_stock_benchmark_refresh(
     )
 
 
+def run_scheduled_portfolio_refresh(
+    *,
+    settings: Settings | None = None,
+    now: datetime | None = None,
+) -> RunPortfolioResult | None:
+    """Refresh broker-owned facts on the existing ten-minute cron.
+
+    This composes the already-authoritative broker provider and publication
+    repository; it creates neither a scheduler nor a market-price path. In
+    non-production/deterministic environments it is deliberately a no-op.
+    """
+    resolved = settings or Settings()
+    if resolved.environment != "production" or resolved.broker_portfolio_provider != "robinhood":
+        return None
+    from asa.bootstrap import _build_broker_provider
+
+    engine = create_postgres_engine(resolved.database_url)
+    runner = RunPortfolioIntelligence(
+        _build_broker_provider(resolved),
+        PostgresRunPublicationRepository(engine),
+        lifecycle_repository=PostgresPortfolioLifecycleRepository(engine),
+    )
+    requested_at = now or datetime.now(UTC)
+    return runner.execute(
+        requested_at,
+        resolved.release_sha or "release_sha_unavailable",
+        resolved.effective_configuration_hash(),
+    )
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="python -m asa.scheduled_screening",
@@ -906,6 +938,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     except Exception as exc:
         _LOGGER.warning(
             "stock_benchmark_refresh_failed",
+            extra={"failure_class": type(exc).__name__, "detail": str(exc)[:500]},
+            exc_info=True,
+        )
+    try:
+        run_scheduled_portfolio_refresh()
+    except Exception as exc:
+        _LOGGER.warning(
+            "portfolio_refresh_failed",
             extra={"failure_class": type(exc).__name__, "detail": str(exc)[:500]},
             exc_info=True,
         )

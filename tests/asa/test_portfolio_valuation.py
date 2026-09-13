@@ -75,6 +75,14 @@ def test_equity_market_value_and_pnl_are_derived_from_the_canonical_quote() -> N
     assert valuation.market_value.amount == Decimal("2400.00")
     assert valuation.profit_and_loss.authority is ValueAuthority.DERIVED
     assert valuation.profit_and_loss.amount == Decimal("330.00")
+    assert valuation.profit_and_loss_percent.amount == Decimal("15.94202898550724637681159420")
+    assert valuation.market_value.lineage is not None
+    assert valuation.market_value.lineage.formula_version == "1.0.0"
+    assert {item.semantic_name for item in valuation.market_value.lineage.inputs} == {
+        "broker_quantity",
+        "canonical_current_price",
+    }
+    assert valuation.market_value.lineage.inputs[1].fetched_at == NOW
 
 
 def test_equity_pnl_stays_unknown_without_a_broker_cost_basis() -> None:
@@ -87,6 +95,7 @@ def test_equity_pnl_stays_unknown_without_a_broker_cost_basis() -> None:
     assert valuation.market_value.authority is ValueAuthority.DERIVED
     assert valuation.profit_and_loss.authority is ValueAuthority.UNKNOWN
     assert valuation.profit_and_loss.unknown_reason == "broker_cost_basis_unavailable"
+    assert valuation.profit_and_loss_percent.unknown_reason == "broker_cost_basis_unavailable"
 
 
 def test_equity_valuation_refuses_a_currency_mismatch_rather_than_silently_convert() -> None:

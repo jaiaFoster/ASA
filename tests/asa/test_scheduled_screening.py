@@ -50,6 +50,7 @@ def test_operational_json_labels_bounded_cohort_semantics(
             ),
         ),
     )
+    monkeypatch.setattr(scheduled_screening_module, "run_scheduled_portfolio_refresh", lambda: None)
 
     assert scheduled_screening_module.main(["--json"]) == 0
     report = json.loads(capsys.readouterr().out)

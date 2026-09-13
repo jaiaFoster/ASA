@@ -423,9 +423,7 @@ class TradierProvider:
         # capability -- not just Quote. An option chain (or any other
         # non-quote capability) acquired shortly after the session closes
         # is now correctly PRIOR_SESSION, not silently rejected STALE_DATA.
-        freshness = classify_market_data_freshness(
-            received, effective, request.maximum_age_seconds
-        )
+        freshness = classify_market_data_freshness(received, effective, request.maximum_age_seconds)
         provenance = ProviderProvenance("tradier", response.request_reference, evidence)
         identity = market_observation_identity(
             "tradier", request.capability, subject, effective, value, "v1"
@@ -672,6 +670,11 @@ def _option(
 
 
 def _field_present(field: str, value: object) -> bool:
+    if field == "adjusted_close" and isinstance(value, OHLCVSeries):
+        return bool(value.bars) and all(
+            bar.adjusted_close is not None and bar.adjusted_close_basis is not None
+            for bar in value.bars
+        )
     if field == "expirations":
         return isinstance(value, ExpirationCycle) or (
             isinstance(value, ExpirationCollection) and bool(value.cycles)
