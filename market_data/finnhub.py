@@ -512,6 +512,11 @@ def _evidence(response: ReadOnlyHttpResponse) -> tuple[EvidenceReference, ...]:
 
 
 def _present(field: str, value: object) -> bool:
+    if isinstance(value, OHLCVSeries) and field == "adjusted_close":
+        return bool(value.bars) and all(
+            bar.adjusted_close is not None and bar.adjusted_close_basis is not None
+            for bar in value.bars
+        )
     if isinstance(value, OHLCVSeries) and field in {"open", "high", "low", "close", "volume"}:
         return bool(value.bars) and all(getattr(bar, field) is not None for bar in value.bars)
     aliases = {"earnings_date": "earnings_date", "last": "last"}

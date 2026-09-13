@@ -12,12 +12,39 @@ class ValueAuthority(StrEnum):
 
 
 @dataclass(frozen=True, slots=True)
+class FactReference:
+    fact_id: str
+    semantic_name: str
+    source: str
+    observed_at: datetime | None
+    fetched_at: datetime
+    snapshot_id: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class FactLineage:
+    fact_id: str
+    semantic_name: str
+    source: str
+    observed_at: datetime | None
+    fetched_at: datetime
+    computed_at: datetime | None
+    snapshot_id: str | None
+    freshness_status: str
+    usability_status: str
+    formula_id: str | None = None
+    formula_version: str | None = None
+    inputs: tuple[FactReference, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
 class MonetaryValue:
     amount: Decimal | None
     currency: str
     authority: ValueAuthority
     observed_at: datetime
     unknown_reason: str | None = None
+    lineage: FactLineage | None = None
 
     def __post_init__(self) -> None:
         if self.authority is ValueAuthority.UNKNOWN:
@@ -39,6 +66,7 @@ class PositionValuation:
     position_key: str
     market_value: MonetaryValue
     profit_and_loss: MonetaryValue
+    profit_and_loss_percent: MonetaryValue
 
 
 @dataclass(frozen=True, slots=True)

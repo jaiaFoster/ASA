@@ -26,7 +26,7 @@ def quote_demand(now: datetime) -> CapabilityDemand:
 def bars_demand(now: datetime) -> CapabilityDemand:
     return CapabilityDemand(
         MarketCapability.HISTORICAL_BARS_V1,
-        ("close",),
+        ("adjusted_close",),
         now - timedelta(days=HISTORICAL_LOOKBACK_DAYS),
         now,
         maximum_age_seconds=int(timedelta(days=HISTORICAL_LOOKBACK_DAYS + 1).total_seconds()),
@@ -57,7 +57,7 @@ def b002_resolved_field_requirements() -> dict[MarketCapability, tuple[tuple[str
     return {
         MarketCapability.REAL_TIME_QUOTE_V1: (("last",), 3600),
         MarketCapability.HISTORICAL_BARS_V1: (
-            ("close",),
+            ("adjusted_close",),
             int(timedelta(days=HISTORICAL_LOOKBACK_DAYS + 1).total_seconds()),
         ),
     }

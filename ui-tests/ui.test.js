@@ -136,6 +136,33 @@ const portfolioFixture = {
   },
 };
 
+const positionsFixture = {
+  data: {
+    equity_positions: [{
+      account_id: "acct-1", symbol: "AAPL", quantity: "2", average_cost: "100",
+      observed_at: "2026-09-05T12:00:00Z", original_provider: "robinhood",
+    }],
+    equity_valuations: [{
+      position_key: "acct-1:equity:AAPL",
+      market_value: {
+        amount: "240", currency: "USD", authority: "derived",
+        observed_at: "2026-09-05T12:00:00Z", unknown_reason: null,
+        lineage: {
+          fact_id: "acct-1:equity:AAPL:portfolio_market_value",
+          semantic_name: "portfolio_market_value", source: "asa",
+          observed_at: "2026-09-05T12:00:00Z", fetched_at: "2026-09-05T12:00:01Z",
+          computed_at: "2026-09-05T12:00:02Z", snapshot_id: "snap-1",
+          freshness_status: "fresh", usability_status: "usable",
+          formula_id: "quantity_times_canonical_price", formula_version: "1.0.0",
+          inputs: [{ fact_id: "quote:AAPL", semantic_name: "canonical_current_price", source: "tradier" }],
+        },
+      },
+      profit_and_loss: { amount: "40", unknown_reason: null, lineage: null },
+      profit_and_loss_percent: { amount: "20", unknown_reason: null, lineage: null },
+    }],
+  },
+};
+
 test("shared public fixture renders exact audit identity, decision, evidence, and time", () => {
   const root = document.createElement("div");
   renderApp(
@@ -319,6 +346,20 @@ test("stock portfolio subview renders masked identifiers and per-account holding
   // A genuinely absent cash balance for the empty account must read as an
   // explicit null, never "0" or a blank cell.
   assert.match(text, /null/);
+});
+
+test("stock portfolio renders holdings and inspectable derived-fact lineage", () => {
+  const root = document.createElement("div");
+  renderApp(root, model({
+    route: { name: "stocks", subview: "portfolio" },
+    portfolio: portfolioFixture,
+    positions: positionsFixture,
+  }), noOpHandlers);
+  assert.match(root.textContent, /AAPL/);
+  assert.match(root.textContent, /Unrealized P&L %20/);
+  assert.match(root.textContent, /portfolio_market_value/);
+  assert.match(root.textContent, /quantity_times_canonical_price/);
+  assert.match(root.textContent, /tradier/);
 });
 
 test("stock portfolio subview declares an explicit unavailable state, never a fabricated empty portfolio", () => {

@@ -416,6 +416,72 @@ function detailView(item, handlers) {
 
 const STOCK_STRATEGY_SIGNAL_IDS = new Set(["B001", "B002"]);
 
+function factInspector(value) {
+  const disclosure = element("details", "fact-inspector");
+  disclosure.append(element("summary", null, "Inspect fact lineage"));
+  if (!value?.lineage) {
+    disclosure.append(element("p", null, `Lineage unavailable: ${value?.unknown_reason || "not_recorded"}`));
+    return disclosure;
+  }
+  const lineage = value.lineage;
+  disclosure.append(definitionList([
+    ["Fact", lineage.semantic_name],
+    ["Fact identity", lineage.fact_id],
+    ["Source", lineage.source],
+    ["Observed", lineage.observed_at],
+    ["Fetched", lineage.fetched_at],
+    ["Computed", lineage.computed_at],
+    ["Snapshot", lineage.snapshot_id],
+    ["Freshness", lineage.freshness_status],
+    ["Usability", lineage.usability_status],
+    ["Formula", lineage.formula_id],
+    ["Formula version", lineage.formula_version],
+  ]));
+  if (lineage.inputs?.length) {
+    disclosure.append(element("pre", null, JSON.stringify(lineage.inputs, null, 2)));
+  }
+  return disclosure;
+}
+
+function stockPositionView(model) {
+  const fragment = document.createDocumentFragment();
+  const positions = model.positions;
+  if (!positions) {
+    fragment.append(element("p", "empty-state", "Position details unavailable."));
+    return fragment;
+  }
+  const valuations = new Map(
+    positions.data.equity_valuations.map((item) => [item.position_key, item]),
+  );
+  const grid = element("div", "health-grid");
+  for (const position of positions.data.equity_positions) {
+    const key = `${position.account_id}:equity:${position.symbol}`;
+    const valuation = valuations.get(key);
+    const card = element("article", "health-card");
+    card.append(element("h3", null, position.symbol));
+    card.append(definitionList([
+      ["Quantity", String(position.quantity)],
+      ["Average cost", String(position.average_cost)],
+      ["Observed", position.observed_at],
+      ["Position source", position.original_provider],
+      ["Market value", valuation?.market_value?.amount ?? "UNKNOWN"],
+      ["Unrealized P&L", valuation?.profit_and_loss?.amount ?? "UNKNOWN"],
+      ["Unrealized P&L %", valuation?.profit_and_loss_percent?.amount ?? "UNKNOWN"],
+    ]));
+    if (valuation) {
+      card.append(factInspector(valuation.market_value));
+      card.append(factInspector(valuation.profit_and_loss));
+      card.append(factInspector(valuation.profit_and_loss_percent));
+    }
+    grid.append(card);
+  }
+  if (!positions.data.equity_positions.length) {
+    grid.append(element("p", "empty-state", "No equity holdings in this snapshot."));
+  }
+  fragment.append(element("h3", null, "Equity holdings"), grid);
+  return fragment;
+}
+
 function stockPortfolioView(model) {
   const fragment = document.createDocumentFragment();
   const portfolio = model.portfolio;
@@ -479,6 +545,7 @@ function stockPortfolioView(model) {
     grid.append(element("p", "empty-state", "No accounts in the published snapshot."));
   }
   fragment.append(grid);
+  fragment.append(stockPositionView(model));
   return fragment;
 }
 
