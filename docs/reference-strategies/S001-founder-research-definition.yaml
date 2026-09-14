@@ -1,0 +1,45 @@
+---
+document_kind: Founder_research_definition
+strategy_id: S001
+name: Trend-Gated Sector Momentum
+preserved_for: TGSM-RUNTIME-001
+status: authoritative_product_and_research_intent
+
+universe:
+  definition: point_in_time_US_sector_ETFs
+  rule: an_ETF_participates_only_when_genuinely_eligible_and_tradable_at_T
+  prohibit: projecting_today's_sector_universe_before_instrument_inception
+
+policy:
+  momentum: trailing_12_month_total_return
+  rank: descending
+  trend: eligible_total_return_equivalent_observation_strictly_above_10_month_SMA
+  completed_periods_only: true
+  select: top_3_ranked_sector_candidates
+  sleeves: ["1/3", "1/3", "1/3"]
+  trend_failure: failed_selected_sleeve_targets_defensive_asset
+  redistribute_failed_sleeves: false
+  defensive_asset: canonical_research_representation_of_3_month_Treasury_total_return
+  rebalance: monthly
+  effective_execution: >
+    No earlier than the next eligible trading session after required month-end
+    evidence is finalized and the decision can actually be known.
+  leverage: none
+  shorting: none
+  optimization: none
+
+prohibited_substitutions:
+  - arbitrary_Treasury_ETF
+  - zero_return_cash
+  - raw_yield
+  - another_defensive_instrument
+  - raw_close_for_total_return_evidence
+  - invented_dividend_reinvestment
+
+unknown_policy: required_unknown_evidence_remains_typed_UNKNOWN
+later_research_not_part_of_runtime_definition:
+  - parameter_search
+  - walk_forward_or_ablation_campaigns
+  - long_history_phenomenon_validation
+  - generalized_transaction_costs
+
