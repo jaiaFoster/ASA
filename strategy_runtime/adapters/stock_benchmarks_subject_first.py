@@ -82,7 +82,10 @@ def _prepare_b002(
     quote = quote_observation.value
     if quote.last is None:
         return UnknownReason("unusable_quote")
-    bars_resolution = resolution_for(snapshot, MarketCapability.HISTORICAL_BARS_V1)
+    try:
+        bars_resolution = resolution_for(snapshot, MarketCapability.HISTORICAL_BARS_V1)
+    except ValueError:
+        return UnknownReason("unusable_historical_bars")
     bars_observation = bars_resolution.selected_observation
     if bars_observation is None or not isinstance(bars_observation.value, OHLCVSeries):
         return UnknownReason("unusable_historical_bars")
