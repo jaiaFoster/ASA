@@ -6,9 +6,21 @@ import pytest
 
 from domain import CanonicalInstrumentIdentity, SecurityAssetType
 from screening.universe_membership import (
+    SELECT_SECTOR_SPDR_MEMBERSHIP,
     SP500_MEMBERSHIP,
     canonical_equity_classifications,
 )
+
+
+def test_sector_membership_is_point_in_time_and_never_pre_inception() -> None:
+    assert len(SELECT_SECTOR_SPDR_MEMBERSHIP.eligible_members(date(2014, 12, 31))) == 9
+    assert {item.instrument.value for item in SELECT_SECTOR_SPDR_MEMBERSHIP.eligible_members(
+        date(2016, 1, 1)
+    )} >= {"XLRE"}
+    assert {item.instrument.value for item in SELECT_SECTOR_SPDR_MEMBERSHIP.eligible_members(
+        date(2019, 1, 1)
+    )} == {"XLB", "XLC", "XLE", "XLF", "XLI", "XLK", "XLP", "XLRE", "XLU", "XLV", "XLY"}
+    assert not SELECT_SECTOR_SPDR_MEMBERSHIP.eligible_members(date(1998, 12, 15))
 
 
 def test_sp500_snapshot_is_effective_dated_and_source_pinned() -> None:

@@ -93,6 +93,100 @@ class EquityUniverseClassifications:
     sectors: Mapping[CanonicalInstrumentIdentity, SectorClassification]
 
 
+@dataclass(frozen=True, slots=True)
+class EffectiveUniverseMember:
+    """Provider-neutral membership interval for a canonical instrument."""
+
+    instrument: CanonicalInstrumentIdentity
+    classification: str
+    effective_from: date
+    effective_through: date | None
+    source_reference: str
+
+    def __post_init__(self) -> None:
+        if not self.classification or self.classification != self.classification.strip():
+            raise ValueError("classification must be normalized non-empty text")
+        if not self.source_reference or self.source_reference != self.source_reference.strip():
+            raise ValueError("source_reference must be normalized non-empty text")
+        if self.effective_through is not None and self.effective_through < self.effective_from:
+            raise ValueError("effective_through cannot precede effective_from")
+
+    def is_effective(self, as_of: date) -> bool:
+        return self.effective_from <= as_of and (
+            self.effective_through is None or as_of <= self.effective_through
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class EffectiveUniverseMembership:
+    universe_id: str
+    source_name: str
+    source_url: str
+    members: tuple[EffectiveUniverseMember, ...]
+
+    def __post_init__(self) -> None:
+        if not self.universe_id or not self.source_name or not self.source_url:
+            raise ValueError("effective universe identity and source are required")
+        ordered = tuple(
+            sorted(
+                self.members,
+                key=lambda item: (
+                    item.instrument.scheme,
+                    item.instrument.value,
+                    item.effective_from,
+                ),
+            )
+        )
+        if ordered != self.members or len({item.instrument for item in self.members}) != len(
+            self.members
+        ):
+            raise ValueError("effective universe members must be unique and canonically sorted")
+
+    def eligible_members(self, as_of: date) -> tuple[EffectiveUniverseMember, ...]:
+        return tuple(item for item in self.members if item.is_effective(as_of))
+
+
+_SELECT_SECTOR_SOURCE = (
+    "https://www.ssga.com/us/en/individual/capabilities/equities/sector-investing/"
+    "select-sector-etfs"
+)
+
+
+def _sector_etf(symbol: str, classification: str, inception: date) -> EffectiveUniverseMember:
+    return EffectiveUniverseMember(
+        CanonicalInstrumentIdentity("symbol", symbol),
+        classification,
+        inception,
+        None,
+        f"{_SELECT_SECTOR_SOURCE}#{symbol.lower()}",
+    )
+
+
+SELECT_SECTOR_SPDR_MEMBERSHIP = EffectiveUniverseMembership(
+    "select_sector_spdr",
+    "State Street Select Sector SPDR ETFs",
+    _SELECT_SECTOR_SOURCE,
+    tuple(
+        sorted(
+            (
+                _sector_etf("XLB", "materials", date(1998, 12, 16)),
+                _sector_etf("XLC", "communication_services", date(2018, 6, 18)),
+                _sector_etf("XLE", "energy", date(1998, 12, 16)),
+                _sector_etf("XLF", "financials", date(1998, 12, 16)),
+                _sector_etf("XLI", "industrials", date(1998, 12, 16)),
+                _sector_etf("XLK", "information_technology", date(1998, 12, 16)),
+                _sector_etf("XLP", "consumer_staples", date(1998, 12, 16)),
+                _sector_etf("XLRE", "real_estate", date(2015, 10, 7)),
+                _sector_etf("XLU", "utilities", date(1998, 12, 16)),
+                _sector_etf("XLV", "health_care", date(1998, 12, 16)),
+                _sector_etf("XLY", "consumer_discretionary", date(1998, 12, 16)),
+            ),
+            key=lambda item: (item.instrument.scheme, item.instrument.value),
+        )
+    ),
+)
+
+
 def canonical_equity_classifications(
     snapshot: EquityUniverseMembershipSnapshot,
 ) -> EquityUniverseClassifications:

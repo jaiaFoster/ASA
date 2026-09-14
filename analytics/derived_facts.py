@@ -41,6 +41,7 @@ OPTION_VOLUME_BAND = "option_volume_band"
 SPREAD_QUALITY = "spread_quality"
 OPEN_INTEREST_QUALITY = "open_interest_quality"
 SMA_10M_COMPLETED_MONTHS = "sma_10m_completed_months"
+TRAILING_12M_TOTAL_RETURN = "trailing_12m_total_return"
 
 
 class AdjustedCloseBarLike(Protocol):
@@ -105,6 +106,45 @@ def compute_sma_10m_completed_months(
             (bar.adjusted_close for bar in selected if bar.adjusted_close is not None),
             Decimal(0),
         ) / Decimal(10)
+
+
+def completed_month_end_observations(
+    bars: Sequence[AdjustedCloseBarLike], as_of: datetime
+) -> tuple[AdjustedCloseBarLike, ...]:
+    """Latest total-return-capable observation from each completed UTC month."""
+    if as_of.tzinfo is None or as_of.utcoffset() is None:
+        raise ValueError("as_of must be timezone-aware")
+    as_of_utc = as_of.astimezone(UTC)
+    month_ends: dict[tuple[int, int], AdjustedCloseBarLike] = {}
+    for bar in bars:
+        end_at = bar.end_at.astimezone(UTC)
+        if (end_at.year, end_at.month) >= (as_of_utc.year, as_of_utc.month):
+            continue
+        key = (end_at.year, end_at.month)
+        current = month_ends.get(key)
+        if current is None or bar.end_at > current.end_at:
+            month_ends[key] = bar
+    return tuple(month_ends[key] for key in sorted(month_ends))
+
+
+def compute_trailing_12m_total_return(
+    bars: Sequence[AdjustedCloseBarLike], as_of: datetime
+) -> Decimal:
+    """Return between the oldest/latest of thirteen completed month ends."""
+    selected = completed_month_end_observations(bars, as_of)[-13:]
+    if len(selected) != 13:
+        raise ValueError("thirteen completed months of total-return history are required")
+    if any(
+        bar.adjusted_close is None
+        or bar.adjusted_close_basis is not AdjustedCloseBasis.SPLIT_AND_DIVIDEND_ADJUSTED
+        for bar in selected
+    ):
+        raise ValueError("split-and-dividend-adjusted close is required for total return")
+    oldest = selected[0].adjusted_close
+    latest = selected[-1].adjusted_close
+    assert oldest is not None and latest is not None
+    with localcontext(DERIVED_FACT_DECIMAL_CONTEXT):
+        return latest / oldest - Decimal(1)
 
 
 def compute_implied_forward_volatility(
@@ -337,6 +377,11 @@ def _definition(
 
 
 DERIVED_FACT_DEFINITIONS = (
+    _definition(
+        TRAILING_12M_TOTAL_RETURN,
+        "Trailing return across thirteen completed month-end split-and-dividend-adjusted closes.",
+        MarketCapability.HISTORICAL_BARS_V1,
+    ),
     _definition(
         SMA_10M_COMPLETED_MONTHS,
         "Arithmetic mean of the previous ten completed month-end adjusted closes.",

@@ -25,6 +25,7 @@ from analytics.derived_facts import (
     compute_open_interest_quality,
     compute_option_volume_band,
     compute_sma_10m_completed_months,
+    compute_trailing_12m_total_return,
 )
 from analytics.realized_volatility import compute_realized_volatility
 from domain import (
@@ -91,6 +92,45 @@ def test_sma10m_rejects_insufficient_history() -> None:
         compute_sma_10m_completed_months((raw,), datetime(2026, 1, 1, tzinfo=UTC))
 
 
+def _monthly_adjusted_bars(
+    basis: AdjustedCloseBasis = AdjustedCloseBasis.SPLIT_AND_DIVIDEND_ADJUSTED,
+) -> tuple[OHLCVBar, ...]:
+    instrument = Instrument(
+        CanonicalInstrumentIdentity("ticker", "XLK"), InstrumentKind.EQUITY, "XLK", "USD"
+    )
+    bars = []
+    for index in range(13):
+        year = 2024 + (index + 1) // 12
+        month = (index + 1) % 12 + 1
+        start = datetime(year, month, 27, tzinfo=UTC)
+        value = Decimal(100 + index)
+        bars.append(
+            OHLCVBar(
+                instrument, 86400, start, start + timedelta(days=1),
+                value, value, value, value, Decimal(100), value, basis,
+            )
+        )
+    return tuple(bars)
+
+
+def test_trailing_12m_total_return_uses_thirteen_completed_month_ends() -> None:
+    assert compute_trailing_12m_total_return(
+        _monthly_adjusted_bars(), datetime(2026, 2, 1, tzinfo=UTC)
+    ) == Decimal("0.12")
+
+
+def test_total_return_rejects_split_only_and_insufficient_history() -> None:
+    with pytest.raises(ValueError, match="split-and-dividend"):
+        compute_trailing_12m_total_return(
+            _monthly_adjusted_bars(AdjustedCloseBasis.SPLIT_ADJUSTED),
+            datetime(2026, 2, 1, tzinfo=UTC),
+        )
+    with pytest.raises(ValueError, match="thirteen completed months"):
+        compute_trailing_12m_total_return(
+            _monthly_adjusted_bars()[:12], datetime(2026, 2, 1, tzinfo=UTC)
+        )
+
+
 def test_earnings_and_expiration_temporal_facts() -> None:
     as_of = date(2026, 7, 1)
     front = date(2026, 7, 18)
@@ -143,10 +183,11 @@ def test_named_momentum_dimensions_are_replay_stable() -> None:
 
 
 def test_initial_registry_is_closed_versioned_and_complete() -> None:
-    assert len(DERIVED_FACT_REGISTRY.registered_ids()) == 23
+    assert len(DERIVED_FACT_REGISTRY.registered_ids()) == 24
     assert DERIVED_FACT_REGISTRY.get("forward_factor").feature_version == "1.0.0"
     assert DERIVED_FACT_REGISTRY.get("iv_term_structure_spread").feature_version == "1.0.0"
     assert DERIVED_FACT_REGISTRY.get("sma_10m_completed_months").feature_version == "1.0.0"
+    assert DERIVED_FACT_REGISTRY.get("trailing_12m_total_return").feature_version == "1.0.0"
 
 
 def test_confirmed_earnings_through_back_expiration_is_ineligible() -> None:
