@@ -9,6 +9,7 @@ from decimal import Decimal, InvalidOperation
 from typing import cast
 
 from domain import (
+    AdjustedCloseBasis,
     AnnouncementTime,
     CompletenessMetadata,
     EarningsEvent,
@@ -118,15 +119,23 @@ class AlphaVantageProvider:
             symbol = subject.projection_for(
                 "alpha_vantage", "symbol", request.effective_end
             ).address_value
+            adjusted_history = (
+                request.capability is MarketCapability.HISTORICAL_BARS_V1
+                and "adjusted_close" in request.required_fields
+            )
             query = (
                 ("apikey", self._credential.reveal()),
                 (
                     "function",
-                    "TIME_SERIES_DAILY"
+                    (
+                        "TIME_SERIES_DAILY_ADJUSTED"
+                        if adjusted_history
+                        else "TIME_SERIES_DAILY"
+                    )
                     if request.capability is MarketCapability.HISTORICAL_BARS_V1
                     else "EARNINGS",
                 ),
-                ("outputsize", "compact"),
+                ("outputsize", "full" if adjusted_history else "compact"),
                 ("symbol", symbol),
             )
             try:
@@ -269,7 +278,23 @@ class AlphaVantageProvider:
                     _decimal(row["2. high"]),
                     _decimal(row["3. low"]),
                     _decimal(row["4. close"]),
-                    _decimal(row["5. volume"]),
+                    _decimal(
+                        row[
+                            "6. volume"
+                            if "adjusted_close" in request.required_fields
+                            else "5. volume"
+                        ]
+                    ),
+                    adjusted_close=(
+                        _decimal(row["5. adjusted close"])
+                        if "adjusted_close" in request.required_fields
+                        else None
+                    ),
+                    adjusted_close_basis=(
+                        AdjustedCloseBasis.SPLIT_AND_DIVIDEND_ADJUSTED
+                        if "adjusted_close" in request.required_fields
+                        else None
+                    ),
                 )
                 bars.append(bar)
             if not bars:

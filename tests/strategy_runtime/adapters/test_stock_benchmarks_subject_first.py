@@ -285,6 +285,12 @@ class TestB002PrepareAndAdapter:
         assert isinstance(mapping, UnknownReason)
         assert mapping.code == "unusable_quote"
 
+    def test_missing_historical_resolution_is_a_typed_unknown(self) -> None:
+        snapshot = _b001_snapshot(price=Decimal("450"))
+        mapping = _prepare_b002(snapshot, {}, (), SYMBOL)
+        assert isinstance(mapping, UnknownReason)
+        assert mapping.code == "unusable_historical_bars"
+
     def test_replay_from_the_same_sealed_snapshot_is_deterministic(self) -> None:
         bars = _ten_completed_months(price_above_sma=True)
         snapshot, first = self._knowledge(price=Decimal("450"), bars=bars)

@@ -22,6 +22,13 @@ typed adjustment basis. Raw OHLC remains backward compatible and is never substi
 enabled/entitled provider supplies that evidence, the resulting typed missing data is then a
 truthful external limitation.
 
+Production verification exposed one further provider-owner defect: Alpha Vantage advertised
+adjusted-close completeness while always requesting and normalizing its raw daily series. An
+adjusted B002 demand now uses the adjusted daily function with full output and preserves the
+split-and-dividend adjustment basis. When no historical resolution exists, the B002 binder emits
+typed `unusable_historical_bars` instead of collapsing the absence into the generic
+`strategy_knowledge_construction_failed` boundary.
+
 ## Preserved boundaries
 
 - Broker: account identity/type, quantity, and average cost.
@@ -29,4 +36,3 @@ truthful external limitation.
 - Portfolio projection: versioned derived market value and unrealized P&L formulas.
 - Scheduling: existing external Railway ten-minute cron; no in-process scheduler.
 - Safety: read-only broker surface; no orders, sizing, lifecycle, or strategy-policy changes.
-

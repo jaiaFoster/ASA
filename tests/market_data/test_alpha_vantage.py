@@ -7,6 +7,7 @@ from decimal import Decimal
 import pytest
 
 from domain import (
+    AdjustedCloseBasis,
     CanonicalInstrumentIdentity,
     EarningsEvent,
     EvidenceKind,
@@ -141,6 +142,38 @@ def test_daily_bars_use_compact_raw_documented_endpoint_and_decimal_values() -> 
     query = dict(transport.requests[0].query)
     assert query["function"] == "TIME_SERIES_DAILY" and query["outputsize"] == "compact"
     assert "test-key" not in repr(transport.requests[0])
+
+
+def test_adjusted_history_uses_adjusted_full_endpoint_and_preserves_basis() -> None:
+    body = {
+        "Time Series (Daily)": {
+            "2026-07-20": {
+                "1. open": "205.00",
+                "2. high": "212",
+                "3. low": "204",
+                "4. close": "210",
+                "5. adjusted close": "209.50",
+                "6. volume": "50000000",
+            }
+        }
+    }
+    transport = Transport((response(body),))
+    adapter, _ = provider(transport)
+    result = adapter.fetch(
+        request(MarketCapability.HISTORICAL_BARS_V1, ("adjusted_close",)), authorization()
+    )
+
+    assert result.error is None
+    value = result.observations[0].value
+    assert isinstance(value, OHLCVSeries)
+    assert value.bars[0].adjusted_close == Decimal("209.50")
+    assert (
+        value.bars[0].adjusted_close_basis
+        is AdjustedCloseBasis.SPLIT_AND_DIVIDEND_ADJUSTED
+    )
+    query = dict(transport.requests[0].query)
+    assert query["function"] == "TIME_SERIES_DAILY_ADJUSTED"
+    assert query["outputsize"] == "full"
 
 
 def test_quarterly_earnings_json_normalizes_reported_event() -> None:
