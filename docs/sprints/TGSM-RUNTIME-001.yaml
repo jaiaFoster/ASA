@@ -1,0 +1,125 @@
+---
+id: TGSM-RUNTIME-001
+version: "1.0"
+title: Trend-Gated Sector Momentum Runtime
+status: AUTHORIZED_PENDING_FOUNDER_MERGE
+type: IMPLEMENTATION_SPRINT
+risk_class: R3
+baseline_commit: 0536a7d4e66e9a6242d1cb3fe1caaf2c7de0e3e6
+
+activation:
+  id: AMD-013-TGSM-RUNTIME-001-V1.0
+  governance_amendment: GOV-AMD-001-013
+  founder_authorized: true
+  founder_direction: >
+    Implement S001 Trend-Gated Sector Momentum through ASA's existing
+    subject-first, immutable-fact runtime without changing its research
+    semantics, adding a parallel data/runtime authority, or introducing broker
+    execution.
+  effective_when: this artifact is Founder-merged to the default branch
+  delegate: {role: ROLE-WORKER, instance: implementation-worker}
+  limited_to_sprint: TGSM-RUNTIME-001
+  approved_tickets: [S001-01, S001-02, S001-03, S001-04, S001-05, S001-06]
+  expires:
+    - sprint_complete
+    - sprint_stopped
+    - Founder_revokes_delegation
+    - scope_or_authority_changes
+
+deployment_authority: Founder_only
+broker_execution_authority: none
+
+objective: >
+  Implement a deterministic, provider-blind S001 strategy over point-in-time
+  eligible U.S. sector ETFs, canonical total-return evidence, reusable
+  versioned momentum and trend facts, deterministic cross-sectional ranking,
+  three equal target sleeves, canonical defensive substitution, immutable
+  provenance, persistence, and provider-free replay.
+
+frozen_semantics:
+  strategy: {id: S001, version: "1.0.0", name: Trend-Gated Sector Momentum}
+  universe: point_in_time_eligible_US_sector_ETFs
+  momentum: trailing_12_month_total_return
+  ranking: descending
+  trend: eligible_total_return_equivalent_observation_strictly_above_completed_period_SMA10M
+  selection: top_3_ranked_candidates
+  portfolio: three_equal_one_third_sleeves
+  failed_selected_sleeve: canonical_3_month_Treasury_total_return_research_asset
+  failed_sleeves_redistributed: false
+  rebalance: monthly
+  effective: no_earlier_than_next_eligible_session_after_finalized_month_end_evidence
+  leverage: none
+  shorting: none
+  optimization: none
+  unknown_evidence: typed_unknown_without_fabricated_allocation
+
+architecture:
+  flow:
+    - declared_strategy_requirements
+    - generic_subject_planning
+    - provider_acquisition
+    - sealed_snapshots
+    - canonical_facts
+    - named_versioned_derived_facts
+    - generic_cross_sectional_decision_context
+    - strategy_interpretation
+    - immutable_target_allocation_decision
+    - persistence_and_provider_free_replay
+  invariants:
+    - strategies_are_provider_blind
+    - canonical_facts_precede_derived_facts
+    - acquisition_and_runtime_never_branch_on_strategy_id
+    - adjustment_and_total_return_semantics_are_explicit
+    - unknown_is_never_ranked_as_an_economic_loss
+    - selected_trend_failure_routes_only_its_own_sleeve_to_defensive
+    - no_silent_fallback_or_structure_substitution
+    - no_option_resolver_or_broker_mutation
+
+tickets:
+  S001-01: {title: Preserve and Audit, gate: 1}
+  S001-02: {title: Evidence and Universe, gate: 2}
+  S001-03: {title: Cross-Sectional Decision, gate: 3}
+  S001-04: {title: S001 Composition, gate: 4}
+  S001-05: {title: Target Decision and Ledger, gate: 5}
+  S001-06: {title: Regression and Closure, gate: 6}
+
+execution_policy:
+  sequential_and_mainline_first: true
+  each_gate_must_merge_and_verify_before_next: true
+  root_cause_corrections_remain_with_active_ticket: true
+  continue_autonomously_while_delegation_active: true
+  deployment_requires_separate_Founder_authorization: true
+
+merge_policy:
+  activation_merge_authority: Founder_only
+  implementation_merge_authority: active_Amendment_013_delegate
+  branch_protection_bypass: prohibited
+  before_every_delegated_merge:
+    - ticket_and_assigned_Worker_recorded
+    - prior_required_gate_merged
+    - required_CI_green
+    - architecture_validation_green
+    - deterministic_replay_validation_green
+    - immutable_contract_validation_green
+    - deterministic_identity_validation_green
+    - integrity_validation_green
+    - R3_independent_review_and_architect_approval_recorded
+    - Worker_self_review_complete
+    - Manager_stop_status_CLEAR
+    - no_unresolved_blocker_or_scope_authority_violation
+
+stop_conditions:
+  - frozen_S001_semantics_require_change
+  - planned_architecture_requires_material_redesign
+  - required_total_return_evidence_cannot_be_represented_truthfully
+  - required_external_entitlement_or_Founder_only_action
+  - scope_governance_risk_or_authority_expansion
+  - broker_mutation_or_destructive_action_required
+
+out_of_scope:
+  - TGSM_RESEARCH_campaigns_or_parameter_optimization
+  - generalized_transaction_cost_or_feature_platform
+  - ML_or_LLM_infrastructure
+  - broker_orders_or_execution
+  - stock_lifecycle_sizing_or_allocation_optimization
+  - new_provider_or_parallel_market_data_runtime
