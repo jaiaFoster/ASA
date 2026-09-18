@@ -1,6 +1,6 @@
 ---
 id: TGSM-RUNTIME-001
-version: "1.0"
+version: "1.1"
 title: Trend-Gated Sector Momentum Runtime
 status: AUTHORIZED_PENDING_FOUNDER_MERGE
 type: IMPLEMENTATION_SPRINT
@@ -10,6 +10,7 @@ baseline_commit: 0536a7d4e66e9a6242d1cb3fe1caaf2c7de0e3e6
 activation:
   id: AMD-013-TGSM-RUNTIME-001-V1.0
   governance_amendment: GOV-AMD-001-013
+  merge_gate_exception: GOV-AMD-001-015
   founder_authorized: true
   founder_direction: >
     Implement S001 Trend-Gated Sector Momentum through ASA's existing
@@ -103,10 +104,20 @@ merge_policy:
     - immutable_contract_validation_green
     - deterministic_identity_validation_green
     - integrity_validation_green
-    - R3_independent_review_and_architect_approval_recorded
+    - R3_independent_review_and_architect_approval_recorded_for_S001_01_through_S001_03
+    - Amendment_015_effective_for_S001_04_through_S001_06_or_prior_R3_gate_applies
     - Worker_self_review_complete
     - Manager_stop_status_CLEAR
     - no_unresolved_blocker_or_scope_authority_violation
+
+  architect_escalation: >
+    Before proceeding on an affected path, require Architect review when
+    repository evidence reveals material architectural incompatibility, a new
+    authority or subsystem, canonical ownership or frozen-contract change,
+    strategy-ID branching, source-of-truth change, materially changed schema
+    semantics or migration blast radius, increased risk, or out-of-sprint scope.
+    Ordinary in-scope implementation requires no per-PR Architect approval
+    only after Amendment 015 is effective.
 
 stop_conditions:
   - frozen_S001_semantics_require_change
