@@ -113,6 +113,26 @@ def test_founder_sprint_delegation_preserves_governance_guards():
     assert "Founder remains the sole merge authority" in amendment
 
 
+def test_tgsm_merge_gate_exception_is_bounded_and_not_self_effective():
+    register = (REPO_ROOT / "governance/amendments/GOV-AMD-001.md").read_text()
+    amendment = register.split("# Amendment 015", maxsplit=1)[1].split(
+        "## 12. Open Questions", maxsplit=1
+    )[0]
+    sprint = yaml.safe_load(
+        (REPO_ROOT / "docs/sprints/TGSM-RUNTIME-001.yaml").read_text()
+    )
+    assert "S001-04, S001-05, S001-06" in amendment
+    assert "explicit Founder approval" in amendment
+    assert "independent review" in amendment
+    assert "structural review" in amendment
+    assert "Founder merge" in amendment
+    assert "no deployment" in amendment
+    assert "Architect review remains mandatory" in amendment
+    assert sprint["activation"]["merge_gate_exception"] == "GOV-AMD-001-015"
+    gates = sprint["merge_policy"]["before_every_delegated_merge"]
+    assert "Amendment_015_effective_for_S001_04_through_S001_06_or_prior_R3_gate_applies" in gates
+
+
 def test_sprint_delegation_names_scope_and_required_gates():
     sprint = yaml.safe_load((REPO_ROOT / "docs/sprints/SPRINT-001.yaml").read_text())
     delegation = sprint["execution"]["authority"]["merge_delegation"]

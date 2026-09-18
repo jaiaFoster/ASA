@@ -546,6 +546,40 @@ separate Independent/Structural/Constitutional Review records, acceptance criter
 
 ---
 
+# Amendment 015
+
+## TGSM-RUNTIME-001 Merge-Gate Correction
+
+| Field | Value |
+|---|---|
+| `amendment_id` | 015 |
+| `status` | Accepted *(effective only after independent and structural review, explicit Founder approval, and Founder merge to the default branch)* |
+| `proposer` | Founder |
+| `date` | 2026-09-18 |
+| `risk_class` | R4 — MAJOR, narrowly changes the RISK-001 §10.1 R3 review and approval floor for the remaining enumerated TGSM-RUNTIME-001 implementation work |
+| `applies_to` | RISK-001 §10.1–§12; GOV-AMD-001 Amendment 013; TGSM-RUNTIME-001 activation |
+| `binding_scope` | Model A — accepted-on-entry (§0.1), subject to the effectiveness conditions above |
+
+### Reason and prior rule
+
+The activated TGSM-RUNTIME-001 sprint requires independent R3 review and Architect approval before **every** delegated implementation merge. RISK-001 §10.1 requires those controls for each R3 unit, and Amendment 013 delegates only the mechanical merge action while preserving that floor. This made the Architect a routine per-PR semaphore despite the Founder's continuous-execution direction. S001-01 through S001-03 were merged under the prior rule; their reviews and approvals remain historical truth.
+
+### Narrow amendment
+
+For **only** S001-04, S001-05, S001-06, and corrective implementation PRs attached to those tickets under the active TGSM-RUNTIME-001 Founder Sprint Delegation, routine in-scope implementation may proceed to delegated merge without a separate independent R3 review or Architect approval per PR. This is an explicit, limited exception to those two RISK-001 §10.1 R3 cells and the corresponding §11–§12 elaborations; it does not reclassify the work or silently claim that the original floor was met.
+
+Before each such merge, the assigned Worker must record self-review, demonstrate required CI and architecture/immutable-contract/deterministic-identity/replay/integrity validation, confirm the planned architecture and frozen S001 semantics remain satisfied, confirm no scope/authority/risk expansion or unresolved blocker, and obey Amendment 013's remaining conditions and branch protection. Merge is followed by exact-main verification and immediate continuation.
+
+Architect review remains mandatory **before proceeding on the affected path** if repository evidence shows material architectural incompatibility, a new authority or subsystem, ownership transfer, frozen contract/invariant change, strategy-ID branching, source-of-truth change, material canonical-schema change, increased risk, materially larger migration blast radius, or scope outside TGSM-RUNTIME-001. Independent and structural review of **this R4 amendment** remain mandatory. Any decision beyond Architect authority returns to the Founder. The Worker must continue independent in-scope work when isolation is safe.
+
+This amendment delegates no deployment, broker mutation, governance merge, scope expansion, S001 semantic change, risk reclassification, or successor research work. Amendment 013's expiry and Founder revocation rules remain unchanged. It applies prospectively only from its effective merge commit; it does not rewrite S001-01–03 or authorize PR #430 retroactively.
+
+### Acceptance, regression, and reversion
+
+This entry requires explicit Founder approval, independent review, structural review, governance/POS validation, and Founder merge. The review must address the deliberate, TGSM-only R3 review/approval-floor exception and verify that all other R3 controls and Amendment 013 conditions remain intact. A proposed or unreviewed entry grants no exception. The Founder may revoke the active sprint delegation immediately. Permanent reversion of this accepted exception requires a superseding Founder-approved amendment; sprint completion also ends its applicability automatically.
+
+---
+
 ## 12. Open Questions
 
 - **OQ-12.1:** §0.5.1's numeric promotion threshold ("every ten `Accepted` amendments, or annually") is a placeholder pending Founder decision; no evidence in the reviewed corpus fixes this number, and it should be set deliberately rather than defaulted.
