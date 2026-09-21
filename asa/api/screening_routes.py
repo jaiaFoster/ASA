@@ -95,6 +95,7 @@ from strategy_runtime.persistence import (
 from strategy_runtime.preparation_diagnostics import classify_subject_preparation_exception
 from strategy_runtime.registry import StrategyRegistry
 from strategy_runtime.result import EvaluationState, UniversalScreeningResult
+from strategy_runtime.result_freshness import project_current_result_freshness
 from strategy_runtime.service import get_state, record_opportunity_observation
 
 DEFAULT_LIMIT = 100
@@ -172,20 +173,11 @@ def _filter_and_sort(
         and (status is None or item.recommendation_state == status)
         and (
             freshness is None
-            or (
-                (
-                    "fresh"
-                    if item.temporal.usability_status in {"usable", "usable_with_warning"}
-                    else "stale"
-                )
-                if item.temporal is not None
-                else (
-                    "fresh"
-                    if max(0, int((now - item.observed_at).total_seconds()))
-                    <= FRESHNESS_THRESHOLD_SECONDS
-                    else "stale"
-                )
-            )
+            or project_current_result_freshness(
+                item,
+                as_of=now,
+                fallback_threshold_seconds=FRESHNESS_THRESHOLD_SECONDS,
+            ).display_freshness
             == freshness
         )
     )

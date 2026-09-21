@@ -9,7 +9,7 @@ timestamped").
 
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -20,6 +20,7 @@ from strategy_runtime.executable_structures import ExecutableStructureAssessment
 from strategy_runtime.lifecycle import OpportunityHistory, OpportunityObservation
 from strategy_runtime.modeled_pnl import ModeledPnLSurface
 from strategy_runtime.result import EvaluationState, UniversalScreeningResult
+from strategy_runtime.result_freshness import project_current_result_freshness
 
 # SPRINT-009R/EPIC-R5: the public wire vocabulary predates strategy_runtime and must not
 # change under callers -- EvaluationState.ADAPTER_EXCEPTION is the same execution-level
@@ -188,9 +189,17 @@ class ScreeningResultResponse(TimestampedResource):
     input_time_skew_seconds: int = Field(ge=0, default=0)
 
     @classmethod
-    def from_universal_result(cls, result: UniversalScreeningResult) -> ScreeningResultResponse:
+    def from_universal_result(
+        cls,
+        result: UniversalScreeningResult,
+        *,
+        now: datetime | None = None,
+    ) -> ScreeningResultResponse:
         """Build the public response from the canonical universal result."""
         temporal = result.temporal
+        current_freshness = project_current_result_freshness(
+            result, as_of=now or datetime.now(UTC)
+        )
         observed_at = temporal.observed_at if temporal is not None else result.observed_at
         subject_snapshot_at = (
             temporal.subject_snapshot_at if temporal is not None else result.observed_at
@@ -198,16 +207,8 @@ class ScreeningResultResponse(TimestampedResource):
         received_at = temporal.received_at if temporal is not None else result.observed_at
         evaluated_at = temporal.evaluated_at if temporal is not None else result.observed_at
         persisted_at = temporal.persisted_at if temporal is not None else result.observed_at
-        canonical_age = (
-            temporal.age_seconds
-            if temporal is not None
-            else TimestampedResource.age_seconds_since(observed_at)
-        )
-        freshness_status = (
-            temporal.freshness_status
-            if temporal is not None
-            else ("live" if canonical_age <= 86_400 else "stale")
-        )
+        canonical_age = current_freshness.age_seconds
+        freshness_status = current_freshness.freshness_status
         return cls(
             signal_id=result.strategy_id,
             signal_version=result.strategy_version,
@@ -232,9 +233,7 @@ class ScreeningResultResponse(TimestampedResource):
             lifecycle_stage=result.lifecycle_stage,
             status=result.recommendation_state,
             data_quality=result.data_quality,
-            freshness=(
-                "fresh" if freshness_status in {"fresh", "live", "prior_session"} else "stale"
-            ),
+            freshness=current_freshness.display_freshness,
             economics=_wire_values(
                 {key: value.native() for key, value in result.economics.items()}
             ),
