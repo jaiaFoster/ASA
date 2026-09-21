@@ -580,6 +580,113 @@ This entry requires explicit Founder approval, independent review, structural re
 
 ---
 
+# Amendment 016
+
+## ASA-RELIABILITY-RESEARCH-001 Merge-Gate Exception
+
+| Field | Value |
+|---|---|
+| `amendment_id` | 016 |
+| `status` | Accepted *(effective only after independent and structural review, explicit Founder approval, and Founder merge to the default branch)* |
+| `proposer` | Founder |
+| `date` | 2026-09-21 |
+| `risk_class` | R4 — MAJOR, narrowly changes the RISK-001 §10.1 R3 review, approval, and verification floor for enumerated ASA-RELIABILITY-RESEARCH-001 work |
+| `applies_to` | RISK-001 §10.1–§12; GOV-AMD-001 Amendment 013; ASA-RELIABILITY-RESEARCH-001 activation |
+| `binding_scope` | Model A — accepted-on-entry (§0.1), subject to the effectiveness conditions above |
+
+### Reason and prior rule
+
+RISK-001 §10.1 requires independent review, Architect approval, and Independent
+Reviewer verification for each R3 unit. Amendment 013 delegates only the
+mechanical merge action and preserves that floor. The Founder authorized one bounded reliability-and-research sprint
+with continuous execution and exception-driven architecture review; without
+this amendment, that implementation merge policy conflicts with the existing
+R3 floor. Amendment 015 cannot supply the exception because it was limited to
+completed TGSM-RUNTIME-001 tickets and expired with that sprint.
+
+### Narrow amendment
+
+For only REL-01 through REL-05, RES-01 through RES-08, and corrective
+implementation PRs strictly required to satisfy an original enumerated ticket's
+acceptance criteria under the active
+ASA-RELIABILITY-RESEARCH-001 Founder Sprint Delegation, routine in-scope work
+may proceed to delegated merge without separate independent R3 review or
+Architect approval per PR, and without Independent Reviewer verification per PR.
+This is an explicit, limited exception to the RISK-001 §10.1 R3 Review,
+Approval, and Verification cells and the corresponding §11–§13 elaborations.
+It does not reclassify the work or lower any other evidence, safety, merge, or
+deployment requirement.
+
+For those three excepted cells, the replacement control is recorded Worker
+self-review plus deterministic repository verification: required CI,
+architecture, integrity, immutable-contract, deterministic-identity, and replay
+checks as applicable to the ticket. Before each merge, the Worker records that
+evidence, preserves frozen strategy and authority boundaries, confirms no
+scope/authority/risk expansion or unresolved blocker, and obeys Amendment 013's
+remaining conditions and branch protection. Each merge is followed by
+exact-main verification and continued execution. Missing, skipped, unavailable,
+or failing required verification blocks delegated merge.
+
+Architect review remains mandatory before proceeding on an affected path if
+repository evidence shows material architectural incompatibility, a new
+authority or subsystem, ownership transfer, frozen contract or strategy change,
+strategy-ID branching, source-of-truth change, material canonical-schema or
+migration expansion, increased risk, or work outside the activated sprint.
+Independent work continues when isolation is safe.
+
+This amendment delegates no deployment, broker mutation, governance merge,
+paid-provider purchase or integration, scope expansion, S001 semantic change,
+risk reclassification, or successor work. It applies prospectively only after
+its effective Founder merge and expires with the sprint delegation.
+
+### Acceptance, regression, and reversion
+
+This entry requires explicit Founder approval, Independent Review, Structural
+Review, governance/POS validation, and Founder merge. Review must verify the
+exception is limited to the enumerated sprint work, that the replacement
+verification control is explicit, and that all other R3 and Amendment 013
+controls remain intact. A proposed or unreviewed entry grants no
+exception. Founder may revoke the delegation immediately; permanent reversion
+requires a superseding Founder-approved amendment, while sprint completion ends
+this exception automatically.
+
+#### Review Record GOV-AMD-001-016-IR-001
+
+| Field | Value |
+|---|---|
+| `review_id` | GOV-AMD-001-016-IR-001 |
+| `subject` | GOV-AMD-001 Amendment 016 and ASA-RELIABILITY-RESEARCH-001 v1.0 activation |
+| `reviewer` | `/root/amd016_review` |
+| `reviewer_role` | independent structural reviewer |
+| `date` | 2026-09-21 |
+| `independence` | Reviewer neither authored nor assigned the amendment or sprint artifact |
+| `risk_class` | R4 — MAJOR |
+| `independent_review` | Approved |
+| `structural_review` | Approved |
+
+The reviewer inspected RISK-001, RES-001, RES-002, Amendments 013, 015, and
+016, the shared authority boundaries, ASA-RELIABILITY-RESEARCH-001, and the
+Amendment-016 governance regression test. Amendment 016 expressly and narrowly
+excepts the R3 Review, Approval, and Verification cells only for the enumerated
+sprint tickets and corrective implementation strictly required by their
+original acceptance criteria. It replaces those controls with recorded Worker
+self-review and deterministic repository verification, blocks delegated merge
+when required verification is missing, skipped, unavailable, or failing, and
+preserves all other R3 and Amendment 013 controls.
+
+The activation is prospective, Founder-authorized, sprint-bound, revocable,
+and expiring. It grants no deployment, broker mutation, governance merge,
+paid-provider integration, scope expansion, semantic change, risk
+reclassification, or successor-work authority. Architect escalation remains
+mandatory for the stated architectural, contract, source-of-truth,
+schema/migration, risk, and scope triggers. Regression evidence passed: 34
+authority-integrity tests and all five pre-push checks. Independent and
+structural review therefore PASS. Effectiveness remains conditioned on explicit
+Founder approval and Founder merge of the amendment, sprint artifact, and this
+review record to the default branch.
+
+---
+
 ## 12. Open Questions
 
 - **OQ-12.1:** §0.5.1's numeric promotion threshold ("every ten `Accepted` amendments, or annually") is a placeholder pending Founder decision; no evidence in the reviewed corpus fixes this number, and it should be set deliberately rather than defaulted.

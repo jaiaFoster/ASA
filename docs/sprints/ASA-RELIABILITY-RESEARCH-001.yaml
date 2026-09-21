@@ -1,0 +1,97 @@
+---
+id: ASA-RELIABILITY-RESEARCH-001
+version: "1.0"
+title: Reliability and TGSM Research
+status: AUTHORIZED_PENDING_GOVERNANCE_ACTIVATION
+type: IMPLEMENTATION_AND_RESEARCH_SPRINT
+risk_class: R3
+baseline_commit: e273ce226498f6084579b88eaef3b3b7fe2c7597
+
+activation:
+  id: AMD-013-ASA-RELIABILITY-RESEARCH-001-V1.0
+  governance_amendment: GOV-AMD-001-013
+  merge_gate_exception: GOV-AMD-001-016
+  founder_authorized: true
+  founder_authorized_at: "2026-09-21"
+  effective_when: this artifact and Amendment 016 are Founder-merged to the default branch
+  delegate: {role: ROLE-WORKER, instance: implementation-worker}
+  approved_tickets: [REL-01, REL-02, REL-03, REL-04, REL-05, RES-01, RES-02, RES-03, RES-04, RES-05, RES-06, RES-07, RES-08]
+  expires: [both_workstreams_complete, sprint_stopped, Founder_revokes_delegation, scope_or_authority_changes]
+
+deployment_authority: Founder_only
+broker_execution_authority: none
+
+objective: >
+  Make production data freshness, availability, and missingness truthful and
+  measurable, determine whether external data materially limits ASA, and
+  evaluate frozen S001 through preregistered reproducible historical research
+  without changing production strategy semantics.
+
+workstreams:
+  DATA-RELIABILITY-001:
+    tickets: [REL-01, REL-02, REL-03, REL-04, REL-05]
+  TGSM-RESEARCH-001:
+    tickets: [RES-01, RES-02, RES-03, RES-04, RES-05, RES-06, RES-07, RES-08]
+
+invariants:
+  - production_S001_semantics_are_frozen
+  - strategies_are_provider_blind
+  - canonical_facts_precede_derived_facts
+  - one_market_data_authority
+  - immutable_sealed_evidence
+  - named_versioned_derived_facts
+  - unknown_never_becomes_affirmative_evidence
+  - no_silent_fallback
+  - no_strategy_id_runtime_branches
+  - deterministic_identity_and_replay
+  - no_duplicate_S001_implementation
+  - no_broker_mutation
+
+execution_policy:
+  parallel_start: [REL-01, RES-01]
+  mainline_first: true
+  root_cause_only: true
+  continuous_execution: true
+  merge_is_not_a_pause_point: true
+  negative_or_data_limited_research_is_valid: true
+
+merge_policy:
+  activation_merge_authority: Founder_only
+  implementation_merge_authority: active_Amendment_013_delegate
+  branch_protection_bypass: prohibited
+  Amendment_016_required: true
+  before_every_delegated_merge:
+    - ticket_is_enumerated_and_in_scope
+    - Worker_self_review_complete
+    - required_CI_tests_architecture_and_integrity_green
+    - deterministic_identity_and_replay_green_where_applicable
+    - no_scope_authority_risk_or_frozen_contract_expansion
+    - no_unresolved_real_blocker
+
+architect_escalation: >
+  Review is exception-driven for a new authority or subsystem, ownership
+  transfer, frozen-contract change, strategy-ID branch, source-of-truth change,
+  material schema or migration expansion, increased risk, or out-of-scope work.
+
+stop_conditions:
+  - frozen_S001_semantics_require_change
+  - governance_scope_or_risk_expansion
+  - material_architecture_outside_the_approved_plan
+  - new_paid_provider_purchase_or_integration
+  - unavailable_external_entitlement_requiring_Founder_action
+  - deployment_or_other_Founder_only_action
+  - broker_or_destructive_action
+
+out_of_scope:
+  - production_S001_changes_or_historical_optimization
+  - generalized_research_or_observability_platform
+  - new_strategies_or_options_strategies
+  - cross_strategy_capital_budgeting_or_target_to_order_conversion
+  - broker_orders_or_mutation
+  - paid_provider_purchase_or_integration
+  - deployment_authority_expansion
+
+completion: >
+  CLOSED only when both workstreams close on exact merged main with truthful
+  data attribution, evidence-qualified preregistered research, deterministic
+  replay, full validation, and no silent fallback or broker mutation.
