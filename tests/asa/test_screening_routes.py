@@ -13,7 +13,7 @@ from pydantic import SecretStr
 from asa.bootstrap import DependencyOverrides, build_application
 from asa.config import Settings
 from strategy_runtime.persistence import UniversalSignalRow
-from strategy_runtime.result import EvaluationState, RowType
+from strategy_runtime.result import EvaluationState, ResultTemporalMetadata, RowType
 from strategy_runtime.values import TypedValue
 from tests.asa.fakes import InMemoryLatestResultRepository
 
@@ -32,6 +32,7 @@ def _record(
     score: Decimal = Decimal("75"),
     verdict: str | None = "PASS",
     blockers: tuple[str, ...] = ("capital unavailable",),
+    temporal: ResultTemporalMetadata | None = None,
 ) -> UniversalSignalRow:
     return UniversalSignalRow(
         signal_id=signal_id,
@@ -51,6 +52,7 @@ def _record(
         warnings=("monitor liquidity",),
         provenance=("fixture:screening",),
         observed_at=observed_at,
+        temporal=temporal,
     )
 
 
@@ -447,6 +449,45 @@ class TestListScreening:
         )
         assert [item["symbol"] for item in fresh.json()["results"]] == ["AAPL"]
         assert [item["symbol"] for item in stale.json()["results"]] == ["MSFT"]
+
+    def test_freshness_filter_rejects_prior_session_even_when_stored_age_is_small(
+        self,
+    ) -> None:
+        observed = datetime(2026, 9, 18, 19, 55, tzinfo=UTC)
+        temporal = ResultTemporalMetadata(
+            subject_snapshot_at=observed,
+            observed_at=observed,
+            received_at=observed,
+            evaluated_at=observed,
+            persisted_at=datetime.now(UTC),
+            market_session_date=observed.date(),
+            market_session_status="open",
+            age_seconds=30,
+            last_refresh_attempt_at=datetime.now(UTC),
+            last_successful_refresh_at=datetime.now(UTC),
+            next_refresh_at=None,
+            data_advanced_on_last_refresh=False,
+            freshness_status="live",
+            usability_status="usable",
+            usability_reason="stored decision",
+            warning_codes=(),
+            acquisition_started_at=observed,
+            acquisition_completed_at=observed,
+            input_time_skew_seconds=0,
+        )
+        repository = InMemoryLatestResultRepository()
+        repository.upsert(_record("forward_factor", "AAPL", temporal=temporal))
+
+        fresh = _client(repository).get(
+            "/api/v1/screening", headers=_auth(), params={"freshness": "fresh"}
+        )
+        stale = _client(repository).get(
+            "/api/v1/screening", headers=_auth(), params={"freshness": "stale"}
+        )
+
+        assert fresh.json()["results"] == []
+        assert [item["symbol"] for item in stale.json()["results"]] == ["AAPL"]
+        assert stale.json()["results"][0]["age_seconds"] > 3600
 
     def test_numeric_metric_sort_is_deterministic_and_missing_values_are_last(self) -> None:
         repository = InMemoryLatestResultRepository()
