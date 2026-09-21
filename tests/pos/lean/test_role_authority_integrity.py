@@ -133,6 +133,42 @@ def test_tgsm_merge_gate_exception_is_bounded_and_not_self_effective():
     assert "Amendment_015_effective_for_S001_04_through_S001_06_or_prior_R3_gate_applies" in gates
 
 
+def test_reliability_research_merge_gate_exception_is_bounded_and_not_self_effective():
+    register = (REPO_ROOT / "governance/amendments/GOV-AMD-001.md").read_text()
+    amendment = register.split("# Amendment 016", maxsplit=1)[1].split(
+        "## 12. Open Questions", maxsplit=1
+    )[0]
+    sprint = yaml.safe_load(
+        (REPO_ROOT / "docs/sprints/ASA-RELIABILITY-RESEARCH-001.yaml").read_text()
+    )
+
+    assert "REL-01 through REL-05, RES-01 through RES-08" in amendment
+    assert "original enumerated ticket's" in amendment
+    assert "Review," in amendment
+    assert "Approval, and Verification cells" in amendment
+    assert "Worker\nself-review plus deterministic repository verification" in amendment
+    assert "explicit Founder approval" in amendment
+    assert "Independent Review" in amendment
+    assert "structural review" in amendment.lower()
+    assert "Founder merge" in amendment
+    assert "delegates no deployment" in amendment
+    assert "Architect review remains mandatory" in amendment
+    assert "expires with the sprint delegation" in amendment
+
+    activation = sprint["activation"]
+    assert activation["merge_gate_exception"] == "GOV-AMD-001-016"
+    assert activation["effective_when"].startswith("this artifact and Amendment 016")
+    assert set(activation["approved_tickets"]) == {
+        "REL-01", "REL-02", "REL-03", "REL-04", "REL-05",
+        "RES-01", "RES-02", "RES-03", "RES-04", "RES-05", "RES-06",
+        "RES-07", "RES-08",
+    }
+    assert sprint["deployment_authority"] == "Founder_only"
+    assert sprint["broker_execution_authority"] == "none"
+    assert sprint["merge_policy"]["Amendment_016_required"] is True
+    assert "both_workstreams_complete" in activation["expires"]
+
+
 def test_sprint_delegation_names_scope_and_required_gates():
     sprint = yaml.safe_load((REPO_ROOT / "docs/sprints/SPRINT-001.yaml").read_text())
     delegation = sprint["execution"]["authority"]["merge_delegation"]
