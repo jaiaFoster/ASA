@@ -1,0 +1,69 @@
+{
+  "artifact_identity": "sha256:9d26184530d6a66ca4b107c54f695e7dbce54e49970bb7fab66338cb1dc35a45",
+  "artifact_type": "tgsm_evidence_qualification",
+  "artifact_version": "1.0.0",
+  "base_main_sha": "c25292eb5357cd1c4071b95b3c853197d0cd3ab7",
+  "classification": "DATA_LIMITED",
+  "qualified_test_period": null,
+  "s001": {
+    "strategy_id": "S001",
+    "strategy_version": "1.0.0",
+    "implementation_manifest_algorithm": "sha256 of ordered UTF-8 path, LF, then git blob bytes for the runtime manifest paths documented by TGSM-RUNTIME-001",
+    "implementation_manifest_sha256": "260e4e046cabe96a50a15a690f316eb3ee133351c8fbd71f0b491eed5ef38573"
+  },
+  "requirements": [
+    {
+      "id": "point_in_time_sector_eligibility",
+      "status": "data_limited",
+      "available": "Current Select Sector membership and instrument inception boundaries are represented in screening/universe_membership.py.",
+      "gap": "No immutable authoritative historical membership snapshots are sealed in the repository; current membership cannot be projected backward as historical membership."
+    },
+    {
+      "id": "sector_and_spy_total_return_history",
+      "status": "data_limited",
+      "available": "The canonical adjusted-history contract and fixture calculations reject raw or split-only evidence.",
+      "gap": "No sealed historical split-and-dividend-adjusted corpus exists for all sector ETFs and SPY, and the available Alpha Vantage path has an unresolved adjusted-history entitlement limitation."
+    },
+    {
+      "id": "completed_month_observations_and_12m_momentum",
+      "status": "implementation_qualified_data_limited",
+      "available": "trailing_12m_total_return@1.0.0 deterministically consumes thirteen completed month-end total-return-capable observations.",
+      "gap": "There is no qualified sealed production evidence corpus on which to run the calculation historically."
+    },
+    {
+      "id": "completed_month_10m_trend",
+      "status": "implementation_qualified_data_limited",
+      "available": "sma_10m_completed_months@1.0.0 has deterministic completed-period semantics.",
+      "gap": "There is no qualified sealed total-return-equivalent historical evidence corpus."
+    },
+    {
+      "id": "three_month_treasury_total_return",
+      "status": "data_limited",
+      "available": "The canonical research identity research_asset:us_3_month_treasury_total_return and fail-closed decision boundary exist.",
+      "gap": "No canonical source, acquisition path, or sealed return series exists; ETF, cash, and raw-yield substitution are prohibited."
+    },
+    {
+      "id": "historical_trading_calendar_and_next_session",
+      "status": "data_limited",
+      "available": "UsEquitySessionCalendar supplies deterministic modern session rules and next-session timing.",
+      "gap": "No sealed authoritative historical exchange calendar covers exceptional closures and historical rule changes for a result-bearing period."
+    },
+    {
+      "id": "required_benchmarks",
+      "status": "data_limited",
+      "available": "Benchmark definitions can be preregistered without observing results.",
+      "gap": "SPY, equal-weight sector, and defensive benchmark return evidence share the missing sealed total-return and Treasury evidence gaps."
+    }
+  ],
+  "permitted_conclusions": [
+    "Production S001 interpretation, target allocation, deterministic identity, and replay can be tested with synthetic fixtures.",
+    "A preregistration and minimal experiment contract can be frozen without observing result-bearing output."
+  ],
+  "prohibited_conclusions": [
+    "No H1-H5 empirical assessment is supported.",
+    "No baseline, ablation, robustness, OOS, return, volatility, drawdown, turnover, or performance comparison is supported.",
+    "Adjusted close must not be relabeled as a total-return index without qualified source semantics.",
+    "Current sector membership must not be projected backward before authoritative membership evidence exists."
+  ],
+  "result_bearing_experiments_authorized": false
+}
