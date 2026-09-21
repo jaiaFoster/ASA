@@ -263,8 +263,7 @@ def test_default_scheduled_cycle_uses_bounded_sp500_cohort(
     assert subject_claims.batch_attempted_at == slot.scheduled_at
     assert subject_claims.batch_result == (90, 0, 0)
     expanded_symbol = next(
-        symbol for symbol in subject_claims.last_claimed
-        if symbol not in APPROVED_LIVE_UNIVERSE
+        symbol for symbol in subject_claims.last_claimed if symbol not in APPROVED_LIVE_UNIVERSE
     )
     skew = repository.get_one("skew_momentum", expanded_symbol)
     assert skew is not None
@@ -1501,6 +1500,15 @@ def test_duplicate_provider_earnings_cannot_destroy_sibling_strategy_preparation
     monkeypatch.setenv("ASA_TRADIER_ENABLED", "true")
     monkeypatch.setenv("ASA_TRADIER_ACCESS_TOKEN", "sandbox-secret-token")
     repository = InMemoryLatestResultRepository()
+
+    class CaptureReadiness:
+        def __init__(self) -> None:
+            self.artifacts = []
+
+        def put_execution_readiness(self, artifact) -> None:
+            self.artifacts.append(artifact)
+
+    readiness = CaptureReadiness()
     caplog.set_level(logging.WARNING)
 
     outcomes = run_scheduled_refresh(
@@ -1512,6 +1520,7 @@ def test_duplicate_provider_earnings_cannot_destroy_sibling_strategy_preparation
         repository=repository,
         acquisition_attempt_repository=InMemoryAcquisitionAttemptRepository(),
         historical_skew_repository=_RecordingHistoricalSkewRepository(),
+        portfolio_lifecycle_repository=readiness,  # type: ignore[arg-type]
     )
 
     assert len(outcomes) == 3
@@ -1519,6 +1528,14 @@ def test_duplicate_provider_earnings_cannot_destroy_sibling_strategy_preparation
     forward = repository.get_one("forward_factor", "CPRT")
     skew = repository.get_one("skew_momentum", "CPRT")
     assert forward is not None and forward.evaluation_state != "missing_data"
+    assert forward.metrics["decision.earnings_clearance"].encoded == "unknown_unconfirmed"
+    assert "earnings readiness unresolved: unknown_unconfirmed" in forward.warnings
+    forward_readiness = next(
+        artifact for artifact in readiness.artifacts if artifact.strategy_id == "forward_factor"
+    )
+    readiness_payload = json.loads(forward_readiness.canonical_json)
+    assert readiness_payload["status"] == "unknown"
+    assert readiness_payload["reason_code"] == "earnings_clearance:unknown_unconfirmed"
     assert skew is not None and skew.evaluation_state != "missing_data"
     earnings = repository.get_one("earnings_calendar", "CPRT")
     assert earnings is not None
@@ -1569,14 +1586,8 @@ def test_current_subject_refresh_persists_all_consumers_coherently(
     for signal_id in second:
         assert first[signal_id].temporal is not None
         assert second[signal_id].temporal is not None
-        assert (
-            second[signal_id].temporal.evaluated_at
-            > first[signal_id].temporal.evaluated_at
-        )
-        assert (
-            second[signal_id].temporal.persisted_at
-            == second[signal_id].temporal.evaluated_at
-        )
+        assert second[signal_id].temporal.evaluated_at > first[signal_id].temporal.evaluated_at
+        assert second[signal_id].temporal.persisted_at == second[signal_id].temporal.evaluated_at
         assert (
             second[signal_id].temporal.subject_snapshot_at
             == second[signal_id].temporal.evaluated_at

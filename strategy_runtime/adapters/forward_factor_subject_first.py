@@ -26,8 +26,10 @@ from screening.subject_planning import ResolvedEvidenceView, SubjectPlanConsumer
 from strategies import FORWARD_FACTOR_CALENDAR_MANIFEST
 from strategies.forward_factor_evaluation import evaluate_forward_factor
 from strategies.forward_factor_knowledge import (
+    EarningsClearanceStatus,
     ForwardFactorPayload,
     build_forward_factor_knowledge_mapping,
+    classify_earnings_clearance,
 )
 from strategies.forward_factor_planning import (
     bootstrap_demands,
@@ -39,7 +41,10 @@ from strategy_runtime.adapters._screening_bridge import explanation_metrics
 from strategy_runtime.adapters.forward_factor import FORWARD_FACTOR_CONTRACT
 from strategy_runtime.context import RuntimeContext
 from strategy_runtime.contract import StructureKind
-from strategy_runtime.executable_structures import ExecutableStructureAssessment
+from strategy_runtime.executable_structures import (
+    ExecutableStructureAssessment,
+    ExecutableStructureStatus,
+)
 from strategy_runtime.knowledge import ReadOnlyStrategyInput
 from strategy_runtime.option_structure_resolver import (
     OptionLegIntent,
@@ -125,8 +130,10 @@ def _prepare(
     try:
         earnings_resolution = resolution_for(snapshot, MarketCapability.EARNINGS_CALENDAR_V1)
     except ValueError:
+        earnings_resolution_present = False
         earnings_observation = None
     else:
+        earnings_resolution_present = True
         earnings_observation = earnings_resolution.selected_observation
     event = (
         earnings_observation.value
@@ -134,6 +141,18 @@ def _prepare(
         and isinstance(earnings_observation.value, EarningsEvent)
         else None
     )
+    if earnings_observation is None:
+        clearance = (
+            EarningsClearanceStatus.STALE_UNUSABLE
+            if earnings_resolution_present
+            else EarningsClearanceStatus.UNKNOWN_UNCONFIRMED
+        )
+    else:
+        clearance = classify_earnings_clearance(
+            event,
+            as_of=snapshot.as_of.date(),
+            back_expiration=back_date,
+        )
     return build_forward_factor_knowledge_mapping(
         subject=subject,
         snapshot_digest=snapshot.snapshot_digest,
@@ -152,6 +171,7 @@ def _prepare(
         back_iv=back_contract.implied_volatility,
         event=event,
         as_of=snapshot.as_of.date(),
+        earnings_clearance_status=clearance,
     )
 
 
@@ -176,6 +196,24 @@ def _build_execution_assessment(
     assessed_at: datetime,
 ) -> ExecutableStructureAssessment:
     payload = knowledge.payload
+    if payload.earnings_clearance_status is not EarningsClearanceStatus.CONFIRMED_OUTSIDE_WINDOW:
+        status = (
+            ExecutableStructureStatus.NOT_CONSTRUCTIBLE
+            if payload.earnings_clearance_status is EarningsClearanceStatus.CONFIRMED_INSIDE_WINDOW
+            else ExecutableStructureStatus.UNKNOWN
+        )
+        return ExecutableStructureAssessment(
+            originating_result_identity=result.observation_id,
+            subject=payload.chain.underlying.symbol,
+            intended_structure_kind=StructureKind.CALENDAR,
+            status=status,
+            exact_legs=(),
+            selection_diagnostics=(),
+            modeled_entry_economics=None,
+            evidence_snapshot_identity=knowledge.snapshot_digest,
+            assessed_at=assessed_at,
+            reason_code=f"earnings_clearance:{payload.earnings_clearance_status.value}",
+        )
     intent = OptionStructureIntent(
         subject=knowledge.payload.chain.underlying.symbol,
         intended_structure_kind=StructureKind.CALENDAR,
@@ -234,6 +272,18 @@ def build_forward_factor_subject_first_adapter(
         score = outputs.get("forward_factor").value
         if isinstance(score, Decimal):
             metrics["strategy_native_score"] = TypedValue.of_decimal(score)
+        metrics["decision.earnings_clearance"] = TypedValue.of_string(
+            knowledge.payload.earnings_clearance_status.value
+        )
+        readiness_warnings = (
+            ()
+            if knowledge.payload.earnings_clearance_status
+            is EarningsClearanceStatus.CONFIRMED_OUTSIDE_WINDOW
+            else (
+                f"earnings readiness unresolved: "
+                f"{knowledge.payload.earnings_clearance_status.value}",
+            )
+        )
         return UniversalScreeningResult(
             strategy_id=_STRATEGY_ID,
             strategy_version=FORWARD_FACTOR_CONTRACT.version,
@@ -249,7 +299,7 @@ def build_forward_factor_subject_first_adapter(
             metrics=metrics,
             economics={},
             blockers=(),
-            warnings=explanation.warnings,
+            warnings=explanation.warnings + readiness_warnings,
             provenance=_provenance(knowledge),
             observed_at=knowledge.effective_time,
         )

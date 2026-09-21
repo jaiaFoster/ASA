@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
+from enum import StrEnum
 
 from analytics.derived_fact_materialization import derived_fact_id
 from analytics.derived_facts import (
@@ -36,6 +37,34 @@ FACT_EARNINGS_CONFIRMED = "earnings_confirmed"
 _FACT_VERSION = 1
 
 
+class EarningsClearanceStatus(StrEnum):
+    CONFIRMED_OUTSIDE_WINDOW = "confirmed_outside_window"
+    CONFIRMED_INSIDE_WINDOW = "confirmed_inside_window"
+    UNKNOWN_UNCONFIRMED = "unknown_unconfirmed"
+    STALE_UNUSABLE = "stale_unusable"
+
+
+def classify_earnings_clearance(
+    event: EarningsEvent | None,
+    *,
+    as_of: date,
+    back_expiration: date,
+) -> EarningsClearanceStatus:
+    if event is None or not event.confirmed:
+        return EarningsClearanceStatus.UNKNOWN_UNCONFIRMED
+    eligible = compute_no_confirmed_earnings_through_expiration(
+        confirmed=True,
+        earnings_date=event.earnings_date,
+        as_of=as_of,
+        back_expiration=back_expiration,
+    )
+    return (
+        EarningsClearanceStatus.CONFIRMED_OUTSIDE_WINDOW
+        if eligible
+        else EarningsClearanceStatus.CONFIRMED_INSIDE_WINDOW
+    )
+
+
 @dataclass(frozen=True, slots=True)
 class ForwardFactorPayload:
     chain: OptionChain
@@ -48,6 +77,7 @@ class ForwardFactorPayload:
     as_of: date
     earnings_eligible: bool
     confirmed_earnings_date: date | None
+    earnings_clearance_status: EarningsClearanceStatus
     front_iv_fact_id: str
     back_iv_fact_id: str
     implied_forward_fact_id: str
@@ -71,6 +101,7 @@ def build_forward_factor_knowledge_mapping(
     back_iv: Decimal,
     event: EarningsEvent | None,
     as_of: date,
+    earnings_clearance_status: EarningsClearanceStatus | None = None,
 ) -> KnowledgeMapping[ForwardFactorPayload]:
     front_subject = f"{subject}:{front_cycle.expiration_date.isoformat()}:{front_strike}:call"
     back_subject = f"{subject}:{back_cycle.expiration_date.isoformat()}:{back_strike}:call"
@@ -210,9 +241,7 @@ def build_forward_factor_knowledge_mapping(
             )
         return tuple(result)
 
-    def _payload(
-        facts: tuple[CanonicalFact, ...], derived: DerivedFactSet
-    ) -> ForwardFactorPayload:
+    def _payload(facts: tuple[CanonicalFact, ...], derived: DerivedFactSet) -> ForwardFactorPayload:
         front_value = next(item for item in facts if item.fact_id == front_fact_id).value
         back_value = next(item for item in facts if item.fact_id == back_fact_id).value
         assert isinstance(front_value, Decimal)
@@ -228,21 +257,29 @@ def build_forward_factor_knowledge_mapping(
             value = derived.get(eligibility_id).value
             assert isinstance(value, bool)
             earnings_eligible = value
+        clearance = earnings_clearance_status or classify_earnings_clearance(
+            event,
+            as_of=as_of,
+            back_expiration=back_cycle.expiration_date,
+        )
         return ForwardFactorPayload(
-            chain,
-            front_cycle,
-            back_cycle,
-            front_strike,
-            back_strike,
-            front_value,
-            back_value,
-            as_of,
-            earnings_eligible,
-            event.earnings_date if event is not None and event.confirmed else None,
-            front_fact_id,
-            back_fact_id,
-            implied_id,
-            factor_id,
+            chain=chain,
+            front_cycle=front_cycle,
+            back_cycle=back_cycle,
+            front_strike=front_strike,
+            back_strike=back_strike,
+            front_implied_volatility=front_value,
+            back_implied_volatility=back_value,
+            as_of=as_of,
+            earnings_eligible=earnings_eligible,
+            confirmed_earnings_date=(
+                event.earnings_date if event is not None and event.confirmed else None
+            ),
+            earnings_clearance_status=clearance,
+            front_iv_fact_id=front_fact_id,
+            back_iv_fact_id=back_fact_id,
+            implied_forward_fact_id=implied_id,
+            forward_factor_fact_id=factor_id,
         )
 
     return KnowledgeMapping(tuple(requests), _compute, _payload)

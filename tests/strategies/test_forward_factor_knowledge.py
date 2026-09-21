@@ -5,8 +5,10 @@ from decimal import Decimal
 from typing import cast
 
 from domain import (
+    AnnouncementTime,
     CanonicalFact,
     Confidence,
+    EarningsEvent,
     EvidenceKind,
     EvidenceReference,
     ExpirationCycle,
@@ -15,7 +17,12 @@ from domain import (
     UnknownReason,
 )
 from facts.canonical_projection import canonical_fact_id
-from strategies.forward_factor_knowledge import build_forward_factor_knowledge_mapping
+from strategies.forward_factor_knowledge import (
+    EarningsClearanceStatus,
+    build_forward_factor_knowledge_mapping,
+    classify_earnings_clearance,
+)
+from tests.domain.test_financial_contracts import security
 
 NOW = datetime(2026, 8, 18, 17, 0, tzinfo=UTC)
 AS_OF = NOW.date()
@@ -24,8 +31,12 @@ EVIDENCE = (EvidenceReference(EvidenceKind.OBSERVATION, "option-chain-observatio
 
 def _cycle(days: int) -> ExpirationCycle:
     return ExpirationCycle(
-        date.fromordinal(AS_OF.toordinal() + days), days, monthly=True, weekly=False,
-        as_of=AS_OF, evidence=EVIDENCE,
+        date.fromordinal(AS_OF.toordinal() + days),
+        days,
+        monthly=True,
+        weekly=False,
+        as_of=AS_OF,
+        evidence=EVIDENCE,
     )
 
 
@@ -73,3 +84,49 @@ def test_non_positive_forward_variance_becomes_specific_typed_unknown() -> None:
     result = mapping.compute_derived_fact_requests(facts)
 
     assert result == UnknownReason("non_positive_forward_variance")
+
+
+def _event(earnings_date: date, *, confirmed: bool) -> EarningsEvent:
+    return EarningsEvent(
+        "earnings-1",
+        security(),
+        earnings_date,
+        AnnouncementTime.AFTER_CLOSE,
+        Decimal("0.05"),
+        confirmed,
+        (),
+        NOW,
+        EVIDENCE,
+    )
+
+
+def test_earnings_clearance_distinguishes_outside_inside_and_unknown() -> None:
+    back = date.fromordinal(AS_OF.toordinal() + 60)
+    assert (
+        classify_earnings_clearance(
+            _event(date.fromordinal(AS_OF.toordinal() - 1), confirmed=True),
+            as_of=AS_OF,
+            back_expiration=back,
+        )
+        is EarningsClearanceStatus.CONFIRMED_OUTSIDE_WINDOW
+    )
+    assert (
+        classify_earnings_clearance(
+            _event(date.fromordinal(AS_OF.toordinal() + 20), confirmed=True),
+            as_of=AS_OF,
+            back_expiration=back,
+        )
+        is EarningsClearanceStatus.CONFIRMED_INSIDE_WINDOW
+    )
+    assert (
+        classify_earnings_clearance(
+            _event(date.fromordinal(AS_OF.toordinal() + 20), confirmed=False),
+            as_of=AS_OF,
+            back_expiration=back,
+        )
+        is EarningsClearanceStatus.UNKNOWN_UNCONFIRMED
+    )
+    assert (
+        classify_earnings_clearance(None, as_of=AS_OF, back_expiration=back)
+        is EarningsClearanceStatus.UNKNOWN_UNCONFIRMED
+    )
