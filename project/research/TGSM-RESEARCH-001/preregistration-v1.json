@@ -1,0 +1,104 @@
+{
+  "artifact_identity": "sha256:39308729f78df5496d7103747c87211418bcd6f070120d21ea23bb1449dc4cef",
+  "artifact_type": "tgsm_research_preregistration",
+  "artifact_version": "1.0.0",
+  "evidence_qualification_identity": "sha256:9d26184530d6a66ca4b107c54f695e7dbce54e49970bb7fab66338cb1dc35a45",
+  "evidence_status": "DATA_LIMITED",
+  "result_bearing_execution_authorized": false,
+  "strategy": {
+    "id": "S001",
+    "version": "1.0.0",
+    "implementation_manifest_sha256": "260e4e046cabe96a50a15a690f316eb3ee133351c8fbd71f0b491eed5ef38573"
+  },
+  "research_period": {
+    "start": "2001-01-01",
+    "end": "2025-12-31",
+    "rule": "Use only the intersection supported by qualified point-in-time membership, total-return, Treasury, and historical-session evidence; do not shorten the period after observing results. If that intersection is empty or methodologically inadequate, classify the affected tests INCONCLUSIVE."
+  },
+  "temporal_convention": {
+    "observation": "finalized completed calendar-month evidence",
+    "decision": "after all required month-end evidence is available",
+    "effective": "next eligible U.S. equity trading session after decision",
+    "return_accounting": "close-to-close total return from one effective rebalance session to the next; no same-close execution"
+  },
+  "evidence_contract": {
+    "sector_universe": "authoritative point-in-time U.S. Select Sector ETF membership with instrument inception boundaries",
+    "risky_and_spy_returns": "canonical split-and-dividend-adjusted or authoritative total-return evidence; raw and split-only closes prohibited",
+    "defensive_return": "canonical research_asset:us_3_month_treasury_total_return; ETF, cash, and raw-yield proxies prohibited",
+    "calendar": "qualified historical U.S. equity sessions including exceptional closures",
+    "missing_policy": "required unknown evidence makes the affected decision or experiment unavailable; no imputation"
+  },
+  "benchmarks": {
+    "B0": "100% canonical three-month Treasury total return",
+    "B1": "100% SPY buy-and-hold total return",
+    "B2": "monthly equal-weight among all eligible sector ETFs",
+    "B3": "monthly top-three trailing-12-month sector momentum without a trend gate, equal one-third sleeves",
+    "B4": "monthly equal-weight sleeves across all eligible sectors; each sector whose completed-month observation is not strictly above its 10-month completed-month SMA sends only its own sleeve to the canonical defensive asset",
+    "S1": "frozen production S001@1.0.0"
+  },
+  "accounting": {
+    "initial_value": "1.0",
+    "weights": "target weights apply at the effective rebalance session",
+    "turnover": "one-half of the sum of absolute target-weight changes at each rebalance",
+    "transaction_cost": "10 basis points per one-way unit of turnover, deducted at rebalance",
+    "dividends": "included only through qualified total-return evidence",
+    "taxes": "excluded",
+    "leverage": "none",
+    "shorting": "none"
+  },
+  "metrics": {
+    "cumulative_return": "ending_value / starting_value - 1",
+    "cagr": "annualized geometric return when the qualified period is at least 12 months",
+    "annualized_volatility": "sample standard deviation of monthly returns times sqrt(12)",
+    "annualized_return_to_volatility": "arithmetic mean monthly return times 12 divided by annualized volatility; undefined when volatility is zero",
+    "maximum_drawdown": "minimum of portfolio_value / prior_running_max - 1",
+    "turnover": "sum of preregistered rebalance turnover",
+    "defensive_allocation_frequency": "fraction of rebalance decisions with nonzero defensive target weight",
+    "rebalance_count": "number of effective target decisions"
+  },
+  "hypotheses": {
+    "H1": {
+      "predicate": "S1 net CAGR > B0 net CAGR",
+      "interpretation": "The frozen risky/defensive policy outgrows the defensive baseline in the qualified test."
+    },
+    "H2": {
+      "predicate": "S1 net annualized_return_to_volatility > B1 net annualized_return_to_volatility",
+      "interpretation": "S1 improves return per unit of realized volatility versus SPY in the qualified test."
+    },
+    "H3": {
+      "predicate": "abs(S1 net maximum_drawdown) < abs(B1 net maximum_drawdown)",
+      "interpretation": "S1 reduces maximum drawdown magnitude versus SPY in the qualified test."
+    },
+    "H4": {
+      "predicate": "S1 net annualized_return_to_volatility > B3 net annualized_return_to_volatility AND abs(S1 net maximum_drawdown) <= abs(B3 net maximum_drawdown)",
+      "interpretation": "The frozen trend gate improves risk-adjusted behavior without worsening drawdown versus momentum alone."
+    },
+    "H5": {
+      "predicate": "In preregistered walk-forward test windows, S1 median net 12-month excess return over B1 > 0 AND S1 pooled OOS net annualized_return_to_volatility > 0",
+      "interpretation": "S1's out-of-sample behavior is directionally persistent rather than confined to the full-sample aggregate."
+    }
+  },
+  "assessment": {
+    "SUPPORTED_IN_TEST": "all predicate clauses are true on qualified evidence",
+    "NOT_SUPPORTED_IN_TEST": "at least one predicate clause is false on qualified evidence",
+    "INCONCLUSIVE": "the required qualified evidence or mathematically defined metric is unavailable"
+  },
+  "robustness_grid": {
+    "momentum_months": [9, 12, 15],
+    "trend_sma_months": [8, 10, 12],
+    "top_n": [2, 3, 4],
+    "rule": "One-factor-at-a-time variations around S1 only; S1 remains 12/10/3 and is never replaced or re-tuned from results."
+  },
+  "walk_forward": {
+    "method": "fixed non-overlapping calendar windows",
+    "window_months": 12,
+    "first_window": "first complete 12-month window after all S1 lookbacks and qualified evidence are available",
+    "parameter_selection": "none",
+    "aggregation": "preserve each window identity and additionally report pooled OOS return series"
+  },
+  "anti_bias": {
+    "amendment_rule": "Never mutate this artifact after result-bearing output exists; create a new version retaining this original.",
+    "data_limited_rule": "Do not execute result-bearing experiments until a new immutable evidence qualification authorizes them.",
+    "negative_result_rule": "A valid negative result remains a research result and does not authorize changing production S001."
+  }
+}
