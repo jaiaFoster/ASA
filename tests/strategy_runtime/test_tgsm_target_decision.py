@@ -18,7 +18,12 @@ from strategies.tgsm_decision import (
     deserialize_s001_target_decision,
     serialize_s001_target_decision,
 )
+from strategy_runtime.adapters.tgsm_subject_first import build_s001_cohort_registry
+from strategy_runtime.cohort_composition import compose_cohort_knowledge
 from strategy_runtime.decision_ledger import InMemoryDecisionLedger, replay_decision
+from strategy_runtime.execution import ExecutionStatus, run_strategies
+from tests.strategy_runtime.test_tgsm_composition import NOW as COHORT_TIME
+from tests.strategy_runtime.test_tgsm_composition import _facts, _knowledge
 
 NOW = datetime(2026, 8, 31, 21, tzinfo=UTC)
 NEXT_SESSION = datetime(2026, 9, 1, 13, 30, tzinfo=UTC)
@@ -156,3 +161,39 @@ def test_identity_changes_when_effective_session_changes() -> None:
         next_eligible_session=lambda _: NEXT_SESSION + timedelta(days=1),
     )
     assert first.decision_id != later.decision_id
+
+
+def test_universal_runtime_to_target_ledger_replay_is_deterministic() -> None:
+    facts = (
+        _facts("XLE", "0.40", "90"),
+        _facts("XLF", "0.30", "110"),
+        _facts("XLK", "0.20", "110"),
+        _facts("XLV", "0.10", "110"),
+    )
+    cohort = compose_cohort_knowledge(
+        {item.subject.value: _knowledge(item) for item in facts},
+        decision_time=COHORT_TIME,
+    )
+
+    class _Clock:
+        def now(self) -> datetime:
+            return COHORT_TIME
+
+    (execution,) = run_strategies(
+        build_s001_cohort_registry(cohort, MEMBERSHIP),
+        _Clock(),
+        subjects=(MEMBERSHIP.universe_id,),
+    )
+    assert execution.status is ExecutionStatus.COMPLETED
+    assert execution.result is not None
+    decision = build_s001_target_decision(
+        execution.result,
+        defensive_evidence=_defensive(),
+        next_eligible_session=lambda _: NEXT_SESSION,
+    )
+    ledger: InMemoryDecisionLedger = InMemoryDecisionLedger()
+    ledger.append(decision)
+    replayed = deserialize_s001_target_decision(
+        serialize_s001_target_decision(replay_decision(ledger, decision.decision_id))
+    )
+    assert replayed == decision
