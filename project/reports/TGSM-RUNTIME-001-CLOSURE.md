@@ -1,6 +1,10 @@
 # TGSM-RUNTIME-001 closure
 
-Status: implementation complete; final exact-main SHA pending S001-06 merge.
+Status: CLOSED / MERGED-MAIN PASS.
+
+Implementation verification SHA: `104c075da61a4b8a5a3bac8f794e967a93890dae`.
+The subsequent closure-record merge changes documentation/status only; GitHub
+is the operational source for that final merge identity.
 
 ## Delivered semantics
 
@@ -47,7 +51,7 @@ fallback. B001/B002 and existing option strategies are unchanged.
 - Merged gates: PRs #428–#433 (S001-01 through S001-05).
 - S001-06 candidate adds the integrated universal-runtime → target-decision →
   ledger → canonical serialization → provider-free replay regression.
-- Full Python suite: **3,402 passed, 48 skipped**.
+- Full Python suite on exact merged main `104c075d`: **3,403 passed, 48 skipped**.
 - Architecture and focused TGSM regression: green.
 - Frontend: 7 tests passed; lint, typecheck, and production build green.
 - Legacy UI: 14 tests passed; JavaScript syntax/lint green.
