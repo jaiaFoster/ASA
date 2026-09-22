@@ -1,0 +1,41 @@
+{
+  "artifact_identity": "sha256:eb56f556dbd213beef0fe6c108110586f8eff2c62e694931ddd21b42177cb75f",
+  "artifact_type": "tgsm_research_outcome",
+  "artifact_version": "1.0.0",
+  "evidence_qualification_identity": "sha256:9d26184530d6a66ca4b107c54f695e7dbce54e49970bb7fab66338cb1dc35a45",
+  "preregistration_identity": "sha256:39308729f78df5496d7103747c87211418bcd6f070120d21ea23bb1449dc4cef",
+  "evidence_classification": "DATA_LIMITED",
+  "result_bearing_experiments_executed": false,
+  "baseline_and_ablation_status": {
+    "B0": "NOT_RUN_DATA_LIMITED",
+    "B1": "NOT_RUN_DATA_LIMITED",
+    "B2": "NOT_RUN_DATA_LIMITED",
+    "B3": "NOT_RUN_DATA_LIMITED",
+    "B4": "NOT_RUN_DATA_LIMITED",
+    "S1": "NOT_RUN_DATA_LIMITED"
+  },
+  "robustness_status": "NOT_RUN_DATA_LIMITED",
+  "walk_forward_status": "NOT_RUN_DATA_LIMITED",
+  "hypothesis_assessments": {
+    "H1": "INCONCLUSIVE",
+    "H2": "INCONCLUSIVE",
+    "H3": "INCONCLUSIVE",
+    "H4": "INCONCLUSIVE",
+    "H5": "INCONCLUSIVE"
+  },
+  "reason": "No qualified sealed corpus simultaneously supplies authoritative point-in-time sector membership, sector/SPY total-return history, canonical three-month Treasury total return, and authoritative historical exchange sessions for the preregistered period.",
+  "engineering_proofs": [
+    "immutable evidence qualification",
+    "immutable preregistration before result-bearing output",
+    "content-addressed experiment and result identity contract",
+    "provider-free canonical experiment replay",
+    "research target generation delegates to production S001 interpretation and allocation",
+    "runtime and research produce identical target decision identity for identical sealed fixture inputs"
+  ],
+  "prohibited_claims": [
+    "No performance metric is reported.",
+    "No hypothesis is marked NOT_SUPPORTED from missing evidence.",
+    "No investment superiority claim is made.",
+    "No weaker evidence, proxy defensive asset, or current-membership backfill is substituted."
+  ]
+}

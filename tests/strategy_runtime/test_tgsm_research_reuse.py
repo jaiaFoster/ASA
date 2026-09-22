@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from simulation.tgsm_research import evaluate_tgsm_research_target
 from strategies.tgsm_decision import build_s001_target_decision
 from strategy_runtime.adapters.tgsm_subject_first import build_s001_cohort_registry
 from strategy_runtime.cohort_composition import compose_cohort_knowledge
 from strategy_runtime.execution import ExecutionStatus, run_strategies
+from strategy_runtime.tgsm_research import evaluate_tgsm_research_target
 from tests.strategy_runtime.test_tgsm_composition import NOW as COHORT_TIME
 from tests.strategy_runtime.test_tgsm_composition import _facts, _knowledge
 from tests.strategy_runtime.test_tgsm_target_decision import (

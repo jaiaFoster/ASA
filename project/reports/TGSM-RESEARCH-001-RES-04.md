@@ -1,7 +1,7 @@
 # TGSM-RESEARCH-001 — RES-04 production-logic reuse
 
 Historical research now has one deliberately thin seam:
-`simulation.tgsm_research.evaluate_tgsm_research_target`. It accepts already
+`strategy_runtime.tgsm_research.evaluate_tgsm_research_target`. It accepts already
 sealed cohort knowledge and delegates interpretation to
 `evaluate_s001_cohort`, then delegates allocation to
 `build_s001_target_decision`. Both are the production S001 authorities.
