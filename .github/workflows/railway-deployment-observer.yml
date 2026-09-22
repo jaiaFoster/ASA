@@ -11,6 +11,10 @@ on:
         required: false
         default: true
         type: boolean
+      run_reliability_census:
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -45,6 +49,17 @@ jobs:
         id: collect
         run: python tools/deployment_observer/collect.py
 
+      - name: Install production census dependencies
+        if: inputs.run_reliability_census
+        run: python -m pip install .
+
+      - name: Capture sanitized production reliability census
+        if: inputs.run_reliability_census
+        run: >-
+          railway run --service ASA --environment production --
+          python tools/reliability_census_capture.py
+          --output .artifacts/reliability-census/census.json
+
       - name: Publish report to originating pull request
         id: publish
         if: always()
@@ -59,6 +74,15 @@ jobs:
         with:
           name: railway-deployment-${{ steps.collect.outputs.deployment_id || github.run_id }}
           path: .artifacts/railway-deployment
+          retention-days: 14
+          if-no-files-found: error
+
+      - name: Upload sanitized reliability census
+        if: inputs.run_reliability_census
+        uses: actions/upload-artifact@v4
+        with:
+          name: reliability-census-${{ github.run_id }}
+          path: .artifacts/reliability-census/census.json
           retention-days: 14
           if-no-files-found: error
 
