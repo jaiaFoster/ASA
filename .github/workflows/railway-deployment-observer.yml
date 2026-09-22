@@ -63,7 +63,7 @@ jobs:
 
       - name: Verify scheduled runner deployment
         if: inputs.run_reliability_census
-        run: railway service status --service trustworthy-education --environment production --json
+        run: railway deployment list --service trustworthy-education --environment production --limit 1 --json
 
       - name: Publish report to originating pull request
         id: publish
