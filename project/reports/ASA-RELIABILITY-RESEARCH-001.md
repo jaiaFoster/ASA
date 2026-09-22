@@ -1,4 +1,4 @@
-# ASA-RELIABILITY-RESEARCH-001 closure candidate
+# ASA-RELIABILITY-RESEARCH-001 closure
 
 ## DATA-RELIABILITY-001
 
@@ -8,10 +8,11 @@
 - REL-03 separated Forward Factor signal validity from earnings clearance and
   made execution readiness fail closed.
 - REL-04 closed the bounded evidenced ASA-defect inventory.
-- REL-05 classification: **INCONCLUSIVE** pending one authorized current
-  production census. Historical 574/1,509 missing-data counts remain explicitly
-  historical. The external capability matrix is recorded; no provider was
-  purchased or integrated.
+- REL-05 classification: **PAID_DATA_CAPABILITY_GAP_CONFIRMED**. Exact deployed
+  `main@4e18dd1066d37e2afff831349abb16893b12be86` produced a 1,509-identity
+  current census with zero ASA-owned missingness: 18 provider-external, 440
+  legitimate temporal/policy, 4 insufficient-history/derivation, and 20
+  unknown/unannounced. No provider was purchased or integrated.
 
 ## TGSM-RESEARCH-001
 
@@ -28,9 +29,9 @@ facts. ASA retains one market-data authority. No strategy-ID runtime branch,
 silent fallback, duplicate S001 implementation, production S001 semantic
 change, or broker mutation was introduced.
 
-The exact final merged-main SHA, complete validation totals, and any required
-production remeasurement authorization are recorded after this closure
-candidate merges and exact-main verification completes.
+Final closure documentation is merged and exact-main verification is recorded
+on the closure PR. Production behavior was proven on the exact deployed SHA
+above; the documentation-only closure merge does not alter runtime behavior.
 
 Candidate verification: Python **3,432 passed / 48 skipped**; frontend 7
 passed plus generation/lint/type/build; legacy UI 14 passed plus syntax/lint;

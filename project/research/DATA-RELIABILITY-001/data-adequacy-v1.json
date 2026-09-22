@@ -1,10 +1,25 @@
 {
-  "artifact_identity": "sha256:844ca65fc2628f7dd6c39009b393bd61aabc96b2b97f86b2f56504218cb8b647",
+  "artifact_identity": "sha256:b4c5ba84c0b889de980191669dc668890e2e7fd6ea712d888322aa31f4c3d4c7",
   "artifact_type": "data_adequacy_decision",
   "artifact_version": "1.0.0",
-  "classification": "INCONCLUSIVE",
-  "reason": "REL-02 and REL-03 corrected the two evidenced ASA-owned semantic defects, but this worker has no linked production Railway project or production database/API access with which to perform the required post-correction current census. Historical counts are retained as historical evidence and are not relabeled current.",
-  "current_production_remeasurement": null,
+  "classification": "PAID_DATA_CAPABILITY_GAP_CONFIRMED",
+  "reason": "The Founder-authorized post-correction census on exact deployed main found zero ASA-owned missingness across 1,509 active identities. It also found 18 provider entitlement/coverage gaps and confirmed that the qualified historical total-return, Treasury total-return, and effective-dated reference evidence required by TGSM research is unavailable from the current data topology.",
+  "current_production_remeasurement": {
+    "captured_at": "2026-09-22T15:49:37.046537+00:00",
+    "production_sha": "4e18dd1066d37e2afff831349abb16893b12be86",
+    "active_identities": 1509,
+    "freshness_live": 1509,
+    "asa_owned_missingness": 0,
+    "provider_external_entitlement_or_coverage": 18,
+    "legitimately_temporally_unavailable": 440,
+    "unresolved_derivation_or_insufficient_history": 4,
+    "genuinely_unknown_or_unannounced": 20,
+    "per_strategy_missing_data": {
+      "earnings_calendar": 369,
+      "forward_factor": 104,
+      "skew_momentum": 9
+    }
+  },
   "last_immutable_historical_census": {
     "captured_at": "2026-09-03T19:29:01.675506Z",
     "production_sha": "508eab2d733c140e7d97bee67f8cb5f3ba515470",
@@ -28,15 +43,15 @@
   "capability_gap_matrix": [
     {
       "required_capability": "confirmed earnings calendar with announcement status and effective timestamps",
-      "remaining_missingness": "current count unavailable; historical census recorded 38 earnings_calendar missing_earnings_date rows",
-      "cause": "may include unannounced events and provider coverage/entitlement; requires current attempt-linked census to separate",
+      "remaining_missingness": "20 current active missing_earnings_date rows",
+      "cause": "genuinely unknown or unannounced events after bounded acquisition",
       "strategies_affected": ["earnings_calendar", "forward_factor_execution_readiness"],
       "would_better_external_data_solve": "only provider-confirmed coverage/entitlement cases; genuinely unannounced events remain unknown"
     },
     {
       "required_capability": "complete option expiration, contract, quote, Greek, and implied-volatility evidence",
-      "remaining_missingness": "current count unavailable; historical census recorded missing IV, future-expiration, and quote gaps",
-      "cause": "provider coverage, contract availability, or transient acquisition must be separated by current attempt evidence",
+      "remaining_missingness": "18 current active provider entitlement/coverage gaps; option-policy and temporal absence remain separately typed",
+      "cause": "provider coverage/entitlement for the external subset; declared expiration policy and temporal absence for the much larger legitimate subset",
       "strategies_affected": ["forward_factor", "skew_momentum", "earnings_calendar"],
       "would_better_external_data_solve": "provider coverage gaps yes; declared expiration policy ineligibility no"
     },
@@ -71,5 +86,5 @@
     "documented rate limits sufficient for the bounded active universe",
     "no requirement for strategy-specific provider routing"
   ],
-  "decision_rule": "Do not purchase or integrate a paid provider from this artifact. Obtain one authorized post-correction current production census, then quantify the provider-external share and expected coverage improvement before procurement."
+  "decision_rule": "The paid-data capability gap is confirmed, but purchase and integration remain a separate Founder procurement decision. Any candidate must close the enumerated semantic and licensing gaps without creating a second market-data authority."
 }
