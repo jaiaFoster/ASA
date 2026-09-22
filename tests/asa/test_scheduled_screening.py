@@ -1904,7 +1904,10 @@ def test_scheduled_subject_first_path_publishes_execution_readiness_without_new_
     artifact = readiness.artifacts[0]
     assert artifact.strategy_id == "forward_factor"
     assert artifact.symbol == "AAPL"
-    assert '"intended_structure_kind":"calendar"' in artifact.canonical_json
+    payload = json.loads(artifact.canonical_json)
+    assert payload["intended_structure_kind"] == "calendar"
+    assert payload["status"] == "not_constructible"
+    assert payload["reason_code"] == "earnings_clearance:confirmed_inside_window"
 
 
 def test_scheduled_readiness_does_not_advance_past_authoritative_screening_row(
