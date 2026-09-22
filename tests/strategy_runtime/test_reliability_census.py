@@ -151,7 +151,7 @@ def test_latest_typed_result_reason_refines_successful_acquisition() -> None:
     ("reason", "expected_class", "expected_owner"),
     [
         (
-            "no_valid_expiration_pair (target_gap=30;tolerance=5)",
+            "typed unknown evidence gap: no_valid_expiration_pair (target_gap=30;tolerance=5)",
             MissingnessClass.TEMPORALLY_UNAVAILABLE,
             MissingnessOwner.LEGITIMATELY_UNAVAILABLE,
         ),

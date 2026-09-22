@@ -224,6 +224,9 @@ def _classify_result_reason(
     # Persisted blockers may append bounded diagnostics in parentheses.  The
     # stable identifier before that detail remains the classification key.
     normalized = reason.strip().lower().split(" (", 1)[0]
+    diagnostic_prefix = "typed unknown evidence gap: "
+    if normalized.startswith(diagnostic_prefix):
+        normalized = normalized.removeprefix(diagnostic_prefix)
     if normalized in {
         "insufficient_historical_bars",
         "insufficient_adjusted_history",
