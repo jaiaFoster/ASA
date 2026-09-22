@@ -56,7 +56,7 @@ jobs:
       - name: Capture sanitized production reliability census
         if: inputs.run_reliability_census
         run: >-
-          railway run --service ASA --environment production --
+          railway run --service Postgres --environment production --
           bash -lc 'DATABASE_URL="$DATABASE_PUBLIC_URL"
           python -m tools.reliability_census_capture
           --output .artifacts/reliability-census/census.json'
