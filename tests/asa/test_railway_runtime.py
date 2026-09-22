@@ -32,9 +32,9 @@ class BrokerMustNotBeCalled:
 
 EXPECTED_PRE_DEPLOY_COMMAND = "python -m alembic upgrade head"
 EXPECTED_START_COMMAND = (
-    "python -m alembic upgrade head && "
+    "/bin/sh -c 'python -m alembic upgrade head && "
     "exec python -m uvicorn asa.asgi:create_application --factory "
-    '--host 0.0.0.0 --port "${PORT}"'
+    '--host 0.0.0.0 --port "$PORT"\''
 )
 
 

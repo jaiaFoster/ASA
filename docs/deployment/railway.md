@@ -14,7 +14,7 @@ The remaining build/deploy settings are committed in `railway.json` at the repos
 
 - Builder: repository `Dockerfile`
 - Pre-deploy command: `python -m alembic upgrade head`
-- Start command: `python -m alembic upgrade head && exec python -m uvicorn asa.asgi:create_application --factory --host 0.0.0.0 --port "${PORT}"`
+- Start command: `/bin/sh -c 'python -m alembic upgrade head && exec python -m uvicorn asa.asgi:create_application --factory --host 0.0.0.0 --port "$PORT"'`
 - Healthcheck: `/api/v1/health` (300s timeout)
 - Restart policy: `ON_FAILURE`, max 3 retries
 
@@ -34,6 +34,9 @@ Railpack 0.39 image-layer failure observed in production: its build log created
 and copied `/app/.venv`, but the deployed container did not contain that path.
 An earlier unqualified command had instead reached Mise Python without ASA's
 dependencies. The explicit runtime image removes both interpreter ambiguities.
+The Dockerfile start override is explicitly shell-wrapped because Railway runs
+Dockerfile/image overrides in exec form; the shell owns `&&`, `exec`, and
+runtime expansion of `PORT`.
 
 Because the project root now has one `pyproject.toml` with no `uv.lock`, Railpack's Python
 provider selects `pip` and installs the one real project's dependencies — this is what fixed
