@@ -98,9 +98,7 @@ def build_missingness_census(
         if prior is None or attempt_evidence.attempt.sequence > prior.attempt.sequence:
             attempt_by_key[key] = attempt_evidence
 
-    reason_by_pair = {
-        (item.strategy_id, item.symbol): item.reason for item in latest_results
-    }
+    reason_by_pair = {(item.strategy_id, item.symbol): item.reason for item in latest_results}
     rows: list[CensusRow] = []
     for demand in sorted(
         demands, key=lambda item: (item.strategy_id, item.symbol, item.capability.value)
@@ -223,7 +221,9 @@ def _classify_attempt(
 def _classify_result_reason(
     reason: str,
 ) -> tuple[MissingnessClass, MissingnessOwner]:
-    normalized = reason.strip().lower()
+    # Persisted blockers may append bounded diagnostics in parentheses.  The
+    # stable identifier before that detail remains the classification key.
+    normalized = reason.strip().lower().split(" (", 1)[0]
     if normalized in {
         "insufficient_historical_bars",
         "insufficient_adjusted_history",
@@ -236,6 +236,8 @@ def _classify_result_reason(
         )
     if normalized in {
         "no_future_expiration",
+        "no_call_contracts_at_selected_expiration",
+        "no_usable_expiration_pair",
         "no_valid_expiration_pair",
         "selected_expiration_missing",
     }:
@@ -247,6 +249,16 @@ def _classify_result_reason(
         return (
             MissingnessClass.GENUINELY_UNKNOWN_OR_UNANNOUNCED,
             MissingnessOwner.UNRESOLVED,
+        )
+    if normalized in {
+        "missing_implied_volatility",
+        "unusable_option_chain",
+        "unusable_phase_two_evidence",
+        "unusable_quote",
+    }:
+        return (
+            MissingnessClass.ENTITLEMENT_OR_COVERAGE,
+            MissingnessOwner.PROVIDER_EXTERNAL,
         )
     if normalized in {"subject_preparation_failed", "strategy_knowledge_construction_failed"}:
         return MissingnessClass.IDENTITY_MAPPING_OR_CANONICALIZATION, MissingnessOwner.ASA

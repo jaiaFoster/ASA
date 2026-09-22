@@ -82,11 +82,7 @@ def test_attempt_failures_keep_owning_boundary(
     demand = ExpectedCapabilityDemand("B001", "SPY", MarketCapability.REAL_TIME_QUOTE_V1)
     result = build_missingness_census(
         (demand,),
-        (
-            SubjectAttemptEvidence(
-                "SPY", _attempt(MarketCapability.REAL_TIME_QUOTE_V1, code)
-            ),
-        ),
+        (SubjectAttemptEvidence("SPY", _attempt(MarketCapability.REAL_TIME_QUOTE_V1, code)),),
         diagnostics_complete=True,
     )
     assert result.rows[0].classification is expected_class
@@ -101,11 +97,7 @@ def test_shared_subject_attempt_is_projected_only_to_exact_declared_consumers() 
     )
     result = build_missingness_census(
         demands,
-        (
-            SubjectAttemptEvidence(
-                "SPY", _attempt(MarketCapability.REAL_TIME_QUOTE_V1)
-            ),
-        ),
+        (SubjectAttemptEvidence("SPY", _attempt(MarketCapability.REAL_TIME_QUOTE_V1)),),
         diagnostics_complete=True,
     )
     assert [row.classification for row in result.rows] == [
@@ -155,6 +147,44 @@ def test_latest_typed_result_reason_refines_successful_acquisition() -> None:
     assert result.rows[0].owner is MissingnessOwner.UNRESOLVED
 
 
+@pytest.mark.parametrize(
+    ("reason", "expected_class", "expected_owner"),
+    [
+        (
+            "no_valid_expiration_pair (target_gap=30;tolerance=5)",
+            MissingnessClass.TEMPORALLY_UNAVAILABLE,
+            MissingnessOwner.LEGITIMATELY_UNAVAILABLE,
+        ),
+        (
+            "missing_implied_volatility",
+            MissingnessClass.ENTITLEMENT_OR_COVERAGE,
+            MissingnessOwner.PROVIDER_EXTERNAL,
+        ),
+        (
+            "unusable_phase_two_evidence (unusable_roles=front_chain)",
+            MissingnessClass.ENTITLEMENT_OR_COVERAGE,
+            MissingnessOwner.PROVIDER_EXTERNAL,
+        ),
+    ],
+)
+def test_persisted_result_reason_keeps_stable_identifier_classification(
+    reason: str,
+    expected_class: MissingnessClass,
+    expected_owner: MissingnessOwner,
+) -> None:
+    demand = ExpectedCapabilityDemand(
+        "earnings_calendar", "SPY", MarketCapability.EARNINGS_CALENDAR_V1
+    )
+    result = build_missingness_census(
+        (demand,),
+        (SubjectAttemptEvidence("SPY", _attempt(MarketCapability.EARNINGS_CALENDAR_V1)),),
+        (LatestResultEvidence("earnings_calendar", "SPY", reason),),
+        diagnostics_complete=True,
+    )
+    assert result.rows[0].classification is expected_class
+    assert result.rows[0].owner is expected_owner
+
+
 def test_counts_reconcile_exactly_and_are_deterministic() -> None:
     demands = (
         ExpectedCapabilityDemand("B002", "SPY", MarketCapability.HISTORICAL_BARS_V1),
@@ -162,11 +192,7 @@ def test_counts_reconcile_exactly_and_are_deterministic() -> None:
     )
     result = build_missingness_census(
         demands,
-        (
-            SubjectAttemptEvidence(
-                "SPY", _attempt(MarketCapability.REAL_TIME_QUOTE_V1)
-            ),
-        ),
+        (SubjectAttemptEvidence("SPY", _attempt(MarketCapability.REAL_TIME_QUOTE_V1)),),
         diagnostics_complete=True,
     )
     assert sum(count for _, count in result.counts) == len(result.rows) == 2
