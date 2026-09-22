@@ -30,10 +30,10 @@ class BrokerMustNotBeCalled:
         raise AssertionError("health endpoint called broker provider")
 
 
-EXPECTED_PRE_DEPLOY_COMMAND = "python -m alembic upgrade head"
+EXPECTED_PRE_DEPLOY_COMMAND = "/app/.venv/bin/python -m alembic upgrade head"
 EXPECTED_START_COMMAND = (
-    "python -m alembic upgrade head && "
-    "exec python -m uvicorn asa.asgi:create_application --factory "
+    "/app/.venv/bin/python -m alembic upgrade head && "
+    "exec /app/.venv/bin/python -m uvicorn asa.asgi:create_application --factory "
     '--host 0.0.0.0 --port "${PORT}"'
 )
 
@@ -109,7 +109,7 @@ def test_exact_production_command_runs_migration_then_serves_health(tmp_path: Pa
     environment, port = _production_environment(tmp_path, migration_exit_code=0)
     started_at = time.monotonic()
     process = subprocess.Popen(
-        EXPECTED_START_COMMAND,
+        EXPECTED_START_COMMAND.replace("/app/.venv/bin/python", "python"),
         cwd=repo_root,
         env=environment,
         executable="/bin/sh",
@@ -149,7 +149,7 @@ def test_production_command_exits_when_migration_fails(tmp_path: Path) -> None:
     environment, port = _production_environment(tmp_path, migration_exit_code=37)
 
     completed = subprocess.run(
-        EXPECTED_START_COMMAND,
+        EXPECTED_START_COMMAND.replace("/app/.venv/bin/python", "python"),
         cwd=repo_root,
         env=environment,
         executable="/bin/sh",
