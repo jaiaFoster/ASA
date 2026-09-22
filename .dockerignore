@@ -1,0 +1,11 @@
+.git
+.github
+.mypy_cache
+.pytest_cache
+.ruff_cache
+.venv
+**/__pycache__
+frontend/node_modules
+intelligence-console/node_modules
+ui-tests/node_modules
+.artifacts
