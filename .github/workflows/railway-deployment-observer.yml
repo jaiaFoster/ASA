@@ -65,6 +65,12 @@ jobs:
         if: inputs.run_reliability_census
         run: railway deployment list --service trustworthy-education --environment production --limit 1 --json
 
+      - name: Capture bounded knowledge diagnostics
+        if: inputs.run_reliability_census
+        run: >-
+          railway logs --service trustworthy-education --environment production
+          --since 2h --lines 5000 --filter '"strategy_knowledge_construction_failed"'
+
       - name: Publish report to originating pull request
         id: publish
         if: always()
