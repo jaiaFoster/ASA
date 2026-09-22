@@ -6,7 +6,7 @@ from datetime import date
 
 import pytest
 
-from simulation.research_experiment import (
+from strategy_runtime.research_experiment import (
     build_research_experiment,
     deserialize_research_experiment,
     research_result_identity,
