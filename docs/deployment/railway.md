@@ -13,8 +13,8 @@ dashboard (neither has a documented Config-as-Code field):
 The remaining build/deploy settings are committed in `railway.json` at the repository root:
 
 - Builder: Railpack
-- Pre-deploy command: `python -m alembic upgrade head`
-- Start command: `python -m alembic upgrade head && exec python -m uvicorn asa.asgi:create_application --factory --host 0.0.0.0 --port "${PORT}"`
+- Pre-deploy command: `/app/.venv/bin/python -m alembic upgrade head`
+- Start command: `/app/.venv/bin/python -m alembic upgrade head && exec /app/.venv/bin/python -m uvicorn asa.asgi:create_application --factory --host 0.0.0.0 --port "${PORT}"`
 - Healthcheck: `/api/v1/health` (300s timeout)
 - Restart policy: `ON_FAILURE`, max 3 retries
 
@@ -27,6 +27,12 @@ idempotent no-ops if the schema is already current. See Railway's
 [pre-deploy command](https://docs.railway.com/deployments/pre-deploy-command), [start
 command](https://docs.railway.com/deployments/start-command), and
 [healthcheck](https://docs.railway.com/deployments/healthchecks) documentation.
+
+The executable path is explicit because Railpack 0.39 can start the container
+with its Mise system Python ahead of `/app/.venv/bin` on `PATH`. The project
+dependencies are installed in `/app/.venv`; using an unqualified `python`
+therefore caused pre-start failure (`No module named alembic`) even though the
+install step succeeded. Both deploy commands must use the same project venv.
 
 Because the project root now has one `pyproject.toml` with no `uv.lock`, Railpack's Python
 provider selects `pip` and installs the one real project's dependencies — this is what fixed

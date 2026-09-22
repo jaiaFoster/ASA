@@ -308,7 +308,10 @@ def test_ai_agent_workflow_discovers_reads_refreshes_and_briefs(
     transcript.append(updated_response)
     assert updated_response.status_code == 200
     updated = updated_response.json()
-    assert updated["freshness_status"] in {"live", "prior_session"}
+    # Request success and evidence freshness are independent.  The provider
+    # may answer successfully while its newest economically observed datum is
+    # stale at a session boundary.
+    assert updated["freshness_status"] in {"live", "prior_session", "stale"}
     assert updated["usability_status"] in {"usable", "usable_with_warning", "rejected"}
     assert updated["updated_at"] != target["updated_at"]
 

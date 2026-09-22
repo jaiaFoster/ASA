@@ -236,7 +236,10 @@ class TestSuccessfulRefresh:
             "holiday",
             "unknown",
         }
-        assert body["freshness_status"] in {"live", "prior_session"}
+        # A successful provider refresh does not make evidence current.  Around
+        # session boundaries the newest economically observed datum may still
+        # be stale, and REL-02 requires that state to remain truthful.
+        assert body["freshness_status"] in {"live", "prior_session", "stale"}
         assert body["usability_status"] in {"usable", "usable_with_warning", "rejected"}
         assert isinstance(body["warning_codes"], list)
         assert body["input_time_skew_seconds"] >= 0
