@@ -1,0 +1,75 @@
+{
+  "artifact_identity": "sha256:844ca65fc2628f7dd6c39009b393bd61aabc96b2b97f86b2f56504218cb8b647",
+  "artifact_type": "data_adequacy_decision",
+  "artifact_version": "1.0.0",
+  "classification": "INCONCLUSIVE",
+  "reason": "REL-02 and REL-03 corrected the two evidenced ASA-owned semantic defects, but this worker has no linked production Railway project or production database/API access with which to perform the required post-correction current census. Historical counts are retained as historical evidence and are not relabeled current.",
+  "current_production_remeasurement": null,
+  "last_immutable_historical_census": {
+    "captured_at": "2026-09-03T19:29:01.675506Z",
+    "production_sha": "508eab2d733c140e7d97bee67f8cb5f3ba515470",
+    "active_identities": 1509,
+    "missing_data": 574,
+    "untyped_missing_data": 0,
+    "warning": "Predates DATA-RELIABILITY-001 and cannot establish current post-correction rates."
+  },
+  "asa_owned_corrections": [
+    {
+      "issue": 436,
+      "capability": "screening result freshness",
+      "correction": "Read-time freshness now uses immutable evidence time and economic session date rather than persistence recency."
+    },
+    {
+      "issue": 437,
+      "capability": "earnings clearance for execution readiness",
+      "correction": "Unknown/stale earnings cannot masquerade as clearance; signal and execution readiness remain separate."
+    }
+  ],
+  "capability_gap_matrix": [
+    {
+      "required_capability": "confirmed earnings calendar with announcement status and effective timestamps",
+      "remaining_missingness": "current count unavailable; historical census recorded 38 earnings_calendar missing_earnings_date rows",
+      "cause": "may include unannounced events and provider coverage/entitlement; requires current attempt-linked census to separate",
+      "strategies_affected": ["earnings_calendar", "forward_factor_execution_readiness"],
+      "would_better_external_data_solve": "only provider-confirmed coverage/entitlement cases; genuinely unannounced events remain unknown"
+    },
+    {
+      "required_capability": "complete option expiration, contract, quote, Greek, and implied-volatility evidence",
+      "remaining_missingness": "current count unavailable; historical census recorded missing IV, future-expiration, and quote gaps",
+      "cause": "provider coverage, contract availability, or transient acquisition must be separated by current attempt evidence",
+      "strategies_affected": ["forward_factor", "skew_momentum", "earnings_calendar"],
+      "would_better_external_data_solve": "provider coverage gaps yes; declared expiration policy ineligibility no"
+    },
+    {
+      "required_capability": "split-and-dividend-adjusted or authoritative total-return history",
+      "remaining_missingness": "no qualified sealed long-history corpus; Alpha Vantage adjusted-history entitlement remains unresolved",
+      "cause": "external entitlement and absent qualified historical evidence",
+      "strategies_affected": ["B002", "S001", "TGSM-RESEARCH-001"],
+      "would_better_external_data_solve": "yes, if semantics, depth, timestamps, and redistribution treatment are explicit"
+    },
+    {
+      "required_capability": "canonical three-month Treasury total-return history",
+      "remaining_missingness": "no canonical source, acquisition path, or sealed series",
+      "cause": "out-of-scope source capability gap",
+      "strategies_affected": ["S001", "TGSM-RESEARCH-001"],
+      "would_better_external_data_solve": "yes, if it supplies total return rather than ETF, cash, or raw-yield proxy"
+    },
+    {
+      "required_capability": "authoritative point-in-time sector membership and historical exchange calendar",
+      "remaining_missingness": "no authoritative historical membership snapshots or qualified historical exceptional-session corpus",
+      "cause": "historical reference-data gap",
+      "strategies_affected": ["TGSM-RESEARCH-001"],
+      "would_better_external_data_solve": "yes, if effective dates and source provenance are authoritative"
+    }
+  ],
+  "minimum_paid_provider_requirements_if_procurement_is_considered": [
+    "provider-neutral export and licensing suitable for immutable evidence retention and replay",
+    "explicit adjustment/total-return semantics and at least the preregistered historical period",
+    "effective and observed timestamps plus correction/version semantics",
+    "S&P 500 option chains with expirations, exact contracts, quotes, Greeks, and implied volatility",
+    "confirmed/unconfirmed earnings events with coverage metadata",
+    "documented rate limits sufficient for the bounded active universe",
+    "no requirement for strategy-specific provider routing"
+  ],
+  "decision_rule": "Do not purchase or integrate a paid provider from this artifact. Obtain one authorized post-correction current production census, then quantify the provider-external share and expected coverage improvement before procurement."
+}
