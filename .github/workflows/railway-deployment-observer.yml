@@ -61,6 +61,13 @@ jobs:
           python -m tools.reliability_census_capture
           --output .artifacts/reliability-census/census.json'
 
+      - name: Capture bounded knowledge-construction diagnostics
+        if: inputs.run_reliability_census
+        run: >-
+          railway logs --service trustworthy-education --environment production
+          --since 2d --lines 5000
+          --filter '"strategy_knowledge_construction_failed" OR "EQR" OR "OXY" OR "PG" OR "ZBH"'
+
       - name: Publish report to originating pull request
         id: publish
         if: always()
