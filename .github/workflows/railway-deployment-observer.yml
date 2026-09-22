@@ -69,7 +69,7 @@ jobs:
         if: inputs.run_reliability_census
         run: >-
           railway logs --service trustworthy-education --environment production
-          --since 2026-09-22T14:30:55Z --until 2026-09-22T14:31:05Z
+          --since 2026-09-22T14:52:00Z --until 2026-09-22T14:52:12Z
           --lines 500 --json
 
       - name: Publish report to originating pull request
