@@ -30,10 +30,10 @@ class BrokerMustNotBeCalled:
         raise AssertionError("health endpoint called broker provider")
 
 
-EXPECTED_PRE_DEPLOY_COMMAND = "/app/.venv/bin/python -m alembic upgrade head"
+EXPECTED_PRE_DEPLOY_COMMAND = "python -m alembic upgrade head"
 EXPECTED_START_COMMAND = (
-    "/app/.venv/bin/python -m alembic upgrade head && "
-    "exec /app/.venv/bin/python -m uvicorn asa.asgi:create_application --factory "
+    "python -m alembic upgrade head && "
+    "exec python -m uvicorn asa.asgi:create_application --factory "
     '--host 0.0.0.0 --port "${PORT}"'
 )
 
@@ -54,6 +54,10 @@ def test_railway_backend_runtime_contract() -> None:
     repo_root = Path(__file__).parents[2]
     config = json.loads((repo_root / "railway.json").read_text())
 
+    assert config["build"] == {
+        "builder": "DOCKERFILE",
+        "dockerfilePath": "Dockerfile",
+    }
     assert config["deploy"]["preDeployCommand"] == EXPECTED_PRE_DEPLOY_COMMAND
     assert config["deploy"]["startCommand"] == EXPECTED_START_COMMAND
     assert config["deploy"]["healthcheckPath"] == "/api/v1/health"
@@ -64,6 +68,15 @@ def test_railpack_python_installation_markers() -> None:
 
     assert (repo_root / ".python-version").read_text() == "3.12.13\n"
     assert (repo_root / "requirements.txt").read_text() == ".\n"
+
+
+def test_docker_runtime_installs_project_into_runtime_interpreter() -> None:
+    repo_root = Path(__file__).parents[2]
+    dockerfile = (repo_root / "Dockerfile").read_text()
+
+    assert "FROM python:3.12.13-slim" in dockerfile
+    assert "RUN python -m pip install --no-cache-dir ." in dockerfile
+    assert "/app/.venv" not in dockerfile
 
 
 def test_backend_entrypoint_uses_configured_port() -> None:
@@ -109,7 +122,7 @@ def test_exact_production_command_runs_migration_then_serves_health(tmp_path: Pa
     environment, port = _production_environment(tmp_path, migration_exit_code=0)
     started_at = time.monotonic()
     process = subprocess.Popen(
-        EXPECTED_START_COMMAND.replace("/app/.venv/bin/python", "python"),
+        EXPECTED_START_COMMAND,
         cwd=repo_root,
         env=environment,
         executable="/bin/sh",
@@ -149,7 +162,7 @@ def test_production_command_exits_when_migration_fails(tmp_path: Path) -> None:
     environment, port = _production_environment(tmp_path, migration_exit_code=37)
 
     completed = subprocess.run(
-        EXPECTED_START_COMMAND.replace("/app/.venv/bin/python", "python"),
+        EXPECTED_START_COMMAND,
         cwd=repo_root,
         env=environment,
         executable="/bin/sh",
