@@ -86,6 +86,39 @@ def test_non_positive_forward_variance_becomes_specific_typed_unknown() -> None:
     assert result == UnknownReason("non_positive_forward_variance")
 
 
+def test_non_positive_implied_volatility_becomes_specific_typed_unknown() -> None:
+    digest = "snapshot-digest"
+    mapping = build_forward_factor_knowledge_mapping(
+        subject="WBD",
+        snapshot_digest=digest,
+        quote_observation_id="quote-observation",
+        chain_observation_id="option-chain-observation",
+        earnings_observation_id=None,
+        spot_price=Decimal("10"),
+        chain=cast(OptionChain, object()),
+        front_cycle=_cycle(30),
+        back_cycle=_cycle(60),
+        front_strike=Decimal("10"),
+        back_strike=Decimal("10"),
+        front_iv=Decimal("0"),
+        back_iv=Decimal("0.20"),
+        event=None,
+        as_of=AS_OF,
+    )
+    facts = tuple(
+        _fact(
+            canonical_fact_id(request.fact_type, request.subject, digest),
+            request.fact_type,
+            request.value,
+        )
+        for request in mapping.canonical_fact_requests
+    )
+
+    result = mapping.compute_derived_fact_requests(facts)
+
+    assert result == UnknownReason("missing_implied_volatility")
+
+
 def _event(earnings_date: date, *, confirmed: bool) -> EarningsEvent:
     return EarningsEvent(
         "earnings-1",
