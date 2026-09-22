@@ -55,10 +55,11 @@ jobs:
 
       - name: Capture sanitized production reliability census
         if: inputs.run_reliability_census
-        run: |
-          railway service list --environment production --json \
-            | python -c 'import json,sys; print([item.get("name") for item in json.load(sys.stdin)])'
-          exit 1
+        run: >-
+          railway run --service Postgres-FeW1 --environment production --
+          bash -lc 'DATABASE_URL="$DATABASE_PUBLIC_URL"
+          python -m tools.reliability_census_capture
+          --output .artifacts/reliability-census/census.json'
 
       - name: Publish report to originating pull request
         id: publish
