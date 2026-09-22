@@ -46,7 +46,7 @@ def capture() -> dict[str, object]:
 
     strategy_counts: dict[str, object] = {}
     owner_counts: Counter[str] = Counter()
-    asa_owned_examples: dict[str, dict[str, str]] = {}
+    asa_owned_examples: dict[str, dict[str, tuple[str, str]]] = {}
     reason_counts: Counter[str] = Counter()
     freshness_counts: Counter[str] = Counter()
     for strategy_id in sorted({row.strategy_id for row in active}):
@@ -71,7 +71,8 @@ def capture() -> dict[str, object]:
                 owner_counts[f"{owner.value}:{classification.value}"] += 1
                 if owner.value == "asa_owned":
                     asa_owned_examples.setdefault(classification.value, {})[row.symbol] = (
-                        row.observed_at.isoformat()
+                        row.observed_at.isoformat(),
+                        reason,
                     )
 
     captured_at = datetime.now(UTC)
@@ -109,8 +110,8 @@ def capture() -> dict[str, object]:
         "missingness_ownership": dict(sorted(owner_counts.items())),
         "asa_owned_examples": {
             key: [
-                {"symbol": symbol, "observed_at": observed_at}
-                for symbol, observed_at in sorted(examples.items())[:10]
+                {"symbol": symbol, "observed_at": values[0], "reason": values[1]}
+                for symbol, values in sorted(examples.items())[:10]
             ]
             for key, examples in sorted(asa_owned_examples.items())
         },
