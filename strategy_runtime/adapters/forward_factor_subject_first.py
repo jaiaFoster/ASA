@@ -90,8 +90,14 @@ def _prepare(
     selections: tuple[tuple[str, object], ...],
     subject: str,
 ) -> KnowledgeMapping[ForwardFactorPayload] | UnknownReason:
-    quote_resolution = resolution_for(snapshot, MarketCapability.REAL_TIME_QUOTE_V1)
-    chain_resolution = resolution_for(snapshot, MarketCapability.OPTION_CHAIN_V1)
+    try:
+        quote_resolution = resolution_for(snapshot, MarketCapability.REAL_TIME_QUOTE_V1)
+    except ValueError:
+        return UnknownReason("unusable_quote")
+    try:
+        chain_resolution = resolution_for(snapshot, MarketCapability.OPTION_CHAIN_V1)
+    except ValueError:
+        return UnknownReason("unusable_option_chain")
     quote_observation = quote_resolution.selected_observation
     chain_observation = chain_resolution.selected_observation
     if quote_observation is None or not isinstance(quote_observation.value, Quote):

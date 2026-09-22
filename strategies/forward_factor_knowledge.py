@@ -185,9 +185,11 @@ def build_forward_factor_knowledge_mapping(
                 back_cycle.days_to_expiration,
             )
         except ValueError as exc:
-            if str(exc) != "forward variance must be positive":
-                raise
-            return UnknownReason("non_positive_forward_variance")
+            if str(exc) == "forward variance must be positive":
+                return UnknownReason("non_positive_forward_variance")
+            if str(exc) == "implied volatilities must be positive":
+                return UnknownReason("missing_implied_volatility")
+            raise
         result = [
             DerivedFactRequest(
                 IMPLIED_FORWARD_VOLATILITY,
