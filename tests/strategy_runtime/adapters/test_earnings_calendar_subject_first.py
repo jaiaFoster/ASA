@@ -534,6 +534,9 @@ class TestPrepareStrategyKnowledgeGenericMechanics:
         broken_result = result["broken-strategy"]
         assert isinstance(broken_result, UnknownReason)
         assert broken_result.code == "strategy_knowledge_construction_failed"
+        assert broken_result.detail == (
+            "failure_class=unexpected_runtime_exception;exception_type=RuntimeError"
+        )
         assert isinstance(result["healthy-strategy"], ReadOnlyStrategyInput)
         assert len(budgets.accounting) == 1
 
@@ -583,6 +586,9 @@ class TestPrepareStrategyKnowledgeGenericMechanics:
         broken_result = result["broken-strategy"]
         assert isinstance(broken_result, UnknownReason)
         assert broken_result.code == "strategy_knowledge_construction_failed"
+        assert broken_result.detail == (
+            "failure_class=unexpected_runtime_exception;exception_type=RuntimeError"
+        )
         assert isinstance(result["healthy-strategy"], ReadOnlyStrategyInput)
         assert len(budgets.accounting) == 1
 

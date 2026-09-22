@@ -323,11 +323,13 @@ def prepare_subject_knowledge_with_temporal(
                 strategy_id,
                 subject=subject,
             )
-        except Exception:
+        except Exception as exc:
             # The subject snapshot is already sealed. A defect in one
             # strategy-owned projection or composition must not erase valid
             # knowledge for unrelated consumers sharing that evidence boundary.
-            prepared[strategy_id] = record_strategy_knowledge_failure(strategy_id, subject)
+            prepared[strategy_id] = record_strategy_knowledge_failure(
+                strategy_id, subject, exc
+            )
             continue
     return PreparedSubjectKnowledge(
         tuple(sorted(prepared.items())), tuple(sorted(temporal_observations.items()))

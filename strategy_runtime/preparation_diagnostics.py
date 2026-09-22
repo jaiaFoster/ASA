@@ -29,14 +29,21 @@ def classify_subject_preparation_exception(exc: BaseException) -> str:
 
 
 def record_strategy_knowledge_failure(
-    strategy_id: str, subject: str
+    strategy_id: str, subject: str, exc: BaseException
 ) -> UnknownReason:
+    failure_class = classify_subject_preparation_exception(exc)
+    exception_type = type(exc).__name__
     _LOGGER.exception(
         "strategy_knowledge_construction_failed",
         extra={
             "failure_class": "strategy_knowledge_construction_failure",
             "strategy_id": strategy_id,
             "subject": subject,
+            "root_failure_class": failure_class,
+            "exception_type": exception_type,
         },
     )
-    return UnknownReason("strategy_knowledge_construction_failed")
+    return UnknownReason(
+        "strategy_knowledge_construction_failed",
+        detail=f"failure_class={failure_class};exception_type={exception_type}",
+    )
