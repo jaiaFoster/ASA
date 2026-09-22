@@ -21,3 +21,9 @@ container did not contain `/app/.venv/bin/python`. ASA now uses a bounded
 repository Dockerfile so dependency installation, migration, and Uvicorn all
 use one deterministic Python 3.12.13 runtime. No application, provider, or
 strategy behavior changes.
+
+The first Docker-image verification then reached both pre-deploy and start
+migrations, but never launched Uvicorn. Railway applies Dockerfile/image start
+overrides in exec form, so compound commands and runtime variables require an
+explicit shell. The final bounded correction wraps the existing command with
+`/bin/sh -c`; it does not change application behavior.

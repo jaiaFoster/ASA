@@ -9,4 +9,4 @@ WORKDIR /app
 COPY . /app
 RUN python -m pip install --no-cache-dir .
 
-CMD ["python", "-m", "uvicorn", "asa.asgi:create_application", "--factory", "--host", "0.0.0.0"]
+CMD ["/bin/sh", "-c", "python -m alembic upgrade head && exec python -m uvicorn asa.asgi:create_application --factory --host 0.0.0.0 --port \"$PORT\""]
