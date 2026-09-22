@@ -1,8 +1,8 @@
 """Emit a sanitized, read-only production reliability census.
 
-No symbols, payloads, credentials, account data, or provider request IDs are
-written.  The artifact contains only aggregate latest-state and acquisition
-diagnostic counts plus a checksum of the active identity set.
+No payloads, credentials, account data, or provider request IDs are written.
+The artifact contains aggregate latest-state and acquisition diagnostics plus
+bounded subject examples only for ASA-owned defects requiring correction.
 """
 
 from __future__ import annotations
@@ -46,6 +46,7 @@ def capture() -> dict[str, object]:
 
     strategy_counts: dict[str, object] = {}
     owner_counts: Counter[str] = Counter()
+    asa_owned_examples: dict[str, set[str]] = {}
     reason_counts: Counter[str] = Counter()
     freshness_counts: Counter[str] = Counter()
     for strategy_id in sorted({row.strategy_id for row in active}):
@@ -68,6 +69,8 @@ def capture() -> dict[str, object]:
                 classification, owner = _classify_result_reason(reason)
                 reason_counts[f"{strategy_id}:{reason}"] += 1
                 owner_counts[f"{owner.value}:{classification.value}"] += 1
+                if owner.value == "asa_owned":
+                    asa_owned_examples.setdefault(classification.value, set()).add(row.symbol)
 
     captured_at = datetime.now(UTC)
     cutoff = captured_at - timedelta(hours=24)
@@ -102,6 +105,9 @@ def capture() -> dict[str, object]:
         "retained_nonactive_count": sum(row.symbol not in active_symbols for row in rows),
         "per_strategy": strategy_counts,
         "missingness_ownership": dict(sorted(owner_counts.items())),
+        "asa_owned_examples": {
+            key: sorted(symbols)[:10] for key, symbols in sorted(asa_owned_examples.items())
+        },
         "missingness_reasons": dict(sorted(reason_counts.items())),
         "freshness": dict(sorted(freshness_counts.items())),
         "acquisition_attempts_last_24h": attempt_counts,
