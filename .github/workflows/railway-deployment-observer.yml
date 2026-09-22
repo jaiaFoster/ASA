@@ -55,10 +55,12 @@ jobs:
 
       - name: Capture sanitized production reliability census
         if: inputs.run_reliability_census
-        run: >-
-          railway run --service ASA --environment production --
-          python -m tools.reliability_census_capture
-          --output .artifacts/reliability-census/census.json
+        run: |
+          mkdir -p .artifacts/reliability-census
+          encoded_script="$(base64 -w0 tools/reliability_census_capture.py)"
+          railway ssh --service ASA --environment production -- \
+            bash -lc "echo '${encoded_script}' | base64 -d >/tmp/reliability_census_capture.py; cd /app; PYTHONPATH=/app python /tmp/reliability_census_capture.py --output /tmp/reliability-census.json; cat /tmp/reliability-census.json" \
+            > .artifacts/reliability-census/census.json
 
       - name: Publish report to originating pull request
         id: publish
