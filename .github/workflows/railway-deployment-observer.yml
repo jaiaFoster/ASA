@@ -61,6 +61,10 @@ jobs:
           python -m tools.reliability_census_capture
           --output .artifacts/railway-deployment/reliability-census.json'
 
+      - name: Verify scheduled runner deployment
+        if: inputs.run_reliability_census
+        run: railway service status --service trustworthy-education --environment production --json
+
       - name: Publish report to originating pull request
         id: publish
         if: always()
