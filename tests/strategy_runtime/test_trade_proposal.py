@@ -160,8 +160,12 @@ def test_constructible_calendar_projects_exact_trade_with_only_its_loss_bound() 
     assert proposal.maximum_profit.reason == "later_expiring_leg_value_is_model_dependent"
     assert proposal.breakeven.state is QuantityState.UNKNOWN
     assert "maximum_loss_model:same-strike-calendar-debit-bound-v1" in proposal.assumptions
-    assert "maximum_loss_assumption:long_leg_exercisable_american_style" in proposal.assumptions
-    assert any("remains exercisable" in note for note in proposal.risk_notes)
+    assert {
+        "maximum_loss_assumption:long_leg_exercisable_american_style",
+        "maximum_loss_assumption:long_leg_exercised_or_closed_promptly_on_assignment",
+        "maximum_loss_assumption:excludes_dividend_owed_after_early_call_assignment",
+    } <= set(proposal.assumptions)
+    assert any("ex-dividend" in note for note in proposal.risk_notes)
     assert proposal.invalidation_notes == ("not_defined_by_strategy",)
     assert "modeled entry is not an executed fill" in proposal.risk_notes
     assert len(proposal.identity) == 64
@@ -261,3 +265,80 @@ def test_same_strike_calendar_loss_bound_applies_only_to_that_exact_shape() -> N
         ),
     )
     assert same_strike_calendar_loss_bound(credit) is None
+
+
+def _shape(  # type: ignore[no-untyped-def]
+    *,
+    types=(OptionType.CALL, OptionType.CALL),
+    strikes=("200", "200"),
+    expirations=(FRONT, BACK),
+    quantities=("1", "1"),
+    debit="2.10",
+):
+    """Duck-typed short/long pair isolating the bound's shape guard."""
+    from types import SimpleNamespace
+
+    from strategy_runtime.executable_structures import ExecutableStructureStatus
+
+    legs = tuple(
+        SimpleNamespace(
+            leg=SimpleNamespace(
+                position=position,
+                quantity=Decimal(quantity),
+                contract=SimpleNamespace(
+                    option_type=option_type, strike=Decimal(strike), expiration=expiration
+                ),
+            )
+        )
+        for position, option_type, strike, expiration, quantity in zip(
+            (OptionLegPosition.SHORT, OptionLegPosition.LONG),
+            types,
+            strikes,
+            expirations,
+            quantities,
+            strict=True,
+        )
+    )
+    return SimpleNamespace(
+        status=ExecutableStructureStatus.CONSTRUCTIBLE_AS_INTENDED,
+        modeled_entry_economics=SimpleNamespace(modeled_net_debit_or_credit=Decimal(debit)),
+        exact_legs=legs,
+    )
+
+
+@pytest.mark.parametrize(
+    ("shape", "expected"),
+    [
+        ({}, Decimal("210.00")),
+        ({"types": (OptionType.PUT, OptionType.PUT)}, Decimal("210.00")),
+        ({"quantities": ("3", "3"), "debit": "6.30"}, Decimal("630.00")),
+        ({"expirations": (BACK, FRONT)}, None),
+        ({"expirations": (FRONT, FRONT)}, None),
+        ({"quantities": ("1", "2")}, None),
+        ({"strikes": ("200", "205")}, None),
+        ({"types": (OptionType.CALL, OptionType.PUT)}, None),
+        ({"debit": "0"}, None),
+    ],
+)
+def test_calendar_bound_shape_guard(shape: dict[str, object], expected: Decimal | None) -> None:
+    bound = same_strike_calendar_loss_bound(_shape(**shape))  # type: ignore[arg-type]
+
+    assert (None if bound is None else bound.value) == expected
+
+
+def test_projected_bounds_do_not_depend_on_display_grid() -> None:
+    from strategy_runtime.option_payoff import model_terminal_payoff
+
+    assessment = replace(_vertical(), originating_result_identity="result-1")
+    sparse = model_terminal_payoff(
+        assessment=assessment, underlying_price_grid=(Decimal("1"), Decimal("500"))
+    )
+    assert isinstance(sparse, DeterministicTerminalPayoff)
+
+    derived = build_option_trade_proposal(_result(), assessment)
+    attached = build_option_trade_proposal(_result(), assessment, sparse)
+
+    assert isinstance(derived, OptionTradeProposal)
+    assert isinstance(attached, OptionTradeProposal)
+    for field in ("maximum_loss", "maximum_profit", "breakeven", "capital_required"):
+        assert getattr(derived, field) == getattr(attached, field)

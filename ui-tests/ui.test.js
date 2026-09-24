@@ -196,10 +196,13 @@ test("actionable option detail leads with exact trade and expandable rationale",
     entry_model_version: "midpoint-v1",
     constructibility: "constructible_as_intended",
     liquidity: "acceptable",
-    capital_required: { state: "unknown", value: null },
-    maximum_loss: { state: "unknown", value: null },
-    maximum_profit: { state: "unknown", value: null },
+    capital_required: { state: "supported", value: "125.00", reason: null },
+    maximum_loss: { state: "supported", value: "125.00", reason: null },
+    maximum_profit: {
+      state: "unknown", value: null, reason: "later_expiring_leg_value_is_model_dependent",
+    },
     breakeven: { state: "unknown", value: null },
+    assumptions: ["payoff_model:exact-leg-terminal-payoff-v1"],
     legs: [
       {
         buy_or_sell: "buy", quantity: "1", call_or_put: "call",
@@ -252,6 +255,9 @@ test("actionable option detail leads with exact trade and expandable rationale",
   assert.match(card.querySelector("svg").getAttribute("aria-label"), /expiration payoff/);
   assert.match(card.textContent, /Show exact plotted values/);
   assert.match(card.textContent, /not guaranteed returns/);
+  assert.match(card.textContent, /Maximum loss125\.00/);
+  assert.match(card.textContent, /unknown \(later_expiring_leg_value_is_model_dependent\)/);
+  assert.match(card.textContent, /Model assumptionspayoff_model:exact-leg-terminal-payoff-v1/);
   assert.match(card.textContent, /Track This/);
   assert.match(card.textContent, /does not place an order or imply a fill/);
   card.querySelector("button.button--primary").click();

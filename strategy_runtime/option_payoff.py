@@ -24,7 +24,11 @@ from strategy_runtime.executable_structures import (
 
 MODEL_VERSION = "exact-leg-terminal-payoff-v1"
 CALENDAR_LOSS_BOUND_VERSION = "same-strike-calendar-debit-bound-v1"
-CALENDAR_LOSS_BOUND_ASSUMPTION = "long_leg_exercisable_american_style"
+CALENDAR_LOSS_BOUND_ASSUMPTIONS = (
+    "long_leg_exercisable_american_style",
+    "long_leg_exercised_or_closed_promptly_on_assignment",
+    "excludes_dividend_owed_after_early_call_assignment",
+)
 _MONEY = Decimal("0.01")
 
 
@@ -182,7 +186,10 @@ def same_strike_calendar_loss_bound(
     Through the short leg's expiration the later-dated long leg, assumed
     exercisable (American-style listed equity option), is worth at least the
     short leg's obligation, so the position never falls below zero and loss
-    cannot exceed the debit paid. Profit and breakeven stay model-dependent.
+    cannot exceed the debit paid. The bound excludes a dividend owed when a
+    short call is assigned before an ex-date, and it relies on exercising or
+    closing the long leg promptly after assignment; both are disclosed as
+    explicit assumptions. Profit and breakeven stay model-dependent.
     Returns ``None`` for every other shape rather than guessing.
     """
     if (

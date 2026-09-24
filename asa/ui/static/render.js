@@ -270,6 +270,11 @@ function resultsView(model, handlers) {
   return fragment;
 }
 
+function tradeQuantityText(quantity) {
+  if (quantity.value != null) return quantity.value;
+  return quantity.reason ? `${quantity.state} (${quantity.reason})` : quantity.state;
+}
+
 function detailView(item, handlers) {
   const fragment = document.createDocumentFragment();
   const back = element("a", "back-link", "← Latest results"); back.href = "#/results"; fragment.append(back);
@@ -291,10 +296,10 @@ function detailView(item, handlers) {
       ["Modeled entry", `${proposal.modeled_net_debit_or_credit} (${proposal.entry_model_version})`],
       ["Constructibility", proposal.constructibility],
       ["Liquidity", proposal.liquidity],
-      ["Capital required", proposal.capital_required.value ?? proposal.capital_required.state],
-      ["Maximum loss", proposal.maximum_loss.value ?? proposal.maximum_loss.state],
-      ["Maximum profit", proposal.maximum_profit.value ?? proposal.maximum_profit.state],
-      ["Breakeven", proposal.breakeven.value ?? proposal.breakeven.state],
+      ["Capital required", tradeQuantityText(proposal.capital_required)],
+      ["Maximum loss", tradeQuantityText(proposal.maximum_loss)],
+      ["Maximum profit", tradeQuantityText(proposal.maximum_profit)],
+      ["Breakeven", tradeQuantityText(proposal.breakeven)],
     ]));
     const legs = element("div", "trade-legs");
     for (const leg of proposal.legs) {
@@ -344,6 +349,10 @@ function detailView(item, handlers) {
     const risks = element("ul");
     risks.append(...[...proposal.risk_notes, ...proposal.invalidation_notes].map((value) => element("li", null, value)));
     why.append(risks);
+    why.append(element("h4", null, "Model assumptions"));
+    const modelAssumptions = element("ul");
+    modelAssumptions.append(...proposal.assumptions.map((value) => element("li", null, value)));
+    why.append(modelAssumptions);
     why.append(element("p", "trade-evidence", `Evidence snapshot ${proposal.evidence_snapshot_identity}`));
     trade.append(why);
     fragment.append(trade);

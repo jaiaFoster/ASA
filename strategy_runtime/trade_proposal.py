@@ -19,7 +19,7 @@ from strategy_runtime.executable_structures import (
     ExecutableStructureStatus,
 )
 from strategy_runtime.option_payoff import (
-    CALENDAR_LOSS_BOUND_ASSUMPTION,
+    CALENDAR_LOSS_BOUND_ASSUMPTIONS,
     CALENDAR_LOSS_BOUND_VERSION,
     DeterministicTerminalPayoff,
     PayoffQuantity,
@@ -198,7 +198,7 @@ def build_option_trade_proposal(
         if terminal_payoff is not None
         else (
             f"maximum_loss_model:{CALENDAR_LOSS_BOUND_VERSION}",
-            f"maximum_loss_assumption:{CALENDAR_LOSS_BOUND_ASSUMPTION}",
+            *(f"maximum_loss_assumption:{item}" for item in CALENDAR_LOSS_BOUND_ASSUMPTIONS),
         )
         if calendar_bound is not None
         else ()
@@ -256,8 +256,11 @@ def build_option_trade_proposal(
     payoff_note = (
         "expiration payoff bounds assume the modeled midpoint entry"
         if terminal_payoff is not None
-        else "maximum loss is bounded by the modeled debit only while the long leg is held "
-        "through the short leg's expiration and remains exercisable; profit is model-dependent"
+        else "maximum loss is bounded by the modeled debit only if the long leg is held through "
+        "the short leg's expiration and exercised or closed promptly if the short leg is "
+        "assigned; an early call assignment before an ex-dividend date can add the dividend "
+        "owed, and assignment can temporarily require stock-level margin; profit is "
+        "model-dependent"
         if calendar_bound is not None
         else "payoff quantities remain unknown until a compatible model is attached"
     )
