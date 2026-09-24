@@ -1533,6 +1533,82 @@
           }
         }
       }
+    },
+    "/api/v1/screening/{signal}/{symbol}/execution-readiness/terminal-payoff": {
+      "get": {
+        "summary": "Model Execution Readiness Terminal Payoff",
+        "description": "Return deterministic expiry payoff only when all exact legs expire together.",
+        "operationId": "model_execution_readiness_terminal_payoff_api_v1_screening__signal___symbol__execution_readiness_terminal_payoff_get",
+        "parameters": [
+          {
+            "name": "signal",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Signal"
+            }
+          },
+          {
+            "name": "symbol",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Symbol"
+            }
+          },
+          {
+            "name": "underlying_price_grid",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Underlying Price Grid"
+            }
+          },
+          {
+            "name": "contract_multiplier",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "string",
+                  "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                }
+              ],
+              "default": "100",
+              "title": "Contract Multiplier"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeterministicTerminalPayoffResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -4722,6 +4798,129 @@
           "terminal_reason"
         ],
         "title": "OptionFunnelTraceResponse"
+      },
+      "DeterministicTerminalPayoffResponse": {
+        "properties": {
+          "payoff_identity": {
+            "type": "string",
+            "title": "Payoff Identity"
+          },
+          "structure_assessment_identity": {
+            "type": "string",
+            "title": "Structure Assessment Identity"
+          },
+          "model_version": {
+            "type": "string",
+            "title": "Model Version"
+          },
+          "expiration": {
+            "type": "string",
+            "format": "date",
+            "title": "Expiration"
+          },
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/TerminalPayoffPointResponse"
+            },
+            "type": "array",
+            "title": "Points"
+          },
+          "contract_multiplier": {
+            "type": "string",
+            "title": "Contract Multiplier"
+          },
+          "entry_fill_assumption": {
+            "type": "string",
+            "title": "Entry Fill Assumption"
+          },
+          "maximum_loss": {
+            "$ref": "#/components/schemas/PayoffQuantityResponse"
+          },
+          "maximum_profit": {
+            "$ref": "#/components/schemas/PayoffQuantityResponse"
+          },
+          "breakevens": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Breakevens"
+          },
+          "semantics": {
+            "type": "string",
+            "title": "Semantics"
+          }
+        },
+        "type": "object",
+        "required": [
+          "payoff_identity",
+          "structure_assessment_identity",
+          "model_version",
+          "expiration",
+          "points",
+          "contract_multiplier",
+          "entry_fill_assumption",
+          "maximum_loss",
+          "maximum_profit",
+          "breakevens",
+          "semantics"
+        ],
+        "title": "DeterministicTerminalPayoffResponse"
+      },
+      "PayoffQuantityResponse": {
+        "properties": {
+          "state": {
+            "type": "string",
+            "title": "State"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "state",
+          "value",
+          "reason"
+        ],
+        "title": "PayoffQuantityResponse"
+      },
+      "TerminalPayoffPointResponse": {
+        "properties": {
+          "underlying_price": {
+            "type": "string",
+            "title": "Underlying Price"
+          },
+          "payoff": {
+            "type": "string",
+            "title": "Payoff"
+          }
+        },
+        "type": "object",
+        "required": [
+          "underlying_price",
+          "payoff"
+        ],
+        "title": "TerminalPayoffPointResponse"
       }
     }
   }

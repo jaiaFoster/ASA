@@ -20,6 +20,7 @@ from strategy_runtime.executable_structures import ExecutableStructureAssessment
 from strategy_runtime.lifecycle import OpportunityHistory, OpportunityObservation
 from strategy_runtime.modeled_pnl import ModeledPnLSurface
 from strategy_runtime.option_funnel import OptionFunnelTrace
+from strategy_runtime.option_payoff import DeterministicTerminalPayoff, PayoffQuantity
 from strategy_runtime.result import EvaluationState, UniversalScreeningResult
 from strategy_runtime.result_freshness import project_current_result_freshness
 
@@ -523,6 +524,63 @@ class ModeledPnLSurfaceResponse(BaseModel):
             annual_risk_free_rate=str(surface.annual_risk_free_rate),
             annual_dividend_yield=str(surface.annual_dividend_yield),
             contract_multiplier=str(surface.contract_multiplier),
+        )
+
+
+class PayoffQuantityResponse(BaseModel):
+    state: str
+    value: str | None
+    reason: str | None
+
+    @classmethod
+    def from_quantity(cls, quantity: PayoffQuantity) -> PayoffQuantityResponse:
+        return cls(
+            state=quantity.state.value,
+            value=None if quantity.value is None else str(quantity.value),
+            reason=quantity.reason,
+        )
+
+
+class TerminalPayoffPointResponse(BaseModel):
+    underlying_price: str
+    payoff: str
+
+
+class DeterministicTerminalPayoffResponse(BaseModel):
+    payoff_identity: str
+    structure_assessment_identity: str
+    model_version: str
+    expiration: date
+    points: list[TerminalPayoffPointResponse]
+    contract_multiplier: str
+    entry_fill_assumption: str
+    maximum_loss: PayoffQuantityResponse
+    maximum_profit: PayoffQuantityResponse
+    breakevens: list[str]
+    semantics: str
+
+    @classmethod
+    def from_payoff(
+        cls, payoff: DeterministicTerminalPayoff
+    ) -> DeterministicTerminalPayoffResponse:
+        return cls(
+            payoff_identity=payoff.identity,
+            structure_assessment_identity=payoff.structure_assessment_identity,
+            model_version=payoff.model_version,
+            expiration=payoff.expiration,
+            points=[
+                TerminalPayoffPointResponse(
+                    underlying_price=str(item.underlying_price),
+                    payoff=str(item.payoff),
+                )
+                for item in payoff.points
+            ],
+            contract_multiplier=str(payoff.contract_multiplier),
+            entry_fill_assumption=payoff.entry_fill_assumption,
+            maximum_loss=PayoffQuantityResponse.from_quantity(payoff.maximum_loss),
+            maximum_profit=PayoffQuantityResponse.from_quantity(payoff.maximum_profit),
+            breakevens=[str(item) for item in payoff.breakevens],
+            semantics=payoff.semantics,
         )
 
 

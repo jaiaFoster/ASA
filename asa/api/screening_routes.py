@@ -37,6 +37,7 @@ from fastapi import APIRouter, Depends, Query, Request
 from asa.api.agent_models import agent_api_error
 from asa.api.screening_models import (
     CapabilitiesResponse,
+    DeterministicTerminalPayoffResponse,
     ModeledPnLSurfaceResponse,
     OpportunityHistoryResponse,
     OptionFunnelTraceResponse,
@@ -88,6 +89,7 @@ from strategy_runtime.option_funnel import (
     CapabilityDemandDiagnostic,
     build_option_funnel_trace,
 )
+from strategy_runtime.option_payoff import TerminalPayoffUnknown, model_terminal_payoff
 from strategy_runtime.orchestration import (
     build_subject_acquisition_access,
     prepare_subject_shadow_knowledge_with_temporal,
@@ -569,6 +571,50 @@ def build_screening_router(
         if isinstance(result, ModeledPnLUnknown):
             raise agent_api_error(422, result.reason_code.upper(), result.reason_code)
         return ModeledPnLSurfaceResponse.from_surface(result)
+
+    @router.get(
+        "/screening/{signal}/{symbol}/execution-readiness/terminal-payoff",
+        response_model=DeterministicTerminalPayoffResponse,
+    )
+    def model_execution_readiness_terminal_payoff(
+        signal: str,
+        symbol: str,
+        underlying_price_grid: str,
+        contract_multiplier: Decimal = Decimal("100"),
+    ) -> DeterministicTerminalPayoffResponse:
+        """Return deterministic expiry payoff only when all exact legs expire together."""
+        _require_registered_signal(signal)
+        artifact = (
+            None
+            if portfolio_lifecycle_repository is None
+            else portfolio_lifecycle_repository.execution_readiness(signal, symbol.upper())
+        )
+        if artifact is None:
+            raise agent_api_error(404, "NO_EXECUTION_READINESS", "No execution readiness")
+        records = get_state(repository, strategy_id=signal, symbol=symbol)
+        if not records or artifact.originating_observation_id != records[0].observation_id:
+            raise agent_api_error(
+                409,
+                "STALE_EXECUTION_READINESS",
+                "Execution readiness does not match the current screening observation",
+            )
+        assessment = deserialize_execution_assessment(artifact.assessment_json)
+        if assessment.identity != artifact.assessment_identity:
+            raise agent_api_error(
+                409, "EXECUTION_READINESS_INTEGRITY", "Execution readiness identity mismatch"
+            )
+        try:
+            prices = tuple(Decimal(item.strip()) for item in underlying_price_grid.split(","))
+        except (ArithmeticError, ValueError):
+            raise agent_api_error(422, "INVALID_PAYOFF_GRID", "Payoff grid is malformed") from None
+        result = model_terminal_payoff(
+            assessment=assessment,
+            underlying_price_grid=prices,
+            contract_multiplier=contract_multiplier,
+        )
+        if isinstance(result, TerminalPayoffUnknown):
+            raise agent_api_error(422, result.reason_code.upper(), result.reason_code)
+        return DeterministicTerminalPayoffResponse.from_payoff(result)
 
     @router.post(
         "/screening/{signal}/{symbol}/refresh",

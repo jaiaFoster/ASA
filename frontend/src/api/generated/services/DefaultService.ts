@@ -6,6 +6,7 @@ import type { AttemptListResponse } from '../models/AttemptListResponse';
 import type { AttemptSummaryResponse } from '../models/AttemptSummaryResponse';
 import type { BuildIdentityResponse } from '../models/BuildIdentityResponse';
 import type { CapabilitiesResponse } from '../models/CapabilitiesResponse';
+import type { DeterministicTerminalPayoffResponse } from '../models/DeterministicTerminalPayoffResponse';
 import type { HealthResponse } from '../models/HealthResponse';
 import type { IngestQuotesRequest } from '../models/IngestQuotesRequest';
 import type { IngestQuotesResponse } from '../models/IngestQuotesResponse';
@@ -620,6 +621,38 @@ export class DefaultService {
             path: {
                 'signal': signal,
                 'symbol': symbol,
+            },
+            errors: {
+                422: `Validation Error`,
+            },
+        });
+    }
+    /**
+     * Model Execution Readiness Terminal Payoff
+     * Return deterministic expiry payoff only when all exact legs expire together.
+     * @param signal
+     * @param symbol
+     * @param underlyingPriceGrid
+     * @param contractMultiplier
+     * @returns DeterministicTerminalPayoffResponse Successful Response
+     * @throws ApiError
+     */
+    public static modelExecutionReadinessTerminalPayoffApiV1ScreeningSignalSymbolExecutionReadinessTerminalPayoffGet(
+        signal: string,
+        symbol: string,
+        underlyingPriceGrid: string,
+        contractMultiplier?: (number | string),
+    ): CancelablePromise<DeterministicTerminalPayoffResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v1/screening/{signal}/{symbol}/execution-readiness/terminal-payoff',
+            path: {
+                'signal': signal,
+                'symbol': symbol,
+            },
+            query: {
+                'underlying_price_grid': underlyingPriceGrid,
+                'contract_multiplier': contractMultiplier,
             },
             errors: {
                 422: `Validation Error`,

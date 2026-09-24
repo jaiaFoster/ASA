@@ -16,6 +16,7 @@ export type { BuildIdentityResponse } from './models/BuildIdentityResponse';
 export type { CapabilitiesResponse } from './models/CapabilitiesResponse';
 export type { CapabilityCheckResponse } from './models/CapabilityCheckResponse';
 export type { CapabilityDemandDiagnosticResponse } from './models/CapabilityDemandDiagnosticResponse';
+export type { DeterministicTerminalPayoffResponse } from './models/DeterministicTerminalPayoffResponse';
 export type { EquityPositionResponse } from './models/EquityPositionResponse';
 export type { ExactOptionLegResponse } from './models/ExactOptionLegResponse';
 export type { ExecutableStructureAssessmentResponse } from './models/ExecutableStructureAssessmentResponse';
@@ -35,6 +36,7 @@ export type { OpportunityObservationResponse } from './models/OpportunityObserva
 export type { OptionFunnelTraceResponse } from './models/OptionFunnelTraceResponse';
 export type { OptionLegResponse } from './models/OptionLegResponse';
 export type { OptionStructureResponse } from './models/OptionStructureResponse';
+export type { PayoffQuantityResponse } from './models/PayoffQuantityResponse';
 export type { PortfolioDataResponse } from './models/PortfolioDataResponse';
 export type { PortfolioEnvelope } from './models/PortfolioEnvelope';
 export type { PositionsDataResponse } from './models/PositionsDataResponse';
@@ -56,6 +58,7 @@ export type { SignalCapabilityResponse } from './models/SignalCapabilityResponse
 export type { StartRunRequest } from './models/StartRunRequest';
 export type { StrategyHealthFunnelResponse } from './models/StrategyHealthFunnelResponse';
 export type { StrategyHealthResponse } from './models/StrategyHealthResponse';
+export type { TerminalPayoffPointResponse } from './models/TerminalPayoffPointResponse';
 export type { TrackCandidateRequest } from './models/TrackCandidateRequest';
 export type { TrackedCandidateDetailResponse } from './models/TrackedCandidateDetailResponse';
 export type { TrackedCandidateResponse } from './models/TrackedCandidateResponse';
