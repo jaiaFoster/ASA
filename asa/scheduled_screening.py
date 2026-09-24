@@ -106,6 +106,7 @@ from strategy_runtime.market_data_planning import (
     build_shared_market_data_access,
     enabled_provider_configs,
 )
+from strategy_runtime.option_funnel import CapabilityDemandDiagnostic
 from strategy_runtime.orchestration import (
     build_subject_acquisition_access,
     prepare_subject_shadow_knowledge_with_temporal,
@@ -168,9 +169,7 @@ def _cross_subject_classifications(symbols: tuple[str, ...]) -> EquityUniverseCl
         legacy_sector = SECTOR_BY_INSTRUMENT.get(instrument)
         if legacy_sector is not None:
             sectors[instrument] = legacy_sector
-    return EquityUniverseClassifications(
-        MappingProxyType(asset_types), MappingProxyType(sectors)
-    )
+    return EquityUniverseClassifications(MappingProxyType(asset_types), MappingProxyType(sectors))
 
 
 def _scheduled_cohort_ordinal(slot: ScheduledRefreshSlot) -> int:
@@ -583,8 +582,9 @@ def run_scheduled_refresh(
     shadow_knowledge_by_symbol: dict[
         str, dict[str, ReadOnlyStrategyInput[object] | UnknownReason]
     ] = {}
-    shadow_temporal_observations_by_symbol: dict[
-        str, dict[str, tuple[MarketObservation, ...]]
+    shadow_temporal_observations_by_symbol: dict[str, dict[str, tuple[MarketObservation, ...]]] = {}
+    acquisition_diagnostics_by_symbol: dict[
+        str, dict[str, tuple[CapabilityDemandDiagnostic, ...]]
     ] = {}
     prepared_request_count_by_symbol: dict[str, int] = {}
     for symbol in unique_symbols:
@@ -610,11 +610,12 @@ def run_scheduled_refresh(
                     )
                 ),
             )
-            shadow_knowledge_by_symbol[symbol] = dict(
-                prepared_subject.knowledge_by_strategy
-            )
+            shadow_knowledge_by_symbol[symbol] = dict(prepared_subject.knowledge_by_strategy)
             shadow_temporal_observations_by_symbol[symbol] = dict(
                 prepared_subject.temporal_observations_by_strategy
+            )
+            acquisition_diagnostics_by_symbol[symbol] = dict(
+                prepared_subject.acquisition_diagnostics_by_strategy
             )
         except Exception as failure:
             _LOGGER.warning(
@@ -665,9 +666,7 @@ def run_scheduled_refresh(
             def _subject_first_observations(
                 symbol: str = symbol, signal_id: str = signal_id
             ) -> tuple[MarketObservation, ...]:
-                return shadow_temporal_observations_by_symbol.get(symbol, {}).get(
-                    signal_id, ()
-                )
+                return shadow_temporal_observations_by_symbol.get(symbol, {}).get(signal_id, ())
 
             result, shadow_diagnostic = refresh_with_shadow(
                 pair_registry,
@@ -680,6 +679,7 @@ def run_scheduled_refresh(
                 historical_skew_repository=resolved_historical_skew_repository,
                 shadow_registry=shadow_registry,
                 shadow_knowledge_by_subject=shadow_knowledge_by_symbol.get(symbol),
+                acquisition_diagnostics_by_strategy=(acquisition_diagnostics_by_symbol.get(symbol)),
                 cutover_policy=cutover_policy,
             )
             knowledge = shadow_knowledge_by_symbol.get(symbol, {}).get(signal_id)
@@ -704,9 +704,7 @@ def run_scheduled_refresh(
                 and authoritative_row.observation_id == result.observation_id
             ):
                 try:
-                    assessment = binding.build_execution_assessment(
-                        knowledge, result, clock.now()
-                    )
+                    assessment = binding.build_execution_assessment(knowledge, result, clock.now())
                     resolved_portfolio_lifecycle_repository.put_execution_readiness(
                         ExecutionReadinessArtifact(
                             originating_observation_id=result.observation_id,
@@ -847,9 +845,7 @@ def run_scheduled_refresh(
             completed_at=completed_at,
             pair_count=len(outcomes),
             failure_count=sum(item.error is not None for item in outcomes),
-            incomplete_diagnostic_count=sum(
-                not item.attempts_recorded for item in outcomes
-            ),
+            incomplete_diagnostic_count=sum(not item.attempts_recorded for item in outcomes),
         )
     return tuple(outcomes)
 

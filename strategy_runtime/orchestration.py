@@ -67,6 +67,10 @@ from strategy_runtime.clock import Clock
 from strategy_runtime.context import RuntimeContext
 from strategy_runtime.historical_evidence import HistoricalSkewRepository
 from strategy_runtime.knowledge import ReadOnlyStrategyInput
+from strategy_runtime.option_funnel import (
+    CapabilityDemandDiagnostic,
+    attach_acquisition_diagnostics,
+)
 from strategy_runtime.persistence import LatestResultRepository
 from strategy_runtime.registry import StrategyRegistry
 from strategy_runtime.result import (
@@ -178,9 +182,7 @@ def touched_observations(tracker: TouchedResultFulfillment) -> tuple[MarketObser
     is what an observations callback passed into refresh_with_shadow
     should be built from.
     """
-    return tuple(
-        observation for result in tracker.touched for observation in result.observations
-    )
+    return tuple(observation for result in tracker.touched for observation in result.observations)
 
 
 def prepare_subject_shadow_knowledge(
@@ -214,11 +216,7 @@ def prepare_subject_shadow_knowledge(
     return prepare_subject_knowledge(
         plan,
         now,
-        (
-            shadow_registry
-            if strategy_ids is None
-            else shadow_registry.restricted_to(strategy_ids)
-        ),
+        (shadow_registry if strategy_ids is None else shadow_registry.restricted_to(strategy_ids)),
         subject=subject,
         provider_metadata=provider_metadata,
         resolution_policy_by_capability=resolution_policy_by_capability,
@@ -242,11 +240,7 @@ def prepare_subject_shadow_knowledge_with_temporal(
     return prepare_subject_knowledge_with_temporal(
         plan,
         now,
-        (
-            shadow_registry
-            if strategy_ids is None
-            else shadow_registry.restricted_to(strategy_ids)
-        ),
+        (shadow_registry if strategy_ids is None else shadow_registry.restricted_to(strategy_ids)),
         subject=subject,
         provider_metadata=provider_metadata,
         resolution_policy_by_capability=resolution_policy_by_capability,
@@ -395,9 +389,7 @@ def _run_shadow(
     contract = legacy_registry.contract_for(strategy_id)
     binding = shadow_registry.binding_for(strategy_id)
     shadow_adapter = binding.build_shadow_adapter({symbol: knowledge_or_unknown})
-    context = RuntimeContext(
-        contract, symbol, clock, _shadow_run_id(strategy_id, symbol, now)
-    )
+    context = RuntimeContext(contract, symbol, clock, _shadow_run_id(strategy_id, symbol, now))
     try:
         shadow_result = shadow_adapter(context)
         # Architect checkpoint: fifteenth review, corrective item 4 --
@@ -516,9 +508,7 @@ def _missing_data_result(
         strategy_id=context.contract.strategy_id,
         strategy_version=context.contract.version,
         symbol=symbol,
-        observation_id=compute_observation_id(
-            context.run_id, context.contract.strategy_id, symbol
-        ),
+        observation_id=compute_observation_id(context.run_id, context.contract.strategy_id, symbol),
         opportunity_id=None,
         row_type=RowType.RESULT,
         verdict=None,
@@ -545,6 +535,7 @@ def _authoritative_subject_first_adapter(
     binding: SubjectPreparationBinding[object],
     knowledge_or_unknown: ReadOnlyStrategyInput[object] | UnknownReason,
     symbol: str,
+    acquisition_diagnostics: tuple[CapabilityDemandDiagnostic, ...],
 ) -> Callable[[RuntimeContext], UniversalScreeningResult]:
     """The one adapter cutover-authoritative mode registers in place of
     the legacy adapter -- a pure projection over already-prepared
@@ -554,16 +545,25 @@ def _authoritative_subject_first_adapter(
     if isinstance(knowledge_or_unknown, UnknownReason):
 
         def _missing_data_adapter(context: RuntimeContext) -> UniversalScreeningResult:
-            return _missing_data_result(context, symbol, knowledge_or_unknown)
+            return attach_acquisition_diagnostics(
+                _missing_data_result(context, symbol, knowledge_or_unknown),
+                acquisition_diagnostics,
+            )
 
         return _missing_data_adapter
-    return binding.build_shadow_adapter({symbol: knowledge_or_unknown})
+    adapter = binding.build_shadow_adapter({symbol: knowledge_or_unknown})
+
+    def _diagnostic_adapter(context: RuntimeContext) -> UniversalScreeningResult:
+        return attach_acquisition_diagnostics(adapter(context), acquisition_diagnostics)
+
+    return _diagnostic_adapter
 
 
 def _cutover_authoritative_adapter(
     cutover_policy: CutoverPolicy | None,
     shadow_registry: SubjectPreparationRegistry[object] | None,
-    shadow_knowledge_by_subject: Mapping[str, ReadOnlyStrategyInput[object] | UnknownReason]
+    shadow_knowledge_by_subject: Mapping[str, ReadOnlyStrategyInput[object] | UnknownReason] | None,
+    acquisition_diagnostics_by_strategy: Mapping[str, tuple[CapabilityDemandDiagnostic, ...]]
     | None,
     strategy_id: str,
     symbol: str,
@@ -587,7 +587,14 @@ def _cutover_authoritative_adapter(
     if knowledge_or_unknown is None:
         knowledge_or_unknown = UnknownReason("subject_preparation_failed")
     binding = shadow_registry.binding_for(strategy_id)
-    return _authoritative_subject_first_adapter(binding, knowledge_or_unknown, symbol)
+    acquisition_diagnostics = (
+        ()
+        if acquisition_diagnostics_by_strategy is None
+        else acquisition_diagnostics_by_strategy.get(strategy_id, ())
+    )
+    return _authoritative_subject_first_adapter(
+        binding, knowledge_or_unknown, symbol, acquisition_diagnostics
+    )
 
 
 def refresh_with_shadow(
@@ -602,6 +609,8 @@ def refresh_with_shadow(
     historical_skew_repository: HistoricalSkewRepository | None = None,
     shadow_registry: SubjectPreparationRegistry[object] | None = None,
     shadow_knowledge_by_subject: Mapping[str, ReadOnlyStrategyInput[object] | UnknownReason]
+    | None = None,
+    acquisition_diagnostics_by_strategy: Mapping[str, tuple[CapabilityDemandDiagnostic, ...]]
     | None = None,
     cutover_policy: CutoverPolicy | None = None,
     now: datetime | None = None,
@@ -645,7 +654,12 @@ def refresh_with_shadow(
     result this function still returns and the caller still persists.
     """
     authoritative_adapter = _cutover_authoritative_adapter(
-        cutover_policy, shadow_registry, shadow_knowledge_by_subject, strategy_id, symbol
+        cutover_policy,
+        shadow_registry,
+        shadow_knowledge_by_subject,
+        acquisition_diagnostics_by_strategy,
+        strategy_id,
+        symbol,
     )
     if authoritative_adapter is not None:
         authoritative_registry: StrategyRegistry[UniversalScreeningResult] = StrategyRegistry(

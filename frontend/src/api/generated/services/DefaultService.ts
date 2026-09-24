@@ -11,6 +11,7 @@ import type { IngestQuotesRequest } from '../models/IngestQuotesRequest';
 import type { IngestQuotesResponse } from '../models/IngestQuotesResponse';
 import type { ModeledPnLSurfaceResponse } from '../models/ModeledPnLSurfaceResponse';
 import type { OpportunityHistoryResponse } from '../models/OpportunityHistoryResponse';
+import type { OptionFunnelTraceResponse } from '../models/OptionFunnelTraceResponse';
 import type { PortfolioEnvelope } from '../models/PortfolioEnvelope';
 import type { PositionsEnvelope } from '../models/PositionsEnvelope';
 import type { QuoteResponse } from '../models/QuoteResponse';
@@ -595,6 +596,30 @@ export class DefaultService {
             url: '/api/v1/portfolio/tracked-candidates/{candidate_id}',
             path: {
                 'candidate_id': candidateId,
+            },
+            errors: {
+                422: `Validation Error`,
+            },
+        });
+    }
+    /**
+     * Get Option Funnel
+     * Compose one complete trace from existing result/readiness authorities.
+     * @param signal
+     * @param symbol
+     * @returns OptionFunnelTraceResponse Successful Response
+     * @throws ApiError
+     */
+    public static getOptionFunnelApiV1ScreeningSignalSymbolOptionFunnelGet(
+        signal: string,
+        symbol: string,
+    ): CancelablePromise<OptionFunnelTraceResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v1/screening/{signal}/{symbol}/option-funnel',
+            path: {
+                'signal': signal,
+                'symbol': symbol,
             },
             errors: {
                 422: `Validation Error`,

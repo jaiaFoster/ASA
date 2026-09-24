@@ -1706,7 +1706,24 @@ def test_ff_and_skew_results_are_unaffected_by_whether_earnings_shares_the_cycle
     assert msft_result is not None
     assert aapl_result.verdict == msft_result.verdict
     assert aapl_result.evaluation_state == msft_result.evaluation_state
-    assert aapl_result.metrics == msft_result.metrics
+    # Strategy semantics remain identical. Provider-neutral OT-02 diagnostics
+    # truthfully differ because AAPL shares an exact demand with Earnings in
+    # this cycle while MSFT does not.
+    assert {
+        key: value
+        for key, value in aapl_result.metrics.items()
+        if not key.startswith("diagnostic.")
+    } == {
+        key: value
+        for key, value in msft_result.metrics.items()
+        if not key.startswith("diagnostic.")
+    }
+    aapl_acquisition = aapl_result.metrics["diagnostic.acquisition_demands"].native()
+    msft_acquisition = msft_result.metrics["diagnostic.acquisition_demands"].native()
+    assert isinstance(aapl_acquisition, list)
+    assert isinstance(msft_acquisition, list)
+    assert any(item["reused_across_consumers"] for item in aapl_acquisition)
+    assert not any(item["reused_across_consumers"] for item in msft_acquisition)
     # Every temporal field is derived from the SAME scripted market data,
     # evaluated under the SAME frozen cycle clock -- they must agree
     # exactly, or Earnings' own shared-plan presence contaminated it.
