@@ -27,136 +27,53 @@ Adapters must not define financial formulas, normalize scores, duplicate
 manifest parameters, read provider payloads, or perform hidden acquisition
 from inside strategy evaluation.
 
-The remainder of this guide documents the legacy projection mechanics during
-the bounded SPRINT-012 migration. Where it conflicts with the rules above,
-ADR-010 and the manifest-first flow govern.
+The legacy contract-first flow (define a `StrategyContract`, implement Python
+evaluation, register) is **prohibited for new strategies**. The Architect
+decision for STRATEGY-LIBRARY-001 SL-01
+(`project/reports/STRATEGY-LIBRARY-001-SL-01-ARCHITECT-DECISION.md`) records
+this. The only exception on main, the B001/B002 stock benchmarks, is bounded
+migration debt tracked as SL-03-00. Never copy it.
 
-SPRINT-009R/EPIC-R4. Per this sprint's own `definition_of_done`, adding a strategy requires
-exactly four steps, and none of them touch runtime orchestration, persistence, APIs, planners,
-or lifecycle infrastructure:
+Every new strategy, option or stock, must complete
+[`strategy-intake-template.md`](strategy-intake-template.md) before
+implementation.
 
-1. Define a `StrategyContract`.
-2. Declare its runtime capabilities.
-3. Implement evaluation logic.
-4. Register the strategy.
+## Reference walkthrough: Forward Factor
 
-This is true today without any further platform work -- `strategy_runtime/adapters/` already
-demonstrates it for three production strategies (`forward_factor`, `skew_momentum_vertical`,
-`earnings_calendar`), each in its own module, none of which required a change to
-`strategy_runtime/execution.py`, `strategy_runtime/service.py`, or any Postgres integration.
-This guide is the walkthrough for a new one.
+Forward Factor is the reference implementation of the single authoring path.
 
-## 1. Define a `StrategyContract`
-
-```python
-from domain import MarketCapability
-from strategy_runtime import (
-    NO_LIFECYCLE,
-    DataRequirement,
-    OutputKind,
-    RequirementCategory,
-    StrategyCapability,
-    StrategyContract,
-    StructureKind,
-)
-
-MY_STRATEGY_CONTRACT = StrategyContract(
-    strategy_id="my_strategy",
-    version="1.0.0",
-    category="options_volatility",  # a short, free-text grouping label
-    description="One sentence describing this strategy's own investment thesis.",
-    requirements=(
-        DataRequirement(
-            RequirementCategory.MARKET_DATA, capabilities=(MarketCapability.REAL_TIME_QUOTE_V1,)
-        ),
-    ),
-    lifecycle=NO_LIFECYCLE,  # or a LifecycleDeclaration -- see step 2
-    structure=StructureKind.NONE,  # or VERTICAL/CALENDAR/CUSTOM for an option structure
-    outputs=(OutputKind.METRICS,),  # every namespace this strategy actually populates
-)
-```
-
-`StrategyContract.__post_init__` validates this immediately and raises `StrategyContractError`
-with a specific, actionable message for anything inconsistent -- there is no separate contract
-linter to run first.
-
-## 2. Declare its runtime capabilities
-
-Only declare a `StrategyCapability` your contract's other fields actually back -- see
-`strategy_runtime/contract.py`'s own `_check_capability_consistency()` for the exact pairing
-each one requires (e.g. `StrategyCapability.ECONOMICS` requires `OutputKind.ECONOMICS` in
-`outputs`; `StrategyCapability.OPTION_STRUCTURES` requires a non-`NONE` `structure`).
-Omitting `capabilities` entirely is always valid -- it is additive and opt-in, not a second
-mandatory encoding of the same information.
-
-If your strategy tracks a persistent opportunity across repeated observations (SPRINT-009R/
-EPIC-R3), declare a `LifecycleDeclaration` instead of `NO_LIFECYCLE`, add
-`OutputKind.LIFECYCLE` to `outputs`, and add `StrategyCapability.LIFECYCLE` to `capabilities`.
-
-## 3. Implement evaluation logic
-
-An adapter is one function: `RuntimeContext -> UniversalScreeningResult` (or any other TResult,
-for a registry not built around the universal envelope). It owns only your strategy's own
-financial judgment -- orchestration, retries, and error isolation are the runtime's job
-(`strategy_runtime.execution.run_strategies()`), never the adapter's own.
-
-```python
-from strategy_runtime import RuntimeContext, UniversalScreeningResult
-from strategy_runtime.result import EvaluationState, RowType, compute_observation_id
-
-
-def my_strategy_adapter(context: RuntimeContext) -> UniversalScreeningResult:
-    if context.fulfillment is None:
-        raise RuntimeError("my_strategy requires shared market data access")
-    # ... your own evaluation logic against context.fulfillment ...
-    return UniversalScreeningResult(
-        strategy_id=context.contract.strategy_id,
-        strategy_version=context.contract.version,
-        symbol=context.subject,
-        observation_id=compute_observation_id(
-            context.run_id, context.contract.strategy_id, context.subject
-        ),
-        opportunity_id=None,
-        row_type=RowType.RESULT,
-        verdict="pass",
-        evaluation_state=EvaluationState.PASS,
-        lifecycle_stage=None,
-        recommendation_state=None,
-        data_quality=None,
-        metrics={},  # populate with strategy_runtime.values.TypedValue entries
-        economics={},
-        blockers=(),
-        warnings=(),
-        provenance=(),
-        observed_at=context.clock.now(),
-    )
-```
-
-An unhandled exception here is caught by `run_strategies()` and reported as
-`ExecutionStatus.ADAPTER_EXCEPTION` -- one strategy's exception never prevents any other
-strategy from executing. A result that contradicts its own contract (e.g. declares
-`OutputKind.METRICS` but returns an empty `metrics` dict) is caught the same way, via
-`strategy_runtime.validation.validate_result()` (SPRINT-009R/EPIC-R1).
-
-If you are migrating an existing strategy that already runs through `screening/`, reuse
-`strategy_runtime.adapters._screening_bridge.translate_screening_result()` rather than writing
-a second translation -- see `strategy_runtime/adapters/forward_factor.py` for the pattern every
-migrated strategy already follows.
-
-## 4. Register the strategy
-
-```python
-from strategy_runtime import register
-
-MY_REGISTRY = register(
-    (MY_STRATEGY_CONTRACT, my_strategy_adapter),
-    # ...alongside any other contract/adapter pairs...
-)
-```
-
-`register()` (SPRINT-009R/EPIC-R4) is a thin ergonomic wrapper over `StrategyRegistry`'s own
-constructor, which remains the one place a duplicate `strategy_id` is caught
-(`DuplicateStrategyRegistrationError`).
+1. **Manifest.** `FORWARD_FACTOR_CALENDAR_MANIFEST` in
+   `strategies/stonk_manifests.py` is the only authored definition: id,
+   semantic version, parameters, exact `required_market_capabilities`, graph,
+   and outputs with explanation roles.
+2. **Graph owns judgment.** Gates, thresholds, direction, structure selection,
+   score and verdict are graph nodes built from registered components
+   (`strategies/core_components.py` and related). Add a component only when no
+   composition of existing ones works.
+3. **Named derived facts.** Inputs are canonical values and registered
+   `analytics/` derived facts, each with an id, unit and formula version. No
+   private formula lives in a strategy, adapter or screening module.
+4. **Evaluation module runs the graph only.**
+   `strategies/forward_factor_evaluation.py` assembles typed inputs, then calls
+   `compile_strategy_graph(FORWARD_FACTOR_CALENDAR_MANIFEST, ...)` and
+   `execute_strategy_graph(...)`. It contains no Python verdict.
+5. **Contract is a validated projection.** `FORWARD_FACTOR_CONTRACT`
+   (`strategy_runtime/adapters/forward_factor.py`) is checked against the
+   manifest by `validate_manifest_contract` in
+   `build_migrated_strategy_registry()` (`strategy_runtime/adapters/__init__.py`),
+   and the catalog carries the real `manifest_id`.
+6. **Subject-first binding and adapter.**
+   `build_forward_factor_subject_preparation_binding` declares acquisition
+   demands through the shared market-data authority.
+   `build_forward_factor_subject_first_adapter` maps graph outputs to a
+   `UniversalScreeningResult`, with typed UNKNOWN reasons for missing inputs.
+   Neither `screening/` nor `strategy_runtime/` branches on the strategy id.
+7. **Product path.** Option structures resolve through the generic executable
+   structure resolver into the canonical trade proposal. Strategies declaring
+   `StructureKind.NONE` project through the stock proposal. Both surfaces are
+   generic.
+8. **Proof.** Replay determinism, complete result projection, and
+   typed-failure tests are part of the change.
 
 ## Diagnostics
 

@@ -585,3 +585,46 @@ test("unknown stock evaluation shows its typed reason instead of an action", () 
   assert.match(card.textContent, /Unknown becausetyped unknown evidence gap: unusable_historical_bars/);
   assert.doesNotMatch(card.textContent, /BUY/);
 });
+
+test("strategy library lists declared contracts with coverage and no ranking", () => {
+  const root = document.createElement("div");
+  renderApp(
+    root,
+    model({
+      route: { name: "strategies" },
+      capabilities: {
+        signals: [
+          {
+            signal_id: "B001", signal_version: "1.0.0", structure: "none",
+            category: "stock_benchmark", required_capabilities: ["real_time_quote_v1"],
+          },
+          {
+            signal_id: "forward_factor", signal_version: "2.0.0", structure: "calendar",
+            category: "options", required_capabilities: ["option_chain_v1"],
+          },
+        ],
+      },
+      strategyHealth: {
+        strategies: [
+          {
+            strategy_id: "forward_factor", active_subjects: 503, evaluated: 391,
+            missing_data: 112, no_signal: 389, watch: 2, passed: 0,
+            structure_eligible_or_constructible: 2,
+            typed_unknown_counts: [
+              { reason: "no_valid_expiration_pair", count: 93 },
+              { reason: "missing_implied_volatility", count: 12 },
+            ],
+          },
+        ],
+      },
+    }),
+    noOpHandlers,
+  );
+
+  const rows = [...root.querySelectorAll(".strategy-library tbody tr")];
+  assert.equal(rows.length, 2);
+  assert.match(rows[0].textContent, /B001.*Stock \/ ETF.*none.*UNKNOWN.*not applicable/);
+  assert.match(rows[1].textContent, /forward_factor.*Options.*calendar.*503.*391.*112/);
+  assert.match(rows[1].textContent, /no_valid_expiration_pair \(93\)/);
+  assert.match(root.textContent, /no ranking is implied/);
+});

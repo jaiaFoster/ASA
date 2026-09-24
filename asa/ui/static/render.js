@@ -109,6 +109,7 @@ function shellHeader(model, handlers) {
   const primaryLinks = [
     { href: "#/results", label: "Latest results", routeName: "results" },
     { href: "#/stocks", label: "Stocks", routeName: "stocks" },
+    { href: "#/strategies", label: "Strategy library", routeName: "strategies" },
     { href: "#/health", label: "Runtime health", routeName: "health" },
   ];
   for (const { href, label, routeName } of primaryLinks) {
@@ -812,6 +813,70 @@ function stocksView(model) {
   return fragment;
 }
 
+function strategyLibraryView(model) {
+  const fragment = document.createDocumentFragment();
+  const heading = element("section", "page-heading");
+  heading.append(element("p", "eyebrow", "STRATEGY LIBRARY"));
+  heading.append(element("h2", null, "Registered strategies"));
+  heading.append(element(
+    "p",
+    null,
+    "Declared contracts and current evaluation coverage from the latest persisted state. "
+      + "Counts describe coverage, not strategy quality; no ranking is implied.",
+  ));
+  fragment.append(heading);
+  const funnels = new Map(
+    (model.strategyHealth?.strategies || []).map((item) => [item.strategy_id, item]),
+  );
+  const signals = model.capabilities?.signals || [];
+  const tableWrap = element("div", "table-wrap");
+  const table = element("table", "results-table strategy-library");
+  const head = element("thead");
+  const headRow = element("tr");
+  for (const title of [
+    "Strategy", "Version", "Asset", "Structure", "Category", "Required capabilities",
+    "Active subjects", "Evaluated", "Missing data", "PASS", "WATCH",
+    "Structure eligible", "Top typed unknown",
+  ]) {
+    headRow.append(element("th", null, title));
+  }
+  head.append(headRow);
+  table.append(head);
+  const body = element("tbody");
+  for (const signal of signals) {
+    const funnel = funnels.get(signal.signal_id);
+    const stock = isStockSignal(model.capabilities, signal.signal_id);
+    const topUnknown = [...(funnel?.typed_unknown_counts || [])]
+      .sort((left, right) => right.count - left.count)[0];
+    const row = element("tr");
+    for (const value of [
+      signal.signal_id,
+      signal.signal_version,
+      stock ? "Stock / ETF" : "Options",
+      signal.structure,
+      signal.category,
+      signal.required_capabilities.join(", "),
+      funnel ? String(funnel.active_subjects) : "UNKNOWN",
+      funnel ? String(funnel.evaluated) : "UNKNOWN",
+      funnel ? String(funnel.missing_data) : "UNKNOWN",
+      funnel ? String(funnel.passed) : "UNKNOWN",
+      funnel ? String(funnel.watch) : "UNKNOWN",
+      stock ? "not applicable" : funnel ? String(funnel.structure_eligible_or_constructible) : "UNKNOWN",
+      topUnknown ? `${topUnknown.reason} (${topUnknown.count})` : "none",
+    ]) {
+      row.append(element("td", null, value));
+    }
+    body.append(row);
+  }
+  table.append(body);
+  tableWrap.append(table);
+  fragment.append(tableWrap);
+  if (!signals.length) {
+    fragment.append(element("p", "empty-state empty-state--large", "Strategy catalog unavailable."));
+  }
+  return fragment;
+}
+
 function healthView(model) {
   const fragment = document.createDocumentFragment();
   const heading = element("section", "page-heading");
@@ -888,6 +953,8 @@ export function renderApp(root, model, handlers) {
     else main.append(element("p", "empty-state empty-state--large", "Result not found in the persisted snapshot."));
   } else if (model.route.name === "health") {
     main.append(healthView(model));
+  } else if (model.route.name === "strategies") {
+    main.append(strategyLibraryView(model));
   } else if (model.route.name === "stocks") {
     main.append(stocksView(model));
   } else {
