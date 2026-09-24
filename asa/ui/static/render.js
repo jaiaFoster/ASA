@@ -334,6 +334,18 @@ function detailView(item, handlers) {
     why.append(element("p", "trade-evidence", `Evidence snapshot ${proposal.evidence_snapshot_identity}`));
     trade.append(why);
     fragment.append(trade);
+  } else if (proposal?.status === "unavailable") {
+    const unavailable = element("section", "trade-card trade-card--unavailable");
+    unavailable.append(element("p", "eyebrow", "SIGNAL ≠ EXECUTABLE TRADE"));
+    unavailable.append(element("h3", null, "No truthful trade proposal is available"));
+    unavailable.append(definitionList([
+      ["Signal verdict (unchanged)", exactValue(item, "verdict").text],
+      ["Execution readiness", proposal.constructibility],
+      ["Blocker category", proposal.blocker_category],
+      ["Exact blocker", proposal.reason_code],
+    ]));
+    unavailable.append(element("p", "trade-blocker-message", proposal.user_message));
+    fragment.append(unavailable);
   }
 
   const decision = element("section", "audit-section audit-section--lead");

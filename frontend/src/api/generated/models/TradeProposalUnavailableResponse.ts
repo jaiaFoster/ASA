@@ -11,4 +11,6 @@ export type TradeProposalUnavailableResponse = {
     intended_structure: string;
     constructibility: string;
     reason_code: string;
+    blocker_category: string;
+    user_message: string;
 };

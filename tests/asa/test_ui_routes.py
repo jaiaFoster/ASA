@@ -166,3 +166,6 @@ def test_ui_leads_with_canonical_trade_proposal_and_keeps_evidence_expandable() 
     assert 'svg.setAttribute("role", "img")' in render_source
     assert "Show exact plotted values" in render_source
     assert "not guaranteed returns" in render_source
+    assert "SIGNAL ≠ EXECUTABLE TRADE" in render_source
+    assert 'proposal.reason_code' in render_source
+    assert 'proposal.blocker_category' in render_source
