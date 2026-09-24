@@ -83,13 +83,14 @@ def test_ui_mount_does_not_change_protected_api_authentication() -> None:
     )
 
 
-def test_ui_client_is_get_only_and_never_persists_token_in_local_storage() -> None:
+def test_ui_client_only_posts_to_non_broker_tracking_and_never_persists_token() -> None:
     static = files("asa.ui").joinpath("static")
     client_source = static.joinpath("api-client.js").read_text(encoding="utf-8")
     application_source = static.joinpath("app.js").read_text(encoding="utf-8")
 
     assert 'method: "GET"' in client_source
-    assert "POST" not in client_source
+    assert 'method: "POST"' in client_source
+    assert "/api/v1/portfolio/tracked-candidates" in client_source
     assert "/execution-readiness" in client_source
     assert "refresh" not in client_source.lower()
     assert "localStorage" not in client_source + application_source
@@ -132,9 +133,7 @@ def test_ui_distinguishes_visible_loaded_and_authoritative_total_and_build() -> 
     render_source = static.joinpath("render.js").read_text(encoding="utf-8")
 
     assert "state.resultsTotal = results.data.total" in application_source
-    assert "state.resultsSnapshotIdentity = results.data.snapshot_identity" in (
-        application_source
-    )
+    assert "state.resultsSnapshotIdentity = results.data.snapshot_identity" in (application_source)
     assert '["Visible rows", String(model.visible.length)]' in render_source
     assert '["Loaded rows", String(model.results.length)]' in render_source
     assert '["Active latest-state rows", String(model.resultsTotal)]' in render_source
@@ -142,9 +141,7 @@ def test_ui_distinguishes_visible_loaded_and_authoritative_total_and_build() -> 
 
 
 def test_ui_exposes_exact_structure_and_explicit_modeled_pnl_assumptions() -> None:
-    render_source = (
-        files("asa.ui").joinpath("static", "render.js").read_text(encoding="utf-8")
-    )
+    render_source = files("asa.ui").joinpath("static", "render.js").read_text(encoding="utf-8")
 
     assert "Execution readiness — analytical only" in render_source
     assert "Exact leg" in render_source
@@ -167,5 +164,8 @@ def test_ui_leads_with_canonical_trade_proposal_and_keeps_evidence_expandable() 
     assert "Show exact plotted values" in render_source
     assert "not guaranteed returns" in render_source
     assert "SIGNAL ≠ EXECUTABLE TRADE" in render_source
-    assert 'proposal.reason_code' in render_source
-    assert 'proposal.blocker_category' in render_source
+    assert "proposal.reason_code" in render_source
+    assert "proposal.blocker_category" in render_source
+    assert "Track This" in render_source
+    assert "does not place an order or imply a fill" in render_source
+    assert "handlers.trackProposal(item)" in render_source

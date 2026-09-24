@@ -24,9 +24,11 @@ from asa.integrations.portfolio_lifecycle_postgres import _candidate_params
 from asa.integrations.providers.deterministic_fake_broker import (
     DeterministicFakeBrokerPortfolioProvider,
 )
+from strategy_runtime.executable_structures import serialize_execution_assessment
 from strategy_runtime.persistence import UniversalSignalRow
 from strategy_runtime.values import TypedValue
 from tests.asa.fakes import InMemoryLatestResultRepository, InMemoryObservationRepository
+from tests.asa.test_modeled_pnl import _assessment
 
 NOW = datetime(2026, 8, 28, 12, tzinfo=UTC)
 
@@ -344,6 +346,51 @@ def test_execution_readiness_api_and_tracking_share_immutable_artifact() -> None
     assert readiness.json()["execution_assessment"]["status"] == "not_constructible"
     assert tracked.json()["resolved_proposal_identity"] == "assessment-1"
     assert tracked.json()["resolved_proposal"]["reason_code"] == "no_compatible_contract"
+
+
+def test_track_this_freezes_canonical_trade_proposal_from_exact_assessment() -> None:
+    results = InMemoryLatestResultRepository()
+    results.upsert(_row())
+    lifecycle = MemoryLifecycleRepository()
+    assessment = replace(_assessment(), originating_result_identity="observation-1")
+    lifecycle.put_execution_readiness(
+        ExecutionReadinessArtifact(
+            "observation-1",
+            "earnings_calendar",
+            "AAPL",
+            assessment.identity,
+            "{}",
+            serialize_execution_assessment(assessment),
+            NOW,
+        )
+    )
+
+    candidate = TrackCandidateService(results, lifecycle).track(
+        "earnings_calendar", "AAPL", "observation-1", NOW
+    )
+    proposal = json.loads(candidate.resolved_proposal_json or "null")
+
+    assert candidate.resolved_proposal_identity != assessment.identity
+    assert proposal is not None
+    assert proposal["status"] == "available"
+    assert proposal["originating_result_identity"] == "observation-1"
+    assert {leg["buy_or_sell"] for leg in proposal["legs"]} == {"buy", "sell"}
+    assert candidate.exact_option_symbols == (
+        "AAPL260918C00200000",
+        "AAPL260918C00210000",
+    )
+
+    lifecycle.put_execution_readiness(
+        replace(
+            lifecycle.execution_readiness("earnings_calendar", "AAPL"),
+            assessment_identity="later-assessment",
+        )
+    )
+    repeated = TrackCandidateService(results, lifecycle).track(
+        "earnings_calendar", "AAPL", "observation-1", NOW
+    )
+    assert repeated.resolved_proposal_identity == candidate.resolved_proposal_identity
+    assert repeated.resolved_proposal_json == candidate.resolved_proposal_json
 
 
 def test_lifecycle_observations_append_open_then_closed_with_separate_clocks() -> None:

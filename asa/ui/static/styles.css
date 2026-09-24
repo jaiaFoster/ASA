@@ -83,6 +83,8 @@ input:focus, select:focus, button:focus, a:focus { outline: 2px solid var(--cyan
 .trade-card--unavailable { border-color: var(--amber); background: linear-gradient(135deg, #241f13, var(--panel)); }
 .trade-card--unavailable h3 { color: var(--amber); }
 .trade-blocker-message { margin: 1rem 0 0; color: var(--ink); }
+.track-confirmation { margin: 1rem 0 .35rem; color: var(--acid); font-family: var(--mono); }
+.track-disclosure { margin: .65rem 0 0; color: var(--muted); font-size: .8rem; }
 .trade-legs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; margin: 1.2rem 0; }
 .trade-leg { display: grid; gap: .4rem; padding: 1rem; border-left: 3px solid var(--cyan); background: var(--ground); }
 .trade-leg strong { font-family: var(--mono); }

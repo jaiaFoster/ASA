@@ -11,6 +11,7 @@ export const state = {
   executionReadiness: {},
   tradeProposals: {},
   terminalPayoffs: {},
+  trackedCandidates: {},
   portfolio: null,
   positions: null,
   apiVersion: null,

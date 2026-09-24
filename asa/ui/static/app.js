@@ -16,6 +16,7 @@ function model() {
   const readiness = detailKey ? state.executionReadiness[detailKey] : null;
   const proposal = detailKey ? state.tradeProposals[detailKey] : null;
   const terminalPayoff = detailKey ? state.terminalPayoffs[detailKey] : null;
+  const trackedCandidate = detailKey ? state.trackedCandidates[detailKey] : null;
   const persistedDetail =
     route.name === "detail"
       ? state.results.find(
@@ -34,6 +35,7 @@ function model() {
           modeled_pnl: readiness.modeled_pnl,
           trade_proposal: proposal,
           terminal_payoff: terminalPayoff,
+          tracked_candidate: trackedCandidate,
         }
       : persistedDetail,
     counts: {
@@ -133,6 +135,7 @@ const handlers = {
     state.resultsTotal = 0;
     state.tradeProposals = {};
     state.terminalPayoffs = {};
+    state.trackedCandidates = {};
     state.resultsSnapshotIdentity = null;
     state.retainedNonactiveTotal = 0;
     state.capabilities = null;
@@ -157,6 +160,21 @@ const handlers = {
         ...state.executionReadiness[key],
         modeled_pnl: response.data,
       };
+      state.error = null;
+    } catch (error) {
+      state.error = String(error.message || error);
+    }
+    render();
+  },
+  async trackProposal(item) {
+    const key = `${item.signal_id}:${item.symbol}`;
+    try {
+      const response = await api.trackCandidate(
+        item.signal_id,
+        item.symbol,
+        item.observation_id,
+      );
+      state.trackedCandidates[key] = response.data;
       state.error = null;
     } catch (error) {
       state.error = String(error.message || error);
