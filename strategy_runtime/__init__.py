@@ -125,6 +125,16 @@ from strategy_runtime.result import (
     UniversalScreeningResult,
     compute_observation_id,
 )
+from strategy_runtime.trade_proposal import (
+    LiquidityState,
+    OptionTradeProposal,
+    QuantityState,
+    TradeProposalLeg,
+    TradeProposalUnavailable,
+    TradeQuantity,
+    build_option_trade_proposal,
+    trade_proposal_to_data,
+)
 from strategy_runtime.validation import validate_result
 from strategy_runtime.values import TypedValue, ValueType
 
@@ -139,6 +149,7 @@ __all__ = [
     "ExecutableStructureStatus",
     "LifecycleDeclaration",
     "LifecycleModel",
+    "LiquidityState",
     "MODEL_VERSION",
     "ModeledEntryEconomics",
     "ModeledPnLAssumptions",
@@ -146,6 +157,7 @@ __all__ = [
     "ModeledPnLSurface",
     "ModeledPnLUnknown",
     "OptionLegIntent",
+    "OptionTradeProposal",
     "OptionStructureIntent",
     "OutputKind",
     "RequirementCategory",
@@ -153,6 +165,7 @@ __all__ = [
     "RowType",
     "RuntimeContext",
     "RuntimeExecutionSummary",
+    "QuantityState",
     "StrategyAdapter",
     "StrategyCapability",
     "StrategyContract",
@@ -163,12 +176,16 @@ __all__ = [
     "StructureKind",
     "SelectionDiagnostic",
     "SubjectMarketDataAccess",
+    "TradeProposalLeg",
+    "TradeProposalUnavailable",
+    "TradeQuantity",
     "TypedValue",
     "UniversalScreeningResult",
     "UnknownStrategyIdError",
     "ValueType",
     "build_provider_rolling_window_tracker",
     "build_shared_market_data_access",
+    "build_option_trade_proposal",
     "compute_observation_id",
     "declared_rolling_window_policies",
     "describe_contract",
@@ -177,5 +194,6 @@ __all__ = [
     "model_front_expiration_pnl",
     "resolve_option_structure",
     "run_strategies",
+    "trade_proposal_to_data",
     "validate_result",
 ]
