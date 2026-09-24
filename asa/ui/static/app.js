@@ -198,12 +198,32 @@ const handlers = {
   },
 };
 
+async function loadForwardOutcomes() {
+  if (routeFromHash(location.hash).name !== "outcomes" || !hasToken()) return;
+  try {
+    const candidates = (await api.trackedCandidates()).data;
+    state.forwardOutcomes = await Promise.all(
+      candidates.map(async (candidate) => ({
+        candidate,
+        outcomes: (await api.candidateOutcomes(candidate.id)).data,
+      })),
+    );
+    state.forwardOutcomesError = null;
+  } catch (error) {
+    state.forwardOutcomes = null;
+    state.forwardOutcomesError = String(error.message || error);
+  }
+  render();
+}
+
 window.addEventListener("hashchange", () => {
   render();
   void loadExecutionReadiness();
+  void loadForwardOutcomes();
 });
 if (!location.hash) location.hash = "#/results";
 render();
 void loadPersistedState();
 void loadExecutionReadiness();
+void loadForwardOutcomes();
 setInterval(() => void loadPersistedState(), 60_000);

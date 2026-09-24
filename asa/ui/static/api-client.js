@@ -91,6 +91,11 @@ export const api = Object.freeze({
     requestJson(
       `/api/v1/screening/${encodeURIComponent(signalId)}/${encodeURIComponent(symbol)}/stock-proposal`,
     ),
+  trackedCandidates: () => requestJson("/api/v1/portfolio/tracked-candidates"),
+  candidateOutcomes: (candidateId) =>
+    requestJson(
+      `/api/v1/portfolio/tracked-candidates/${encodeURIComponent(candidateId)}/outcomes`,
+    ),
   trackCandidate: (signalId, symbol, observationId) =>
     postJson("/api/v1/portfolio/tracked-candidates", {
       strategy_id: signalId,

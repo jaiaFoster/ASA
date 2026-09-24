@@ -110,6 +110,7 @@ function shellHeader(model, handlers) {
     { href: "#/results", label: "Latest results", routeName: "results" },
     { href: "#/stocks", label: "Stocks", routeName: "stocks" },
     { href: "#/strategies", label: "Strategy library", routeName: "strategies" },
+    { href: "#/outcomes", label: "Outcomes", routeName: "outcomes" },
     { href: "#/health", label: "Runtime health", routeName: "health" },
   ];
   for (const { href, label, routeName } of primaryLinks) {
@@ -813,6 +814,87 @@ function stocksView(model) {
   return fragment;
 }
 
+const OUTCOME_HORIZONS = ["d1", "d5", "d10", "first_expiration"];
+
+function outcomeCell(outcome) {
+  if (!outcome) return "not scheduled";
+  if (outcome.status !== "observed") return outcome.status;
+  if (outcome.modeled_pnl != null) return `P&L ${outcome.modeled_pnl}`;
+  return `observed · P&L unknown (${outcome.unknown_reasons.join(", ") || "n/a"})`;
+}
+
+function outcomesView(model) {
+  const fragment = document.createDocumentFragment();
+  const heading = element("section", "page-heading");
+  heading.append(element("p", "eyebrow", "FORWARD OUTCOMES · PAPER / MODELED, NOT BROKERAGE FILLS"));
+  heading.append(element("h2", null, "What tracked proposals did next"));
+  heading.append(element(
+    "p",
+    null,
+    "Modeled midpoint marks against each proposal's frozen modeled entry, sampled at "
+      + "fixed horizons (not path extremes). The corpus is only proposals someone chose "
+      + "to track, so it is selection-biased and small; no strategy is ranked from it.",
+  ));
+  fragment.append(heading);
+  if (model.forwardOutcomesError) {
+    fragment.append(element("p", "empty-state", `Outcomes unavailable: ${model.forwardOutcomesError}`));
+    return fragment;
+  }
+  const rows = model.forwardOutcomes || [];
+  const byStrategy = new Map();
+  for (const { candidate, outcomes } of rows) {
+    const entry = byStrategy.get(candidate.strategy_id) || { tracked: 0, observed: 0, withPnl: 0 };
+    entry.tracked += 1;
+    for (const item of outcomes.outcomes) {
+      if (item.status === "observed") entry.observed += 1;
+      if (item.modeled_pnl != null) entry.withPnl += 1;
+    }
+    byStrategy.set(candidate.strategy_id, entry);
+  }
+  const summary = element("section", "summary-grid");
+  for (const [strategy, entry] of byStrategy) {
+    const card = element("article", "summary-card");
+    card.append(
+      element("span", null, strategy),
+      element(
+        "strong",
+        null,
+        `${entry.tracked} tracked · ${entry.observed} observed · n=${entry.withPnl} with modeled P&L`,
+      ),
+    );
+    summary.append(card);
+  }
+  fragment.append(summary);
+  const tableWrap = element("div", "table-wrap");
+  const table = element("table", "results-table outcomes-table");
+  const head = element("thead");
+  const headRow = element("tr");
+  for (const title of ["Strategy", "Symbol", "Tracked", ...OUTCOME_HORIZONS]) {
+    headRow.append(element("th", null, title));
+  }
+  head.append(headRow);
+  table.append(head);
+  const body = element("tbody");
+  for (const { candidate, outcomes } of rows) {
+    const byHorizon = new Map(outcomes.outcomes.map((item) => [item.horizon_id, item]));
+    const row = element("tr");
+    row.append(
+      element("td", null, `${candidate.strategy_id}@${candidate.strategy_version}`),
+      element("td", null, candidate.symbol),
+      element("td", "timestamp", candidate.tracked_at),
+      ...OUTCOME_HORIZONS.map((horizon) => element("td", null, outcomeCell(byHorizon.get(horizon)))),
+    );
+    body.append(row);
+  }
+  table.append(body);
+  tableWrap.append(table);
+  fragment.append(tableWrap);
+  if (!rows.length) {
+    fragment.append(element("p", "empty-state empty-state--large", "No tracked proposals yet."));
+  }
+  return fragment;
+}
+
 function strategyLibraryView(model) {
   const fragment = document.createDocumentFragment();
   const heading = element("section", "page-heading");
@@ -953,6 +1035,8 @@ export function renderApp(root, model, handlers) {
     else main.append(element("p", "empty-state empty-state--large", "Result not found in the persisted snapshot."));
   } else if (model.route.name === "health") {
     main.append(healthView(model));
+  } else if (model.route.name === "outcomes") {
+    main.append(outcomesView(model));
   } else if (model.route.name === "strategies") {
     main.append(strategyLibraryView(model));
   } else if (model.route.name === "stocks") {

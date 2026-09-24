@@ -628,3 +628,37 @@ test("strategy library lists declared contracts with coverage and no ranking", (
   assert.match(rows[1].textContent, /no_valid_expiration_pair \(93\)/);
   assert.match(root.textContent, /no ranking is implied/);
 });
+
+test("outcomes view labels paper results, discloses selection bias, and counts samples", () => {
+  const root = document.createElement("div");
+  renderApp(
+    root,
+    model({
+      route: { name: "outcomes" },
+      forwardOutcomes: [
+        {
+          candidate: {
+            id: "c1", strategy_id: "spy_put_credit_spread", strategy_version: "1.0.0",
+            symbol: "SPY", tracked_at: "2026-09-24T19:00:00Z",
+          },
+          outcomes: {
+            outcomes: [
+              { horizon_id: "d1", status: "observed", modeled_pnl: "249.50", unknown_reasons: [] },
+              { horizon_id: "d5", status: "pending", unknown_reasons: [] },
+              { horizon_id: "d10", status: "missed", unknown_reasons: [] },
+              { horizon_id: "first_expiration", status: "pending", unknown_reasons: [] },
+            ],
+          },
+        },
+      ],
+    }),
+    noOpHandlers,
+  );
+
+  assert.match(root.textContent, /PAPER \/ MODELED, NOT BROKERAGE FILLS/);
+  assert.match(root.textContent, /selection-biased/);
+  assert.match(root.textContent, /1 tracked · 1 observed · n=1 with modeled P&L/);
+  const row = root.querySelector(".outcomes-table tbody tr");
+  assert.match(row.textContent, /P&L 249\.50/);
+  assert.match(row.textContent, /missed/);
+});
