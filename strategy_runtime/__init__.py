@@ -106,6 +106,15 @@ from strategy_runtime.modeled_pnl import (
     ModeledPnLUnknown,
     model_front_expiration_pnl,
 )
+from strategy_runtime.option_payoff import (
+    DeterministicTerminalPayoff,
+    PayoffQuantity,
+    PayoffQuantityState,
+    TerminalPayoffPoint,
+    TerminalPayoffUnknown,
+    model_terminal_payoff,
+    terminal_payoff_to_data,
+)
 from strategy_runtime.option_structure_resolver import (
     OptionLegIntent,
     OptionStructureIntent,
@@ -142,6 +151,7 @@ __all__ = [
     "NO_LIFECYCLE",
     "SUCCESS_EVALUATION_STATES",
     "DataRequirement",
+    "DeterministicTerminalPayoff",
     "DuplicateStrategyRegistrationError",
     "EvaluationState",
     "ExecutionStatus",
@@ -166,6 +176,8 @@ __all__ = [
     "RuntimeContext",
     "RuntimeExecutionSummary",
     "QuantityState",
+    "PayoffQuantity",
+    "PayoffQuantityState",
     "StrategyAdapter",
     "StrategyCapability",
     "StrategyContract",
@@ -179,6 +191,8 @@ __all__ = [
     "TradeProposalLeg",
     "TradeProposalUnavailable",
     "TradeQuantity",
+    "TerminalPayoffPoint",
+    "TerminalPayoffUnknown",
     "TypedValue",
     "UniversalScreeningResult",
     "UnknownStrategyIdError",
@@ -192,8 +206,10 @@ __all__ = [
     "describe_registry",
     "register",
     "model_front_expiration_pnl",
+    "model_terminal_payoff",
     "resolve_option_structure",
     "run_strategies",
     "trade_proposal_to_data",
+    "terminal_payoff_to_data",
     "validate_result",
 ]

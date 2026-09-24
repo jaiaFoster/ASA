@@ -19,6 +19,12 @@ from domain import (
     SecurityAssetType,
 )
 from strategy_runtime.contract import StructureKind
+from strategy_runtime.option_payoff import (
+    DeterministicTerminalPayoff,
+    PayoffQuantity,
+    PayoffQuantityState,
+    TerminalPayoffPoint,
+)
 from strategy_runtime.option_structure_resolver import (
     OptionLegIntent,
     OptionStructureIntent,
@@ -163,3 +169,25 @@ def test_nonconstructible_assessment_stays_typed_unavailable() -> None:
 def test_assessment_identity_must_match_result() -> None:
     with pytest.raises(ValueError, match="does not belong"):
         build_option_trade_proposal(_result("different-result"), _assessment())
+
+
+def test_attached_terminal_payoff_populates_only_supported_quantities() -> None:
+    assessment = _assessment()
+    payoff = DeterministicTerminalPayoff(
+        structure_assessment_identity=assessment.identity,
+        model_version="exact-leg-terminal-payoff-v1",
+        expiration=FRONT,
+        points=(TerminalPayoffPoint(Decimal("200"), Decimal("0")),),
+        contract_multiplier=Decimal("100"),
+        entry_fill_assumption="midpoint_modeled_reference_only",
+        maximum_loss=PayoffQuantity(PayoffQuantityState.SUPPORTED, Decimal("210")),
+        maximum_profit=PayoffQuantity(PayoffQuantityState.UNDEFINED, None, "not_supported"),
+        breakevens=(Decimal("202.10"),),
+    )
+
+    proposal = build_option_trade_proposal(_result(), assessment, payoff)
+
+    assert isinstance(proposal, OptionTradeProposal)
+    assert proposal.maximum_loss.value == Decimal("210")
+    assert proposal.maximum_profit.state is QuantityState.UNDEFINED
+    assert proposal.breakeven.value == Decimal("202.10")

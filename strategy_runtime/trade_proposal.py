@@ -18,6 +18,11 @@ from strategy_runtime.executable_structures import (
     ExecutableStructureAssessment,
     ExecutableStructureStatus,
 )
+from strategy_runtime.option_payoff import (
+    DeterministicTerminalPayoff,
+    PayoffQuantity,
+    PayoffQuantityState,
+)
 from strategy_runtime.result import UniversalScreeningResult
 
 
@@ -142,10 +147,16 @@ class TradeProposalUnavailable:
 def build_option_trade_proposal(
     result: UniversalScreeningResult,
     assessment: ExecutableStructureAssessment,
+    terminal_payoff: DeterministicTerminalPayoff | None = None,
 ) -> OptionTradeProposal | TradeProposalUnavailable:
     """Project one assessment; never infer legs, economics, or policy."""
     if assessment.originating_result_identity != result.observation_id:
         raise ValueError("assessment does not belong to the screening result")
+    if (
+        terminal_payoff is not None
+        and terminal_payoff.structure_assessment_identity != assessment.identity
+    ):
+        raise ValueError("terminal payoff does not belong to the structure assessment")
     unavailable = _unavailability_reason(assessment)
     if unavailable is not None:
         return TradeProposalUnavailable(
@@ -178,6 +189,36 @@ def build_option_trade_proposal(
         None,
         "payoff_model_not_attached",
     )
+    maximum_loss = _trade_quantity(terminal_payoff.maximum_loss) if terminal_payoff else not_modeled
+    maximum_profit = (
+        _trade_quantity(terminal_payoff.maximum_profit) if terminal_payoff else not_modeled
+    )
+    breakeven = (
+        TradeQuantity(QuantityState.SUPPORTED, terminal_payoff.breakevens[0], None)
+        if terminal_payoff is not None and len(terminal_payoff.breakevens) == 1
+        else TradeQuantity(
+            QuantityState.UNDEFINED if terminal_payoff is not None else QuantityState.UNKNOWN,
+            None,
+            (
+                "multiple_or_no_breakevens"
+                if terminal_payoff is not None
+                else "payoff_model_not_attached"
+            ),
+        )
+    )
+    capital_required = (
+        maximum_loss
+        if entry.modeled_net_debit_or_credit > 0 and maximum_loss.state is QuantityState.SUPPORTED
+        else TradeQuantity(
+            QuantityState.UNDEFINED if terminal_payoff is not None else QuantityState.UNKNOWN,
+            None,
+            (
+                "capital_requirement_not_defined_for_structure"
+                if terminal_payoff is not None
+                else "payoff_model_not_attached"
+            ),
+        )
+    )
     return OptionTradeProposal(
         originating_result_identity=result.observation_id,
         underlying=result.symbol,
@@ -207,10 +248,10 @@ def build_option_trade_proposal(
         entry_model_version=entry.model_version,
         entry_calculated_at=entry.calculated_at,
         liquidity=_liquidity(result),
-        capital_required=not_modeled,
-        maximum_loss=not_modeled,
-        maximum_profit=not_modeled,
-        breakeven=not_modeled,
+        capital_required=capital_required,
+        maximum_loss=maximum_loss,
+        maximum_profit=maximum_profit,
+        breakeven=breakeven,
         evidence_snapshot_identity=assessment.evidence_snapshot_identity,
         constructibility=assessment.status.value,
         assumptions=assumptions,
@@ -246,6 +287,14 @@ def _liquidity(result: UniversalScreeningResult) -> LiquidityState:
     if values and all(value is True for value in values):
         return LiquidityState.ACCEPTABLE
     return LiquidityState.UNKNOWN
+
+
+def _trade_quantity(value: PayoffQuantity) -> TradeQuantity:
+    if value.state is PayoffQuantityState.SUPPORTED:
+        return TradeQuantity(QuantityState.SUPPORTED, value.value, None)
+    if value.state is PayoffQuantityState.UNKNOWN:
+        return TradeQuantity(QuantityState.UNKNOWN, None, value.reason)
+    return TradeQuantity(QuantityState.UNDEFINED, None, value.reason)
 
 
 def trade_proposal_to_data(
