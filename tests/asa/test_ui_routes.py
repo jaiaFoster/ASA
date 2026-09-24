@@ -162,3 +162,7 @@ def test_ui_leads_with_canonical_trade_proposal_and_keeps_evidence_expandable() 
     assert "Why this trade?" in render_source
     assert "proposal.evidence_snapshot_identity" in render_source
     assert "proposal.modeled_net_debit_or_credit" in render_source
+    assert "Deterministic expiration payoff" in render_source
+    assert 'svg.setAttribute("role", "img")' in render_source
+    assert "Show exact plotted values" in render_source
+    assert "not guaranteed returns" in render_source

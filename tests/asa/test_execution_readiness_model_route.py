@@ -113,6 +113,14 @@ def test_terminal_payoff_endpoint_returns_exact_vertical_economics() -> None:
     ]
     assert response.json()["maximum_loss"]["value"] == "400.00"
 
+    default_grid = TestClient(app).get(
+        "/api/v1/screening/forward_factor/AAPL/execution-readiness/terminal-payoff",
+        headers={"Authorization": "Bearer test-token"},
+    )
+    assert default_grid.status_code == 200
+    assert len(default_grid.json()["points"]) == 23
+    assert default_grid.json()["points"][0]["underlying_price"] == "80.00"
+
 
 def test_calendar_terminal_payoff_refuses_intrinsic_only_substitution() -> None:
     assessment = _assessment()

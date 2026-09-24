@@ -21,6 +21,7 @@ from strategy_runtime.option_payoff import (
     DeterministicTerminalPayoff,
     PayoffQuantityState,
     TerminalPayoffUnknown,
+    default_terminal_payoff_grid,
     model_terminal_payoff,
     terminal_payoff_to_data,
 )
@@ -115,6 +116,16 @@ def test_vertical_terminal_payoff_has_pinned_bounded_economics() -> None:
     assert terminal_payoff_to_data(result)["semantics"] == (
         "deterministic_terminal_payoff_from_modeled_entry"
     )
+
+
+def test_default_visualization_grid_is_deterministic_and_includes_strikes() -> None:
+    grid = default_terminal_payoff_grid(_vertical())
+
+    assert grid == tuple(sorted(set(grid)))
+    assert Decimal("100") in grid
+    assert Decimal("110") in grid
+    assert grid[0] == Decimal("80.00")
+    assert grid[-1] == Decimal("132.00")
 
 
 def test_calendar_requires_model_dependent_front_expiration_value() -> None:

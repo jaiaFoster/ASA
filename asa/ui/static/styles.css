@@ -130,6 +130,13 @@ input:focus, select:focus, button:focus, a:focus { outline: 2px solid var(--cyan
 .pnl-assumptions { display: grid; gap: .75rem; margin-top: 1rem; }
 .pnl-assumptions label { display: grid; gap: .25rem; }
 .pnl-assumptions input { width: 100%; }
+.payoff-chart { margin: 1.2rem 0 0; }
+.payoff-chart svg { display: block; width: 100%; min-height: 13rem; border: 1px solid var(--line); background: #070908; }
+.payoff-line { fill: none; stroke: var(--acid); stroke-width: 3; vector-effect: non-scaling-stroke; }
+.payoff-zero-line { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 6 5; vector-effect: non-scaling-stroke; }
+.payoff-chart figcaption { margin-top: .6rem; color: var(--muted); font-size: .78rem; }
+.payoff-values { margin-top: .75rem; }
+.payoff-values summary { color: var(--cyan); cursor: pointer; }
 
 @media (max-width: 900px) {
   .summary-grid, .fact-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }

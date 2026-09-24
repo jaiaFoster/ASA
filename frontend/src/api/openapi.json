@@ -1241,9 +1241,16 @@
           {
             "name": "underlying_price_grid",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "string",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "title": "Underlying Price Grid"
             }
           },

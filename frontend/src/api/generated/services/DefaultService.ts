@@ -492,8 +492,8 @@ export class DefaultService {
      * @param symbol
      * @param valuationTime
      * @param spotReference
-     * @param underlyingPriceGrid
      * @param volatilityByContract
+     * @param underlyingPriceGrid
      * @param annualRiskFreeRate
      * @param annualDividendYield
      * @param contractMultiplier
@@ -505,8 +505,8 @@ export class DefaultService {
         symbol: string,
         valuationTime: string,
         spotReference: (number | string),
-        underlyingPriceGrid: string,
         volatilityByContract: string,
+        underlyingPriceGrid?: (string | null),
         annualRiskFreeRate?: (number | string | null),
         annualDividendYield?: (number | string | null),
         contractMultiplier?: (number | string),

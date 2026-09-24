@@ -215,9 +215,23 @@ test("actionable option detail leads with exact trade and expandable rationale",
     evidence_snapshot_identity: "snapshot-1",
   };
   const root = document.createElement("div");
+  const terminalPayoff = {
+    expiration: "2026-10-16",
+    model_version: "exact-leg-terminal-payoff-v1",
+    entry_fill_assumption: "midpoint_modeled_reference_only",
+    semantics: "deterministic_terminal_payoff_from_modeled_entry",
+    points: [
+      { underlying_price: "190", payoff: "-125" },
+      { underlying_price: "205", payoff: "375" },
+      { underlying_price: "220", payoff: "875" },
+    ],
+  };
   renderApp(
     root,
-    model({ route: { name: "detail" }, detail: { ...fixture, trade_proposal: proposal } }),
+    model({
+      route: { name: "detail" },
+      detail: { ...fixture, trade_proposal: proposal, terminal_payoff: terminalPayoff },
+    }),
     noOpHandlers,
   );
 
@@ -226,8 +240,12 @@ test("actionable option detail leads with exact trade and expandable rationale",
   assert.match(card.textContent, /BUY 1 CALL/);
   assert.match(card.textContent, /SELL 1 CALL/);
   assert.match(card.textContent, /Modeled entry1\.25/);
-  assert.match(card.querySelector("summary").textContent, /Why this trade/);
+  assert.match(card.querySelector(".trade-why summary").textContent, /Why this trade/);
   assert.match(card.textContent, /snapshot-1/);
+  assert.equal(card.querySelector("svg").getAttribute("role"), "img");
+  assert.match(card.querySelector("svg").getAttribute("aria-label"), /expiration payoff/);
+  assert.match(card.textContent, /Show exact plotted values/);
+  assert.match(card.textContent, /not guaranteed returns/);
 });
 
 test("runtime strip renders exact configured build identity and explicit unavailable revision", () => {

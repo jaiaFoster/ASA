@@ -112,6 +112,7 @@ from strategy_runtime.option_payoff import (
     PayoffQuantityState,
     TerminalPayoffPoint,
     TerminalPayoffUnknown,
+    default_terminal_payoff_grid,
     model_terminal_payoff,
     terminal_payoff_to_data,
 )
@@ -202,6 +203,7 @@ __all__ = [
     "build_option_trade_proposal",
     "compute_observation_id",
     "declared_rolling_window_policies",
+    "default_terminal_payoff_grid",
     "describe_contract",
     "describe_registry",
     "register",
