@@ -30,6 +30,7 @@ from strategies.forward_factor_planning import (
 from strategies.skew_momentum_planning import (
     resolved_field_requirements as skew_momentum_resolved_field_requirements,
 )
+from strategies.stock_benchmark_manifests import B001_MANIFEST, B002_MANIFEST
 from strategies.stock_benchmark_planning import (
     b001_resolved_field_requirements,
     b002_resolved_field_requirements,
@@ -87,6 +88,8 @@ def build_migrated_strategy_registry() -> StrategyRegistry[UniversalScreeningRes
         (FORWARD_FACTOR_CALENDAR_MANIFEST, FORWARD_FACTOR_CONTRACT),
         (SKEW_MOMENTUM_VERTICAL_MANIFEST, SKEW_MOMENTUM_VERTICAL_CONTRACT),
         (EARNINGS_CALENDAR_MANIFEST, EARNINGS_CALENDAR_CONTRACT),
+        (B001_MANIFEST, B001_CONTRACT),
+        (B002_MANIFEST, B002_CONTRACT),
     )
     for manifest, contract in pairs:
         validate_manifest_contract(manifest, contract)
@@ -95,10 +98,6 @@ def build_migrated_strategy_registry() -> StrategyRegistry[UniversalScreeningRes
             (FORWARD_FACTOR_CONTRACT, _subject_first_only),
             (SKEW_MOMENTUM_VERTICAL_CONTRACT, _subject_first_only),
             (EARNINGS_CALENDAR_CONTRACT, _subject_first_only),
-            # B001/B002 (STOCK-RUNTIME-001 STK-03): StructureKind.NONE,
-            # NO_LIFECYCLE, no manifest-graph -- there is no legacy adapter
-            # for either benchmark at all, so validate_manifest_contract
-            # never applies to them (nothing to validate against).
             (B001_CONTRACT, _subject_first_only),
             (B002_CONTRACT, _subject_first_only),
         )
@@ -192,15 +191,6 @@ def migrated_shadow_resolution_policy(
     return resolution_policy_for_capabilities(capability_registry, requirements)
 
 
-
-# B001/B002 have no StrategyManifest -- StructureKind.NONE strategies with
-# no option structure never compile/execute a graph, so there is nothing
-# for a manifest_id to identify. SignalCatalogEntry.manifest_id has no
-# default, so this stable sentinel documents "no manifest" explicitly
-# rather than fabricating a fake manifest identity.
-_NO_MANIFEST = "none"
-
-
 def build_migrated_signal_catalog() -> tuple[SignalCatalogEntry, ...]:
     """Public capability metadata projected from the universal contracts."""
     entries = (
@@ -216,8 +206,8 @@ def build_migrated_signal_catalog() -> tuple[SignalCatalogEntry, ...]:
             SKEW_MOMENTUM_VERTICAL_CONTRACT,
             manifest_id=SKEW_MOMENTUM_VERTICAL_MANIFEST.manifest_id,
         ),
-        SignalCatalogEntry.from_contract(B001_CONTRACT, manifest_id=_NO_MANIFEST),
-        SignalCatalogEntry.from_contract(B002_CONTRACT, manifest_id=_NO_MANIFEST),
+        SignalCatalogEntry.from_contract(B001_CONTRACT, manifest_id=B001_MANIFEST.manifest_id),
+        SignalCatalogEntry.from_contract(B002_CONTRACT, manifest_id=B002_MANIFEST.manifest_id),
     )
     return tuple(sorted(entries, key=lambda item: item.signal_id))
 

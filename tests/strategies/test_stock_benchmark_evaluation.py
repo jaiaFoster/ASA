@@ -18,5 +18,5 @@ def test_b002_is_pass_strictly_above_sma() -> None:
 def test_b002_is_no_signal_at_or_below_sma() -> None:
     at_sma = B002Payload(price=Decimal("400"), sma_10m=Decimal("400"))
     below_sma = B002Payload(price=Decimal("390"), sma_10m=Decimal("400"))
-    assert evaluate_b002(at_sma) == "NO_SIGNAL"
-    assert evaluate_b002(below_sma) == "NO_SIGNAL"
+    assert evaluate_b002(at_sma) == "FAIL"
+    assert evaluate_b002(below_sma) == "FAIL"

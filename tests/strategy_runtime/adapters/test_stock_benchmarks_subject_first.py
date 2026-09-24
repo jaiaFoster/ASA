@@ -257,7 +257,7 @@ class TestB002PrepareAndAdapter:
         )
         result = adapter(context)
 
-        assert result.verdict == "NO_SIGNAL"
+        assert result.verdict == "FAIL"
         assert result.evaluation_state is EvaluationState.NO_SIGNAL
         assert "decision.direction" not in result.metrics
 

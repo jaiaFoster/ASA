@@ -1,8 +1,8 @@
 """Stock benchmark (B001/B002) mapping from sealed evidence to immutable
 facts. Both benchmarks are StructureKind.NONE/NO_LIFECYCLE: there is no
-option chain, no structural selection, and (unlike Skew Momentum/Forward
-Factor/Earnings Calendar) no manifest-graph evaluation -- their payloads
-are consumed directly by strategy_runtime/adapters/stock_benchmarks_subject_first.py.
+option chain and no structural selection. Their payloads feed each
+benchmark's manifest graph (strategies/stock_benchmark_manifests.py) via
+strategies/stock_benchmark_evaluation.py (SL-03-00).
 """
 
 from __future__ import annotations
