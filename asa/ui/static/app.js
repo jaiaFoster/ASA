@@ -4,6 +4,7 @@ import {
   exactCounts,
   exactTimestampRange,
   filteredResults,
+  isStockSignal,
   routeFromHash,
   state,
 } from "./state.js";
@@ -17,6 +18,7 @@ function model() {
   const proposal = detailKey ? state.tradeProposals[detailKey] : null;
   const terminalPayoff = detailKey ? state.terminalPayoffs[detailKey] : null;
   const trackedCandidate = detailKey ? state.trackedCandidates[detailKey] : null;
+  const stockProposal = detailKey ? state.stockProposals[detailKey] : null;
   const persistedDetail =
     route.name === "detail"
       ? state.results.find(
@@ -37,7 +39,9 @@ function model() {
           terminal_payoff: terminalPayoff,
           tracked_candidate: trackedCandidate,
         }
-      : persistedDetail,
+      : persistedDetail && stockProposal
+        ? { ...persistedDetail, stock_proposal: stockProposal }
+        : persistedDetail,
     counts: {
       verdict: exactCounts(state.results, "verdict"),
       evaluation_state: exactCounts(state.results, "evaluation_state"),
@@ -52,6 +56,16 @@ async function loadExecutionReadiness() {
   const route = routeFromHash(location.hash);
   if (route.name !== "detail" || !hasToken()) return;
   const key = `${route.signalId}:${route.symbol}`;
+  if (isStockSignal(state.capabilities, route.signalId)) {
+    try {
+      state.stockProposals[key] = (await api.stockProposal(route.signalId, route.symbol)).data;
+    } catch (error) {
+      if (error.status !== 404) throw error;
+      delete state.stockProposals[key];
+    }
+    render();
+    return;
+  }
   const [readiness, proposal, terminalPayoff] = await Promise.allSettled([
     api.executionReadiness(route.signalId, route.symbol),
     api.tradeProposal(route.signalId, route.symbol),
@@ -136,6 +150,7 @@ const handlers = {
     state.tradeProposals = {};
     state.terminalPayoffs = {};
     state.trackedCandidates = {};
+    state.stockProposals = {};
     state.resultsSnapshotIdentity = null;
     state.retainedNonactiveTotal = 0;
     state.capabilities = null;

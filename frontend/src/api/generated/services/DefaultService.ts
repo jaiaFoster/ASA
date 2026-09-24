@@ -24,6 +24,7 @@ import type { ScreeningOperationalHealthResponse } from '../models/ScreeningOper
 import type { ScreeningResultResponse } from '../models/ScreeningResultResponse';
 import type { ScreeningResultsEnvelope } from '../models/ScreeningResultsEnvelope';
 import type { StartRunRequest } from '../models/StartRunRequest';
+import type { StockOpportunityProposalResponse } from '../models/StockOpportunityProposalResponse';
 import type { StrategyHealthResponse } from '../models/StrategyHealthResponse';
 import type { TrackCandidateRequest } from '../models/TrackCandidateRequest';
 import type { TrackedCandidateDetailResponse } from '../models/TrackedCandidateDetailResponse';
@@ -676,6 +677,30 @@ export class DefaultService {
         return __request(OpenAPI, {
             method: 'GET',
             url: '/api/v1/screening/{signal}/{symbol}/trade-proposal',
+            path: {
+                'signal': signal,
+                'symbol': symbol,
+            },
+            errors: {
+                422: `Validation Error`,
+            },
+        });
+    }
+    /**
+     * Get Stock Proposal
+     * Project the current no-structure result into the stock product contract.
+     * @param signal
+     * @param symbol
+     * @returns StockOpportunityProposalResponse Successful Response
+     * @throws ApiError
+     */
+    public static getStockProposalApiV1ScreeningSignalSymbolStockProposalGet(
+        signal: string,
+        symbol: string,
+    ): CancelablePromise<StockOpportunityProposalResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v1/screening/{signal}/{symbol}/stock-proposal',
             path: {
                 'signal': signal,
                 'symbol': symbol,

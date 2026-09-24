@@ -7,4 +7,6 @@ export type SignalCapabilityResponse = {
     signal_version: string;
     manifest_id: string;
     required_capabilities: Array<string>;
+    category: string;
+    structure: string;
 };

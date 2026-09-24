@@ -1,3 +1,5 @@
+import { isStockSignal } from "./state.js";
+
 function element(tag, className, text) {
   const node = document.createElement(tag);
   if (className) node.className = className;
@@ -275,16 +277,74 @@ function tradeQuantityText(quantity) {
   return quantity.reason ? `${quantity.state} (${quantity.reason})` : quantity.state;
 }
 
-function detailView(item, handlers) {
+const STOCK_STATUS_LABELS = {
+  actionable: "Strategy action",
+  no_action: "No action emitted",
+  unknown: "Evaluation incomplete",
+};
+
+function stockProposalCard(proposal) {
+  const card = element(
+    "section",
+    `trade-card stock-card${proposal.status === "actionable" ? "" : " trade-card--unavailable"}`,
+  );
+  card.append(element("p", "eyebrow", "STOCK OPPORTUNITY · ANALYTICAL, NOT AN ORDER"));
+  card.append(element(
+    "h3",
+    null,
+    `${proposal.instrument} · ${proposal.action ?? STOCK_STATUS_LABELS[proposal.status]}`,
+  ));
+  const rows = [
+    ["Strategy", `${proposal.strategy_id}@${proposal.strategy_version}`],
+    ["Status", proposal.status],
+    ["Action", proposal.action ?? `none (${proposal.action_reason})`],
+    ["Signal verdict", proposal.signal_verdict ?? "none"],
+    ["Evidence observed", proposal.evidence_observed_at],
+    ["Freshness", `${proposal.freshness} (${proposal.evidence_age_seconds}s old)`],
+    ["Allocation", proposal.allocation ?? `none (${proposal.allocation_reason})`],
+    ...proposal.signal_metrics.map((metric) => [metric.name, metric.value]),
+  ];
+  if (proposal.unknown_reasons.length) {
+    rows.push(["Unknown because", proposal.unknown_reasons.join("; ")]);
+  }
+  card.append(definitionList(rows));
+  const why = element("details", "trade-why");
+  why.append(element("summary", null, "Why this action?"));
+  const sections = [
+    ["Rationale", proposal.rationale],
+    ["Invalidation", proposal.invalidation_notes],
+    ["Warnings", proposal.warnings],
+    ["Provenance", proposal.provenance],
+  ];
+  for (const [title, values] of sections) {
+    if (!values.length) continue;
+    why.append(element("h4", null, title));
+    const list = element("ul");
+    list.append(...values.map((value) => element("li", null, value)));
+    why.append(list);
+  }
+  card.append(why);
+  card.append(element(
+    "p",
+    "track-disclosure",
+    "ASA does not size positions or estimate returns unless the strategy defines them.",
+  ));
+  return card;
+}
+
+function detailView(item, handlers, capabilities) {
   const fragment = document.createDocumentFragment();
   const back = element("a", "back-link", "← Latest results"); back.href = "#/results"; fragment.append(back);
   const heading = element("section", "page-heading detail-heading");
-  heading.append(element("p", "eyebrow", "RESULT AUDIT"));
+  const asset = isStockSignal(capabilities, item.signal_id) ? "STOCK / ETF" : "OPTIONS";
+  heading.append(element("p", "eyebrow", `RESULT AUDIT · ${asset}`));
   heading.append(element("h2", null, `${item.signal_id} / ${item.symbol}`));
   const states = element("div", "badge-row badge-row--large");
   states.append(badge(item.verdict, "verdict"), badge(item.evaluation_state, "evaluation"), badge(item.outcome, "state"));
   heading.append(states);
   fragment.append(heading);
+
+  if (item.stock_proposal) fragment.append(stockProposalCard(item.stock_proposal));
 
   const proposal = item.trade_proposal;
   if (proposal?.status === "available") {
@@ -535,7 +595,6 @@ function payoffVisualization(points, valueKey, label) {
   return wrapper;
 }
 
-const STOCK_STRATEGY_SIGNAL_IDS = new Set(["B001", "B002"]);
 
 function factInspector(value) {
   const disclosure = element("details", "fact-inspector");
@@ -672,7 +731,7 @@ function stockPortfolioView(model) {
 
 function stockStrategiesView(model) {
   const fragment = document.createDocumentFragment();
-  const items = model.results.filter((item) => STOCK_STRATEGY_SIGNAL_IDS.has(item.signal_id));
+  const items = model.results.filter((item) => isStockSignal(model.capabilities, item.signal_id));
 
   const tableWrap = element("div", "table-wrap");
   const table = element("table", "results-table");
@@ -825,7 +884,7 @@ export function renderApp(root, model, handlers) {
   }
   if (model.loading) main.append(element("div", "loading-bar", "Reading persisted state…"));
   if (model.route.name === "detail") {
-    if (model.detail) main.append(detailView(model.detail, handlers));
+    if (model.detail) main.append(detailView(model.detail, handlers, model.capabilities));
     else main.append(element("p", "empty-state empty-state--large", "Result not found in the persisted snapshot."));
   } else if (model.route.name === "health") {
     main.append(healthView(model));

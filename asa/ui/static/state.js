@@ -12,6 +12,7 @@ export const state = {
   tradeProposals: {},
   terminalPayoffs: {},
   trackedCandidates: {},
+  stockProposals: {},
   portfolio: null,
   positions: null,
   apiVersion: null,
@@ -60,4 +61,11 @@ export function routeFromHash(hash) {
     return { name: "detail", signalId: parts[1], symbol: parts[2] };
   }
   return { name: "results" };
+}
+
+// Asset surfaces follow each strategy's declared contract structure, never its
+// identifier: a strategy declaring no option structure is a stock/ETF strategy.
+export function isStockSignal(capabilities, signalId) {
+  const signal = capabilities?.signals?.find((item) => item.signal_id === signalId);
+  return signal?.structure === "none";
 }
