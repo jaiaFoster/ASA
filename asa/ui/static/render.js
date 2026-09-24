@@ -307,6 +307,20 @@ function detailView(item, handlers) {
       legs.append(card);
     }
     trade.append(legs);
+    if (item.terminal_payoff) {
+      trade.append(element("h4", null, "Deterministic expiration payoff"));
+      trade.append(definitionList([
+        ["Expiration", item.terminal_payoff.expiration],
+        ["Model", item.terminal_payoff.model_version],
+        ["Entry assumption", item.terminal_payoff.entry_fill_assumption],
+        ["Disclosure", item.terminal_payoff.semantics],
+      ]));
+      trade.append(payoffVisualization(
+        item.terminal_payoff.points,
+        "payoff",
+        "Deterministic expiration payoff by underlying price",
+      ));
+    }
     const why = element("details", "trade-why");
     why.append(element("summary", null, "Why this trade?"));
     why.append(element("h4", null, "Rationale"));
@@ -369,18 +383,11 @@ function detailView(item, handlers) {
         ["Rate / dividend", `${surface.annual_risk_free_rate} / ${surface.annual_dividend_yield}`],
         ["Disclosure", surface.semantics],
       ]));
-      const graph = element("div", "pnl-graph");
-      const values = surface.points.map((point) => Number(point.modeled_pnl));
-      const maximum = Math.max(1, ...values.map((value) => Math.abs(value)));
-      for (const point of surface.points) {
-        const row = element("div", "pnl-point");
-        const value = Number(point.modeled_pnl);
-        const bar = element("span", value >= 0 ? "pnl-bar pnl-bar--gain" : "pnl-bar pnl-bar--loss");
-        bar.style.width = `${Math.max(1, Math.abs(value) / maximum * 100)}%`;
-        row.append(element("code", null, point.underlying_price), bar, element("code", null, point.modeled_pnl));
-        graph.append(row);
-      }
-      section.append(graph);
+      section.append(payoffVisualization(
+        surface.points,
+        "modeled_pnl",
+        "Modeled front-expiration profit and loss by underlying price",
+      ));
     }
     if (readiness.status === "constructible_as_intended") {
       const form = element("form", "pnl-assumptions");
@@ -453,6 +460,45 @@ function detailView(item, handlers) {
   disclosure.append(element("pre", null, JSON.stringify(item, null, 2)));
   fragment.append(disclosure);
   return fragment;
+}
+
+function payoffVisualization(points, valueKey, label) {
+  const wrapper = element("figure", "payoff-chart");
+  const parsed = points.map((point) => ({
+    price: Number(point.underlying_price), value: Number(point[valueKey]), raw: point,
+  }));
+  if (!parsed.length || parsed.some((point) => !Number.isFinite(point.price) || !Number.isFinite(point.value))) {
+    wrapper.append(element("p", "empty-state", "Payoff visualization unavailable."));
+    return wrapper;
+  }
+  const width = 720; const height = 260; const padding = 32;
+  const prices = parsed.map((point) => point.price);
+  const values = parsed.map((point) => point.value);
+  const minX = Math.min(...prices); const maxX = Math.max(...prices);
+  const minY = Math.min(0, ...values); const maxY = Math.max(0, ...values);
+  const xRange = Math.max(1, maxX - minX); const yRange = Math.max(1, maxY - minY);
+  const x = (value) => padding + (value - minX) / xRange * (width - 2 * padding);
+  const y = (value) => height - padding - (value - minY) / yRange * (height - 2 * padding);
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+  svg.setAttribute("role", "img");
+  svg.setAttribute("aria-label", label);
+  const zero = document.createElementNS("http://www.w3.org/2000/svg", "line");
+  zero.setAttribute("x1", String(padding)); zero.setAttribute("x2", String(width - padding));
+  zero.setAttribute("y1", String(y(0))); zero.setAttribute("y2", String(y(0)));
+  zero.setAttribute("class", "payoff-zero-line");
+  const line = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
+  line.setAttribute("points", parsed.map((point) => `${x(point.price)},${y(point.value)}`).join(" "));
+  line.setAttribute("class", "payoff-line");
+  svg.append(zero, line); wrapper.append(svg);
+  wrapper.append(element("figcaption", null, `${label}. Values use the displayed model and entry assumptions; they are not guaranteed returns.`));
+  const valuesDisclosure = element("details", "payoff-values");
+  valuesDisclosure.append(element("summary", null, "Show exact plotted values"));
+  valuesDisclosure.append(definitionList(parsed.map((point) => [
+    String(point.raw.underlying_price), String(point.raw[valueKey]),
+  ])));
+  wrapper.append(valuesDisclosure);
+  return wrapper;
 }
 
 const STOCK_STRATEGY_SIGNAL_IDS = new Set(["B001", "B002"]);

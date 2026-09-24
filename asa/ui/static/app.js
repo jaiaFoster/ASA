@@ -15,6 +15,7 @@ function model() {
   const detailKey = route.name === "detail" ? `${route.signalId}:${route.symbol}` : null;
   const readiness = detailKey ? state.executionReadiness[detailKey] : null;
   const proposal = detailKey ? state.tradeProposals[detailKey] : null;
+  const terminalPayoff = detailKey ? state.terminalPayoffs[detailKey] : null;
   const persistedDetail =
     route.name === "detail"
       ? state.results.find(
@@ -32,6 +33,7 @@ function model() {
           execution_assessment: readiness.execution_assessment,
           modeled_pnl: readiness.modeled_pnl,
           trade_proposal: proposal,
+          terminal_payoff: terminalPayoff,
         }
       : persistedDetail,
     counts: {
@@ -48,9 +50,10 @@ async function loadExecutionReadiness() {
   const route = routeFromHash(location.hash);
   if (route.name !== "detail" || !hasToken()) return;
   const key = `${route.signalId}:${route.symbol}`;
-  const [readiness, proposal] = await Promise.allSettled([
+  const [readiness, proposal, terminalPayoff] = await Promise.allSettled([
     api.executionReadiness(route.signalId, route.symbol),
     api.tradeProposal(route.signalId, route.symbol),
+    api.terminalPayoff(route.signalId, route.symbol),
   ]);
   if (readiness.status === "fulfilled") state.executionReadiness[key] = readiness.value.data;
   else if (readiness.reason.status === 404 || readiness.reason.status === 409) {
@@ -60,6 +63,11 @@ async function loadExecutionReadiness() {
   else if (proposal.reason.status === 404 || proposal.reason.status === 409) {
     delete state.tradeProposals[key];
   } else throw proposal.reason;
+  if (terminalPayoff.status === "fulfilled") {
+    state.terminalPayoffs[key] = terminalPayoff.value.data;
+  } else if ([404, 409, 422].includes(terminalPayoff.reason.status)) {
+    delete state.terminalPayoffs[key];
+  } else throw terminalPayoff.reason;
   render();
 }
 
@@ -124,6 +132,7 @@ const handlers = {
     state.results = [];
     state.resultsTotal = 0;
     state.tradeProposals = {};
+    state.terminalPayoffs = {};
     state.resultsSnapshotIdentity = null;
     state.retainedNonactiveTotal = 0;
     state.capabilities = null;

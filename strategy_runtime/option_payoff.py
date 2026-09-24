@@ -170,6 +170,20 @@ def model_terminal_payoff(
     )
 
 
+def default_terminal_payoff_grid(
+    assessment: ExecutableStructureAssessment,
+) -> tuple[Decimal, ...]:
+    """Deterministic display grid derived only from exact canonical strikes."""
+    strikes = tuple(sorted({item.leg.contract.strike for item in assessment.exact_legs}))
+    if not strikes:
+        return ()
+    lower = max(Decimal(0), strikes[0] * Decimal("0.80"))
+    upper = strikes[-1] * Decimal("1.20")
+    step = (upper - lower) / Decimal(20)
+    generated = tuple(lower + step * index for index in range(21))
+    return tuple(sorted({*generated, *strikes}))
+
+
 def _breakevens(
     payoff: Callable[[Decimal], Decimal],
     strikes: tuple[Decimal, ...],

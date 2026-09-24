@@ -91,7 +91,11 @@ from strategy_runtime.option_funnel import (
     CapabilityDemandDiagnostic,
     build_option_funnel_trace,
 )
-from strategy_runtime.option_payoff import TerminalPayoffUnknown, model_terminal_payoff
+from strategy_runtime.option_payoff import (
+    TerminalPayoffUnknown,
+    default_terminal_payoff_grid,
+    model_terminal_payoff,
+)
 from strategy_runtime.orchestration import (
     build_subject_acquisition_access,
     prepare_subject_shadow_knowledge_with_temporal,
@@ -621,7 +625,7 @@ def build_screening_router(
     def model_execution_readiness_terminal_payoff(
         signal: str,
         symbol: str,
-        underlying_price_grid: str,
+        underlying_price_grid: str | None = None,
         contract_multiplier: Decimal = Decimal("100"),
     ) -> DeterministicTerminalPayoffResponse:
         """Return deterministic expiry payoff only when all exact legs expire together."""
@@ -645,10 +649,15 @@ def build_screening_router(
             raise agent_api_error(
                 409, "EXECUTION_READINESS_INTEGRITY", "Execution readiness identity mismatch"
             )
-        try:
-            prices = tuple(Decimal(item.strip()) for item in underlying_price_grid.split(","))
-        except (ArithmeticError, ValueError):
-            raise agent_api_error(422, "INVALID_PAYOFF_GRID", "Payoff grid is malformed") from None
+        if underlying_price_grid is None:
+            prices = default_terminal_payoff_grid(assessment)
+        else:
+            try:
+                prices = tuple(Decimal(item.strip()) for item in underlying_price_grid.split(","))
+            except (ArithmeticError, ValueError):
+                raise agent_api_error(
+                    422, "INVALID_PAYOFF_GRID", "Payoff grid is malformed"
+                ) from None
         result = model_terminal_payoff(
             assessment=assessment,
             underlying_price_grid=prices,
