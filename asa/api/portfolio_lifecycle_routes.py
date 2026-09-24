@@ -6,7 +6,11 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
-from asa.application.portfolio_lifecycle import CandidateNotFoundError, TrackCandidateService
+from asa.application.portfolio_lifecycle import (
+    CandidateNotFoundError,
+    ProposalIdentityCollisionError,
+    TrackCandidateService,
+)
 from asa.application.portfolio_valuation import project_exit_state
 from asa.application.ports.portfolio_lifecycle import PortfolioLifecycleRepository
 from asa.contracts.portfolio_lifecycle import (
@@ -123,6 +127,11 @@ def build_portfolio_lifecycle_router(
             raise HTTPException(
                 status_code=404,
                 detail="originating screening observation is unavailable",
+            ) from None
+        except ProposalIdentityCollisionError:
+            raise HTTPException(
+                status_code=409,
+                detail="tracked proposal identity collision for this observation",
             ) from None
         return TrackedCandidateResponse.from_domain(candidate)
 
