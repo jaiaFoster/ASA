@@ -1,0 +1,124 @@
+{
+  "artifact_version": "1.0.0",
+  "captured_at": "2026-09-24T21:34:36.477527+00:00",
+  "observation_checksum": "fc4fec41597c8ef2bc76e76fa52fda7e234445ea2094032a264c642551a52508",
+  "observations": [
+    {
+      "evaluation_state": "pass",
+      "gaps": [],
+      "leg_count": 2,
+      "modeled_net_debit_or_credit": "5.15",
+      "observation_id": "84a22adea96660395d1a1d29474487c5963236764dc91f69bcf960efd6e88042",
+      "outcome": "complete_trade_card",
+      "payoff_state": "typed_unavailable:MULTIPLE_EXPIRATIONS_REQUIRE_MODEL_DEPENDENT_VALUE",
+      "proposal_identity": "a7190cba21466bcf56739c22ef071e3eba9145904bf0c6b51ca248d4bd790628",
+      "signal_id": "earnings_calendar",
+      "signal_verdict": "WATCH",
+      "structure": "calendar",
+      "structure_status": "constructible_as_intended",
+      "symbol": "CI",
+      "terminal_reason": "constructible_as_intended",
+      "terminal_state": "actionable_opportunity"
+    },
+    {
+      "blocker_category": "contract_selection",
+      "evaluation_state": "pass",
+      "gaps": [],
+      "observation_id": "82de1c5da7864118cad960f99f9d3347554b7a1a6bef75f11ba8622e64fcd6f5",
+      "outcome": "typed_failure_presentation",
+      "reason_code": "no_compatible_contract",
+      "signal_id": "earnings_calendar",
+      "signal_verdict": "WATCH",
+      "structure_status": "not_constructible",
+      "symbol": "PSX",
+      "terminal_reason": "no_compatible_contract",
+      "terminal_state": "structure_unavailable"
+    },
+    {
+      "blocker_category": "contract_selection",
+      "evaluation_state": "pass",
+      "gaps": [],
+      "observation_id": "d3854447596e6133c1ebd847cb087bbfc8148e087fa447e40c1cd2248a401a64",
+      "outcome": "typed_failure_presentation",
+      "reason_code": "no_compatible_contract",
+      "signal_id": "earnings_calendar",
+      "signal_verdict": "WATCH",
+      "structure_status": "not_constructible",
+      "symbol": "VLO",
+      "terminal_reason": "no_compatible_contract",
+      "terminal_state": "structure_unavailable"
+    },
+    {
+      "blocker_category": "earnings_uncertainty",
+      "evaluation_state": "pass",
+      "gaps": [],
+      "observation_id": "8765069f7719dd02407913b60ac1ff1b885ee5e3afa53aa4c66a96f0532f9a1b",
+      "outcome": "typed_failure_presentation",
+      "reason_code": "earnings_clearance:unknown_unconfirmed",
+      "signal_id": "forward_factor",
+      "signal_verdict": "WATCH",
+      "structure_status": "unknown",
+      "symbol": "GOOG",
+      "terminal_reason": "earnings_clearance:unknown_unconfirmed",
+      "terminal_state": "structure_unknown"
+    },
+    {
+      "evaluation_state": "pass",
+      "gaps": [],
+      "leg_count": 2,
+      "modeled_net_debit_or_credit": "-4.595",
+      "observation_id": "a7d46d700f66833530c90c679e043964313d3594d697f50fe0e22be83eda0d3f",
+      "outcome": "complete_trade_card",
+      "payoff_state": "deterministic_terminal_payoff",
+      "proposal_identity": "5f693e8863e530e5f35547e6848e80870b7bb1228e4e31ac4c9c21683bf206b5",
+      "signal_id": "spy_put_credit_spread",
+      "signal_verdict": "PASS",
+      "structure": "vertical",
+      "structure_status": "constructible_as_intended",
+      "symbol": "SPY",
+      "terminal_reason": "constructible_as_intended",
+      "terminal_state": "actionable_opportunity"
+    }
+  ],
+  "outcome_counts": {
+    "complete_trade_card": 2,
+    "typed_failure_presentation": 3
+  },
+  "production_sha": "8c97b834cc9e8cbc938dfd709b2d5e4ceeb560cb",
+  "qualifying_option_results": 5,
+  "signals": {
+    "B001": {
+      "active_total": 1,
+      "declares_option_structure": false,
+      "qualifying_verdict_count": 1
+    },
+    "B002": {
+      "active_total": 1,
+      "declares_option_structure": null,
+      "qualifying_verdict_count": 0
+    },
+    "earnings_calendar": {
+      "active_total": 503,
+      "declares_option_structure": true,
+      "qualifying_verdict_count": 3
+    },
+    "forward_factor": {
+      "active_total": 503,
+      "declares_option_structure": true,
+      "qualifying_verdict_count": 1
+    },
+    "skew_momentum": {
+      "active_total": 503,
+      "declares_option_structure": null,
+      "qualifying_verdict_count": 0
+    },
+    "spy_put_credit_spread": {
+      "active_total": 1,
+      "declares_option_structure": true,
+      "qualifying_verdict_count": 1
+    }
+  },
+  "sprint": "OPTIONS-PRODUCT-001",
+  "ticket": "OP-07",
+  "verdict": "complete_trade_card_path_observed"
+}
