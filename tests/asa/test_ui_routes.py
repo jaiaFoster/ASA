@@ -150,3 +150,15 @@ def test_ui_exposes_exact_structure_and_explicit_modeled_pnl_assumptions() -> No
     assert "Exact leg" in render_source
     assert "Model with explicit assumptions" in render_source
     assert "Modeled P&L at front expiration" in render_source
+
+
+def test_ui_leads_with_canonical_trade_proposal_and_keeps_evidence_expandable() -> None:
+    static = files("asa.ui").joinpath("static")
+    application_source = static.joinpath("app.js").read_text(encoding="utf-8")
+    render_source = static.joinpath("render.js").read_text(encoding="utf-8")
+
+    assert "api.tradeProposal(route.signalId, route.symbol)" in application_source
+    assert "PROPOSED TRADE · ANALYTICAL, NOT AN ORDER" in render_source
+    assert "Why this trade?" in render_source
+    assert "proposal.evidence_snapshot_identity" in render_source
+    assert "proposal.modeled_net_debit_or_credit" in render_source

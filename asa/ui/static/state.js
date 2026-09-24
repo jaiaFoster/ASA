@@ -9,6 +9,7 @@ export const state = {
   resultsSnapshotIdentity: null,
   retainedNonactiveTotal: 0,
   executionReadiness: {},
+  tradeProposals: {},
   portfolio: null,
   positions: null,
   apiVersion: null,

@@ -13,6 +13,7 @@ import type { IngestQuotesResponse } from '../models/IngestQuotesResponse';
 import type { ModeledPnLSurfaceResponse } from '../models/ModeledPnLSurfaceResponse';
 import type { OpportunityHistoryResponse } from '../models/OpportunityHistoryResponse';
 import type { OptionFunnelTraceResponse } from '../models/OptionFunnelTraceResponse';
+import type { OptionTradeProposalResponse } from '../models/OptionTradeProposalResponse';
 import type { PortfolioEnvelope } from '../models/PortfolioEnvelope';
 import type { PositionsEnvelope } from '../models/PositionsEnvelope';
 import type { QuoteResponse } from '../models/QuoteResponse';
@@ -27,6 +28,7 @@ import type { StrategyHealthResponse } from '../models/StrategyHealthResponse';
 import type { TrackCandidateRequest } from '../models/TrackCandidateRequest';
 import type { TrackedCandidateDetailResponse } from '../models/TrackedCandidateDetailResponse';
 import type { TrackedCandidateResponse } from '../models/TrackedCandidateResponse';
+import type { TradeProposalUnavailableResponse } from '../models/TradeProposalUnavailableResponse';
 import type { ValidateRequest } from '../models/ValidateRequest';
 import type { ValidateResponse } from '../models/ValidateResponse';
 import type { CancelablePromise } from '../core/CancelablePromise';
@@ -653,6 +655,30 @@ export class DefaultService {
             query: {
                 'underlying_price_grid': underlyingPriceGrid,
                 'contract_multiplier': contractMultiplier,
+            },
+            errors: {
+                422: `Validation Error`,
+            },
+        });
+    }
+    /**
+     * Get Trade Proposal
+     * Project the current result and exact readiness into one product contract.
+     * @param signal
+     * @param symbol
+     * @returns any Successful Response
+     * @throws ApiError
+     */
+    public static getTradeProposalApiV1ScreeningSignalSymbolTradeProposalGet(
+        signal: string,
+        symbol: string,
+    ): CancelablePromise<(OptionTradeProposalResponse | TradeProposalUnavailableResponse)> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v1/screening/{signal}/{symbol}/trade-proposal',
+            path: {
+                'signal': signal,
+                'symbol': symbol,
             },
             errors: {
                 422: `Validation Error`,

@@ -182,6 +182,54 @@ test("shared public fixture renders exact audit identity, decision, evidence, an
   assert.match(text, /observation:fixture:001/);
 });
 
+test("actionable option detail leads with exact trade and expandable rationale", () => {
+  const proposal = {
+    status: "available",
+    proposal_identity: "proposal-1",
+    originating_result_identity: fixture.observation_id,
+    underlying: "AAPL",
+    strategy_id: "skew_momentum",
+    strategy_version: "2.0.1-research",
+    structure: "vertical",
+    modeled_net_debit_or_credit: "1.25",
+    entry_model_version: "midpoint-v1",
+    constructibility: "constructible_as_intended",
+    liquidity: "acceptable",
+    capital_required: { state: "unknown", value: null },
+    maximum_loss: { state: "unknown", value: null },
+    maximum_profit: { state: "unknown", value: null },
+    breakeven: { state: "unknown", value: null },
+    legs: [
+      {
+        buy_or_sell: "buy", quantity: "1", call_or_put: "call",
+        expiration: "2026-10-16", strike: "200", bid: "4", ask: "5", midpoint: "4.5",
+      },
+      {
+        buy_or_sell: "sell", quantity: "1", call_or_put: "call",
+        expiration: "2026-10-16", strike: "210", bid: "2", ask: "3", midpoint: "2.5",
+      },
+    ],
+    rationale: ["rank and volatility gates passed"],
+    risk_notes: ["modeled entry is not an executed fill"],
+    invalidation_notes: ["not_defined_by_strategy"],
+    evidence_snapshot_identity: "snapshot-1",
+  };
+  const root = document.createElement("div");
+  renderApp(
+    root,
+    model({ route: { name: "detail" }, detail: { ...fixture, trade_proposal: proposal } }),
+    noOpHandlers,
+  );
+
+  const card = root.querySelector(".trade-card");
+  assert.match(card.textContent, /PROPOSED TRADE · ANALYTICAL, NOT AN ORDER/);
+  assert.match(card.textContent, /BUY 1 CALL/);
+  assert.match(card.textContent, /SELL 1 CALL/);
+  assert.match(card.textContent, /Modeled entry1\.25/);
+  assert.match(card.querySelector("summary").textContent, /Why this trade/);
+  assert.match(card.textContent, /snapshot-1/);
+});
+
 test("runtime strip renders exact configured build identity and explicit unavailable revision", () => {
   const root = document.createElement("div");
   renderApp(root, model(), noOpHandlers);

@@ -36,6 +36,7 @@ export type { OpportunityObservationResponse } from './models/OpportunityObserva
 export type { OptionFunnelTraceResponse } from './models/OptionFunnelTraceResponse';
 export type { OptionLegResponse } from './models/OptionLegResponse';
 export type { OptionStructureResponse } from './models/OptionStructureResponse';
+export type { OptionTradeProposalResponse } from './models/OptionTradeProposalResponse';
 export type { PayoffQuantityResponse } from './models/PayoffQuantityResponse';
 export type { PortfolioDataResponse } from './models/PortfolioDataResponse';
 export type { PortfolioEnvelope } from './models/PortfolioEnvelope';
@@ -62,6 +63,9 @@ export type { TerminalPayoffPointResponse } from './models/TerminalPayoffPointRe
 export type { TrackCandidateRequest } from './models/TrackCandidateRequest';
 export type { TrackedCandidateDetailResponse } from './models/TrackedCandidateDetailResponse';
 export type { TrackedCandidateResponse } from './models/TrackedCandidateResponse';
+export type { TradeProposalLegResponse } from './models/TradeProposalLegResponse';
+export type { TradeProposalUnavailableResponse } from './models/TradeProposalUnavailableResponse';
+export type { TradeQuantityResponse } from './models/TradeQuantityResponse';
 export type { UnmatchedOptionLegResponse } from './models/UnmatchedOptionLegResponse';
 export type { ValidateRequest } from './models/ValidateRequest';
 export type { ValidateResponse } from './models/ValidateResponse';

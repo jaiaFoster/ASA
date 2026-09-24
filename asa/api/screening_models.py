@@ -23,6 +23,11 @@ from strategy_runtime.option_funnel import OptionFunnelTrace
 from strategy_runtime.option_payoff import DeterministicTerminalPayoff, PayoffQuantity
 from strategy_runtime.result import EvaluationState, UniversalScreeningResult
 from strategy_runtime.result_freshness import project_current_result_freshness
+from strategy_runtime.trade_proposal import (
+    OptionTradeProposal,
+    TradeProposalUnavailable,
+    TradeQuantity,
+)
 
 # SPRINT-009R/EPIC-R5: the public wire vocabulary predates strategy_runtime and must not
 # change under callers -- EvaluationState.ADAPTER_EXCEPTION is the same execution-level
@@ -581,6 +586,131 @@ class DeterministicTerminalPayoffResponse(BaseModel):
             maximum_profit=PayoffQuantityResponse.from_quantity(payoff.maximum_profit),
             breakevens=[str(item) for item in payoff.breakevens],
             semantics=payoff.semantics,
+        )
+
+
+class TradeQuantityResponse(BaseModel):
+    state: str
+    value: str | None
+    reason: str | None
+
+    @classmethod
+    def from_quantity(cls, quantity: TradeQuantity) -> TradeQuantityResponse:
+        return cls(
+            state=quantity.state.value,
+            value=None if quantity.value is None else str(quantity.value),
+            reason=quantity.reason,
+        )
+
+
+class TradeProposalLegResponse(BaseModel):
+    canonical_contract_identity: str
+    role: str
+    buy_or_sell: str
+    call_or_put: str
+    strike: str
+    expiration: date
+    quantity: str
+    bid: str | None
+    ask: str | None
+    midpoint: str | None
+    actual_delta: str | None
+    target_delta: str | None
+    quote_observed_at: datetime
+
+
+class OptionTradeProposalResponse(BaseModel):
+    status: Literal["available"] = "available"
+    proposal_identity: str
+    originating_result_identity: str
+    underlying: str
+    strategy_id: str
+    strategy_version: str
+    structure: str
+    structure_assessment_identity: str
+    legs: list[TradeProposalLegResponse]
+    modeled_net_debit_or_credit: str
+    entry_model_version: str
+    entry_calculated_at: datetime
+    liquidity: str
+    capital_required: TradeQuantityResponse
+    maximum_loss: TradeQuantityResponse
+    maximum_profit: TradeQuantityResponse
+    breakeven: TradeQuantityResponse
+    evidence_snapshot_identity: str
+    constructibility: str
+    assumptions: list[str]
+    rationale: list[str]
+    risk_notes: list[str]
+    invalidation_notes: list[str]
+
+    @classmethod
+    def from_proposal(cls, proposal: OptionTradeProposal) -> OptionTradeProposalResponse:
+        return cls(
+            proposal_identity=proposal.identity,
+            originating_result_identity=proposal.originating_result_identity,
+            underlying=proposal.underlying,
+            strategy_id=proposal.strategy_id,
+            strategy_version=proposal.strategy_version,
+            structure=proposal.structure,
+            structure_assessment_identity=proposal.structure_assessment_identity,
+            legs=[
+                TradeProposalLegResponse(
+                    canonical_contract_identity=item.canonical_contract_identity,
+                    role=item.role,
+                    buy_or_sell=item.buy_or_sell,
+                    call_or_put=item.call_or_put,
+                    strike=str(item.strike),
+                    expiration=item.expiration,
+                    quantity=str(item.quantity),
+                    bid=None if item.bid is None else str(item.bid),
+                    ask=None if item.ask is None else str(item.ask),
+                    midpoint=None if item.midpoint is None else str(item.midpoint),
+                    actual_delta=(None if item.actual_delta is None else str(item.actual_delta)),
+                    target_delta=(None if item.target_delta is None else str(item.target_delta)),
+                    quote_observed_at=item.quote_observed_at,
+                )
+                for item in proposal.legs
+            ],
+            modeled_net_debit_or_credit=str(proposal.modeled_net_debit_or_credit),
+            entry_model_version=proposal.entry_model_version,
+            entry_calculated_at=proposal.entry_calculated_at,
+            liquidity=proposal.liquidity.value,
+            capital_required=TradeQuantityResponse.from_quantity(proposal.capital_required),
+            maximum_loss=TradeQuantityResponse.from_quantity(proposal.maximum_loss),
+            maximum_profit=TradeQuantityResponse.from_quantity(proposal.maximum_profit),
+            breakeven=TradeQuantityResponse.from_quantity(proposal.breakeven),
+            evidence_snapshot_identity=proposal.evidence_snapshot_identity,
+            constructibility=proposal.constructibility,
+            assumptions=list(proposal.assumptions),
+            rationale=list(proposal.rationale),
+            risk_notes=list(proposal.risk_notes),
+            invalidation_notes=list(proposal.invalidation_notes),
+        )
+
+
+class TradeProposalUnavailableResponse(BaseModel):
+    status: Literal["unavailable"] = "unavailable"
+    originating_result_identity: str
+    underlying: str
+    strategy_id: str
+    strategy_version: str
+    intended_structure: str
+    constructibility: str
+    reason_code: str
+
+    @classmethod
+    def from_unavailable(
+        cls, proposal: TradeProposalUnavailable
+    ) -> TradeProposalUnavailableResponse:
+        return cls(
+            originating_result_identity=proposal.originating_result_identity,
+            underlying=proposal.underlying,
+            strategy_id=proposal.strategy_id,
+            strategy_version=proposal.strategy_version,
+            intended_structure=proposal.intended_structure,
+            constructibility=proposal.constructibility,
+            reason_code=proposal.reason_code,
         )
 
 

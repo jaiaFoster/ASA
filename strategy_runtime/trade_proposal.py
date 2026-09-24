@@ -230,7 +230,7 @@ def build_option_trade_proposal(
             TradeProposalLeg(
                 canonical_contract_identity=item.canonical_contract_identity,
                 role=item.leg.role,
-                buy_or_sell=item.leg.position.value,
+                buy_or_sell=("buy" if item.leg.position.value == "long" else "sell"),
                 call_or_put=item.leg.contract.option_type.value,
                 strike=item.leg.contract.strike,
                 expiration=item.leg.contract.expiration,

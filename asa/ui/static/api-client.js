@@ -59,6 +59,10 @@ export const api = Object.freeze({
     requestJson(
       `/api/v1/screening/${encodeURIComponent(signalId)}/${encodeURIComponent(symbol)}/execution-readiness`,
     ),
+  tradeProposal: (signalId, symbol) =>
+    requestJson(
+      `/api/v1/screening/${encodeURIComponent(signalId)}/${encodeURIComponent(symbol)}/trade-proposal`,
+    ),
   modelPnl: (signalId, symbol, assumptions) =>
     requestJson(
       `/api/v1/screening/${encodeURIComponent(signalId)}/${encodeURIComponent(symbol)}/execution-readiness/modeled-pnl?${new URLSearchParams({

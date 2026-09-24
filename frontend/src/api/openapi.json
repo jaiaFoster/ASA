@@ -1609,6 +1609,63 @@
           }
         }
       }
+    },
+    "/api/v1/screening/{signal}/{symbol}/trade-proposal": {
+      "get": {
+        "summary": "Get Trade Proposal",
+        "description": "Project the current result and exact readiness into one product contract.",
+        "operationId": "get_trade_proposal_api_v1_screening__signal___symbol__trade_proposal_get",
+        "parameters": [
+          {
+            "name": "signal",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Signal"
+            }
+          },
+          {
+            "name": "symbol",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Symbol"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/OptionTradeProposalResponse"
+                    },
+                    {
+                      "$ref": "#/components/schemas/TradeProposalUnavailableResponse"
+                    }
+                  ],
+                  "title": "Response Get Trade Proposal Api V1 Screening  Signal   Symbol  Trade Proposal Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -4921,6 +4978,338 @@
           "payoff"
         ],
         "title": "TerminalPayoffPointResponse"
+      },
+      "OptionTradeProposalResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "available",
+            "title": "Status",
+            "default": "available"
+          },
+          "proposal_identity": {
+            "type": "string",
+            "title": "Proposal Identity"
+          },
+          "originating_result_identity": {
+            "type": "string",
+            "title": "Originating Result Identity"
+          },
+          "underlying": {
+            "type": "string",
+            "title": "Underlying"
+          },
+          "strategy_id": {
+            "type": "string",
+            "title": "Strategy Id"
+          },
+          "strategy_version": {
+            "type": "string",
+            "title": "Strategy Version"
+          },
+          "structure": {
+            "type": "string",
+            "title": "Structure"
+          },
+          "structure_assessment_identity": {
+            "type": "string",
+            "title": "Structure Assessment Identity"
+          },
+          "legs": {
+            "items": {
+              "$ref": "#/components/schemas/TradeProposalLegResponse"
+            },
+            "type": "array",
+            "title": "Legs"
+          },
+          "modeled_net_debit_or_credit": {
+            "type": "string",
+            "title": "Modeled Net Debit Or Credit"
+          },
+          "entry_model_version": {
+            "type": "string",
+            "title": "Entry Model Version"
+          },
+          "entry_calculated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Entry Calculated At"
+          },
+          "liquidity": {
+            "type": "string",
+            "title": "Liquidity"
+          },
+          "capital_required": {
+            "$ref": "#/components/schemas/TradeQuantityResponse"
+          },
+          "maximum_loss": {
+            "$ref": "#/components/schemas/TradeQuantityResponse"
+          },
+          "maximum_profit": {
+            "$ref": "#/components/schemas/TradeQuantityResponse"
+          },
+          "breakeven": {
+            "$ref": "#/components/schemas/TradeQuantityResponse"
+          },
+          "evidence_snapshot_identity": {
+            "type": "string",
+            "title": "Evidence Snapshot Identity"
+          },
+          "constructibility": {
+            "type": "string",
+            "title": "Constructibility"
+          },
+          "assumptions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Assumptions"
+          },
+          "rationale": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Rationale"
+          },
+          "risk_notes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Risk Notes"
+          },
+          "invalidation_notes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Invalidation Notes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "proposal_identity",
+          "originating_result_identity",
+          "underlying",
+          "strategy_id",
+          "strategy_version",
+          "structure",
+          "structure_assessment_identity",
+          "legs",
+          "modeled_net_debit_or_credit",
+          "entry_model_version",
+          "entry_calculated_at",
+          "liquidity",
+          "capital_required",
+          "maximum_loss",
+          "maximum_profit",
+          "breakeven",
+          "evidence_snapshot_identity",
+          "constructibility",
+          "assumptions",
+          "rationale",
+          "risk_notes",
+          "invalidation_notes"
+        ],
+        "title": "OptionTradeProposalResponse"
+      },
+      "TradeProposalLegResponse": {
+        "properties": {
+          "canonical_contract_identity": {
+            "type": "string",
+            "title": "Canonical Contract Identity"
+          },
+          "role": {
+            "type": "string",
+            "title": "Role"
+          },
+          "buy_or_sell": {
+            "type": "string",
+            "title": "Buy Or Sell"
+          },
+          "call_or_put": {
+            "type": "string",
+            "title": "Call Or Put"
+          },
+          "strike": {
+            "type": "string",
+            "title": "Strike"
+          },
+          "expiration": {
+            "type": "string",
+            "format": "date",
+            "title": "Expiration"
+          },
+          "quantity": {
+            "type": "string",
+            "title": "Quantity"
+          },
+          "bid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bid"
+          },
+          "ask": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ask"
+          },
+          "midpoint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Midpoint"
+          },
+          "actual_delta": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actual Delta"
+          },
+          "target_delta": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Delta"
+          },
+          "quote_observed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Quote Observed At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "canonical_contract_identity",
+          "role",
+          "buy_or_sell",
+          "call_or_put",
+          "strike",
+          "expiration",
+          "quantity",
+          "bid",
+          "ask",
+          "midpoint",
+          "actual_delta",
+          "target_delta",
+          "quote_observed_at"
+        ],
+        "title": "TradeProposalLegResponse"
+      },
+      "TradeProposalUnavailableResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "unavailable",
+            "title": "Status",
+            "default": "unavailable"
+          },
+          "originating_result_identity": {
+            "type": "string",
+            "title": "Originating Result Identity"
+          },
+          "underlying": {
+            "type": "string",
+            "title": "Underlying"
+          },
+          "strategy_id": {
+            "type": "string",
+            "title": "Strategy Id"
+          },
+          "strategy_version": {
+            "type": "string",
+            "title": "Strategy Version"
+          },
+          "intended_structure": {
+            "type": "string",
+            "title": "Intended Structure"
+          },
+          "constructibility": {
+            "type": "string",
+            "title": "Constructibility"
+          },
+          "reason_code": {
+            "type": "string",
+            "title": "Reason Code"
+          }
+        },
+        "type": "object",
+        "required": [
+          "originating_result_identity",
+          "underlying",
+          "strategy_id",
+          "strategy_version",
+          "intended_structure",
+          "constructibility",
+          "reason_code"
+        ],
+        "title": "TradeProposalUnavailableResponse"
+      },
+      "TradeQuantityResponse": {
+        "properties": {
+          "state": {
+            "type": "string",
+            "title": "State"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "state",
+          "value",
+          "reason"
+        ],
+        "title": "TradeQuantityResponse"
       }
     }
   }

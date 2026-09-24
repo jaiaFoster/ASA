@@ -1,4 +1,5 @@
 import json
+from dataclasses import replace
 
 from fastapi.testclient import TestClient
 
@@ -146,3 +147,39 @@ def test_calendar_terminal_payoff_refuses_intrinsic_only_substitution() -> None:
     assert response.json()["detail"]["error_code"] == (
         "MULTIPLE_EXPIRATIONS_REQUIRE_MODEL_DEPENDENT_VALUE"
     )
+
+
+def test_trade_proposal_endpoint_projects_exact_current_trade() -> None:
+    assessment = replace(_assessment(), originating_result_identity="forward_factor-AAPL-obs")
+    projection = ExecutableStructureAssessmentResponse.from_assessment(assessment)
+    artifact = ExecutionReadinessArtifact(
+        "forward_factor-AAPL-obs",
+        "forward_factor",
+        "AAPL",
+        assessment.identity,
+        projection.model_dump_json(),
+        serialize_execution_assessment(assessment),
+        assessment.assessed_at,
+    )
+    results = InMemoryLatestResultRepository()
+    results.upsert(_record("forward_factor", "AAPL"))
+    app = build_application(
+        Settings(agent_api_token="test-token", _env_file=None),
+        DependencyOverrides(
+            repository=InMemoryObservationRepository(),
+            latest_result_repository=results,
+            portfolio_lifecycle_repository=ReadinessRepository(artifact),  # type: ignore[arg-type]
+        ),
+    )
+
+    response = TestClient(app).get(
+        "/api/v1/screening/forward_factor/AAPL/trade-proposal",
+        headers={"Authorization": "Bearer test-token"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "available"
+    assert response.json()["originating_result_identity"] == "forward_factor-AAPL-obs"
+    assert len(response.json()["legs"]) == 2
+    assert response.json()["modeled_net_debit_or_credit"] == "2.00"
+    assert response.json()["maximum_loss"]["state"] == "unknown"

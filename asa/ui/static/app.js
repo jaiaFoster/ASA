@@ -14,6 +14,7 @@ function model() {
   const route = routeFromHash(location.hash);
   const detailKey = route.name === "detail" ? `${route.signalId}:${route.symbol}` : null;
   const readiness = detailKey ? state.executionReadiness[detailKey] : null;
+  const proposal = detailKey ? state.tradeProposals[detailKey] : null;
   const persistedDetail =
     route.name === "detail"
       ? state.results.find(
@@ -30,6 +31,7 @@ function model() {
           ...persistedDetail,
           execution_assessment: readiness.execution_assessment,
           modeled_pnl: readiness.modeled_pnl,
+          trade_proposal: proposal,
         }
       : persistedDetail,
     counts: {
@@ -46,13 +48,18 @@ async function loadExecutionReadiness() {
   const route = routeFromHash(location.hash);
   if (route.name !== "detail" || !hasToken()) return;
   const key = `${route.signalId}:${route.symbol}`;
-  try {
-    const response = await api.executionReadiness(route.signalId, route.symbol);
-    state.executionReadiness[key] = response.data;
-  } catch (error) {
-    if (error.status !== 404 && error.status !== 409) throw error;
+  const [readiness, proposal] = await Promise.allSettled([
+    api.executionReadiness(route.signalId, route.symbol),
+    api.tradeProposal(route.signalId, route.symbol),
+  ]);
+  if (readiness.status === "fulfilled") state.executionReadiness[key] = readiness.value.data;
+  else if (readiness.reason.status === 404 || readiness.reason.status === 409) {
     delete state.executionReadiness[key];
-  }
+  } else throw readiness.reason;
+  if (proposal.status === "fulfilled") state.tradeProposals[key] = proposal.value.data;
+  else if (proposal.reason.status === 404 || proposal.reason.status === 409) {
+    delete state.tradeProposals[key];
+  } else throw proposal.reason;
   render();
 }
 
@@ -116,6 +123,7 @@ const handlers = {
     clearToken();
     state.results = [];
     state.resultsTotal = 0;
+    state.tradeProposals = {};
     state.resultsSnapshotIdentity = null;
     state.retainedNonactiveTotal = 0;
     state.capabilities = null;

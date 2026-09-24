@@ -281,6 +281,47 @@ function detailView(item, handlers) {
   heading.append(states);
   fragment.append(heading);
 
+  const proposal = item.trade_proposal;
+  if (proposal?.status === "available") {
+    const trade = element("section", "trade-card");
+    trade.append(element("p", "eyebrow", "PROPOSED TRADE · ANALYTICAL, NOT AN ORDER"));
+    trade.append(element("h3", null, `${proposal.underlying} ${proposal.structure}`));
+    trade.append(definitionList([
+      ["Strategy", `${proposal.strategy_id}@${proposal.strategy_version}`],
+      ["Modeled entry", `${proposal.modeled_net_debit_or_credit} (${proposal.entry_model_version})`],
+      ["Constructibility", proposal.constructibility],
+      ["Liquidity", proposal.liquidity],
+      ["Capital required", proposal.capital_required.value ?? proposal.capital_required.state],
+      ["Maximum loss", proposal.maximum_loss.value ?? proposal.maximum_loss.state],
+      ["Maximum profit", proposal.maximum_profit.value ?? proposal.maximum_profit.state],
+      ["Breakeven", proposal.breakeven.value ?? proposal.breakeven.state],
+    ]));
+    const legs = element("div", "trade-legs");
+    for (const leg of proposal.legs) {
+      const card = element("article", "trade-leg");
+      card.append(
+        element("strong", null, `${leg.buy_or_sell.toUpperCase()} ${leg.quantity} ${leg.call_or_put.toUpperCase()}`),
+        element("span", null, `${leg.expiration} · strike ${leg.strike}`),
+        element("small", null, `bid / ask / mid ${leg.bid ?? "Unknown"} / ${leg.ask ?? "Unknown"} / ${leg.midpoint ?? "Unknown"}`),
+      );
+      legs.append(card);
+    }
+    trade.append(legs);
+    const why = element("details", "trade-why");
+    why.append(element("summary", null, "Why this trade?"));
+    why.append(element("h4", null, "Rationale"));
+    const rationale = element("ul");
+    rationale.append(...proposal.rationale.map((value) => element("li", null, value)));
+    why.append(rationale);
+    why.append(element("h4", null, "Risks and invalidation"));
+    const risks = element("ul");
+    risks.append(...[...proposal.risk_notes, ...proposal.invalidation_notes].map((value) => element("li", null, value)));
+    why.append(risks);
+    why.append(element("p", "trade-evidence", `Evidence snapshot ${proposal.evidence_snapshot_identity}`));
+    trade.append(why);
+    fragment.append(trade);
+  }
+
   const decision = element("section", "audit-section audit-section--lead");
   decision.append(element("h3", null, "Decision semantics"));
   decision.append(definitionList([

@@ -41,6 +41,7 @@ from asa.api.screening_models import (
     ModeledPnLSurfaceResponse,
     OpportunityHistoryResponse,
     OptionFunnelTraceResponse,
+    OptionTradeProposalResponse,
     ReasonCountResponse,
     RefreshResultResponse,
     ScreeningExecutionReadinessResponse,
@@ -50,6 +51,7 @@ from asa.api.screening_models import (
     SignalCapabilityResponse,
     StrategyHealthFunnelResponse,
     StrategyHealthResponse,
+    TradeProposalUnavailableResponse,
 )
 from asa.application.ports.portfolio_lifecycle import PortfolioLifecycleRepository
 from domain import MarketObservation, UnknownReason
@@ -105,6 +107,10 @@ from strategy_runtime.registry import StrategyRegistry
 from strategy_runtime.result import EvaluationState, UniversalScreeningResult
 from strategy_runtime.result_freshness import project_current_result_freshness
 from strategy_runtime.service import get_state, record_opportunity_observation
+from strategy_runtime.trade_proposal import (
+    OptionTradeProposal,
+    build_option_trade_proposal,
+)
 
 DEFAULT_LIMIT = 100
 MAX_LIMIT = 500
@@ -510,6 +516,42 @@ def build_screening_router(
                 "modeled_pnl": None,
             }
         )
+
+    @router.get(
+        "/screening/{signal}/{symbol}/trade-proposal",
+        response_model=OptionTradeProposalResponse | TradeProposalUnavailableResponse,
+    )
+    def get_trade_proposal(
+        signal: str, symbol: str
+    ) -> OptionTradeProposalResponse | TradeProposalUnavailableResponse:
+        """Project the current result and exact readiness into one product contract."""
+        _require_registered_signal(signal)
+        records = get_state(repository, strategy_id=signal, symbol=symbol)
+        artifact = (
+            None
+            if portfolio_lifecycle_repository is None
+            else portfolio_lifecycle_repository.execution_readiness(signal, symbol.upper())
+        )
+        if not records or artifact is None:
+            raise agent_api_error(
+                404, "NO_EXECUTION_READINESS", "No trade proposal evidence is available"
+            )
+        result = records[0]
+        if artifact.originating_observation_id != result.observation_id:
+            raise agent_api_error(
+                409,
+                "STALE_EXECUTION_READINESS",
+                "Execution readiness does not match the current screening observation",
+            )
+        assessment = deserialize_execution_assessment(artifact.assessment_json)
+        if assessment.identity != artifact.assessment_identity:
+            raise agent_api_error(
+                409, "EXECUTION_READINESS_INTEGRITY", "Execution readiness identity mismatch"
+            )
+        proposal = build_option_trade_proposal(result, assessment)
+        if isinstance(proposal, OptionTradeProposal):
+            return OptionTradeProposalResponse.from_proposal(proposal)
+        return TradeProposalUnavailableResponse.from_unavailable(proposal)
 
     @router.get(
         "/screening/{signal}/{symbol}/execution-readiness/modeled-pnl",

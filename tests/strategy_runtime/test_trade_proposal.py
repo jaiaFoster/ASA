@@ -142,7 +142,7 @@ def test_constructible_assessment_projects_exact_trade_without_invented_payoff()
     assert proposal.underlying == "AAPL"
     assert proposal.strategy_id == "earnings_calendar"
     assert proposal.structure == "calendar"
-    assert [leg.buy_or_sell for leg in proposal.legs] == ["short", "long"]
+    assert [leg.buy_or_sell for leg in proposal.legs] == ["sell", "buy"]
     assert [leg.expiration for leg in proposal.legs] == [FRONT, BACK]
     assert proposal.modeled_net_debit_or_credit == Decimal("2.10")
     assert proposal.liquidity is LiquidityState.ACCEPTABLE
