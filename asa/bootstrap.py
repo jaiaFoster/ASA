@@ -42,7 +42,7 @@ from asa.integrations.screening_acquisition_attempts_postgres import (
 from asa.integrations.universal_screening_postgres import PostgresLatestResultRepository
 from asa.logging import configure_logging, request_id_context
 from asa.market_data_ops.routes import build_operations_router
-from asa.scheduled_screening import STOCK_BENCHMARK_UNIVERSE
+from asa.scheduled_screening import SCHEDULED_FIXED_SUBJECT_PAIRS
 from asa.ui import mount_ui
 from market_data.attempts import AcquisitionAttemptRepository
 from market_data.live_transport import build_live_transport as build_transport_for_provider
@@ -183,7 +183,7 @@ def build_application(
             acquisition_attempt_repository=acquisition_attempt_repository,
             operational_health=screening_operational_health,
             active_symbols=frozenset(SP500_MEMBERSHIP.symbols),
-            scheduled_active_pairs=frozenset(STOCK_BENCHMARK_UNIVERSE),
+            scheduled_active_pairs=frozenset(SCHEDULED_FIXED_SUBJECT_PAIRS),
             portfolio_lifecycle_repository=portfolio_lifecycle_repository,
         )
     )

@@ -148,6 +148,18 @@ PRODUCTION_SCREENING_UNIVERSE: tuple[tuple[str, str], ...] = tuple(
 # invocation the production scheduler (Railway cron) calls independently.
 STOCK_BENCHMARK_UNIVERSE: tuple[tuple[str, str], ...] = (("B001", "SPY"), ("B002", "SPY"))
 
+# STRATEGY-LIBRARY-001 SL-02: option strategies whose source defines a fixed
+# subject outside the S&P cohort (the Option Alpha put credit spread is
+# SPY-only). Same always-evaluate semantics as the benchmarks, on its own
+# isolated invocation so neither path can starve the other.
+FIXED_SUBJECT_OPTION_UNIVERSE: tuple[tuple[str, str], ...] = (("spy_put_credit_spread", "SPY"),)
+
+# Every scheduler-declared pair outside the membership universe; the API's
+# active scope is derived from this one declaration.
+SCHEDULED_FIXED_SUBJECT_PAIRS: tuple[tuple[str, str], ...] = (
+    STOCK_BENCHMARK_UNIVERSE + FIXED_SUBJECT_OPTION_UNIVERSE
+)
+
 # UNI-01's current proven live capacity. Increasing this is a measured
 # capacity decision, never a CLI/environment override.
 SP500_COHORT_MAXIMUM_SUBJECTS = 30
@@ -882,6 +894,31 @@ def run_scheduled_stock_benchmark_refresh(
     )
 
 
+def run_scheduled_fixed_subject_option_refresh(
+    *,
+    repository: LatestResultRepository | None = None,
+    history_repository: ObservationHistoryRepository | None = None,
+    acquisition_attempt_repository: AcquisitionAttemptRepository | None = None,
+    historical_skew_repository: HistoricalSkewRepository | None = None,
+    portfolio_lifecycle_repository: PortfolioLifecycleRepository | None = None,
+    transport_factory: Callable[[str], object] = build_live_transport,
+    now: datetime | None = None,
+) -> tuple[PairOutcome, ...]:
+    """Always evaluate FIXED_SUBJECT_OPTION_UNIVERSE (SL-02), independent of
+    the S&P cohort's due-slot gating, through the same generic refresh."""
+    return run_scheduled_refresh(
+        FIXED_SUBJECT_OPTION_UNIVERSE,
+        repository=repository,
+        history_repository=history_repository,
+        acquisition_attempt_repository=acquisition_attempt_repository,
+        historical_skew_repository=historical_skew_repository,
+        portfolio_lifecycle_repository=portfolio_lifecycle_repository,
+        transport_factory=transport_factory,
+        enforce_schedule=False,
+        now=now,
+    )
+
+
 def run_scheduled_portfolio_refresh(
     *,
     settings: Settings | None = None,
@@ -934,6 +971,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     except Exception as exc:
         _LOGGER.warning(
             "stock_benchmark_refresh_failed",
+            extra={"failure_class": type(exc).__name__, "detail": str(exc)[:500]},
+            exc_info=True,
+        )
+    try:
+        outcomes = outcomes + run_scheduled_fixed_subject_option_refresh()
+    except Exception as exc:
+        _LOGGER.warning(
+            "fixed_subject_option_refresh_failed",
             extra={"failure_class": type(exc).__name__, "detail": str(exc)[:500]},
             exc_info=True,
         )

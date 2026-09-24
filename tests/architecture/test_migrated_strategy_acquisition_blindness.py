@@ -45,4 +45,5 @@ def test_all_production_strategies_have_subject_first_bindings() -> None:
         "earnings_calendar",
         "forward_factor",
         "skew_momentum",
+        "spy_put_credit_spread",
     )

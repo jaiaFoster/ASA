@@ -271,6 +271,7 @@ def test_ai_agent_workflow_discovers_reads_refreshes_and_briefs(
         "earnings_calendar",
         "forward_factor",
         "skew_momentum",
+        "spy_put_credit_spread",
     }
 
     # Step 2: retrieve_screening_data
