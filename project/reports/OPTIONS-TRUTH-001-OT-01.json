@@ -1,0 +1,214 @@
+{
+  "artifact_version": "1.0.0",
+  "sprint": "OPTIONS-TRUTH-001",
+  "ticket": "OT-01",
+  "baseline_sha": "7957fc7ba0ddd6b58a7bfc27f93445cf7e593fdb",
+  "generated_on": "2026-09-23",
+  "source_repository": {
+    "url": "https://github.com/jaiaFoster/Stonk",
+    "revision": "5f3fec846f70e9739cf3f15695fd587f0604344c"
+  },
+  "classification_vocabulary": [
+    "aligned",
+    "founder_authorized_refinement",
+    "founder_authorized_research_supersession",
+    "source_unspecified_fail_closed"
+  ],
+  "required_dimensions": [
+    "entry_and_gating",
+    "expiration_rules",
+    "strike_or_delta_selection",
+    "earnings_treatment",
+    "formula",
+    "liquidity",
+    "structure_substitution",
+    "lifecycle_and_exit"
+  ],
+  "strategies": [
+    {
+      "strategy_id": "earnings_calendar",
+      "accepted_version": "1.2.0",
+      "source_evidence": [
+        "Stonk@5f3fec8:docs/earnings_calendar_strategy_v1.md",
+        "Stonk@5f3fec8:config/strategies/earnings_calendar.v1.json",
+        "ASA:docs/migration/stonk-strategy-catalog.yaml",
+        "https://github.com/jaiaFoster/ASA/issues/236",
+        "https://github.com/jaiaFoster/ASA/pull/254"
+      ],
+      "dimensions": {
+        "entry_and_gating": {
+          "source_intent": "Confirmed upcoming earnings, an event-spanning call calendar, coherent liquidity, and favorable term-structure/volatility evidence.",
+          "implementation": "Confirmed event and eligible expiration gap are hard gates; coherent quotes/open interest are hard liquidity gates; weak or unknown supplemental volume downgrades PASS to WATCH; term richness and ATM-IV versus realized volatility drive the score.",
+          "classification": "founder_authorized_refinement",
+          "action": "none"
+        },
+        "expiration_rules": {
+          "source_intent": "Front expiration before earnings and back expiration after earnings; legacy configuration used front 7-21 DTE, back 14-70 DTE, and gap 14-63 days.",
+          "implementation": "Front 7-21 DTE, back 22-75 DTE, event spanning, target gap 30 days with inclusive 5-day tolerance, then minimum deviation from 30.",
+          "classification": "founder_authorized_refinement",
+          "action": "none"
+        },
+        "strike_or_delta_selection": {
+          "source_intent": "Nearest-ATM same-strike call calendar.",
+          "implementation": "Nearest common strike call calendar across the selected expirations.",
+          "classification": "aligned",
+          "action": "none"
+        },
+        "earnings_treatment": {
+          "source_intent": "A confirmed earnings event must lie between the two expirations.",
+          "implementation": "Confirmed event evidence is required and the chosen pair spans it.",
+          "classification": "aligned",
+          "action": "none"
+        },
+        "formula": {
+          "source_intent": "Prefer favorable term structure with front volatility evaluated against realized volatility; debit is observable structure economics.",
+          "implementation": "Named term_structure_richness and atm_iv_vs_realized_volatility factors feed the versioned two-factor score; midpoint and conservative debit are projected separately.",
+          "classification": "founder_authorized_refinement",
+          "action": "none"
+        },
+        "liquidity": {
+          "source_intent": "Legacy configuration used spread <= 15%, open interest >= 50, and volume >= 10 as acceptance filters.",
+          "implementation": "PR #254 deliberately froze coherent quotes and positive open interest as hard gates and coarse volume as supplemental evidence that can downgrade PASS to WATCH.",
+          "classification": "founder_authorized_refinement",
+          "action": "none"
+        },
+        "structure_substitution": {
+          "source_intent": "A calendar is required; a diagonal is not equivalent.",
+          "implementation": "Exact same-strike calendar intent is resolved without substitution; a different shape is typed different_structure_available.",
+          "classification": "aligned",
+          "action": "none"
+        },
+        "lifecycle_and_exit": {
+          "source_intent": "Source material defines opportunity discovery, not an exit policy.",
+          "implementation": "Opportunity lifecycle states watching/confirmed are declared; no exit thresholds or broker actions are invented.",
+          "classification": "source_unspecified_fail_closed",
+          "action": "none"
+        }
+      }
+    },
+    {
+      "strategy_id": "forward_factor",
+      "accepted_version": "1.3.0",
+      "source_evidence": [
+        "Stonk@5f3fec8:docs/forward_factor_strategy_v1.md",
+        "Stonk@5f3fec8:docs/source/forward_factor_source_spec.yaml",
+        "ASA:docs/migration/stonk-behavioral-equivalence.md",
+        "https://github.com/jaiaFoster/ASA/pull/253"
+      ],
+      "dimensions": {
+        "entry_and_gating": {
+          "source_intent": "Buy farther volatility and sell richer nearer volatility when the forward factor is attractive and the intended double calendar is liquid.",
+          "implementation": "PASS at factor >= 0.20, WATCH at >= 0.12, with confirmed-earnings exclusion, common-strike completeness, and liquidity gates.",
+          "classification": "founder_authorized_refinement",
+          "action": "none"
+        },
+        "expiration_rules": {
+          "source_intent": "Approximately 60/90 DTE expirations.",
+          "implementation": "Deterministic windows front 35-90 DTE, back 49-139 DTE, gap 14-49 days, targeting front 60 and gap 30.",
+          "classification": "founder_authorized_refinement",
+          "action": "none"
+        },
+        "strike_or_delta_selection": {
+          "source_intent": "Matched call and put calendars near absolute 0.35 delta.",
+          "implementation": "Delta-selected call and put legs target absolute 0.35 and require common strikes across expiration pairs.",
+          "classification": "aligned",
+          "action": "none"
+        },
+        "earnings_treatment": {
+          "source_intent": "Use ex-earnings front IV, but the source does not define a reproducible earnings-premium removal method.",
+          "implementation": "PR #253 truthfully names raw front IV and excludes confirmed earnings through the back expiration instead of fabricating an adjustment.",
+          "classification": "founder_authorized_refinement",
+          "action": "none"
+        },
+        "formula": {
+          "source_intent": "forward_variance=(T2*IV2^2-T1*IV1^2)/(T2-T1); factor=front_IV/forward_IV-1.",
+          "implementation": "The canonical forward-variance and forward-factor formulas are preserved with Decimal and typed invalid-domain handling.",
+          "classification": "aligned",
+          "action": "none"
+        },
+        "liquidity": {
+          "source_intent": "All four intended legs must be executable; exact numeric thresholds were not established in the source specification.",
+          "implementation": "All intended legs require coherent bid/ask, bounded spread, open interest, and volume under the accepted manifest policy.",
+          "classification": "founder_authorized_refinement",
+          "action": "none"
+        },
+        "structure_substitution": {
+          "source_intent": "The intended matched-strike double calendar must exist.",
+          "implementation": "Resolver does not silently substitute a diagonal or other structure; alternatives remain diagnostic only.",
+          "classification": "aligned",
+          "action": "none"
+        },
+        "lifecycle_and_exit": {
+          "source_intent": "Entry/holding/exit policy is explicitly unspecified.",
+          "implementation": "NO_LIFECYCLE; no exit policy or broker action is invented.",
+          "classification": "source_unspecified_fail_closed",
+          "action": "none"
+        }
+      }
+    },
+    {
+      "strategy_id": "skew_momentum",
+      "accepted_version": "2.0.1-research",
+      "source_evidence": [
+        "Stonk@5f3fec8:docs/skew_momentum_vertical_strategy_v1.md",
+        "ASA:docs/contracts/skew-momentum-evidence.md",
+        "https://github.com/jaiaFoster/ASA/issues/255",
+        "ASA:strategies/stonk_manifests.py"
+      ],
+      "dimensions": {
+        "entry_and_gating": {
+          "source_intent": "Legacy v1 combined skew and momentum into an options-vertical opportunity.",
+          "implementation": "Founder-approved v2 research requires a historical skew stretch, volatility-value gates, and at least two of three momentum dimensions; PASS/WATCH/FAIL/UNKNOWN semantics are explicit.",
+          "classification": "founder_authorized_research_supersession",
+          "action": "none"
+        },
+        "expiration_rules": {
+          "source_intent": "Use the nearest suitable future option expiration.",
+          "implementation": "Nearest future expiration is selected deterministically from sealed option evidence.",
+          "classification": "aligned",
+          "action": "none"
+        },
+        "strike_or_delta_selection": {
+          "source_intent": "Verticals use a near-ATM long leg and an out-of-the-money wing.",
+          "implementation": "Long leg targets absolute delta 0.50 and short wing targets absolute delta 0.25, with exact legs retained.",
+          "classification": "founder_authorized_research_supersession",
+          "action": "none"
+        },
+        "earnings_treatment": {
+          "source_intent": "No earnings gate is defined for this strategy.",
+          "implementation": "No earnings capability or hidden earnings filter is introduced.",
+          "classification": "aligned",
+          "action": "none"
+        },
+        "formula": {
+          "source_intent": "Assess skew stretch and directional momentum.",
+          "implementation": "Issue #255 freezes z-score <= -2.0 over 60 observations (40 minimum), ATM IV-RV <= 0, wing IV-RV > 0, wing IV-ATM IV > 0, and equal-weight 20-session time-series/cross-sectional/sector-relative alignment.",
+          "classification": "founder_authorized_research_supersession",
+          "action": "none"
+        },
+        "liquidity": {
+          "source_intent": "Selected vertical legs must be liquid.",
+          "implementation": "Each leg requires spread ratio <= 0.15, open interest >= 50, and volume >= 10.",
+          "classification": "aligned",
+          "action": "none"
+        },
+        "structure_substitution": {
+          "source_intent": "A vertical is required.",
+          "implementation": "Exact vertical intent is retained; another shape never upgrades constructibility.",
+          "classification": "aligned",
+          "action": "none"
+        },
+        "lifecycle_and_exit": {
+          "source_intent": "No authorized exit policy is defined.",
+          "implementation": "NO_LIFECYCLE; no exit thresholds or broker actions are invented.",
+          "classification": "source_unspecified_fail_closed",
+          "action": "none"
+        }
+      }
+    }
+  ],
+  "clear_errors_found": [],
+  "runtime_changes_required": false,
+  "unresolved_product_semantics": [],
+  "conclusion": "The three accepted production definitions are implemented consistently. Differences from the pinned Stonk source are documented Founder-authorized refinements or fail-closed treatment of unspecified behavior; OT-01 found no clear implementation error and makes no runtime change."
+}
