@@ -248,6 +248,36 @@ test("actionable option detail leads with exact trade and expandable rationale",
   assert.match(card.textContent, /not guaranteed returns/);
 });
 
+test("promising signal without exact structure keeps signal and blocker distinct", () => {
+  const unavailable = {
+    status: "unavailable",
+    originating_result_identity: fixture.observation_id,
+    underlying: "AAPL",
+    strategy_id: "skew_momentum",
+    strategy_version: "2.0.1-research",
+    intended_structure: "vertical",
+    constructibility: "not_constructible",
+    reason_code: "no_compatible_contract",
+    blocker_category: "contract_selection",
+    user_message: "No exact compatible option contract was found.",
+  };
+  const root = document.createElement("div");
+  renderApp(
+    root,
+    model({
+      route: { name: "detail" },
+      detail: { ...fixture, verdict: "PASS", trade_proposal: unavailable },
+    }),
+    noOpHandlers,
+  );
+
+  const card = root.querySelector(".trade-card--unavailable");
+  assert.match(card.textContent, /SIGNAL ≠ EXECUTABLE TRADE/);
+  assert.match(card.textContent, /Signal verdict \(unchanged\)PASS/);
+  assert.match(card.textContent, /Exact blockerno_compatible_contract/);
+  assert.match(card.textContent, /No exact compatible option contract was found/);
+});
+
 test("runtime strip renders exact configured build identity and explicit unavailable revision", () => {
   const root = document.createElement("div");
   renderApp(root, model(), noOpHandlers);

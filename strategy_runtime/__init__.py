@@ -143,6 +143,7 @@ from strategy_runtime.trade_proposal import (
     TradeProposalUnavailable,
     TradeQuantity,
     build_option_trade_proposal,
+    classify_trade_blocker,
     trade_proposal_to_data,
 )
 from strategy_runtime.validation import validate_result
@@ -201,6 +202,7 @@ __all__ = [
     "build_provider_rolling_window_tracker",
     "build_shared_market_data_access",
     "build_option_trade_proposal",
+    "classify_trade_blocker",
     "compute_observation_id",
     "declared_rolling_window_policies",
     "default_terminal_payoff_grid",

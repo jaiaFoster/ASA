@@ -142,6 +142,8 @@ class TradeProposalUnavailable:
     intended_structure: str
     constructibility: str
     reason_code: str
+    blocker_category: str
+    user_message: str
 
 
 def build_option_trade_proposal(
@@ -159,6 +161,7 @@ def build_option_trade_proposal(
         raise ValueError("terminal payoff does not belong to the structure assessment")
     unavailable = _unavailability_reason(assessment)
     if unavailable is not None:
+        category, message = classify_trade_blocker(unavailable)
         return TradeProposalUnavailable(
             result.observation_id,
             result.symbol,
@@ -167,6 +170,8 @@ def build_option_trade_proposal(
             assessment.intended_structure_kind.value,
             assessment.status.value,
             unavailable,
+            category,
+            message,
         )
     assert assessment.modeled_entry_economics is not None
     entry = assessment.modeled_entry_economics
@@ -276,6 +281,52 @@ def _unavailability_reason(assessment: ExecutableStructureAssessment) -> str | N
     return None
 
 
+def classify_trade_blocker(reason_code: str) -> tuple[str, str]:
+    """Classify an exact typed reason without changing or hiding that reason."""
+    lowered = reason_code.lower()
+    mappings = (
+        (("stale", "freshness"), "stale_evidence", "Required market evidence is stale."),
+        (("earnings",), "earnings_uncertainty", "Earnings clearance is unresolved."),
+        (("liquidity", "spread"), "liquidity", "The available market is not liquid enough."),
+        (
+            ("volatility", "_iv", "iv_"),
+            "missing_volatility",
+            "Required volatility evidence is unavailable.",
+        ),
+        (("delta",), "missing_delta", "A required observed option delta is unavailable."),
+        (("expiration",), "expiration", "No eligible expiration satisfies the declared structure."),
+        (
+            ("strike", "compatible_contract"),
+            "contract_selection",
+            "No exact compatible option contract was found.",
+        ),
+        (
+            ("quote", "midpoint"),
+            "missing_quote",
+            "A required executable quote or midpoint is unavailable.",
+        ),
+        (
+            ("unsupported",),
+            "unsupported_structure",
+            "The intended option structure is unsupported.",
+        ),
+        (
+            ("different_structure",),
+            "different_structure",
+            "Only a different structure is available; ASA will not substitute it.",
+        ),
+        (
+            ("did_not_select_structure",),
+            "no_structure_selected",
+            "The strategy did not select an option structure.",
+        ),
+    )
+    for needles, category, message in mappings:
+        if any(needle in lowered for needle in needles):
+            return category, message
+    return "unknown", "Execution readiness is unavailable for the typed reason shown."
+
+
 def _liquidity(result: UniversalScreeningResult) -> LiquidityState:
     values = [
         value.native()
@@ -311,6 +362,8 @@ def trade_proposal_to_data(
             "intended_structure": proposal.intended_structure,
             "constructibility": proposal.constructibility,
             "reason_code": proposal.reason_code,
+            "blocker_category": proposal.blocker_category,
+            "user_message": proposal.user_message,
         }
 
     def quantity(value: TradeQuantity) -> dict[str, str | None]:

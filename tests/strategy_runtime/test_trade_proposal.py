@@ -37,6 +37,7 @@ from strategy_runtime.trade_proposal import (
     QuantityState,
     TradeProposalUnavailable,
     build_option_trade_proposal,
+    classify_trade_blocker,
     trade_proposal_to_data,
 )
 from strategy_runtime.values import TypedValue
@@ -163,6 +164,8 @@ def test_nonconstructible_assessment_stays_typed_unavailable() -> None:
     assert isinstance(unavailable, TradeProposalUnavailable)
     assert unavailable.constructibility == "not_constructible"
     assert unavailable.reason_code == "no_compatible_contract"
+    assert unavailable.blocker_category == "contract_selection"
+    assert "compatible option contract" in unavailable.user_message
     assert trade_proposal_to_data(unavailable)["status"] == "unavailable"
 
 
@@ -191,3 +194,24 @@ def test_attached_terminal_payoff_populates_only_supported_quantities() -> None:
     assert proposal.maximum_loss.value == Decimal("210")
     assert proposal.maximum_profit.state is QuantityState.UNDEFINED
     assert proposal.breakeven.value == Decimal("202.10")
+
+
+@pytest.mark.parametrize(
+    ("reason", "category"),
+    (
+        ("stale_option_chain", "stale_evidence"),
+        ("earnings_clearance:unknown", "earnings_uncertainty"),
+        ("liquidity_gate_failed", "liquidity"),
+        ("missing_implied_volatility", "missing_volatility"),
+        ("missing_actual_delta", "missing_delta"),
+        ("no_valid_expiration_pair", "expiration"),
+        ("no_compatible_contract", "contract_selection"),
+        ("modeled_midpoint_entry_unavailable", "missing_quote"),
+        ("unsupported_structure", "unsupported_structure"),
+    ),
+)
+def test_failure_categories_preserve_common_typed_blockers(reason: str, category: str) -> None:
+    classified, message = classify_trade_blocker(reason)
+
+    assert classified == category
+    assert message

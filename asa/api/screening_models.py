@@ -698,6 +698,8 @@ class TradeProposalUnavailableResponse(BaseModel):
     intended_structure: str
     constructibility: str
     reason_code: str
+    blocker_category: str
+    user_message: str
 
     @classmethod
     def from_unavailable(
@@ -711,6 +713,8 @@ class TradeProposalUnavailableResponse(BaseModel):
             intended_structure=proposal.intended_structure,
             constructibility=proposal.constructibility,
             reason_code=proposal.reason_code,
+            blocker_category=proposal.blocker_category,
+            user_message=proposal.user_message,
         )
 
 

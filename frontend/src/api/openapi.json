@@ -5267,6 +5267,14 @@
           "reason_code": {
             "type": "string",
             "title": "Reason Code"
+          },
+          "blocker_category": {
+            "type": "string",
+            "title": "Blocker Category"
+          },
+          "user_message": {
+            "type": "string",
+            "title": "User Message"
           }
         },
         "type": "object",
@@ -5277,7 +5285,9 @@
           "strategy_version",
           "intended_structure",
           "constructibility",
-          "reason_code"
+          "reason_code",
+          "blocker_category",
+          "user_message"
         ],
         "title": "TradeProposalUnavailableResponse"
       },
