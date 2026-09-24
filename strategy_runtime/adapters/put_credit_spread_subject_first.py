@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from functools import partial
 from types import MappingProxyType
@@ -11,7 +11,9 @@ from types import MappingProxyType
 from domain import (
     MarketCapability,
     OptionChain,
+    OptionContract,
     OptionLegPosition,
+    OptionStructure,
     OptionType,
     Quote,
     UnknownReason,
@@ -37,7 +39,11 @@ from strategies.put_credit_spread_manifest import (
     SHORT_PUT_DELTA,
     SPY_PUT_CREDIT_SPREAD_MANIFEST,
 )
-from strategies.put_credit_spread_planning import bootstrap_demands, expand_demands
+from strategies.put_credit_spread_planning import (
+    MAXIMUM_EXPIRATION_DISTANCE_DAYS,
+    bootstrap_demands,
+    expand_demands,
+)
 from strategies.stonk_components import DATE, OPTION_CHAIN
 from strategies.type_system import ComponentValues, TypedValue
 from strategy_runtime.adapters._screening_bridge import explanation_metrics
@@ -59,6 +65,7 @@ from strategy_runtime.result import (
     compute_observation_id,
 )
 from strategy_runtime.subject_preparation import SubjectPreparationBinding
+from strategy_runtime.values import TypedValue as PersistedValue
 
 _STRATEGY_ID = SPY_PUT_CREDIT_SPREAD_CONTRACT.strategy_id
 _GRAPH = compile_strategy_graph(
@@ -67,6 +74,71 @@ _GRAPH = compile_strategy_graph(
 # The source's "Only one position active at any time" is portfolio state, not
 # screening semantics; every result discloses that ASA does not evaluate it.
 _ONE_POSITION_DISCLOSURE = "source_one_active_position_rule_not_evaluated_by_screener"
+# ASA constructibility tolerance (not a source rule): a leg whose observed
+# delta is farther than this from the source target is not that leg.
+MAXIMUM_DELTA_DISTANCE = Decimal("0.05")
+_ASSUMPTIONS = (
+    _ONE_POSITION_DISCLOSURE,
+    f"leg_delta_within_{MAXIMUM_DELTA_DISTANCE}_of_source_target",
+    f"expiration_within_{MAXIMUM_EXPIRATION_DISTANCE_DAYS}_days_of_30_dte",
+    "legs_selected_by_provider_observed_delta",
+)
+
+
+def _graph_outputs(chain: OptionChain, expiration: date) -> ComponentValues:
+    """The manifest graph is the only leg-selection authority."""
+    return execute_strategy_graph(
+        _GRAPH,
+        ComponentValues(
+            (
+                ("spread.chain", TypedValue(OPTION_CHAIN, chain)),
+                ("spread.expiration", TypedValue(DATE, expiration)),
+            )
+        ),
+    ).outputs
+
+
+def _legs(structure: OptionStructure) -> tuple[OptionContract, OptionContract]:
+    by_position = {item.position: item.contract for item in structure.legs}
+    return by_position[OptionLegPosition.LONG], by_position[OptionLegPosition.SHORT]
+
+
+def _selection_blocker(chain: OptionChain, expiration: date) -> UnknownReason | None:
+    """Reject any graph selection that is not the source's credit spread."""
+    outputs = _graph_outputs(chain, expiration)
+    structure = outputs.get("structure").value
+    assert isinstance(structure, OptionStructure)
+    long, short = _legs(structure)
+    candidates = tuple(
+        item
+        for item in chain.contracts
+        if item.expiration == expiration
+        and item.option_type is OptionType.PUT
+        and item.delta is not None
+    )
+    for contract, target, excluded in (
+        (long, Decimal(LONG_PUT_DELTA), frozenset()),
+        (short, Decimal(SHORT_PUT_DELTA), frozenset({long.identity})),
+    ):
+        assert contract.delta is not None
+        distance = abs(abs(contract.delta) - abs(target))
+        if distance > MAXIMUM_DELTA_DISTANCE:
+            return UnknownReason("no_contract_near_target_delta")
+        tied = [
+            item
+            for item in candidates
+            if item.identity not in excluded
+            and item.identity != contract.identity
+            and abs(abs(item.delta) - abs(target)) == distance  # type: ignore[arg-type]
+        ]
+        if tied:
+            return UnknownReason("ambiguous_delta_tie")
+    if not short.strike > long.strike:
+        return UnknownReason("inverted_spread")
+    mid_debit = outputs.get("mid_debit").value
+    if isinstance(mid_debit, Decimal) and mid_debit >= 0:
+        return UnknownReason("non_credit_entry")
+    return None
 
 
 def _spot(quote: Quote) -> Decimal | None:
@@ -115,6 +187,9 @@ def _prepare(
     # required, and a missing Greek is never replaced by a proxy.
     if len({item.identity for item in puts if item.delta is not None}) < 2:
         return UnknownReason("missing_actual_delta")
+    blocker = _selection_blocker(chain, expiration)
+    if blocker is not None:
+        return blocker
     return build_put_credit_spread_knowledge_mapping(
         subject=subject,
         quote_observation_id=quote_observation.observation_id,
@@ -132,6 +207,10 @@ def _build_execution_assessment(
     assessed_at: datetime,
 ) -> ExecutableStructureAssessment:
     payload = knowledge.payload
+    # Resolve exactly the graph's contracts; delta selection is never re-run.
+    structure = _graph_outputs(payload.chain, payload.expiration).get("structure").value
+    assert isinstance(structure, OptionStructure)
+    long, short = _legs(structure)
     intent = OptionStructureIntent(
         payload.chain.underlying.symbol,
         StructureKind.VERTICAL,
@@ -142,7 +221,7 @@ def _build_execution_assessment(
                 payload.expiration,
                 OptionLegPosition.LONG,
                 Decimal(1),
-                target_delta=Decimal(LONG_PUT_DELTA),
+                selected_contract_identity=long.identity,
             ),
             OptionLegIntent(
                 "short",
@@ -150,7 +229,7 @@ def _build_execution_assessment(
                 payload.expiration,
                 OptionLegPosition.SHORT,
                 Decimal(1),
-                target_delta=Decimal(SHORT_PUT_DELTA),
+                selected_contract_identity=short.identity,
             ),
         ),
     )
@@ -171,15 +250,13 @@ def build_put_credit_spread_subject_first_adapter(
     def _adapter(context: RuntimeContext) -> UniversalScreeningResult:
         knowledge = frozen[context.subject]
         payload = knowledge.payload
-        graph_context = ComponentValues(
-            (
-                ("spread.chain", TypedValue(OPTION_CHAIN, payload.chain)),
-                ("spread.expiration", TypedValue(DATE, payload.expiration)),
-            )
-        )
-        outputs = execute_strategy_graph(_GRAPH, graph_context).outputs
+        outputs = _graph_outputs(payload.chain, payload.expiration)
         verdict = str(outputs.get("verdict").value)
         explanation = build_graph_explanation(SPY_PUT_CREDIT_SPREAD_MANIFEST, outputs)
+        metrics = explanation_metrics(explanation)
+        metrics["decision.assumptions"] = PersistedValue.of_structured(
+            [*explanation.assumptions, *_ASSUMPTIONS]
+        )
         return UniversalScreeningResult(
             strategy_id=_STRATEGY_ID,
             strategy_version=SPY_PUT_CREDIT_SPREAD_CONTRACT.version,
@@ -194,7 +271,7 @@ def build_put_credit_spread_subject_first_adapter(
             lifecycle_stage=None,
             recommendation_state=None,
             data_quality=None,
-            metrics=explanation_metrics(explanation),
+            metrics=metrics,
             economics={},
             blockers=(),
             warnings=(*explanation.warnings, _ONE_POSITION_DISCLOSURE),

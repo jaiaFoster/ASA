@@ -2424,3 +2424,37 @@ def test_fixed_subject_option_pairs_run_isolated_and_are_api_active() -> None:
         ("B002", "SPY"),
         ("spy_put_credit_spread", "SPY"),
     }
+
+
+def test_main_reports_other_outcomes_when_the_fixed_subject_option_refresh_fails(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    import asa.scheduled_screening as scheduled_screening_module
+
+    options_outcome = scheduled_screening_module.PairOutcome(
+        "forward_factor", "AAPL", "pass", 1, None, True
+    )
+    stock_outcome = scheduled_screening_module.PairOutcome("B001", "SPY", "pass", 1, None, True)
+    monkeypatch.setattr(
+        scheduled_screening_module, "run_scheduled_refresh", lambda **_kwargs: (options_outcome,)
+    )
+    monkeypatch.setattr(
+        scheduled_screening_module,
+        "run_scheduled_stock_benchmark_refresh",
+        lambda **_kwargs: (stock_outcome,),
+    )
+
+    def _broken(**_kwargs: object) -> tuple[object, ...]:
+        raise RuntimeError("chain provider unavailable")
+
+    monkeypatch.setattr(
+        scheduled_screening_module, "run_scheduled_fixed_subject_option_refresh", _broken
+    )
+    caplog.set_level(logging.WARNING)
+
+    assert scheduled_screening_module.main(["--json"]) == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["total"] == 2
+    assert "fixed_subject_option_refresh_failed" in caplog.text

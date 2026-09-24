@@ -247,3 +247,115 @@ def test_expiration_selection_never_breaks_a_tie() -> None:
     assert isinstance(tie, UnknownReason) and tie.code == "ambiguous_expiration_tie"
     past = select_target_expiration((date(2026, 9, 1),), today)
     assert isinstance(past, UnknownReason) and past.code == "no_future_expiration"
+
+
+def test_trade_card_uses_the_graphs_exact_contracts() -> None:
+    from strategy_runtime.adapters.put_credit_spread_subject_first import _graph_outputs, _legs
+
+    knowledge = _knowledge()
+    assessment = _build_execution_assessment(knowledge, _result(knowledge), NOW)
+    long, short = _legs(_graph_outputs(_FULL_CHAIN, EXPIRY).get("structure").value)
+
+    assert {item.canonical_contract_identity for item in assessment.exact_legs} == {
+        long.identity,
+        short.identity,
+    }
+
+
+@pytest.mark.parametrize(
+    ("chain", "reason"),
+    [
+        # Review probe 1: one contract nearest both targets; the short leg
+        # would fall to a far-off delta, never silently accepted.
+        (
+            _chain(_put("580", "-0.10", "1.9", "2.1"), _put("575", "-0.08", "1.5", "1.7")),
+            "no_contract_near_target_delta",
+        ),
+        # Review probe 2: non-monotonic deltas invert the spread.
+        (
+            _chain(_put("580", "-0.30", "5", "5.2"), _put("600", "-0.10", "1.9", "2.1")),
+            "inverted_spread",
+        ),
+        # Review probe 3: the long leg is nowhere near the 0.10 delta target.
+        (
+            _chain(_put("600", "-0.30", "5", "5.2"), _put("598", "-0.28", "4.8", "5.0")),
+            "no_contract_near_target_delta",
+        ),
+        # Exact delta tie on the short leg is never broken silently.
+        (
+            _chain(
+                _put("600", "-0.30", "5", "5.2"),
+                _put("605", "-0.30", "5.5", "5.7"),
+                _put("580", "-0.10", "1.9", "2.1"),
+            ),
+            "ambiguous_delta_tie",
+        ),
+        # A spread that would not collect a credit is not this strategy.
+        (
+            _chain(_put("600", "-0.30", "1.0", "1.2"), _put("580", "-0.10", "1.9", "2.1")),
+            "non_credit_entry",
+        ),
+    ],
+)
+def test_selection_that_is_not_the_source_credit_spread_is_typed_unknown(
+    chain: OptionChain, reason: str
+) -> None:
+    mapping = _prepare(NOW, _snapshot(chain), {}, (("expiration", EXPIRY.isoformat()),), SYMBOL)
+
+    assert isinstance(mapping, UnknownReason)
+    assert mapping.code == reason
+
+
+def test_expiration_far_from_thirty_days_is_typed_unknown() -> None:
+    far = select_target_expiration((date(2026, 10, 20),), date(2026, 9, 5))
+    assert isinstance(far, UnknownReason) and far.code == "no_expiration_near_target"
+
+
+def test_expand_demands_requests_only_the_selected_chain() -> None:
+    from domain import (
+        EvidenceUsability,
+        ExpirationCollection,
+        ExpirationCycle,
+        FreshnessStatus,
+        ResolvedCapabilityEvidence,
+    )
+    from strategies.put_credit_spread_planning import expand_demands, expirations_demand
+
+    missing = expand_demands({}, now=NOW)
+    assert [item.code for item in missing.unknown_reasons] == ["no_future_expiration"]
+
+    today = NOW.date()
+    cycles = tuple(
+        ExpirationCycle(item, (item - today).days, False, True, today, _EVIDENCE)
+        for item in (date(2026, 9, 19), EXPIRY, date(2026, 10, 16))
+    )
+    discovery = expirations_demand(NOW)
+    evidence = {
+        discovery.demand_id: ResolvedCapabilityEvidence(
+            discovery.demand_id,
+            MarketCapability.OPTION_CHAIN_V1,
+            EvidenceUsability.RESOLVED,
+            ExpirationCollection(today, cycles),
+            ("obs-1",),
+            FreshnessStatus.FRESH,
+        )
+    }
+
+    expansion = expand_demands(evidence, now=NOW)
+
+    assert expansion.selections == (("expiration", EXPIRY.isoformat()),)
+    assert [item.expiration for item in expansion.demands] == [EXPIRY]
+    assert not expansion.unknown_reasons
+
+
+def test_results_disclose_tolerances_as_proposal_assumptions() -> None:
+    knowledge = _knowledge()
+    result = _result(knowledge)
+    proposal = build_option_trade_proposal(
+        result, _build_execution_assessment(knowledge, result, NOW)
+    )
+
+    assert isinstance(proposal, OptionTradeProposal)
+    assert "leg_delta_within_0.05_of_source_target" in proposal.assumptions
+    assert "expiration_within_7_days_of_30_dte" in proposal.assumptions
+    assert "source_one_active_position_rule_not_evaluated_by_screener" in proposal.assumptions

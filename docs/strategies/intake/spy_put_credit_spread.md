@@ -20,6 +20,11 @@
     is `missing_actual_delta` (never a proxy).
   - Variants 2–4 (targets/stops/15 DTE/rolling) are excluded: their bases are
     undefined in the source.
+  - ASA constructibility tolerances (not source rules; disclosed as proposal
+    assumptions): each leg's observed delta within ±0.05 of its source
+    target, and the expiration within ±7 days of 30 DTE. An exact delta tie
+    is `ambiguous_delta_tie`. The graph is the single leg-selection
+    authority; the trade card resolves exactly the graph's contracts.
   - "One position active" is portfolio state, not screener semantics; every
     result carries the disclosure warning
     `source_one_active_position_rule_not_evaluated_by_screener`.
@@ -71,6 +76,11 @@
 | no puts at expiration | `no_put_contracts_at_selected_expiration` |
 | < 2 puts with observed delta | `missing_actual_delta` |
 | unusable quote / chain | `unusable_quote` / `unusable_option_chain` |
+| expiration > 7 days from 30 DTE | `no_expiration_near_target` |
+| leg delta > 0.05 from target | `no_contract_near_target_delta` |
+| equal-distance delta candidates | `ambiguous_delta_tie` |
+| short strike not above long strike | `inverted_spread` |
+| modeled entry not a credit | `non_credit_entry` |
 | leg not resolvable | resolver typed blocker (e.g. `no_compatible_contract`) |
 
 ## 7. User presentation

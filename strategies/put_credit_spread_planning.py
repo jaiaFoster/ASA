@@ -22,6 +22,9 @@ from domain import (
 )
 
 TARGET_DAYS_TO_EXPIRATION = 30
+# ASA constructibility tolerance (not a source rule, disclosed on every
+# result): an expiration farther than this from 30 DTE is not "30 days".
+MAXIMUM_EXPIRATION_DISTANCE_DAYS = 7
 
 
 def quote_demand(now: datetime) -> CapabilityDemand:
@@ -56,6 +59,8 @@ def select_target_expiration(expirations: tuple[date, ...], today: date) -> date
     )
     if len(distances) > 1 and distances[0][0] == distances[1][0]:
         return UnknownReason("ambiguous_expiration_tie")
+    if distances[0][0] > MAXIMUM_EXPIRATION_DISTANCE_DAYS:
+        return UnknownReason("no_expiration_near_target")
     return distances[0][1]
 
 
