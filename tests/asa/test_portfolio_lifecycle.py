@@ -428,3 +428,39 @@ def test_lifecycle_observations_append_open_then_closed_with_separate_clocks() -
     assert observations[0].strategy_result_observed_at == NOW
     assert observations[0].evidence_observed_at == NOW - timedelta(minutes=5)
     assert lifecycle.candidate(candidate.id) == candidate
+
+
+def test_divergent_proposal_for_the_same_observation_fails_closed() -> None:
+    from asa.application.portfolio_lifecycle import ProposalIdentityCollisionError
+
+    results = InMemoryLatestResultRepository()
+    results.upsert(_row())
+    lifecycle = MemoryLifecycleRepository()
+    assessment = replace(_assessment(), originating_result_identity="observation-1")
+    artifact = ExecutionReadinessArtifact(
+        "observation-1",
+        "earnings_calendar",
+        "AAPL",
+        assessment.identity,
+        "{}",
+        serialize_execution_assessment(assessment),
+        NOW,
+    )
+    lifecycle.put_execution_readiness(artifact)
+    service = TrackCandidateService(results, lifecycle)
+    original = service.track("earnings_calendar", "AAPL", "observation-1", NOW)
+
+    # Same observation, but the stored record now disagrees with what the
+    # authoritative evidence resolves to: never silently return it.
+    lifecycle.values[original.id] = replace(
+        original, resolved_proposal_identity="f" * 64, resolved_proposal_json="{}"
+    )
+    with pytest.raises(ProposalIdentityCollisionError):
+        service.track("earnings_calendar", "AAPL", "observation-1", NOW)
+
+    # The pre-OP-06 legacy form froze the same assessment's identity: accepted.
+    lifecycle.values[original.id] = replace(
+        original, resolved_proposal_identity=assessment.identity, resolved_proposal_json="{}"
+    )
+    legacy = service.track("earnings_calendar", "AAPL", "observation-1", NOW)
+    assert legacy.resolved_proposal_identity == assessment.identity

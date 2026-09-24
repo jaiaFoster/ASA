@@ -24,6 +24,10 @@ class CandidateNotFoundError(LookupError):
     pass
 
 
+class ProposalIdentityCollisionError(RuntimeError):
+    """A re-track of one observation resolved to a different proposal (OI-01)."""
+
+
 class TrackCandidateService:
     def __init__(
         self,
@@ -80,7 +84,20 @@ class TrackCandidateService:
                 resolved_proposal_identity=proposal_identity,
                 resolved_proposal_json=proposal_json,
             )
-        return self._lifecycle.add_candidate(candidate)
+        stored = self._lifecycle.add_candidate(candidate)
+        # Tracking is idempotent per originating observation, but a divergent
+        # proposal for that same observation must fail closed rather than
+        # silently return the earlier record. A pre-OP-06 record that froze the
+        # same assessment's identity is the one accepted legacy form.
+        accepted = {
+            candidate.resolved_proposal_identity,
+            None if proposal is None else proposal.assessment_identity,
+        }
+        if stored.resolved_proposal_identity not in accepted:
+            raise ProposalIdentityCollisionError(
+                "tracked proposal identity differs for the same originating observation"
+            )
+        return stored
 
 
 class PortfolioReconciliationService:
