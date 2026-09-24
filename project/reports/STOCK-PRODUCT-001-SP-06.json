@@ -1,0 +1,45 @@
+{
+  "artifact_version": "1.0.0",
+  "captured_at": "2026-09-24T17:05:34.283089+00:00",
+  "defect_count": 0,
+  "observations": [
+    {
+      "action": "BUY",
+      "action_reason": null,
+      "evidence_age_seconds": 161,
+      "freshness": "fresh",
+      "gaps": [],
+      "observation_id": "9536136e977212bc5cd9337f06fc59265def61ed700f7e04969a07d07172ec97",
+      "signal_id": "B001",
+      "status": "actionable",
+      "symbol": "SPY",
+      "unknown_reasons": []
+    },
+    {
+      "action": null,
+      "action_reason": "evaluation_incomplete",
+      "evidence_age_seconds": 162,
+      "freshness": "fresh",
+      "gaps": [],
+      "observation_id": "9d89055bf3930c17b9f8fea53eb1889495d62771ec258fdd99f152267da9bfee",
+      "signal_id": "B002",
+      "status": "unknown",
+      "symbol": "SPY",
+      "unknown_reasons": [
+        "typed unknown evidence gap: unusable_historical_bars"
+      ]
+    }
+  ],
+  "production_sha": "df000e97cebbe161ae580d85f72a715f6a0541e7",
+  "sprint": "STOCK-PRODUCT-001",
+  "status_counts": {
+    "actionable": 1,
+    "unknown": 1
+  },
+  "stock_signals": [
+    "B001",
+    "B002"
+  ],
+  "ticket": "SP-06",
+  "verdict": "actionable_stock_path_observed"
+}
