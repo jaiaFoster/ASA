@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, date, datetime
 from decimal import Decimal
 
@@ -24,6 +25,7 @@ from strategy_runtime.option_payoff import (
     PayoffQuantity,
     PayoffQuantityState,
     TerminalPayoffPoint,
+    same_strike_calendar_loss_bound,
 )
 from strategy_runtime.option_structure_resolver import (
     OptionLegIntent,
@@ -41,6 +43,7 @@ from strategy_runtime.trade_proposal import (
     trade_proposal_to_data,
 )
 from strategy_runtime.values import TypedValue
+from tests.strategy_runtime.test_option_payoff import _vertical
 
 NOW = datetime(2026, 9, 23, 16, tzinfo=UTC)
 FRONT = date(2026, 10, 16)
@@ -134,7 +137,7 @@ def _result(observation_id: str = "result-1") -> UniversalScreeningResult:
     )
 
 
-def test_constructible_assessment_projects_exact_trade_without_invented_payoff() -> None:
+def test_constructible_calendar_projects_exact_trade_with_only_its_loss_bound() -> None:
     assessment = _assessment()
 
     proposal = build_option_trade_proposal(_result(), assessment)
@@ -148,8 +151,17 @@ def test_constructible_assessment_projects_exact_trade_without_invented_payoff()
     assert proposal.modeled_net_debit_or_credit == Decimal("2.10")
     assert proposal.liquidity is LiquidityState.ACCEPTABLE
     assert proposal.legs[0].actual_delta == Decimal("0.50")
-    assert proposal.maximum_loss.state is QuantityState.UNKNOWN
-    assert proposal.maximum_loss.value is None
+    # Same-strike debit calendar: loss is bounded by the modeled debit, while
+    # profit and breakeven depend on the later leg's model value.
+    assert proposal.maximum_loss.state is QuantityState.SUPPORTED
+    assert proposal.maximum_loss.value == Decimal("210.00")
+    assert proposal.capital_required.value == Decimal("210.00")
+    assert proposal.maximum_profit.state is QuantityState.UNKNOWN
+    assert proposal.maximum_profit.reason == "later_expiring_leg_value_is_model_dependent"
+    assert proposal.breakeven.state is QuantityState.UNKNOWN
+    assert "maximum_loss_model:same-strike-calendar-debit-bound-v1" in proposal.assumptions
+    assert "maximum_loss_assumption:long_leg_exercisable_american_style" in proposal.assumptions
+    assert any("remains exercisable" in note for note in proposal.risk_notes)
     assert proposal.invalidation_notes == ("not_defined_by_strategy",)
     assert "modeled entry is not an executed fill" in proposal.risk_notes
     assert len(proposal.identity) == 64
@@ -215,3 +227,37 @@ def test_failure_categories_preserve_common_typed_blockers(reason: str, category
 
     assert classified == category
     assert message
+
+
+def test_same_expiration_structure_derives_deterministic_bounds_without_attachment() -> None:
+    assessment = replace(_vertical(), originating_result_identity="result-1")
+
+    proposal = build_option_trade_proposal(_result(), assessment)
+
+    assert isinstance(proposal, OptionTradeProposal)
+    assert proposal.maximum_loss.value == Decimal("400.00")
+    assert proposal.maximum_profit.value == Decimal("600.00")
+    assert proposal.breakeven.value == Decimal("104")
+    assert proposal.capital_required.value == Decimal("400.00")
+    assert "payoff_model:exact-leg-terminal-payoff-v1" in proposal.assumptions
+
+
+def test_same_strike_calendar_loss_bound_applies_only_to_that_exact_shape() -> None:
+    bound = same_strike_calendar_loss_bound(_assessment())
+
+    assert bound == PayoffQuantity(PayoffQuantityState.SUPPORTED, Decimal("210.00"))
+    assert same_strike_calendar_loss_bound(_assessment(), Decimal("10")) == PayoffQuantity(
+        PayoffQuantityState.SUPPORTED, Decimal("21.00")
+    )
+    # Same-expiration legs, unresolved structures, and credit entries get no bound.
+    assert same_strike_calendar_loss_bound(_vertical()) is None
+    assert same_strike_calendar_loss_bound(_assessment(compatible=False)) is None
+    credit = _assessment()
+    assert credit.modeled_entry_economics is not None
+    credit = replace(
+        credit,
+        modeled_entry_economics=replace(
+            credit.modeled_entry_economics, modeled_net_debit_or_credit=Decimal("-0.10")
+        ),
+    )
+    assert same_strike_calendar_loss_bound(credit) is None

@@ -19,9 +19,14 @@ from strategy_runtime.executable_structures import (
     ExecutableStructureStatus,
 )
 from strategy_runtime.option_payoff import (
+    CALENDAR_LOSS_BOUND_ASSUMPTION,
+    CALENDAR_LOSS_BOUND_VERSION,
     DeterministicTerminalPayoff,
     PayoffQuantity,
     PayoffQuantityState,
+    default_terminal_payoff_grid,
+    model_terminal_payoff,
+    same_strike_calendar_loss_bound,
 )
 from strategy_runtime.result import UniversalScreeningResult
 
@@ -175,13 +180,35 @@ def build_option_trade_proposal(
         )
     assert assessment.modeled_entry_economics is not None
     entry = assessment.modeled_entry_economics
+    if terminal_payoff is None:
+        # The deterministic bounds depend only on exact strikes and entry, never on
+        # the display grid, so every projection (API, tracking) derives them alike.
+        derived = model_terminal_payoff(
+            assessment=assessment,
+            underlying_price_grid=default_terminal_payoff_grid(assessment),
+        )
+        terminal_payoff = derived if isinstance(derived, DeterministicTerminalPayoff) else None
+    calendar_bound = (
+        None if terminal_payoff is not None else same_strike_calendar_loss_bound(assessment)
+    )
     declared_assumptions = result.metrics.get("decision.assumptions")
     native_assumptions = None if declared_assumptions is None else declared_assumptions.native()
+    payoff_assumptions = (
+        (f"payoff_model:{terminal_payoff.model_version}",)
+        if terminal_payoff is not None
+        else (
+            f"maximum_loss_model:{CALENDAR_LOSS_BOUND_VERSION}",
+            f"maximum_loss_assumption:{CALENDAR_LOSS_BOUND_ASSUMPTION}",
+        )
+        if calendar_bound is not None
+        else ()
+    )
     assumptions = tuple(
         sorted(
             {
                 "entry_fill:midpoint_modeled_reference_only",
                 f"entry_model:{entry.model_version}",
+                *payoff_assumptions,
                 *(
                     str(item)
                     for item in (native_assumptions if isinstance(native_assumptions, list) else [])
@@ -194,23 +221,25 @@ def build_option_trade_proposal(
         None,
         "payoff_model_not_attached",
     )
-    maximum_loss = _trade_quantity(terminal_payoff.maximum_loss) if terminal_payoff else not_modeled
-    maximum_profit = (
-        _trade_quantity(terminal_payoff.maximum_profit) if terminal_payoff else not_modeled
+    model_dependent = TradeQuantity(
+        QuantityState.UNKNOWN,
+        None,
+        "later_expiring_leg_value_is_model_dependent",
     )
-    breakeven = (
-        TradeQuantity(QuantityState.SUPPORTED, terminal_payoff.breakevens[0], None)
-        if terminal_payoff is not None and len(terminal_payoff.breakevens) == 1
-        else TradeQuantity(
-            QuantityState.UNDEFINED if terminal_payoff is not None else QuantityState.UNKNOWN,
-            None,
-            (
-                "multiple_or_no_breakevens"
-                if terminal_payoff is not None
-                else "payoff_model_not_attached"
-            ),
+    if terminal_payoff is not None:
+        maximum_loss = _trade_quantity(terminal_payoff.maximum_loss)
+        maximum_profit = _trade_quantity(terminal_payoff.maximum_profit)
+        breakeven = (
+            TradeQuantity(QuantityState.SUPPORTED, terminal_payoff.breakevens[0], None)
+            if len(terminal_payoff.breakevens) == 1
+            else TradeQuantity(QuantityState.UNDEFINED, None, "multiple_or_no_breakevens")
         )
-    )
+    elif calendar_bound is not None:
+        maximum_loss = _trade_quantity(calendar_bound)
+        maximum_profit = model_dependent
+        breakeven = model_dependent
+    else:
+        maximum_loss = maximum_profit = breakeven = not_modeled
     capital_required = (
         maximum_loss
         if entry.modeled_net_debit_or_credit > 0 and maximum_loss.state is QuantityState.SUPPORTED
@@ -223,6 +252,14 @@ def build_option_trade_proposal(
                 else "payoff_model_not_attached"
             ),
         )
+    )
+    payoff_note = (
+        "expiration payoff bounds assume the modeled midpoint entry"
+        if terminal_payoff is not None
+        else "maximum loss is bounded by the modeled debit only while the long leg is held "
+        "through the short leg's expiration and remains exercisable; profit is model-dependent"
+        if calendar_bound is not None
+        else "payoff quantities remain unknown until a compatible model is attached"
     )
     return OptionTradeProposal(
         originating_result_identity=result.observation_id,
@@ -266,7 +303,7 @@ def build_option_trade_proposal(
         ),
         risk_notes=(
             "modeled entry is not an executed fill",
-            "payoff quantities remain unknown until a compatible model is attached",
+            payoff_note,
             *result.warnings,
         ),
         invalidation_notes=("not_defined_by_strategy",),

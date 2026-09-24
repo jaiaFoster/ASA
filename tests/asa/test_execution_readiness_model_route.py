@@ -190,4 +190,9 @@ def test_trade_proposal_endpoint_projects_exact_current_trade() -> None:
     assert response.json()["originating_result_identity"] == "forward_factor-AAPL-obs"
     assert len(response.json()["legs"]) == 2
     assert response.json()["modeled_net_debit_or_credit"] == "2.00"
-    assert response.json()["maximum_loss"]["state"] == "unknown"
+    assert response.json()["maximum_loss"] == {
+        "state": "supported",
+        "value": "200.00",
+        "reason": None,
+    }
+    assert response.json()["maximum_profit"]["state"] == "unknown"
