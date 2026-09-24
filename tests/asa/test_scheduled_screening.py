@@ -2364,6 +2364,14 @@ def test_main_also_runs_the_stock_benchmark_refresh_on_the_same_tick(
         "run_scheduled_stock_benchmark_refresh",
         lambda **_kwargs: (stock_outcome,),
     )
+    fixed_option_outcome = scheduled_screening_module.PairOutcome(
+        "spy_put_credit_spread", "SPY", "pass", 1, None, True
+    )
+    monkeypatch.setattr(
+        scheduled_screening_module,
+        "run_scheduled_fixed_subject_option_refresh",
+        lambda **_kwargs: (fixed_option_outcome,),
+    )
 
     exit_code = main(["--json"])
 
@@ -2372,8 +2380,9 @@ def test_main_also_runs_the_stock_benchmark_refresh_on_the_same_tick(
     assert {(item["signal_id"], item["symbol"]) for item in payload["results"]} == {
         ("forward_factor", "AAPL"),
         ("B001", "SPY"),
+        ("spy_put_credit_spread", "SPY"),
     }
-    assert payload["total"] == 2
+    assert payload["total"] == 3
 
 
 def test_main_reports_options_outcomes_even_when_the_stock_benchmark_refresh_fails(
@@ -2402,3 +2411,16 @@ def test_main_reports_options_outcomes_even_when_the_stock_benchmark_refresh_fai
 
     assert exit_code == 0
     assert any(record.message == "stock_benchmark_refresh_failed" for record in caplog.records)
+
+
+def test_fixed_subject_option_pairs_run_isolated_and_are_api_active() -> None:
+    import asa.scheduled_screening as scheduled_screening_module
+
+    assert scheduled_screening_module.FIXED_SUBJECT_OPTION_UNIVERSE == (
+        ("spy_put_credit_spread", "SPY"),
+    )
+    assert set(scheduled_screening_module.SCHEDULED_FIXED_SUBJECT_PAIRS) == {
+        ("B001", "SPY"),
+        ("B002", "SPY"),
+        ("spy_put_credit_spread", "SPY"),
+    }

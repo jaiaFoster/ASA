@@ -18,6 +18,7 @@ def test_all_three_migration_targets_are_registered() -> None:
         "earnings_calendar",
         "forward_factor",
         "skew_momentum",
+        "spy_put_credit_spread",
     )
 
 

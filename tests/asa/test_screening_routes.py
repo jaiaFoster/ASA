@@ -107,6 +107,7 @@ def test_strategy_health_exposes_all_registered_production_funnels() -> None:
         "earnings_calendar",
         "forward_factor",
         "skew_momentum",
+        "spy_put_credit_spread",
     }
     seeded_funnels = {signal_id: funnels[signal_id] for signal_id in seeded_signals}
     assert all(item["active_subjects"] == 1 for item in seeded_funnels.values())
@@ -232,6 +233,7 @@ class TestCapabilities:
             "earnings_calendar",
             "forward_factor",
             "skew_momentum",
+            "spy_put_credit_spread",
         }
 
     def test_each_signal_declares_required_capabilities(self) -> None:
