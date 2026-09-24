@@ -30,7 +30,7 @@ B001_CONTRACT = StrategyContract(
 
 B002_CONTRACT = StrategyContract(
     strategy_id="B002",
-    version="1.0.0",
+    version="1.1.0",
     category="stock_benchmark",
     description="SPY 10-month trend benchmark over completed-month adjusted closes.",
     requirements=(
