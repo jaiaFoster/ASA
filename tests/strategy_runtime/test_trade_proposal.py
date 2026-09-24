@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, date, datetime
 from decimal import Decimal
 
@@ -24,6 +25,7 @@ from strategy_runtime.option_payoff import (
     PayoffQuantity,
     PayoffQuantityState,
     TerminalPayoffPoint,
+    same_strike_calendar_loss_bound,
 )
 from strategy_runtime.option_structure_resolver import (
     OptionLegIntent,
@@ -41,6 +43,7 @@ from strategy_runtime.trade_proposal import (
     trade_proposal_to_data,
 )
 from strategy_runtime.values import TypedValue
+from tests.strategy_runtime.test_option_payoff import _vertical
 
 NOW = datetime(2026, 9, 23, 16, tzinfo=UTC)
 FRONT = date(2026, 10, 16)
@@ -134,7 +137,7 @@ def _result(observation_id: str = "result-1") -> UniversalScreeningResult:
     )
 
 
-def test_constructible_assessment_projects_exact_trade_without_invented_payoff() -> None:
+def test_constructible_calendar_projects_exact_trade_with_only_its_loss_bound() -> None:
     assessment = _assessment()
 
     proposal = build_option_trade_proposal(_result(), assessment)
@@ -148,8 +151,21 @@ def test_constructible_assessment_projects_exact_trade_without_invented_payoff()
     assert proposal.modeled_net_debit_or_credit == Decimal("2.10")
     assert proposal.liquidity is LiquidityState.ACCEPTABLE
     assert proposal.legs[0].actual_delta == Decimal("0.50")
-    assert proposal.maximum_loss.state is QuantityState.UNKNOWN
-    assert proposal.maximum_loss.value is None
+    # Same-strike debit calendar: loss is bounded by the modeled debit, while
+    # profit and breakeven depend on the later leg's model value.
+    assert proposal.maximum_loss.state is QuantityState.SUPPORTED
+    assert proposal.maximum_loss.value == Decimal("210.00")
+    assert proposal.capital_required.value == Decimal("210.00")
+    assert proposal.maximum_profit.state is QuantityState.UNKNOWN
+    assert proposal.maximum_profit.reason == "later_expiring_leg_value_is_model_dependent"
+    assert proposal.breakeven.state is QuantityState.UNKNOWN
+    assert "maximum_loss_model:same-strike-calendar-debit-bound-v1" in proposal.assumptions
+    assert {
+        "maximum_loss_assumption:long_leg_exercisable_american_style",
+        "maximum_loss_assumption:long_leg_exercised_or_closed_promptly_on_assignment",
+        "maximum_loss_assumption:excludes_dividend_owed_after_early_call_assignment",
+    } <= set(proposal.assumptions)
+    assert any("ex-dividend" in note for note in proposal.risk_notes)
     assert proposal.invalidation_notes == ("not_defined_by_strategy",)
     assert "modeled entry is not an executed fill" in proposal.risk_notes
     assert len(proposal.identity) == 64
@@ -215,3 +231,114 @@ def test_failure_categories_preserve_common_typed_blockers(reason: str, category
 
     assert classified == category
     assert message
+
+
+def test_same_expiration_structure_derives_deterministic_bounds_without_attachment() -> None:
+    assessment = replace(_vertical(), originating_result_identity="result-1")
+
+    proposal = build_option_trade_proposal(_result(), assessment)
+
+    assert isinstance(proposal, OptionTradeProposal)
+    assert proposal.maximum_loss.value == Decimal("400.00")
+    assert proposal.maximum_profit.value == Decimal("600.00")
+    assert proposal.breakeven.value == Decimal("104")
+    assert proposal.capital_required.value == Decimal("400.00")
+    assert "payoff_model:exact-leg-terminal-payoff-v1" in proposal.assumptions
+
+
+def test_same_strike_calendar_loss_bound_applies_only_to_that_exact_shape() -> None:
+    bound = same_strike_calendar_loss_bound(_assessment())
+
+    assert bound == PayoffQuantity(PayoffQuantityState.SUPPORTED, Decimal("210.00"))
+    assert same_strike_calendar_loss_bound(_assessment(), Decimal("10")) == PayoffQuantity(
+        PayoffQuantityState.SUPPORTED, Decimal("21.00")
+    )
+    # Same-expiration legs, unresolved structures, and credit entries get no bound.
+    assert same_strike_calendar_loss_bound(_vertical()) is None
+    assert same_strike_calendar_loss_bound(_assessment(compatible=False)) is None
+    credit = _assessment()
+    assert credit.modeled_entry_economics is not None
+    credit = replace(
+        credit,
+        modeled_entry_economics=replace(
+            credit.modeled_entry_economics, modeled_net_debit_or_credit=Decimal("-0.10")
+        ),
+    )
+    assert same_strike_calendar_loss_bound(credit) is None
+
+
+def _shape(  # type: ignore[no-untyped-def]
+    *,
+    types=(OptionType.CALL, OptionType.CALL),
+    strikes=("200", "200"),
+    expirations=(FRONT, BACK),
+    quantities=("1", "1"),
+    debit="2.10",
+):
+    """Duck-typed short/long pair isolating the bound's shape guard."""
+    from types import SimpleNamespace
+
+    from strategy_runtime.executable_structures import ExecutableStructureStatus
+
+    legs = tuple(
+        SimpleNamespace(
+            leg=SimpleNamespace(
+                position=position,
+                quantity=Decimal(quantity),
+                contract=SimpleNamespace(
+                    option_type=option_type, strike=Decimal(strike), expiration=expiration
+                ),
+            )
+        )
+        for position, option_type, strike, expiration, quantity in zip(
+            (OptionLegPosition.SHORT, OptionLegPosition.LONG),
+            types,
+            strikes,
+            expirations,
+            quantities,
+            strict=True,
+        )
+    )
+    return SimpleNamespace(
+        status=ExecutableStructureStatus.CONSTRUCTIBLE_AS_INTENDED,
+        modeled_entry_economics=SimpleNamespace(modeled_net_debit_or_credit=Decimal(debit)),
+        exact_legs=legs,
+    )
+
+
+@pytest.mark.parametrize(
+    ("shape", "expected"),
+    [
+        ({}, Decimal("210.00")),
+        ({"types": (OptionType.PUT, OptionType.PUT)}, Decimal("210.00")),
+        ({"quantities": ("3", "3"), "debit": "6.30"}, Decimal("630.00")),
+        ({"expirations": (BACK, FRONT)}, None),
+        ({"expirations": (FRONT, FRONT)}, None),
+        ({"quantities": ("1", "2")}, None),
+        ({"strikes": ("200", "205")}, None),
+        ({"types": (OptionType.CALL, OptionType.PUT)}, None),
+        ({"debit": "0"}, None),
+    ],
+)
+def test_calendar_bound_shape_guard(shape: dict[str, object], expected: Decimal | None) -> None:
+    bound = same_strike_calendar_loss_bound(_shape(**shape))  # type: ignore[arg-type]
+
+    assert (None if bound is None else bound.value) == expected
+
+
+def test_projected_bounds_do_not_depend_on_display_grid() -> None:
+    from strategy_runtime.option_payoff import model_terminal_payoff
+
+    assessment = replace(_vertical(), originating_result_identity="result-1")
+    sparse = model_terminal_payoff(
+        assessment=assessment, underlying_price_grid=(Decimal("1"), Decimal("500"))
+    )
+    assert isinstance(sparse, DeterministicTerminalPayoff)
+
+    derived = build_option_trade_proposal(_result(), assessment)
+    attached = build_option_trade_proposal(_result(), assessment, sparse)
+
+    assert isinstance(derived, OptionTradeProposal)
+    assert isinstance(attached, OptionTradeProposal)
+    for field in ("maximum_loss", "maximum_profit", "breakeven", "capital_required"):
+        assert getattr(derived, field) == getattr(attached, field)

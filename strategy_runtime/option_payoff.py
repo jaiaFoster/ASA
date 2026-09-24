@@ -2,7 +2,8 @@
 
 Calendar front-expiration values remain owned by ``modeled_pnl`` because a
 later-expiring leg retains model-dependent time value. This module never
-pretends that surface is a guaranteed terminal payoff.
+pretends that surface is a guaranteed terminal payoff; it only exposes the
+model-independent loss bound of a same-strike debit calendar.
 """
 
 from __future__ import annotations
@@ -22,6 +23,12 @@ from strategy_runtime.executable_structures import (
 )
 
 MODEL_VERSION = "exact-leg-terminal-payoff-v1"
+CALENDAR_LOSS_BOUND_VERSION = "same-strike-calendar-debit-bound-v1"
+CALENDAR_LOSS_BOUND_ASSUMPTIONS = (
+    "long_leg_exercisable_american_style",
+    "long_leg_exercised_or_closed_promptly_on_assignment",
+    "excludes_dividend_owed_after_early_call_assignment",
+)
 _MONEY = Decimal("0.01")
 
 
@@ -167,6 +174,54 @@ def model_terminal_payoff(
         maximum_loss,
         maximum_profit,
         _breakevens(payoff, strikes, upper_slope, contract_multiplier),
+    )
+
+
+def same_strike_calendar_loss_bound(
+    assessment: ExecutableStructureAssessment,
+    contract_multiplier: Decimal = Decimal("100"),
+) -> PayoffQuantity | None:
+    """Bound the loss of a long same-strike calendar opened at a modeled debit.
+
+    Through the short leg's expiration the later-dated long leg, assumed
+    exercisable (American-style listed equity option), is worth at least the
+    short leg's obligation, so the position never falls below zero and loss
+    cannot exceed the debit paid. The bound excludes a dividend owed when a
+    short call is assigned before an ex-date, and it relies on exercising or
+    closing the long leg promptly after assignment; both are disclosed as
+    explicit assumptions. Profit and breakeven stay model-dependent.
+    Returns ``None`` for every other shape rather than guessing.
+    """
+    if (
+        assessment.status is not ExecutableStructureStatus.CONSTRUCTIBLE_AS_INTENDED
+        or assessment.modeled_entry_economics is None
+        or len(assessment.exact_legs) != 2
+        or not contract_multiplier.is_finite()
+        or contract_multiplier <= 0
+    ):
+        return None
+    shorts = [
+        item.leg for item in assessment.exact_legs if item.leg.position is OptionLegPosition.SHORT
+    ]
+    longs = [
+        item.leg for item in assessment.exact_legs if item.leg.position is OptionLegPosition.LONG
+    ]
+    if len(shorts) != 1 or len(longs) != 1:
+        return None
+    short, long = shorts[0], longs[0]
+    if (
+        short.contract.option_type is not long.contract.option_type
+        or short.contract.strike != long.contract.strike
+        or short.quantity != long.quantity
+        or not short.contract.expiration < long.contract.expiration
+    ):
+        return None
+    debit = assessment.modeled_entry_economics.modeled_net_debit_or_credit
+    if debit <= 0:
+        return None
+    return PayoffQuantity(
+        PayoffQuantityState.SUPPORTED,
+        (debit * contract_multiplier).quantize(_MONEY, rounding=ROUND_HALF_EVEN),
     )
 
 

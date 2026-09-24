@@ -375,6 +375,9 @@ def test_track_this_freezes_canonical_trade_proposal_from_exact_assessment() -> 
     assert proposal["status"] == "available"
     assert proposal["originating_result_identity"] == "observation-1"
     assert {leg["buy_or_sell"] for leg in proposal["legs"]} == {"buy", "sell"}
+    # OP-07-C1: the frozen proposal carries the same-strike calendar loss bound.
+    assert proposal["maximum_loss"]["state"] == "supported"
+    assert proposal["capital_required"] == proposal["maximum_loss"]
     assert candidate.exact_option_symbols == (
         "AAPL260918C00200000",
         "AAPL260918C00210000",
