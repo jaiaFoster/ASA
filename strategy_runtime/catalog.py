@@ -14,11 +14,11 @@ class SignalCatalogEntry:
     signal_version: str
     manifest_id: str
     required_capabilities: tuple[MarketCapability, ...]
+    category: str
+    structure: str
 
     @classmethod
-    def from_contract(
-        cls, contract: StrategyContract, *, manifest_id: str
-    ) -> SignalCatalogEntry:
+    def from_contract(cls, contract: StrategyContract, *, manifest_id: str) -> SignalCatalogEntry:
         capabilities = tuple(
             sorted(
                 {
@@ -34,4 +34,6 @@ class SignalCatalogEntry:
             signal_version=contract.version,
             manifest_id=manifest_id,
             required_capabilities=capabilities,
+            category=contract.category,
+            structure=contract.structure.value,
         )

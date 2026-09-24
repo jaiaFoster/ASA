@@ -23,6 +23,7 @@ from strategy_runtime.option_funnel import OptionFunnelTrace
 from strategy_runtime.option_payoff import DeterministicTerminalPayoff, PayoffQuantity
 from strategy_runtime.result import EvaluationState, UniversalScreeningResult
 from strategy_runtime.result_freshness import project_current_result_freshness
+from strategy_runtime.stock_proposal import StockOpportunityProposal
 from strategy_runtime.trade_proposal import (
     OptionTradeProposal,
     TradeProposalUnavailable,
@@ -95,6 +96,10 @@ class SignalCapabilityResponse(BaseModel):
     signal_version: str
     manifest_id: str
     required_capabilities: list[str]
+    # Declared contract shape; clients classify asset surfaces from these,
+    # never from strategy identifiers.
+    category: str
+    structure: str
 
     @classmethod
     def from_definition(cls, definition: SignalCatalogEntry) -> SignalCapabilityResponse:
@@ -103,6 +108,8 @@ class SignalCapabilityResponse(BaseModel):
             signal_version=definition.signal_version,
             manifest_id=definition.manifest_id,
             required_capabilities=[item.value for item in definition.required_capabilities],
+            category=definition.category,
+            structure=definition.structure,
         )
 
 
@@ -686,6 +693,75 @@ class OptionTradeProposalResponse(BaseModel):
             rationale=list(proposal.rationale),
             risk_notes=list(proposal.risk_notes),
             invalidation_notes=list(proposal.invalidation_notes),
+        )
+
+
+class NamedValueResponse(BaseModel):
+    name: str
+    value: str
+
+
+class StockOpportunityProposalResponse(BaseModel):
+    """SP-01 stock/ETF proposal: strategy-emitted truth only, never sizing or returns."""
+
+    originating_result_identity: str
+    instrument: str
+    strategy_id: str
+    strategy_version: str
+    strategy_description: str
+    status: Literal["actionable", "no_action", "unknown"]
+    action: str | None
+    action_reason: str | None
+    signal_verdict: str | None
+    evaluation_state: str
+    evidence_observed_at: datetime
+    freshness: str
+    freshness_status: str
+    evidence_age_seconds: int
+    signal_metrics: list[NamedValueResponse]
+    allocation: str | None
+    allocation_reason: str | None
+    unknown_reasons: list[str]
+    rationale: list[str]
+    invalidation_notes: list[str]
+    warnings: list[str]
+    provenance: list[str]
+
+    @classmethod
+    def from_proposal(
+        cls,
+        proposal: StockOpportunityProposal,
+        result: UniversalScreeningResult,
+        *,
+        now: datetime | None = None,
+    ) -> StockOpportunityProposalResponse:
+        freshness = project_current_result_freshness(result, as_of=now or datetime.now(UTC))
+        return cls(
+            originating_result_identity=proposal.originating_result_identity,
+            instrument=proposal.instrument,
+            strategy_id=proposal.strategy_id,
+            strategy_version=proposal.strategy_version,
+            strategy_description=proposal.strategy_description,
+            status=proposal.status.value,
+            action=proposal.action,
+            action_reason=proposal.action_reason,
+            signal_verdict=proposal.signal_verdict,
+            evaluation_state=proposal.evaluation_state,
+            evidence_observed_at=proposal.evidence_observed_at,
+            freshness=freshness.display_freshness,
+            freshness_status=freshness.freshness_status,
+            evidence_age_seconds=freshness.age_seconds,
+            signal_metrics=[
+                NamedValueResponse(name=name, value=value)
+                for name, value in proposal.signal_metrics
+            ],
+            allocation=proposal.allocation,
+            allocation_reason=proposal.allocation_reason,
+            unknown_reasons=list(proposal.unknown_reasons),
+            rationale=list(proposal.rationale),
+            invalidation_notes=list(proposal.invalidation_notes),
+            warnings=list(proposal.warnings),
+            provenance=list(proposal.provenance),
         )
 
 

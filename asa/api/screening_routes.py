@@ -49,6 +49,7 @@ from asa.api.screening_models import (
     ScreeningResultResponse,
     ScreeningResultsEnvelope,
     SignalCapabilityResponse,
+    StockOpportunityProposalResponse,
     StrategyHealthFunnelResponse,
     StrategyHealthResponse,
     TradeProposalUnavailableResponse,
@@ -111,6 +112,7 @@ from strategy_runtime.registry import StrategyRegistry
 from strategy_runtime.result import EvaluationState, UniversalScreeningResult
 from strategy_runtime.result_freshness import project_current_result_freshness
 from strategy_runtime.service import get_state, record_opportunity_observation
+from strategy_runtime.stock_proposal import build_stock_opportunity_proposal
 from strategy_runtime.trade_proposal import (
     OptionTradeProposal,
     build_option_trade_proposal,
@@ -274,9 +276,18 @@ def build_screening_router(
     acquisition_attempt_repository: AcquisitionAttemptRepository,
     operational_health: Callable[[], dict[str, object]],
     active_symbols: frozenset[str],
+    scheduled_active_pairs: frozenset[tuple[str, str]] = frozenset(),
     portfolio_lifecycle_repository: PortfolioLifecycleRepository | None = None,
 ) -> APIRouter:
     router = APIRouter(prefix="/api/v1", dependencies=[Depends(authorize)])
+
+    def _is_active(item: UniversalScreeningResult) -> bool:
+        # Active = the membership universe plus the scheduler's own declared
+        # (strategy, subject) pairs outside it (e.g. benchmark subjects).
+        return (
+            item.symbol in active_symbols
+            or (item.strategy_id, item.symbol) in scheduled_active_pairs
+        )
 
     def _require_registered_signal(signal: str) -> None:
         if not registry.is_registered(signal):
@@ -323,11 +334,9 @@ def build_screening_router(
             sort_by=sort_by,
             sort_order=sort_order,
         )
-        retained_nonactive_total = sum(item.symbol not in active_symbols for item in all_records)
+        retained_nonactive_total = sum(not _is_active(item) for item in all_records)
         records = (
-            tuple(item for item in all_records if item.symbol in active_symbols)
-            if active_only
-            else all_records
+            tuple(item for item in all_records if _is_active(item)) if active_only else all_records
         )
         page, total = _paginate(records, limit, offset)
         return ScreeningResultsEnvelope(
@@ -343,7 +352,7 @@ def build_screening_router(
     @router.get("/screening-health", response_model=StrategyHealthResponse)
     def strategy_health() -> StrategyHealthResponse:
         state = get_state(repository)
-        active_state = tuple(item for item in state if item.symbol in active_symbols)
+        active_state = tuple(item for item in state if _is_active(item))
         funnels = [
             build_strategy_health(
                 strategy_id,
@@ -360,8 +369,7 @@ def build_screening_router(
                     missing_data=item.missing_data,
                     no_signal=item.no_signal,
                     retained_nonactive=sum(
-                        record.strategy_id == item.strategy_id
-                        and record.symbol not in active_symbols
+                        record.strategy_id == item.strategy_id and not _is_active(record)
                         for record in state
                     ),
                     evidence_sufficient=item.evidence_sufficient,
@@ -426,11 +434,9 @@ def build_screening_router(
             sort_by=sort_by,
             sort_order=sort_order,
         )
-        retained_nonactive_total = sum(item.symbol not in active_symbols for item in all_records)
+        retained_nonactive_total = sum(not _is_active(item) for item in all_records)
         records = (
-            tuple(item for item in all_records if item.symbol in active_symbols)
-            if active_only
-            else all_records
+            tuple(item for item in all_records if _is_active(item)) if active_only else all_records
         )
         page, total = _paginate(records, limit, offset)
         return ScreeningResultsEnvelope(
@@ -556,6 +562,28 @@ def build_screening_router(
         if isinstance(proposal, OptionTradeProposal):
             return OptionTradeProposalResponse.from_proposal(proposal)
         return TradeProposalUnavailableResponse.from_unavailable(proposal)
+
+    @router.get(
+        "/screening/{signal}/{symbol}/stock-proposal",
+        response_model=StockOpportunityProposalResponse,
+    )
+    def get_stock_proposal(signal: str, symbol: str) -> StockOpportunityProposalResponse:
+        """Project the current no-structure result into the stock product contract."""
+        _require_registered_signal(signal)
+        contract = registry.contract_for(signal)
+        if contract.structure is not StructureKind.NONE:
+            raise agent_api_error(
+                404,
+                "NO_STOCK_PROPOSAL",
+                f"Signal {signal!r} declares an option structure; use its trade proposal",
+            )
+        records = get_state(repository, strategy_id=signal, symbol=symbol)
+        if not records:
+            raise agent_api_error(
+                404, "NO_SCREENING_RESULT", f"No screening result for {signal!r}/{symbol!r}"
+            )
+        proposal = build_stock_opportunity_proposal(records[0], contract)
+        return StockOpportunityProposalResponse.from_proposal(proposal, records[0])
 
     @router.get(
         "/screening/{signal}/{symbol}/execution-readiness/modeled-pnl",

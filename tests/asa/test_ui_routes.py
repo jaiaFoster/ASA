@@ -169,3 +169,16 @@ def test_ui_leads_with_canonical_trade_proposal_and_keeps_evidence_expandable() 
     assert "Track This" in render_source
     assert "does not place an order or imply a fill" in render_source
     assert "handlers.trackProposal(item)" in render_source
+
+
+def test_ui_classifies_asset_surfaces_by_declared_structure_not_strategy_id() -> None:
+    static = files("asa.ui").joinpath("static")
+    sources = "".join(
+        static.joinpath(name).read_text(encoding="utf-8")
+        for name in ("app.js", "render.js", "state.js", "api-client.js")
+    )
+
+    assert 'signal?.structure === "none"' in sources
+    for strategy_id in ("B001", "B002", "forward_factor", "earnings_calendar", "skew_momentum"):
+        assert f'"{strategy_id}"' not in sources
+    assert "/stock-proposal" in sources

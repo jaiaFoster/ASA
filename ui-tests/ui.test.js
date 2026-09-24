@@ -41,6 +41,13 @@ function model(overrides = {}) {
     readiness: { status: "ready" },
     apiVersion: "v1",
     buildIdentity: { application_version: "0.1.0", api_version: "v1", release_sha: "abc123" },
+    capabilities: {
+      signals: [
+        { signal_id: "skew_momentum", structure: "vertical", category: "options" },
+        { signal_id: "B001", structure: "none", category: "stock_benchmark" },
+        { signal_id: "B002", structure: "none", category: "stock_benchmark" },
+      ],
+    },
     results: [fixture],
     visible: [fixture],
     detail: null,
@@ -404,7 +411,7 @@ test("primary nav includes a Stocks link, active only on the stocks route", () =
   assert.ok(!stocksLinkOnResults.classList.contains("active"));
 });
 
-test("stock strategies subview renders only B001/B002 rows with truthful BUY direction and SMA10M", () => {
+test("stock strategies subview renders only no-structure strategies with truthful BUY direction and SMA10M", () => {
   const root = document.createElement("div");
   renderApp(
     root,
@@ -485,3 +492,96 @@ test("stock portfolio subview declares an explicit unavailable state, never a fa
 });
 
 test.after(() => window.close());
+
+test("stock detail leads with the strategy-emitted action and never invents sizing", () => {
+  const root = document.createElement("div");
+  const stockProposal = {
+    originating_result_identity: "B002-SPY-obs",
+    instrument: "SPY",
+    strategy_id: "B002",
+    strategy_version: "1.0.0",
+    strategy_description: "SPY 10-month trend benchmark over completed-month adjusted closes.",
+    status: "actionable",
+    action: "BUY",
+    action_reason: null,
+    signal_verdict: "PASS",
+    evaluation_state: "pass",
+    evidence_observed_at: "2026-09-24T16:43:00Z",
+    freshness: "fresh",
+    freshness_status: "live",
+    evidence_age_seconds: 120,
+    signal_metrics: [
+      { name: "price", value: "768.6" },
+      { name: "sma_10m_completed_months", value: "701.2" },
+    ],
+    allocation: null,
+    allocation_reason: "not_defined_by_strategy",
+    unknown_reasons: [],
+    rationale: ["SPY 10-month trend benchmark over completed-month adjusted closes."],
+    invalidation_notes: ["not_defined_by_strategy"],
+    warnings: [],
+    provenance: ["quote:fixture"],
+  };
+  renderApp(
+    root,
+    model({
+      route: { name: "detail", signalId: "B002", symbol: "SPY" },
+      detail: { ...b002Result, stock_proposal: stockProposal },
+    }),
+    noOpHandlers,
+  );
+
+  assert.match(root.textContent, /RESULT AUDIT · STOCK \/ ETF/);
+  const card = root.querySelector(".stock-card");
+  assert.ok(card);
+  assert.match(card.textContent, /SPY · BUY/);
+  assert.match(card.textContent, /ANALYTICAL, NOT AN ORDER/);
+  assert.match(card.textContent, /Allocationnone \(not_defined_by_strategy\)/);
+  assert.match(card.textContent, /sma_10m_completed_months701\.2/);
+  assert.match(card.textContent, /does not size positions or estimate returns/);
+  assert.equal(root.querySelector(".trade-card:not(.stock-card)"), null);
+});
+
+test("unknown stock evaluation shows its typed reason instead of an action", () => {
+  const root = document.createElement("div");
+  renderApp(
+    root,
+    model({
+      route: { name: "detail", signalId: "B002", symbol: "SPY" },
+      detail: {
+        ...b002Result,
+        stock_proposal: {
+          originating_result_identity: "B002-SPY-obs",
+          instrument: "SPY",
+          strategy_id: "B002",
+          strategy_version: "1.0.0",
+          strategy_description: "d",
+          status: "unknown",
+          action: null,
+          action_reason: "evaluation_incomplete",
+          signal_verdict: null,
+          evaluation_state: "missing_data",
+          evidence_observed_at: "2026-09-24T16:43:00Z",
+          freshness: "fresh",
+          freshness_status: "live",
+          evidence_age_seconds: 5,
+          signal_metrics: [],
+          allocation: null,
+          allocation_reason: "not_defined_by_strategy",
+          unknown_reasons: ["typed unknown evidence gap: unusable_historical_bars"],
+          rationale: ["d"],
+          invalidation_notes: ["not_defined_by_strategy"],
+          warnings: [],
+          provenance: [],
+        },
+      },
+    }),
+    noOpHandlers,
+  );
+
+  const card = root.querySelector(".stock-card");
+  assert.ok(card.classList.contains("trade-card--unavailable"));
+  assert.match(card.textContent, /SPY · Evaluation incomplete/);
+  assert.match(card.textContent, /Unknown becausetyped unknown evidence gap: unusable_historical_bars/);
+  assert.doesNotMatch(card.textContent, /BUY/);
+});
