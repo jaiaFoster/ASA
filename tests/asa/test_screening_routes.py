@@ -4,6 +4,7 @@ LatestResultRepository, proving the public response shape is unchanged)."""
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
@@ -18,6 +19,11 @@ from strategy_runtime.values import TypedValue
 from tests.asa.fakes import InMemoryLatestResultRepository
 
 NOW = datetime(2026, 7, 23, 16, 0, tzinfo=UTC)
+
+
+class _NoReadinessRepository:
+    def execution_readiness(self, _signal: str, _symbol: str) -> None:
+        return None
 
 
 def _record(
@@ -65,6 +71,7 @@ def _client(
             Settings(agent_api_token=SecretStr(token) if token else None, _env_file=None),
             DependencyOverrides(
                 latest_result_repository=repository or InMemoryLatestResultRepository(),
+                portfolio_lifecycle_repository=_NoReadinessRepository(),  # type: ignore[arg-type]
                 screening_operational_health=lambda: {
                     "last_attempted_batch_at": NOW,
                     "last_successful_batch_at": NOW,
@@ -111,17 +118,13 @@ def test_strategy_health_exposes_all_registered_production_funnels() -> None:
 
 def test_strategy_health_distinguishes_missing_data_from_no_signal() -> None:
     repository = InMemoryLatestResultRepository()
-    repository.upsert(
-        _record("forward_factor", "AAPL", outcome="missing_data", verdict=None)
-    )
+    repository.upsert(_record("forward_factor", "AAPL", outcome="missing_data", verdict=None))
     repository.upsert(_record("forward_factor", "MSFT", outcome="no_signal"))
 
     response = _client(repository).get("/api/v1/screening-health", headers=_auth())
 
     funnel = next(
-        item
-        for item in response.json()["strategies"]
-        if item["strategy_id"] == "forward_factor"
+        item for item in response.json()["strategies"] if item["strategy_id"] == "forward_factor"
     )
     assert funnel["active_subjects"] == 2
     assert funnel["evaluated"] == 1
@@ -132,8 +135,7 @@ def test_strategy_health_distinguishes_missing_data_from_no_signal() -> None:
 def test_strategy_health_collapses_detailed_unknown_to_stable_primary_reason() -> None:
     repository = InMemoryLatestResultRepository()
     detail = (
-        "typed unknown evidence gap: no_valid_expiration_pair "
-        "(listed=2026-09-18;target_gap=30)"
+        "typed unknown evidence gap: no_valid_expiration_pair (listed=2026-09-18;target_gap=30)"
     )
     repository.upsert(
         _record(
@@ -148,14 +150,49 @@ def test_strategy_health_collapses_detailed_unknown_to_stable_primary_reason() -
     response = _client(repository).get("/api/v1/screening-health", headers=_auth())
 
     funnel = next(
-        item
-        for item in response.json()["strategies"]
-        if item["strategy_id"] == "earnings_calendar"
+        item for item in response.json()["strategies"] if item["strategy_id"] == "earnings_calendar"
     )
-    assert funnel["typed_unknown_counts"] == [
-        {"reason": "no_valid_expiration_pair", "count": 1}
-    ]
+    assert funnel["typed_unknown_counts"] == [{"reason": "no_valid_expiration_pair", "count": 1}]
     assert sum(item["count"] for item in funnel["typed_unknown_counts"]) == 1
+
+
+def test_option_funnel_exposes_declared_demands_gates_and_terminal_reason() -> None:
+    repository = InMemoryLatestResultRepository()
+    row = _record("forward_factor", "AAPL")
+    repository.upsert(
+        replace(
+            row,
+            metrics={
+                "gate.liquidity": TypedValue.of_boolean(True),
+                "diagnostic.acquisition_demands": TypedValue.of_structured(
+                    [
+                        {
+                            "demand_id": "option-chain-demand",
+                            "capability": "option_chain_v1",
+                            "acquisition_result": "fulfilled",
+                            "evidence_usability": "resolved",
+                            "reused_across_consumers": True,
+                            "attempt_count": 1,
+                            "missing_reason": None,
+                        }
+                    ]
+                ),
+            },
+        )
+    )
+
+    response = _client(repository).get(
+        "/api/v1/screening/forward_factor/AAPL/option-funnel",
+        headers=_auth(),
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert "option_chain_v1" in body["declared_capabilities"]
+    assert body["acquisition"][0]["reused_across_consumers"] is True
+    assert body["gate_outcomes"] == [{"gate": "liquidity", "outcome": True}]
+    assert body["terminal_state"] == "structure_unresolved"
+    assert body["terminal_reason"] == "execution_readiness_not_available"
 
 
 class TestAuthentication:
@@ -263,8 +300,7 @@ class TestListScreening:
         second = client.get("/api/v1/screening?limit=500&offset=500", headers=_auth()).json()
 
         identities = {
-            (item["signal_id"], item["symbol"])
-            for item in first["results"] + second["results"]
+            (item["signal_id"], item["symbol"]) for item in first["results"] + second["results"]
         }
         assert first["total"] == second["total"] == 502
         assert first["snapshot_identity"] == second["snapshot_identity"]
@@ -272,9 +308,7 @@ class TestListScreening:
         assert ("forward_factor", "F0000") in identities
 
         repository.upsert(_record("skew_momentum", "S0000"))
-        changed = client.get(
-            "/api/v1/screening?limit=500&offset=500", headers=_auth()
-        ).json()
+        changed = client.get("/api/v1/screening?limit=500&offset=500", headers=_auth()).json()
         assert changed["snapshot_identity"] != first["snapshot_identity"]
 
     def test_active_projection_uses_membership_without_deleting_retained_rows(self) -> None:
@@ -283,9 +317,7 @@ class TestListScreening:
         repository.upsert(_record("forward_factor", "SPY"))
         client = _client(repository)
 
-        current = client.get(
-            "/api/v1/screening?active_only=true", headers=_auth()
-        ).json()
+        current = client.get("/api/v1/screening?active_only=true", headers=_auth()).json()
         retained = client.get("/api/v1/screening", headers=_auth()).json()
 
         assert current["scope"] == "active_universe"
@@ -295,7 +327,6 @@ class TestListScreening:
         assert retained["scope"] == "all_latest"
         assert retained["total"] == 2
         assert {item["symbol"] for item in retained["results"]} == {"AAPL", "SPY"}
-
 
     def test_strategy_health_uses_active_membership_and_reports_retained_rows(self) -> None:
         repository = InMemoryLatestResultRepository()

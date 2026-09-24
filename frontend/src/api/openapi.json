@@ -1484,6 +1484,55 @@
           }
         }
       }
+    },
+    "/api/v1/screening/{signal}/{symbol}/option-funnel": {
+      "get": {
+        "summary": "Get Option Funnel",
+        "description": "Compose one complete trace from existing result/readiness authorities.",
+        "operationId": "get_option_funnel_api_v1_screening__signal___symbol__option_funnel_get",
+        "parameters": [
+          {
+            "name": "signal",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Signal"
+            }
+          },
+          {
+            "name": "symbol",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Symbol"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OptionFunnelTraceResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -4500,6 +4549,179 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "CapabilityDemandDiagnosticResponse": {
+        "properties": {
+          "demand_id": {
+            "type": "string",
+            "title": "Demand Id"
+          },
+          "capability": {
+            "type": "string",
+            "title": "Capability"
+          },
+          "acquisition_result": {
+            "type": "string",
+            "title": "Acquisition Result"
+          },
+          "evidence_usability": {
+            "type": "string",
+            "title": "Evidence Usability"
+          },
+          "reused_across_consumers": {
+            "type": "boolean",
+            "title": "Reused Across Consumers"
+          },
+          "attempt_count": {
+            "type": "integer",
+            "title": "Attempt Count"
+          },
+          "missing_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Missing Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "demand_id",
+          "capability",
+          "acquisition_result",
+          "evidence_usability",
+          "reused_across_consumers",
+          "attempt_count",
+          "missing_reason"
+        ],
+        "title": "CapabilityDemandDiagnosticResponse"
+      },
+      "GateOutcomeResponse": {
+        "properties": {
+          "gate": {
+            "type": "string",
+            "title": "Gate"
+          },
+          "outcome": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outcome"
+          }
+        },
+        "type": "object",
+        "required": [
+          "gate",
+          "outcome"
+        ],
+        "title": "GateOutcomeResponse"
+      },
+      "OptionFunnelTraceResponse": {
+        "properties": {
+          "strategy_id": {
+            "type": "string",
+            "title": "Strategy Id"
+          },
+          "symbol": {
+            "type": "string",
+            "title": "Symbol"
+          },
+          "candidate_inclusion_reason": {
+            "type": "string",
+            "title": "Candidate Inclusion Reason"
+          },
+          "declared_capabilities": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Declared Capabilities"
+          },
+          "acquisition": {
+            "items": {
+              "$ref": "#/components/schemas/CapabilityDemandDiagnosticResponse"
+            },
+            "type": "array",
+            "title": "Acquisition"
+          },
+          "gate_outcomes": {
+            "items": {
+              "$ref": "#/components/schemas/GateOutcomeResponse"
+            },
+            "type": "array",
+            "title": "Gate Outcomes"
+          },
+          "signal_verdict": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Signal Verdict"
+          },
+          "evaluation_state": {
+            "type": "string",
+            "title": "Evaluation State"
+          },
+          "structure_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Structure Status"
+          },
+          "constructibility_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Constructibility Reason"
+          },
+          "terminal_state": {
+            "type": "string",
+            "title": "Terminal State"
+          },
+          "terminal_reason": {
+            "type": "string",
+            "title": "Terminal Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "strategy_id",
+          "symbol",
+          "candidate_inclusion_reason",
+          "declared_capabilities",
+          "acquisition",
+          "gate_outcomes",
+          "signal_verdict",
+          "evaluation_state",
+          "structure_status",
+          "constructibility_reason",
+          "terminal_state",
+          "terminal_reason"
+        ],
+        "title": "OptionFunnelTraceResponse"
       }
     }
   }

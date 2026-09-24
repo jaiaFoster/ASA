@@ -19,6 +19,7 @@ from strategy_runtime.catalog import SignalCatalogEntry
 from strategy_runtime.executable_structures import ExecutableStructureAssessment
 from strategy_runtime.lifecycle import OpportunityHistory, OpportunityObservation
 from strategy_runtime.modeled_pnl import ModeledPnLSurface
+from strategy_runtime.option_funnel import OptionFunnelTrace
 from strategy_runtime.result import EvaluationState, UniversalScreeningResult
 from strategy_runtime.result_freshness import project_current_result_freshness
 
@@ -41,6 +42,7 @@ _EXPLANATION_PREFIXES = (
     "formula_version.",
     "gate.",
     "decision.",
+    "diagnostic.",
 )
 
 
@@ -138,6 +140,58 @@ class StrategyHealthResponse(BaseModel):
     strategies: list[StrategyHealthFunnelResponse]
 
 
+class CapabilityDemandDiagnosticResponse(BaseModel):
+    demand_id: str
+    capability: str
+    acquisition_result: str
+    evidence_usability: str
+    reused_across_consumers: bool
+    attempt_count: int
+    missing_reason: str | None
+
+
+class GateOutcomeResponse(BaseModel):
+    gate: str
+    outcome: bool | None
+
+
+class OptionFunnelTraceResponse(BaseModel):
+    strategy_id: str
+    symbol: str
+    candidate_inclusion_reason: str
+    declared_capabilities: list[str]
+    acquisition: list[CapabilityDemandDiagnosticResponse]
+    gate_outcomes: list[GateOutcomeResponse]
+    signal_verdict: str | None
+    evaluation_state: str
+    structure_status: str | None
+    constructibility_reason: str | None
+    terminal_state: str
+    terminal_reason: str
+
+    @classmethod
+    def from_trace(cls, trace: OptionFunnelTrace) -> OptionFunnelTraceResponse:
+        return cls(
+            strategy_id=trace.strategy_id,
+            symbol=trace.symbol,
+            candidate_inclusion_reason=trace.candidate_inclusion_reason,
+            declared_capabilities=list(trace.declared_capabilities),
+            acquisition=[
+                CapabilityDemandDiagnosticResponse(**item.to_data()) for item in trace.acquisition
+            ],
+            gate_outcomes=[
+                GateOutcomeResponse(gate=gate, outcome=outcome)
+                for gate, outcome in trace.gate_outcomes
+            ],
+            signal_verdict=trace.signal_verdict,
+            evaluation_state=trace.evaluation_state,
+            structure_status=trace.structure_status,
+            constructibility_reason=trace.constructibility_reason,
+            terminal_state=trace.terminal_state,
+            terminal_reason=trace.terminal_reason,
+        )
+
+
 class ScreeningResultResponse(TimestampedResource):
     signal_id: str
     signal_version: str
@@ -197,9 +251,7 @@ class ScreeningResultResponse(TimestampedResource):
     ) -> ScreeningResultResponse:
         """Build the public response from the canonical universal result."""
         temporal = result.temporal
-        current_freshness = project_current_result_freshness(
-            result, as_of=now or datetime.now(UTC)
-        )
+        current_freshness = project_current_result_freshness(result, as_of=now or datetime.now(UTC))
         observed_at = temporal.observed_at if temporal is not None else result.observed_at
         subject_snapshot_at = (
             temporal.subject_snapshot_at if temporal is not None else result.observed_at
@@ -385,19 +437,13 @@ class ExecutableStructureAssessmentResponse(BaseModel):
                     strike=str(item.leg.contract.strike),
                     long_or_short=item.leg.position.value,
                     quantity=str(item.leg.quantity),
-                    bid=None
-                    if item.leg.contract.bid is None
-                    else str(item.leg.contract.bid),
-                    ask=None
-                    if item.leg.contract.ask is None
-                    else str(item.leg.contract.ask),
+                    bid=None if item.leg.contract.bid is None else str(item.leg.contract.bid),
+                    ask=None if item.leg.contract.ask is None else str(item.leg.contract.ask),
                     midpoint=None if item.midpoint is None else str(item.midpoint),
                     actual_delta=None
                     if item.leg.contract.delta is None
                     else str(item.leg.contract.delta),
-                    target_delta=None
-                    if item.target_delta is None
-                    else str(item.target_delta),
+                    target_delta=None if item.target_delta is None else str(item.target_delta),
                     source_observed_at=item.leg.contract.observed_at,
                 )
                 for item in assessment.exact_legs
@@ -405,12 +451,8 @@ class ExecutableStructureAssessmentResponse(BaseModel):
             selection_diagnostics=[
                 SelectionDiagnosticResponse(
                     role=item.role,
-                    target_delta=None
-                    if item.target_delta is None
-                    else str(item.target_delta),
-                    actual_delta=None
-                    if item.actual_delta is None
-                    else str(item.actual_delta),
+                    target_delta=None if item.target_delta is None else str(item.target_delta),
+                    actual_delta=None if item.actual_delta is None else str(item.actual_delta),
                     absolute_delta_deviation=(
                         None
                         if item.absolute_delta_deviation is None

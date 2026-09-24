@@ -31,6 +31,7 @@ from typing import Generic
 
 from domain import (
     CanonicalReturnObservation,
+    EvidenceUsability,
     MarketCapability,
     MarketObservation,
     UnknownReason,
@@ -43,12 +44,14 @@ from screening.subject_planning import (
     CapabilityResultReducer,
     ResolvedEvidenceView,
     SubjectPlanConsumer,
+    SubjectPlanResult,
     run_subject_plan,
 )
 from strategy_runtime.executable_structures import ExecutableStructureAssessment
 from strategy_runtime.knowledge import ReadOnlyStrategyInput, TPayload
 from strategy_runtime.knowledge_composition import compose_strategy_knowledge
 from strategy_runtime.knowledge_registry import KnowledgeBinding, KnowledgeCompositionRegistry
+from strategy_runtime.option_funnel import CapabilityDemandDiagnostic
 from strategy_runtime.preparation_diagnostics import record_strategy_knowledge_failure
 from strategy_runtime.registry import StrategyAdapter
 from strategy_runtime.result import UniversalScreeningResult
@@ -132,12 +135,11 @@ class DuplicateSubjectPreparationBindingError(ValueError):
 class PreparedSubjectKnowledge:
     """Prepared outcomes plus each consumer's sealed temporal evidence."""
 
-    knowledge_entries: tuple[
-        tuple[str, ReadOnlyStrategyInput[object] | UnknownReason], ...
-    ]
-    temporal_observation_entries: tuple[
-        tuple[str, tuple[MarketObservation, ...]], ...
-    ]
+    knowledge_entries: tuple[tuple[str, ReadOnlyStrategyInput[object] | UnknownReason], ...]
+    temporal_observation_entries: tuple[tuple[str, tuple[MarketObservation, ...]], ...]
+    acquisition_diagnostic_entries: tuple[
+        tuple[str, tuple[CapabilityDemandDiagnostic, ...]], ...
+    ] = ()
 
     @property
     def knowledge_by_strategy(
@@ -150,6 +152,60 @@ class PreparedSubjectKnowledge:
         self,
     ) -> Mapping[str, tuple[MarketObservation, ...]]:
         return dict(self.temporal_observation_entries)
+
+    @property
+    def acquisition_diagnostics_by_strategy(
+        self,
+    ) -> Mapping[str, tuple[CapabilityDemandDiagnostic, ...]]:
+        return dict(self.acquisition_diagnostic_entries)
+
+
+def _acquisition_diagnostics(
+    plan_result: SubjectPlanResult,
+    strategy_consumers: tuple[tuple[str, str], ...],
+) -> dict[str, tuple[CapabilityDemandDiagnostic, ...]]:
+    """Project the planner's existing diagnostic evidence without retaining payloads."""
+    # Kept as one helper so strategies receive only sanitized states, never raw
+    # fulfillment results or provider objects.
+    demand_ids_by_consumer = plan_result.demand_ids_by_consumer
+    projected_evidence = plan_result.projected_evidence
+    diagnostic_fulfillments = plan_result.diagnostic_fulfillments
+    consumer_count_by_demand: dict[str, int] = {}
+    for demand_ids in demand_ids_by_consumer.values():
+        for demand_id in demand_ids:
+            consumer_count_by_demand[demand_id] = consumer_count_by_demand.get(demand_id, 0) + 1
+    projected: dict[str, tuple[CapabilityDemandDiagnostic, ...]] = {}
+    for strategy_id, consumer_id in strategy_consumers:
+        items: list[CapabilityDemandDiagnostic] = []
+        for demand_id in demand_ids_by_consumer[consumer_id]:
+            evidence = projected_evidence[demand_id]
+            fulfillment = diagnostic_fulfillments[demand_id]
+            errors = tuple(
+                attempt.error.code.value
+                for attempt in fulfillment.attempts
+                if attempt.error is not None
+            )
+            missing_reason = None
+            if evidence.usability is not EvidenceUsability.RESOLVED:
+                if errors:
+                    missing_reason = errors[0]
+                elif evidence.freshness_status is not None:
+                    missing_reason = f"freshness:{evidence.freshness_status.value}"
+                else:
+                    missing_reason = "no_usable_evidence"
+            items.append(
+                CapabilityDemandDiagnostic(
+                    demand_id=demand_id,
+                    capability=evidence.capability.value,
+                    acquisition_result=fulfillment.status.value,
+                    evidence_usability=evidence.usability.value,
+                    reused_across_consumers=consumer_count_by_demand[demand_id] > 1,
+                    attempt_count=len(fulfillment.attempts),
+                    missing_reason=missing_reason,
+                )
+            )
+        projected[strategy_id] = tuple(sorted(items, key=lambda item: item.demand_id))
+    return projected
 
 
 class SubjectPreparationRegistry(Generic[TPayload]):  # noqa: UP046
@@ -275,9 +331,15 @@ def prepare_subject_knowledge_with_temporal(
     )
     prepared: dict[str, ReadOnlyStrategyInput[object] | UnknownReason] = {}
     temporal_observations: dict[str, tuple[MarketObservation, ...]] = {}
+    acquisition_diagnostics = _acquisition_diagnostics(
+        plan_result,
+        tuple(
+            (strategy_id, bindings[strategy_id].consumer.consumer_id)
+            for strategy_id in strategy_ids
+        ),
+    )
     snapshot_observation_by_id = {
-        observation.observation_id: observation
-        for observation in plan_result.snapshot.observations
+        observation.observation_id: observation for observation in plan_result.snapshot.observations
     }
     for strategy_id in strategy_ids:
         binding = bindings[strategy_id]
@@ -314,8 +376,8 @@ def prepare_subject_knowledge_with_temporal(
             if isinstance(mapping, UnknownReason):
                 prepared[strategy_id] = mapping
                 continue
-            knowledge_registry: KnowledgeCompositionRegistry[object] = (
-                KnowledgeCompositionRegistry(((strategy_id, mapping),))
+            knowledge_registry: KnowledgeCompositionRegistry[object] = KnowledgeCompositionRegistry(
+                ((strategy_id, mapping),)
             )
             prepared[strategy_id] = compose_strategy_knowledge(
                 plan_result.snapshot,
@@ -327,12 +389,12 @@ def prepare_subject_knowledge_with_temporal(
             # The subject snapshot is already sealed. A defect in one
             # strategy-owned projection or composition must not erase valid
             # knowledge for unrelated consumers sharing that evidence boundary.
-            prepared[strategy_id] = record_strategy_knowledge_failure(
-                strategy_id, subject, exc
-            )
+            prepared[strategy_id] = record_strategy_knowledge_failure(strategy_id, subject, exc)
             continue
     return PreparedSubjectKnowledge(
-        tuple(sorted(prepared.items())), tuple(sorted(temporal_observations.items()))
+        tuple(sorted(prepared.items())),
+        tuple(sorted(temporal_observations.items())),
+        tuple(sorted(acquisition_diagnostics.items())),
     )
 
 

@@ -75,6 +75,10 @@ from strategy_runtime.contract import (
 )
 from strategy_runtime.knowledge import ReadOnlyStrategyInput
 from strategy_runtime.market_data_planning import resolution_policy_for_capabilities
+from strategy_runtime.option_funnel import (
+    CapabilityDemandDiagnostic,
+    acquisition_diagnostics_from_result,
+)
 from strategy_runtime.orchestration import (
     CutoverPolicy,
     SubjectAcquisitionAccess,
@@ -521,9 +525,7 @@ class TestPrepareSubjectShadowKnowledge:
         binding: SubjectPreparationBinding[object] = SubjectPreparationBinding(
             consumer=consumer,
             prepare_knowledge_mapping=_synthetic_prepare_knowledge_mapping,
-            build_shadow_adapter=lambda _knowledge: _shadow_adapter_matching_legacy(
-                _knowledge
-            ),
+            build_shadow_adapter=lambda _knowledge: _shadow_adapter_matching_legacy(_knowledge),
         )
         registry: SubjectPreparationRegistry[object] = SubjectPreparationRegistry(
             ((_SYNTHETIC_STRATEGY_ID, binding),)
@@ -539,15 +541,20 @@ class TestPrepareSubjectShadowKnowledge:
             resolution_policy_by_capability=_SYNTHETIC_RESOLUTION_POLICY,
         )
 
-        observations = prepared.temporal_observations_by_strategy[
-            _SYNTHETIC_STRATEGY_ID
-        ]
+        observations = prepared.temporal_observations_by_strategy[_SYNTHETIC_STRATEGY_ID]
         assert isinstance(
             prepared.knowledge_by_strategy[_SYNTHETIC_STRATEGY_ID],
             ReadOnlyStrategyInput,
         )
         assert len(observations) == 1
         assert observations[0].capability is CAPABILITY
+        diagnostics = prepared.acquisition_diagnostics_by_strategy[_SYNTHETIC_STRATEGY_ID]
+        assert len(diagnostics) == 1
+        assert diagnostics[0].capability == CAPABILITY.value
+        assert diagnostics[0].acquisition_result == "fulfilled"
+        assert diagnostics[0].evidence_usability == "resolved"
+        assert diagnostics[0].attempt_count == 1
+        assert diagnostics[0].missing_reason is None
         assert len(budgets.accounting) == 1
 
     def test_fourth_strategy_plugin_shares_snapshot_request_and_generic_runtime(self) -> None:
@@ -1060,6 +1067,15 @@ class TestCutoverDispatch:
         shadow_registry = _synthetic_shadow_registry(_shadow_adapter_mismatched_verdict)
         knowledge = {_SYNTHETIC_STRATEGY_ID: _synthetic_knowledge_input("AAPL")}
         cutover_policy = CutoverPolicy({_SYNTHETIC_STRATEGY_ID: True})
+        acquisition = CapabilityDemandDiagnostic(
+            demand_id="demand-1",
+            capability=CAPABILITY.value,
+            acquisition_result="fulfilled",
+            evidence_usability="resolved",
+            reused_across_consumers=False,
+            attempt_count=1,
+            missing_reason=None,
+        )
 
         result, diagnostic = refresh_with_shadow(
             _raising_legacy_registry(),
@@ -1070,11 +1086,15 @@ class TestCutoverDispatch:
             observations=tuple,
             shadow_registry=shadow_registry,
             shadow_knowledge_by_subject=knowledge,
+            acquisition_diagnostics_by_strategy={
+                _SYNTHETIC_STRATEGY_ID: (acquisition,)
+            },
             cutover_policy=cutover_policy,
             now=NOW,
         )
 
         assert result.verdict == "WATCH"
+        assert acquisition_diagnostics_from_result(result) == (acquisition,)
         # No shadow comparison runs once cutover is authoritative --
         # there is nothing left to compare against (Architect checkpoint:
         # nineteenth review, "do not run both authoritative paths after
@@ -1219,9 +1239,7 @@ class TestCutoverDispatch:
 
         assert result.verdict is None
         assert result.evaluation_state == EvaluationState.MISSING_DATA.value
-        assert result.blockers == (
-            "typed unknown evidence gap: subject_preparation_failed",
-        )
+        assert result.blockers == ("typed unknown evidence gap: subject_preparation_failed",)
         assert diagnostic is None
 
     def test_cut_over_but_not_shadow_registered_falls_back_to_legacy(self) -> None:

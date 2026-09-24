@@ -39,6 +39,7 @@ from asa.api.screening_models import (
     CapabilitiesResponse,
     ModeledPnLSurfaceResponse,
     OpportunityHistoryResponse,
+    OptionFunnelTraceResponse,
     ReasonCountResponse,
     RefreshResultResponse,
     ScreeningExecutionReadinessResponse,
@@ -69,6 +70,7 @@ from strategy_runtime.adapters import (
     migrated_shadow_resolution_policy,
 )
 from strategy_runtime.catalog import SignalCatalogEntry
+from strategy_runtime.contract import StructureKind
 from strategy_runtime.executable_structures import deserialize_execution_assessment
 from strategy_runtime.health import build_strategy_health
 from strategy_runtime.knowledge import ReadOnlyStrategyInput
@@ -81,6 +83,10 @@ from strategy_runtime.modeled_pnl import (
     ModeledPnLAssumptions,
     ModeledPnLUnknown,
     model_front_expiration_pnl,
+)
+from strategy_runtime.option_funnel import (
+    CapabilityDemandDiagnostic,
+    build_option_funnel_trace,
 )
 from strategy_runtime.orchestration import (
     build_subject_acquisition_access,
@@ -305,9 +311,7 @@ def build_screening_router(
             sort_by=sort_by,
             sort_order=sort_order,
         )
-        retained_nonactive_total = sum(
-            item.symbol not in active_symbols for item in all_records
-        )
+        retained_nonactive_total = sum(item.symbol not in active_symbols for item in all_records)
         records = (
             tuple(item for item in all_records if item.symbol in active_symbols)
             if active_only
@@ -410,9 +414,7 @@ def build_screening_router(
             sort_by=sort_by,
             sort_order=sort_order,
         )
-        retained_nonactive_total = sum(
-            item.symbol not in active_symbols for item in all_records
-        )
+        retained_nonactive_total = sum(item.symbol not in active_symbols for item in all_records)
         records = (
             tuple(item for item in all_records if item.symbol in active_symbols)
             if active_only
@@ -440,12 +442,45 @@ def build_screening_router(
         return ScreeningResultResponse.from_universal_result(records[0])
 
     @router.get(
+        "/screening/{signal}/{symbol}/option-funnel",
+        response_model=OptionFunnelTraceResponse,
+    )
+    def get_option_funnel(signal: str, symbol: str) -> OptionFunnelTraceResponse:
+        """Compose one complete trace from existing result/readiness authorities."""
+        _require_registered_signal(signal)
+        contract = registry.contract_for(signal)
+        if contract.structure is StructureKind.NONE:
+            raise agent_api_error(
+                404,
+                "NO_OPTION_FUNNEL",
+                f"Signal {signal!r} declares no option structure",
+            )
+        records = get_state(repository, strategy_id=signal, symbol=symbol)
+        if not records:
+            raise agent_api_error(
+                404, "NO_SCREENING_RESULT", f"No screening result for {signal!r}/{symbol!r}"
+            )
+        result = records[0]
+        artifact = (
+            None
+            if portfolio_lifecycle_repository is None
+            else portfolio_lifecycle_repository.execution_readiness(signal, symbol.upper())
+        )
+        assessment = None
+        if artifact is not None and artifact.originating_observation_id == result.observation_id:
+            assessment = deserialize_execution_assessment(artifact.assessment_json)
+        trace = build_option_funnel_trace(
+            result,
+            contract,
+            assessment,
+        )
+        return OptionFunnelTraceResponse.from_trace(trace)
+
+    @router.get(
         "/screening/{signal}/{symbol}/execution-readiness",
         response_model=ScreeningExecutionReadinessResponse,
     )
-    def get_execution_readiness(
-        signal: str, symbol: str
-    ) -> ScreeningExecutionReadinessResponse:
+    def get_execution_readiness(signal: str, symbol: str) -> ScreeningExecutionReadinessResponse:
         _require_registered_signal(signal)
         records = get_state(repository, strategy_id=signal, symbol=symbol)
         artifact = (
@@ -513,8 +548,7 @@ def build_screening_router(
             prices = tuple(Decimal(item.strip()) for item in underlying_price_grid.split(","))
             volatility_raw = json.loads(volatility_by_contract)
             volatility = tuple(
-                (str(identity), Decimal(str(value)))
-                for identity, value in volatility_raw.items()
+                (str(identity), Decimal(str(value))) for identity, value in volatility_raw.items()
             )
         except (AttributeError, json.JSONDecodeError, ArithmeticError, ValueError):
             raise agent_api_error(
@@ -608,6 +642,7 @@ def build_screening_router(
             dict[str, ReadOnlyStrategyInput[object] | UnknownReason] | None
         ) = None
         shadow_temporal_observations_by_strategy: dict[str, tuple[MarketObservation, ...]] = {}
+        acquisition_diagnostics_by_strategy: dict[str, tuple[CapabilityDemandDiagnostic, ...]] = {}
         if signal in shadow_registry.strategy_ids():
             try:
                 prepared_subject = prepare_subject_shadow_knowledge_with_temporal(
@@ -625,6 +660,9 @@ def build_screening_router(
                 shadow_knowledge_by_subject = dict(prepared_subject.knowledge_by_strategy)
                 shadow_temporal_observations_by_strategy = dict(
                     prepared_subject.temporal_observations_by_strategy
+                )
+                acquisition_diagnostics_by_strategy = dict(
+                    prepared_subject.acquisition_diagnostics_by_strategy
                 )
             except Exception as failure:
                 _LOGGER.warning(
@@ -650,6 +688,7 @@ def build_screening_router(
                 ),
                 shadow_registry=shadow_registry,
                 shadow_knowledge_by_subject=shadow_knowledge_by_subject,
+                acquisition_diagnostics_by_strategy=acquisition_diagnostics_by_strategy,
                 cutover_policy=cutover_policy,
             )
         except RuntimeError:
