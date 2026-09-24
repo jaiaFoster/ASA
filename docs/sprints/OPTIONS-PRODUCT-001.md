@@ -1,5 +1,30 @@
 # OPTIONS-PRODUCT-001 — Autonomous Sprint Prompt
 
+
+## Founder Sprint Delegation record
+
+- **Sprint:** `OPTIONS-PRODUCT-001`
+- **Founder authorization:** explicit, 2026-09-23, as part of ASA-OPTIONS-TO-OUTCOMES-2026Q4
+- **Governance mechanism:** GOV-AMD-001 Amendment 013 (Founder Sprint Delegation)
+- **Delegate:** ROLE-WORKER, instance `implementation-worker`
+- **Approved tickets:** `OP-01`, `OP-02`, `OP-03`, `OP-04`, `OP-05`, `OP-06`, `OP-07`
+- **Effective when:** this sprint definition and the program prompt are on the default branch through Founder merge
+- **Expires when:** sprint closes; sprint stops; Founder revokes; or scope/authority/risk materially changes
+- **Deployment authority:** Founder only; not delegated
+- **Broker/live mutation authority:** none
+- **Paid-provider procurement authority:** none
+
+Before every delegated merge, the Worker must record self-review and satisfy all validation/review gates required by current governance and the touched risk class, including required CI, architecture validation, deterministic replay/identity/immutable-contract/integrity checks where applicable, scope conformance, and no unresolved blocker. Branch-protection bypass and governance changes are not delegated.
+
+### Stop conditions
+
+Stop only the affected path and escalate to the appropriate role when:
+- required validation or mandatory review fails and cannot be corrected in scope;
+- implementation would create a new authority, source of truth, strategy-ID branch in generic runtime, or materially incompatible architecture;
+- scope/risk/authority would expand beyond this sprint;
+- a genuine Founder blocker from the program prompt is reached.
+
+Independent in-scope work continues whenever isolation is safe.
 **Purpose:** turn trustworthy option-strategy results into complete, understandable trade proposals a user can act on without separately reconstructing the position.
 
 Read the program prompt first. OPTIONS-TRUTH-001 may still be observation-pending or in bounded correction.
