@@ -1,0 +1,2190 @@
+{
+  "artifact_version": "1.0.0",
+  "captured_at": "2026-09-24T16:24:55.126009+00:00",
+  "classification_counts": {
+    "legitimate_temporal_or_policy_absence": 12,
+    "provider_entitlement_or_coverage": 1,
+    "true_strategy_rejection": 17
+  },
+  "cohort_checksum": "aa240826a6c8c6cbf9aa7edc9cfd8abc581bd6755259f7b15df653e6d6a0c4d5",
+  "cohort_size": 30,
+  "observations": [
+    {
+      "acquisition": [
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "real_time_quote_v1",
+          "demand_id": "38f09f548e6588945786fff39b3282a7e723e43ae559d6132a4c4878a898d139",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        },
+        {
+          "acquisition_result": "degraded",
+          "attempt_count": 2,
+          "capability": "earnings_calendar_v1",
+          "demand_id": "47373c302bb84685065e6cc671d17d0ef31c5850f9283d8336b862dd24d8ed38",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        },
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "option_chain_v1",
+          "demand_id": "5a4ac4cab6b0d65fb54ef487285d98ec43e7b1ffa2136feffa33c67a0f9d7c79",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        },
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "option_chain_v1",
+          "demand_id": "85302f68146f52a6dd1b341f4eacdb3950cdc16dec52aa6a55798dde87d941ab",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": false
+        },
+        {
+          "acquisition_result": "degraded",
+          "attempt_count": 3,
+          "capability": "historical_bars_v1",
+          "demand_id": "ad06d71d89f012e411a8f33e38d3e31ac6364e3e1f561927e4643d6e47d0a222",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": false
+        },
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "option_chain_v1",
+          "demand_id": "ff990e7599d31102452df52cbd88ddd33f88f1ab7ab895a0a372d69f9acbfbf0",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        }
+      ],
+      "actual_gap_days": "28",
+      "classification": "true_strategy_rejection",
+      "constructibility_reason": null,
+      "earnings_date": "2026-10-06",
+      "evaluation_state": "no_signal",
+      "gate_outcomes": [
+        {
+          "gate": "earnings_eligible",
+          "outcome": true
+        },
+        {
+          "gate": "eligible",
+          "outcome": false
+        },
+        {
+          "gate": "gap_eligible",
+          "outcome": true
+        },
+        {
+          "gate": "liquidity_acceptable",
+          "outcome": false
+        },
+        {
+          "gate": "volume_supplement_strong",
+          "outcome": false
+        }
+      ],
+      "observation_id": "3e9006217ecc2296104677ec881456cfa862c897cdeec75976df0caffaa5e8f2",
+      "selected_back_expiration": "2026-10-30",
+      "selected_front_expiration": "2026-10-02",
+      "signal_verdict": "FAIL",
+      "structure_status": "constructible_as_intended",
+      "symbol": "STZ",
+      "terminal_reason": "verdict:fail",
+      "terminal_state": "strategy_rejected"
+    },
+    {
+      "acquisition": [
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "real_time_quote_v1",
+          "demand_id": "3db5e48e57c0d01fd8fe5a2cf894bacca1a55aa415c48d92937ec4d990497429",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        },
+        {
+          "acquisition_result": "degraded",
+          "attempt_count": 3,
+          "capability": "historical_bars_v1",
+          "demand_id": "4ea2be6937b8e74162874f2874cdc73f8e22e2fd2c1798670113e14b60942bb8",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": false
+        },
+        {
+          "acquisition_result": "degraded",
+          "attempt_count": 2,
+          "capability": "earnings_calendar_v1",
+          "demand_id": "947660e20c123fe6a95f2c006314b1e0251d91554f8a345e16947483acffab8c",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        },
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "option_chain_v1",
+          "demand_id": "d374bc01a18437cdfd5c4125fff129ff38d06d90ba8e7af32447cbb564e83c19",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": false
+        },
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "option_chain_v1",
+          "demand_id": "db79925b9dc3de932fce925c40f35cd435ff50d6c1807a0b9cbbaf3a020b9454",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        },
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "option_chain_v1",
+          "demand_id": "e9e758c0482ef29e7e7af5658205a0888ec12fa56b27ae88c4f0e6fb9b9514ae",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        }
+      ],
+      "actual_gap_days": "28",
+      "classification": "true_strategy_rejection",
+      "constructibility_reason": null,
+      "earnings_date": "2026-10-08",
+      "evaluation_state": "no_signal",
+      "gate_outcomes": [
+        {
+          "gate": "earnings_eligible",
+          "outcome": true
+        },
+        {
+          "gate": "eligible",
+          "outcome": true
+        },
+        {
+          "gate": "gap_eligible",
+          "outcome": true
+        },
+        {
+          "gate": "liquidity_acceptable",
+          "outcome": true
+        },
+        {
+          "gate": "volume_supplement_strong",
+          "outcome": false
+        }
+      ],
+      "observation_id": "85245e36aa2912ffd8add74d80bc765b887324fb70bead504c3add42aeafeb3b",
+      "selected_back_expiration": "2026-10-30",
+      "selected_front_expiration": "2026-10-02",
+      "signal_verdict": "FAIL",
+      "structure_status": "constructible_as_intended",
+      "symbol": "PEP",
+      "terminal_reason": "verdict:fail",
+      "terminal_state": "strategy_rejected"
+    },
+    {
+      "acquisition": [
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "real_time_quote_v1",
+          "demand_id": "7cbd32319bbee75a452d4487d697b38b8a13a845451318cff632390c29fff0a7",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        },
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "option_chain_v1",
+          "demand_id": "87e121550b6a84bb5fc176489e3c8053e8a151c62c23c6988c42db969008e5f5",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        },
+        {
+          "acquisition_result": "degraded",
+          "attempt_count": 2,
+          "capability": "earnings_calendar_v1",
+          "demand_id": "a35ac894ca179c96217e8006ef97f3b285bd7817ab93bb95f9fe7a72355067bb",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        },
+        {
+          "acquisition_result": "degraded",
+          "attempt_count": 3,
+          "capability": "historical_bars_v1",
+          "demand_id": "a4d3aaf4b9f7f301b7fa44f12fcb2c57c969fac80b376a5ccd9c675a817d0a39",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": false
+        },
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "option_chain_v1",
+          "demand_id": "b66cefcb9a87b8ea404b5b077fa0d12cacd9e75e5cc76427b5b5714e2cf10cb0",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": false
+        },
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "option_chain_v1",
+          "demand_id": "e8fb1a2cbd6730c2dfc34b6c6b5c43930a8f66bc423131185aa4b4a732a3491a",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        }
+      ],
+      "actual_gap_days": "28",
+      "classification": "true_strategy_rejection",
+      "constructibility_reason": "no_compatible_contract",
+      "earnings_date": "2026-10-09",
+      "evaluation_state": "no_signal",
+      "gate_outcomes": [
+        {
+          "gate": "earnings_eligible",
+          "outcome": true
+        },
+        {
+          "gate": "eligible",
+          "outcome": false
+        },
+        {
+          "gate": "gap_eligible",
+          "outcome": true
+        },
+        {
+          "gate": "liquidity_acceptable",
+          "outcome": false
+        },
+        {
+          "gate": "volume_supplement_strong",
+          "outcome": false
+        }
+      ],
+      "observation_id": "7db158dbccaeaf75327fb01d86392f5611666962e3b43e0008e81b8f4a471335",
+      "selected_back_expiration": "2026-10-30",
+      "selected_front_expiration": "2026-10-02",
+      "signal_verdict": "FAIL",
+      "structure_status": "not_constructible",
+      "symbol": "BLK",
+      "terminal_reason": "verdict:fail",
+      "terminal_state": "strategy_rejected"
+    },
+    {
+      "acquisition": [
+        {
+          "acquisition_result": "degraded",
+          "attempt_count": 2,
+          "capability": "earnings_calendar_v1",
+          "demand_id": "0ce0b70bb15488db97fa7dde2f72bee0513deedfc2f2f2140ef8f043b8a1aaf6",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        },
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "option_chain_v1",
+          "demand_id": "16d04ab7a35abc862130b4db1a3776b7a2bc08115130633942fb062218de5e0f",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": false
+        },
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "option_chain_v1",
+          "demand_id": "8c7204512ac2acd556284b9d2e4483fa8a8abc593a738c523cc606a457d417d9",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        },
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "real_time_quote_v1",
+          "demand_id": "9bb44f995b00cf65478924f86a18bff3fc51ca22fe3d2f9b3e81e0e48f423283",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        },
+        {
+          "acquisition_result": "degraded",
+          "attempt_count": 3,
+          "capability": "historical_bars_v1",
+          "demand_id": "d7b86e755a225c2ef1b48434d98b734d2eb3e6e0f445818a55c851b251a19f0c",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": false
+        },
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "option_chain_v1",
+          "demand_id": "f7a39b9879d4d42449087fd1fa957b49f0076ec3504e239b7a22f48b8e3a9c6d",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        }
+      ],
+      "actual_gap_days": "28",
+      "classification": "true_strategy_rejection",
+      "constructibility_reason": null,
+      "earnings_date": "2026-10-13",
+      "evaluation_state": "no_signal",
+      "gate_outcomes": [
+        {
+          "gate": "earnings_eligible",
+          "outcome": true
+        },
+        {
+          "gate": "eligible",
+          "outcome": true
+        },
+        {
+          "gate": "gap_eligible",
+          "outcome": true
+        },
+        {
+          "gate": "liquidity_acceptable",
+          "outcome": true
+        },
+        {
+          "gate": "volume_supplement_strong",
+          "outcome": false
+        }
+      ],
+      "observation_id": "6e18271586e0b196f2ea8d7da8c65df37472671b4e1c1661e1929f9110b7a94a",
+      "selected_back_expiration": "2026-10-30",
+      "selected_front_expiration": "2026-10-02",
+      "signal_verdict": "FAIL",
+      "structure_status": "constructible_as_intended",
+      "symbol": "ABT",
+      "terminal_reason": "verdict:fail",
+      "terminal_state": "strategy_rejected"
+    },
+    {
+      "acquisition": [
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "real_time_quote_v1",
+          "demand_id": "3db5e48e57c0d01fd8fe5a2cf894bacca1a55aa415c48d92937ec4d990497429",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        },
+        {
+          "acquisition_result": "degraded",
+          "attempt_count": 3,
+          "capability": "historical_bars_v1",
+          "demand_id": "4ea2be6937b8e74162874f2874cdc73f8e22e2fd2c1798670113e14b60942bb8",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": false
+        },
+        {
+          "acquisition_result": "degraded",
+          "attempt_count": 2,
+          "capability": "earnings_calendar_v1",
+          "demand_id": "947660e20c123fe6a95f2c006314b1e0251d91554f8a345e16947483acffab8c",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        },
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "option_chain_v1",
+          "demand_id": "d374bc01a18437cdfd5c4125fff129ff38d06d90ba8e7af32447cbb564e83c19",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": false
+        },
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "option_chain_v1",
+          "demand_id": "db79925b9dc3de932fce925c40f35cd435ff50d6c1807a0b9cbbaf3a020b9454",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        },
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "option_chain_v1",
+          "demand_id": "e9e758c0482ef29e7e7af5658205a0888ec12fa56b27ae88c4f0e6fb9b9514ae",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        }
+      ],
+      "actual_gap_days": "28",
+      "classification": "true_strategy_rejection",
+      "constructibility_reason": null,
+      "earnings_date": "2026-10-13",
+      "evaluation_state": "no_signal",
+      "gate_outcomes": [
+        {
+          "gate": "earnings_eligible",
+          "outcome": true
+        },
+        {
+          "gate": "eligible",
+          "outcome": true
+        },
+        {
+          "gate": "gap_eligible",
+          "outcome": true
+        },
+        {
+          "gate": "liquidity_acceptable",
+          "outcome": true
+        },
+        {
+          "gate": "volume_supplement_strong",
+          "outcome": false
+        }
+      ],
+      "observation_id": "245f82a54d3a5c89d8606dc699f105403af5308aed0a347144647abe0063a3de",
+      "selected_back_expiration": "2026-10-30",
+      "selected_front_expiration": "2026-10-02",
+      "signal_verdict": "FAIL",
+      "structure_status": "constructible_as_intended",
+      "symbol": "C",
+      "terminal_reason": "verdict:fail",
+      "terminal_state": "strategy_rejected"
+    },
+    {
+      "acquisition": [],
+      "actual_gap_days": "28",
+      "classification": "true_strategy_rejection",
+      "constructibility_reason": null,
+      "earnings_date": "2026-10-13",
+      "evaluation_state": "no_signal",
+      "gate_outcomes": [
+        {
+          "gate": "earnings_eligible",
+          "outcome": true
+        },
+        {
+          "gate": "eligible",
+          "outcome": true
+        },
+        {
+          "gate": "gap_eligible",
+          "outcome": true
+        },
+        {
+          "gate": "liquidity_acceptable",
+          "outcome": true
+        },
+        {
+          "gate": "volume_supplement_strong",
+          "outcome": false
+        }
+      ],
+      "observation_id": "04e7698b10a16887ff96b540e37f43b59d7b84222613d01483470c3321e1e7be",
+      "selected_back_expiration": "2026-10-30",
+      "selected_front_expiration": "2026-10-02",
+      "signal_verdict": "FAIL",
+      "structure_status": "constructible_as_intended",
+      "symbol": "GS",
+      "terminal_reason": "verdict:fail",
+      "terminal_state": "strategy_rejected"
+    },
+    {
+      "acquisition": [
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "real_time_quote_v1",
+          "demand_id": "7cbd32319bbee75a452d4487d697b38b8a13a845451318cff632390c29fff0a7",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        },
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "option_chain_v1",
+          "demand_id": "87e121550b6a84bb5fc176489e3c8053e8a151c62c23c6988c42db969008e5f5",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        },
+        {
+          "acquisition_result": "degraded",
+          "attempt_count": 2,
+          "capability": "earnings_calendar_v1",
+          "demand_id": "a35ac894ca179c96217e8006ef97f3b285bd7817ab93bb95f9fe7a72355067bb",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        },
+        {
+          "acquisition_result": "degraded",
+          "attempt_count": 3,
+          "capability": "historical_bars_v1",
+          "demand_id": "a4d3aaf4b9f7f301b7fa44f12fcb2c57c969fac80b376a5ccd9c675a817d0a39",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": false
+        },
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "option_chain_v1",
+          "demand_id": "b66cefcb9a87b8ea404b5b077fa0d12cacd9e75e5cc76427b5b5714e2cf10cb0",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": false
+        },
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "option_chain_v1",
+          "demand_id": "e8fb1a2cbd6730c2dfc34b6c6b5c43930a8f66bc423131185aa4b4a732a3491a",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        }
+      ],
+      "actual_gap_days": "28",
+      "classification": "true_strategy_rejection",
+      "constructibility_reason": "no_compatible_contract",
+      "earnings_date": "2026-10-13",
+      "evaluation_state": "no_signal",
+      "gate_outcomes": [
+        {
+          "gate": "earnings_eligible",
+          "outcome": true
+        },
+        {
+          "gate": "eligible",
+          "outcome": true
+        },
+        {
+          "gate": "gap_eligible",
+          "outcome": true
+        },
+        {
+          "gate": "liquidity_acceptable",
+          "outcome": true
+        },
+        {
+          "gate": "volume_supplement_strong",
+          "outcome": true
+        }
+      ],
+      "observation_id": "75e2816650a09b0104a4ceefc835be8b6547a26eee18ede22f097c85a24830b4",
+      "selected_back_expiration": "2026-10-30",
+      "selected_front_expiration": "2026-10-02",
+      "signal_verdict": "FAIL",
+      "structure_status": "not_constructible",
+      "symbol": "JNJ",
+      "terminal_reason": "verdict:fail",
+      "terminal_state": "strategy_rejected"
+    },
+    {
+      "acquisition": [
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "real_time_quote_v1",
+          "demand_id": "7cbd32319bbee75a452d4487d697b38b8a13a845451318cff632390c29fff0a7",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        },
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "option_chain_v1",
+          "demand_id": "87e121550b6a84bb5fc176489e3c8053e8a151c62c23c6988c42db969008e5f5",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        },
+        {
+          "acquisition_result": "degraded",
+          "attempt_count": 2,
+          "capability": "earnings_calendar_v1",
+          "demand_id": "a35ac894ca179c96217e8006ef97f3b285bd7817ab93bb95f9fe7a72355067bb",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        },
+        {
+          "acquisition_result": "degraded",
+          "attempt_count": 3,
+          "capability": "historical_bars_v1",
+          "demand_id": "a4d3aaf4b9f7f301b7fa44f12fcb2c57c969fac80b376a5ccd9c675a817d0a39",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": false
+        },
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "option_chain_v1",
+          "demand_id": "b66cefcb9a87b8ea404b5b077fa0d12cacd9e75e5cc76427b5b5714e2cf10cb0",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": false
+        },
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "option_chain_v1",
+          "demand_id": "e8fb1a2cbd6730c2dfc34b6c6b5c43930a8f66bc423131185aa4b4a732a3491a",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        }
+      ],
+      "actual_gap_days": "28",
+      "classification": "true_strategy_rejection",
+      "constructibility_reason": "no_compatible_contract",
+      "earnings_date": "2026-10-13",
+      "evaluation_state": "no_signal",
+      "gate_outcomes": [
+        {
+          "gate": "earnings_eligible",
+          "outcome": true
+        },
+        {
+          "gate": "eligible",
+          "outcome": true
+        },
+        {
+          "gate": "gap_eligible",
+          "outcome": true
+        },
+        {
+          "gate": "liquidity_acceptable",
+          "outcome": true
+        },
+        {
+          "gate": "volume_supplement_strong",
+          "outcome": false
+        }
+      ],
+      "observation_id": "cf63ce84028e9073165fa0dcbc9d1988199e698842eae50d05f62e772967c546",
+      "selected_back_expiration": "2026-10-30",
+      "selected_front_expiration": "2026-10-02",
+      "signal_verdict": "FAIL",
+      "structure_status": "not_constructible",
+      "symbol": "JPM",
+      "terminal_reason": "verdict:fail",
+      "terminal_state": "strategy_rejected"
+    },
+    {
+      "acquisition": [
+        {
+          "acquisition_result": "degraded",
+          "attempt_count": 3,
+          "capability": "historical_bars_v1",
+          "demand_id": "6a5845317b3e8c4813e786129ec0a99c43502eaa31b0fd31dbac94ea9fe846ec",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": false
+        },
+        {
+          "acquisition_result": "degraded",
+          "attempt_count": 2,
+          "capability": "earnings_calendar_v1",
+          "demand_id": "6d8a0578e866e8194b62b55b75d696880cc1c2c4c51d6375b9f4020fb649165d",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        },
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "option_chain_v1",
+          "demand_id": "8146202711fd2c6ce3184287c19bd7042ea4227eda96636ac2deab194fce75ba",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        },
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "real_time_quote_v1",
+          "demand_id": "ae46739cebf744aa763cdc214ad9256952af3d57ae0cbb1db66a60133a9dfc07",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        },
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "option_chain_v1",
+          "demand_id": "bf0fc58858cba89f2d9a1176f23935e36d891cb44d93161fe2d57ca3ec0f4447",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        },
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "option_chain_v1",
+          "demand_id": "dd501a4a392a87ba1ca281a03c3122fbb709a215d5243ea20e7d0cade21216e1",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": false
+        }
+      ],
+      "actual_gap_days": "28",
+      "classification": "true_strategy_rejection",
+      "constructibility_reason": "no_compatible_contract",
+      "earnings_date": "2026-10-13",
+      "evaluation_state": "no_signal",
+      "gate_outcomes": [
+        {
+          "gate": "earnings_eligible",
+          "outcome": true
+        },
+        {
+          "gate": "eligible",
+          "outcome": true
+        },
+        {
+          "gate": "gap_eligible",
+          "outcome": true
+        },
+        {
+          "gate": "liquidity_acceptable",
+          "outcome": true
+        },
+        {
+          "gate": "volume_supplement_strong",
+          "outcome": true
+        }
+      ],
+      "observation_id": "c36866451d9dcecd8d8f2ba482f1b75aa1b7e946c4d31ed81e906fb57276e5ca",
+      "selected_back_expiration": "2026-10-30",
+      "selected_front_expiration": "2026-10-02",
+      "signal_verdict": "FAIL",
+      "structure_status": "not_constructible",
+      "symbol": "UNH",
+      "terminal_reason": "verdict:fail",
+      "terminal_state": "strategy_rejected"
+    },
+    {
+      "acquisition": [
+        {
+          "acquisition_result": "degraded",
+          "attempt_count": 2,
+          "capability": "earnings_calendar_v1",
+          "demand_id": "03bfb6869575452766048168ad5a438ede0ac5c4a208813892b5a9bd1db8b616",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        },
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "option_chain_v1",
+          "demand_id": "45a6a261d6b09ab9ee5755cef87626b4812a7d6f9e02c86c8fa4af0f76ce61b7",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        },
+        {
+          "acquisition_result": "degraded",
+          "attempt_count": 3,
+          "capability": "historical_bars_v1",
+          "demand_id": "499a30abe9b41d9fadd1670eb27ce1154021362a82bbdce1a262187d4d5093bc",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": false
+        },
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "option_chain_v1",
+          "demand_id": "885b0d5032df5f95361f853f11a251cdbe9ef2801ddcc0d47bf00c7e8b33e70b",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        },
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "real_time_quote_v1",
+          "demand_id": "9862986fa6bca64dc910ea73a7fc758c9456fda4f0817a3f6c84b87a488be760",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        },
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "option_chain_v1",
+          "demand_id": "a9645109b9bbfc6cd46ed1a9649651c31c42fdd2eb6d3f72c0a4bdc02cc9cb49",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": false
+        }
+      ],
+      "actual_gap_days": "28",
+      "classification": "true_strategy_rejection",
+      "constructibility_reason": null,
+      "earnings_date": "2026-10-13",
+      "evaluation_state": "no_signal",
+      "gate_outcomes": [
+        {
+          "gate": "earnings_eligible",
+          "outcome": true
+        },
+        {
+          "gate": "eligible",
+          "outcome": false
+        },
+        {
+          "gate": "gap_eligible",
+          "outcome": true
+        },
+        {
+          "gate": "liquidity_acceptable",
+          "outcome": false
+        },
+        {
+          "gate": "volume_supplement_strong",
+          "outcome": false
+        }
+      ],
+      "observation_id": "f3a31e2c54bd9850a449f602d64099a4352dd531a195f1f543cd3f33632869c0",
+      "selected_back_expiration": "2026-10-30",
+      "selected_front_expiration": "2026-10-02",
+      "signal_verdict": "FAIL",
+      "structure_status": "constructible_as_intended",
+      "symbol": "WFC",
+      "terminal_reason": "verdict:fail",
+      "terminal_state": "strategy_rejected"
+    },
+    {
+      "acquisition": [
+        {
+          "acquisition_result": "degraded",
+          "attempt_count": 2,
+          "capability": "earnings_calendar_v1",
+          "demand_id": "3ac6532b6ca577030f07e81426d4ac40e6fc0043acb92c38b4cc623648f2c271",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        },
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "real_time_quote_v1",
+          "demand_id": "8de096a5a9731ba0cad0de0c6a12fb75f0347a71983035c6388e75722120ea2d",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        },
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "option_chain_v1",
+          "demand_id": "c57d5c68bf6c3eef1746df08902db9c176b5cafb7aa5b42f11985a009a1b7203",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        },
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "option_chain_v1",
+          "demand_id": "db3aa7d07e2d61ae9f1c99642b09951f810eedb35347cd331042fff11de5ec88",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": false
+        },
+        {
+          "acquisition_result": "degraded",
+          "attempt_count": 3,
+          "capability": "historical_bars_v1",
+          "demand_id": "dbb52a520b3a198167ee1a80739f467744ba98c7157338eb00687bb9a7a6d4bb",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": false
+        },
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "option_chain_v1",
+          "demand_id": "e77b60bd42946a6c92be6217b3032abaacdd18d0a5c47526f97f6864fee1027f",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        }
+      ],
+      "actual_gap_days": "28",
+      "classification": "true_strategy_rejection",
+      "constructibility_reason": null,
+      "earnings_date": "2026-10-14",
+      "evaluation_state": "no_signal",
+      "gate_outcomes": [
+        {
+          "gate": "earnings_eligible",
+          "outcome": true
+        },
+        {
+          "gate": "eligible",
+          "outcome": true
+        },
+        {
+          "gate": "gap_eligible",
+          "outcome": true
+        },
+        {
+          "gate": "liquidity_acceptable",
+          "outcome": true
+        },
+        {
+          "gate": "volume_supplement_strong",
+          "outcome": false
+        }
+      ],
+      "observation_id": "cc8793aa36cdfe82c067b388f62b96e03d12c1fd7cca51f5e2f27489f4c14272",
+      "selected_back_expiration": "2026-10-30",
+      "selected_front_expiration": "2026-10-02",
+      "signal_verdict": "FAIL",
+      "structure_status": "constructible_as_intended",
+      "symbol": "BAC",
+      "terminal_reason": "verdict:fail",
+      "terminal_state": "strategy_rejected"
+    },
+    {
+      "acquisition": [
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "option_chain_v1",
+          "demand_id": "6278333a0387432c247126acbccbe5599ccfa6eb6973129c3b01226547a3f31c",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        },
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "option_chain_v1",
+          "demand_id": "6dcd9181b72cf3d5834ebe49fdd01acd4f1382acd508ab2b055ba7382b1e36e8",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": false
+        },
+        {
+          "acquisition_result": "degraded",
+          "attempt_count": 2,
+          "capability": "earnings_calendar_v1",
+          "demand_id": "79ead6a7cad0ca842df41d582b469f831978a40fe907d8480d5b2600ec310d42",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        },
+        {
+          "acquisition_result": "degraded",
+          "attempt_count": 3,
+          "capability": "historical_bars_v1",
+          "demand_id": "7c82e96e811bd9d671c6e20722efc8602fbe5e35a868e610d653e73d8c2e05ac",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": false
+        },
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "real_time_quote_v1",
+          "demand_id": "b549cc3b5191c4e38698d961089493ee6e981247b047e2785f277b4e749c67d7",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        },
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "option_chain_v1",
+          "demand_id": "e89f1a47af056aa4d443ce7880d0d2ce73ef915311d3fa1b75ac3261567ee2a4",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        }
+      ],
+      "actual_gap_days": "28",
+      "classification": "true_strategy_rejection",
+      "constructibility_reason": null,
+      "earnings_date": "2026-10-14",
+      "evaluation_state": "no_signal",
+      "gate_outcomes": [
+        {
+          "gate": "earnings_eligible",
+          "outcome": true
+        },
+        {
+          "gate": "eligible",
+          "outcome": true
+        },
+        {
+          "gate": "gap_eligible",
+          "outcome": true
+        },
+        {
+          "gate": "liquidity_acceptable",
+          "outcome": true
+        },
+        {
+          "gate": "volume_supplement_strong",
+          "outcome": false
+        }
+      ],
+      "observation_id": "599c4e029954d37d46acb75ce6f14c785d935d45cf3fb5c3413e053b637e2b9a",
+      "selected_back_expiration": "2026-10-30",
+      "selected_front_expiration": "2026-10-02",
+      "signal_verdict": "FAIL",
+      "structure_status": "constructible_as_intended",
+      "symbol": "MS",
+      "terminal_reason": "verdict:fail",
+      "terminal_state": "strategy_rejected"
+    },
+    {
+      "acquisition": [
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "real_time_quote_v1",
+          "demand_id": "3db5e48e57c0d01fd8fe5a2cf894bacca1a55aa415c48d92937ec4d990497429",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        },
+        {
+          "acquisition_result": "degraded",
+          "attempt_count": 3,
+          "capability": "historical_bars_v1",
+          "demand_id": "4ea2be6937b8e74162874f2874cdc73f8e22e2fd2c1798670113e14b60942bb8",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": false
+        },
+        {
+          "acquisition_result": "degraded",
+          "attempt_count": 2,
+          "capability": "earnings_calendar_v1",
+          "demand_id": "947660e20c123fe6a95f2c006314b1e0251d91554f8a345e16947483acffab8c",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        },
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "option_chain_v1",
+          "demand_id": "d374bc01a18437cdfd5c4125fff129ff38d06d90ba8e7af32447cbb564e83c19",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": false
+        },
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "option_chain_v1",
+          "demand_id": "db79925b9dc3de932fce925c40f35cd435ff50d6c1807a0b9cbbaf3a020b9454",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        },
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "option_chain_v1",
+          "demand_id": "e9e758c0482ef29e7e7af5658205a0888ec12fa56b27ae88c4f0e6fb9b9514ae",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        }
+      ],
+      "actual_gap_days": "28",
+      "classification": "true_strategy_rejection",
+      "constructibility_reason": null,
+      "earnings_date": "2026-10-15",
+      "evaluation_state": "no_signal",
+      "gate_outcomes": [
+        {
+          "gate": "earnings_eligible",
+          "outcome": true
+        },
+        {
+          "gate": "eligible",
+          "outcome": false
+        },
+        {
+          "gate": "gap_eligible",
+          "outcome": true
+        },
+        {
+          "gate": "liquidity_acceptable",
+          "outcome": false
+        },
+        {
+          "gate": "volume_supplement_strong",
+          "outcome": false
+        }
+      ],
+      "observation_id": "b07aa344361852d3e59bc333d807fba035831aaa7d71b1142f9190880151ed7c",
+      "selected_back_expiration": "2026-10-30",
+      "selected_front_expiration": "2026-10-02",
+      "signal_verdict": "FAIL",
+      "structure_status": "constructible_as_intended",
+      "symbol": "BX",
+      "terminal_reason": "verdict:fail",
+      "terminal_state": "strategy_rejected"
+    },
+    {
+      "acquisition": [],
+      "actual_gap_days": "28",
+      "classification": "true_strategy_rejection",
+      "constructibility_reason": null,
+      "earnings_date": "2026-10-15",
+      "evaluation_state": "no_signal",
+      "gate_outcomes": [
+        {
+          "gate": "earnings_eligible",
+          "outcome": true
+        },
+        {
+          "gate": "eligible",
+          "outcome": true
+        },
+        {
+          "gate": "gap_eligible",
+          "outcome": true
+        },
+        {
+          "gate": "liquidity_acceptable",
+          "outcome": true
+        },
+        {
+          "gate": "volume_supplement_strong",
+          "outcome": false
+        }
+      ],
+      "observation_id": "537b495f6fbf901e6bf03ca42877e3d79efc6a1f4555d861c7510906e01a5d8c",
+      "selected_back_expiration": "2026-10-30",
+      "selected_front_expiration": "2026-10-02",
+      "signal_verdict": "FAIL",
+      "structure_status": "constructible_as_intended",
+      "symbol": "FCX",
+      "terminal_reason": "verdict:fail",
+      "terminal_state": "strategy_rejected"
+    },
+    {
+      "acquisition": [
+        {
+          "acquisition_result": "degraded",
+          "attempt_count": 3,
+          "capability": "historical_bars_v1",
+          "demand_id": "402bad219579aa3870350e66a3da24a855f124abc42a3e4f033a0de3f870ccb2",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": false
+        },
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "option_chain_v1",
+          "demand_id": "50c7298c5c47c95c95a6a9c8dcf0fb4a90da407dbf9bcb3ed2a863c52d5933eb",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        },
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "real_time_quote_v1",
+          "demand_id": "6135c8b0c60ca74115aa63faa2b08e94b75f95682fe796f436c83cf2f944f243",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        },
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "option_chain_v1",
+          "demand_id": "65431cf61da315d041a42167925fe6cbb75d3edb486ee18c9f1b0733fb9d250d",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        },
+        {
+          "acquisition_result": "degraded",
+          "attempt_count": 2,
+          "capability": "earnings_calendar_v1",
+          "demand_id": "775719d12971ac6f21637dd4357be2e5f1caf67a31bb260c32839c2962a8ba14",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        },
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "option_chain_v1",
+          "demand_id": "8b9f56f9f6cc86501b9cf5e4f7222d11b32a7a040b3ce70f6ffd4b9e009aefde",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": false
+        }
+      ],
+      "actual_gap_days": "28",
+      "classification": "true_strategy_rejection",
+      "constructibility_reason": "no_compatible_contract",
+      "earnings_date": "2026-10-15",
+      "evaluation_state": "no_signal",
+      "gate_outcomes": [
+        {
+          "gate": "earnings_eligible",
+          "outcome": true
+        },
+        {
+          "gate": "eligible",
+          "outcome": false
+        },
+        {
+          "gate": "gap_eligible",
+          "outcome": true
+        },
+        {
+          "gate": "liquidity_acceptable",
+          "outcome": false
+        },
+        {
+          "gate": "volume_supplement_strong",
+          "outcome": false
+        }
+      ],
+      "observation_id": "2316198d6176326d886b4d9993b53d797d68dd3c7630b939585bef6ec1640300",
+      "selected_back_expiration": "2026-10-30",
+      "selected_front_expiration": "2026-10-02",
+      "signal_verdict": "FAIL",
+      "structure_status": "not_constructible",
+      "symbol": "PNC",
+      "terminal_reason": "verdict:fail",
+      "terminal_state": "strategy_rejected"
+    },
+    {
+      "acquisition": [
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "option_chain_v1",
+          "demand_id": "3a55a4dacc121402c4460ba9c89198710b836b98b880b49ee169f3e30f64533a",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        },
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "option_chain_v1",
+          "demand_id": "72291ee01283df82b0c718a138db25c648bba3d38789c5cf6520def368984dfd",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        },
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "real_time_quote_v1",
+          "demand_id": "a641afb8ca4176c05a693076a503a73884a74d200d4318b29b7c266977a45736",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        },
+        {
+          "acquisition_result": "degraded",
+          "attempt_count": 3,
+          "capability": "historical_bars_v1",
+          "demand_id": "b7b89db01f9d8e9cb526197242231fab3a0560038a494886883ccff068f4659a",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": false
+        },
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "option_chain_v1",
+          "demand_id": "c5f990963b803d09c8c061ba31a203e1b98877d4d3bbbcf91f52cd531b44b963",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": false
+        },
+        {
+          "acquisition_result": "degraded",
+          "attempt_count": 2,
+          "capability": "earnings_calendar_v1",
+          "demand_id": "d60aa11085d7be711d12345a6227b5f337d67a393469f1bdc7657ca17c4919d3",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        }
+      ],
+      "actual_gap_days": "28",
+      "classification": "true_strategy_rejection",
+      "constructibility_reason": null,
+      "earnings_date": "2026-10-15",
+      "evaluation_state": "no_signal",
+      "gate_outcomes": [
+        {
+          "gate": "earnings_eligible",
+          "outcome": true
+        },
+        {
+          "gate": "eligible",
+          "outcome": false
+        },
+        {
+          "gate": "gap_eligible",
+          "outcome": true
+        },
+        {
+          "gate": "liquidity_acceptable",
+          "outcome": false
+        },
+        {
+          "gate": "volume_supplement_strong",
+          "outcome": false
+        }
+      ],
+      "observation_id": "ba3ab31d5da7ea4aa12da8a6dabafd04a14b6c0cc8a754df1752ee88f0dbc7a2",
+      "selected_back_expiration": "2026-10-30",
+      "selected_front_expiration": "2026-10-02",
+      "signal_verdict": "FAIL",
+      "structure_status": "constructible_as_intended",
+      "symbol": "SCHW",
+      "terminal_reason": "verdict:fail",
+      "terminal_state": "strategy_rejected"
+    },
+    {
+      "acquisition": [
+        {
+          "acquisition_result": "degraded",
+          "attempt_count": 3,
+          "capability": "historical_bars_v1",
+          "demand_id": "6a5845317b3e8c4813e786129ec0a99c43502eaa31b0fd31dbac94ea9fe846ec",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": false
+        },
+        {
+          "acquisition_result": "degraded",
+          "attempt_count": 2,
+          "capability": "earnings_calendar_v1",
+          "demand_id": "6d8a0578e866e8194b62b55b75d696880cc1c2c4c51d6375b9f4020fb649165d",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        },
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "option_chain_v1",
+          "demand_id": "8146202711fd2c6ce3184287c19bd7042ea4227eda96636ac2deab194fce75ba",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        },
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "real_time_quote_v1",
+          "demand_id": "ae46739cebf744aa763cdc214ad9256952af3d57ae0cbb1db66a60133a9dfc07",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        },
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "option_chain_v1",
+          "demand_id": "bf0fc58858cba89f2d9a1176f23935e36d891cb44d93161fe2d57ca3ec0f4447",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        },
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "option_chain_v1",
+          "demand_id": "dd501a4a392a87ba1ca281a03c3122fbb709a215d5243ea20e7d0cade21216e1",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": false
+        }
+      ],
+      "actual_gap_days": "28",
+      "classification": "true_strategy_rejection",
+      "constructibility_reason": null,
+      "earnings_date": "2026-10-15",
+      "evaluation_state": "no_signal",
+      "gate_outcomes": [
+        {
+          "gate": "earnings_eligible",
+          "outcome": true
+        },
+        {
+          "gate": "eligible",
+          "outcome": false
+        },
+        {
+          "gate": "gap_eligible",
+          "outcome": true
+        },
+        {
+          "gate": "liquidity_acceptable",
+          "outcome": false
+        },
+        {
+          "gate": "volume_supplement_strong",
+          "outcome": false
+        }
+      ],
+      "observation_id": "742740a0493ec5f7209ff3f7314aec698479115088b8e21b29119116623e0bad",
+      "selected_back_expiration": "2026-10-30",
+      "selected_front_expiration": "2026-10-02",
+      "signal_verdict": "FAIL",
+      "structure_status": "constructible_as_intended",
+      "symbol": "USB",
+      "terminal_reason": "verdict:fail",
+      "terminal_state": "strategy_rejected"
+    },
+    {
+      "acquisition": [
+        {
+          "acquisition_result": "degraded",
+          "attempt_count": 2,
+          "capability": "earnings_calendar_v1",
+          "demand_id": "0ce0b70bb15488db97fa7dde2f72bee0513deedfc2f2f2140ef8f043b8a1aaf6",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        },
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "real_time_quote_v1",
+          "demand_id": "9bb44f995b00cf65478924f86a18bff3fc51ca22fe3d2f9b3e81e0e48f423283",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        },
+        {
+          "acquisition_result": "degraded",
+          "attempt_count": 3,
+          "capability": "historical_bars_v1",
+          "demand_id": "d7b86e755a225c2ef1b48434d98b734d2eb3e6e0f445818a55c851b251a19f0c",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": false
+        },
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "option_chain_v1",
+          "demand_id": "f7a39b9879d4d42449087fd1fa957b49f0076ec3504e239b7a22f48b8e3a9c6d",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        }
+      ],
+      "actual_gap_days": null,
+      "classification": "legitimate_temporal_or_policy_absence",
+      "constructibility_reason": null,
+      "earnings_date": null,
+      "evaluation_state": "missing_data",
+      "gate_outcomes": [],
+      "observation_id": "90747958ea181b1e4f093ddce4b0a473a2511c73f42953b9a22e0bb10e5cc780",
+      "selected_back_expiration": null,
+      "selected_front_expiration": null,
+      "signal_verdict": null,
+      "structure_status": null,
+      "symbol": "A",
+      "terminal_reason": "typed unknown evidence gap: no_valid_expiration_pair (earnings_date=2026-11-23;listed=2026-10-16(22),2026-11-20(57),2026-12-18(85),2027-01-15(113),2027-02-19(148),2027-03-19(176),2027-05-21(239),2027-06-17(266),2027-09-17(358),2028-01-21(484),2029-01-19(848);eligible_fronts=none;eligible_backs=none;nearest_pair=none;target_gap=30;tolerance=5)",
+      "terminal_state": "evidence_unavailable"
+    },
+    {
+      "acquisition": [
+        {
+          "acquisition_result": "degraded",
+          "attempt_count": 2,
+          "capability": "earnings_calendar_v1",
+          "demand_id": "0ce0b70bb15488db97fa7dde2f72bee0513deedfc2f2f2140ef8f043b8a1aaf6",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        },
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "real_time_quote_v1",
+          "demand_id": "9bb44f995b00cf65478924f86a18bff3fc51ca22fe3d2f9b3e81e0e48f423283",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        },
+        {
+          "acquisition_result": "degraded",
+          "attempt_count": 3,
+          "capability": "historical_bars_v1",
+          "demand_id": "d7b86e755a225c2ef1b48434d98b734d2eb3e6e0f445818a55c851b251a19f0c",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": false
+        },
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "option_chain_v1",
+          "demand_id": "f7a39b9879d4d42449087fd1fa957b49f0076ec3504e239b7a22f48b8e3a9c6d",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        }
+      ],
+      "actual_gap_days": null,
+      "classification": "legitimate_temporal_or_policy_absence",
+      "constructibility_reason": null,
+      "earnings_date": null,
+      "evaluation_state": "missing_data",
+      "gate_outcomes": [],
+      "observation_id": "7699be40d056a60198af35d65b0172a0f076f58b01e1f4342862c74ce259b465",
+      "selected_back_expiration": null,
+      "selected_front_expiration": null,
+      "signal_verdict": null,
+      "structure_status": null,
+      "symbol": "ACGL",
+      "terminal_reason": "typed unknown evidence gap: no_valid_expiration_pair (earnings_date=2026-10-26;listed=2026-10-16(22),2026-11-20(57),2026-12-18(85),2027-03-19(176);eligible_fronts=none;eligible_backs=2026-11-20(57);nearest_pair=none;target_gap=30;tolerance=5)",
+      "terminal_state": "evidence_unavailable"
+    },
+    {
+      "acquisition": [
+        {
+          "acquisition_result": "degraded",
+          "attempt_count": 2,
+          "capability": "earnings_calendar_v1",
+          "demand_id": "0ce0b70bb15488db97fa7dde2f72bee0513deedfc2f2f2140ef8f043b8a1aaf6",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        },
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "real_time_quote_v1",
+          "demand_id": "9bb44f995b00cf65478924f86a18bff3fc51ca22fe3d2f9b3e81e0e48f423283",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        },
+        {
+          "acquisition_result": "degraded",
+          "attempt_count": 3,
+          "capability": "historical_bars_v1",
+          "demand_id": "d7b86e755a225c2ef1b48434d98b734d2eb3e6e0f445818a55c851b251a19f0c",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": false
+        },
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "option_chain_v1",
+          "demand_id": "f7a39b9879d4d42449087fd1fa957b49f0076ec3504e239b7a22f48b8e3a9c6d",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        }
+      ],
+      "actual_gap_days": null,
+      "classification": "legitimate_temporal_or_policy_absence",
+      "constructibility_reason": null,
+      "earnings_date": null,
+      "evaluation_state": "missing_data",
+      "gate_outcomes": [],
+      "observation_id": "849e9e0f731ec57d03cbe968b8cb7d474ca1192d8ebfc96b2289ef29cd9175c9",
+      "selected_back_expiration": null,
+      "selected_front_expiration": null,
+      "signal_verdict": null,
+      "structure_status": null,
+      "symbol": "ACN",
+      "terminal_reason": "typed unknown evidence gap: no_valid_expiration_pair (earnings_date=2026-10-01;listed=2026-09-25(1),2026-10-02(8),2026-10-09(15),2026-10-16(22),2026-10-23(29),2026-10-30(36),2026-11-06(43),2026-11-20(57),2026-12-18(85),2027-01-15(113),2027-02-19(148),2027-03-19(176),2027-05-21(239),2027-06-17(266),2027-09-17(358),2028-01-21(484),2028-12-15(813),2029-01-19(848);eligible_fronts=none;eligible_backs=2026-10-16(22),2026-10-23(29),2026-10-30(36),2026-11-06(43),2026-11-20(57);nearest_pair=none;target_gap=30;tolerance=5)",
+      "terminal_state": "evidence_unavailable"
+    },
+    {
+      "acquisition": [
+        {
+          "acquisition_result": "degraded",
+          "attempt_count": 3,
+          "capability": "historical_bars_v1",
+          "demand_id": "6a5845317b3e8c4813e786129ec0a99c43502eaa31b0fd31dbac94ea9fe846ec",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": false
+        },
+        {
+          "acquisition_result": "failed",
+          "attempt_count": 2,
+          "capability": "earnings_calendar_v1",
+          "demand_id": "6d8a0578e866e8194b62b55b75d696880cc1c2c4c51d6375b9f4020fb649165d",
+          "evidence_usability": "unknown",
+          "missing_reason": "rate_limited",
+          "reused_across_consumers": true
+        },
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "option_chain_v1",
+          "demand_id": "8146202711fd2c6ce3184287c19bd7042ea4227eda96636ac2deab194fce75ba",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        },
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "real_time_quote_v1",
+          "demand_id": "ae46739cebf744aa763cdc214ad9256952af3d57ae0cbb1db66a60133a9dfc07",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        }
+      ],
+      "actual_gap_days": null,
+      "classification": "provider_entitlement_or_coverage",
+      "constructibility_reason": null,
+      "earnings_date": null,
+      "evaluation_state": "missing_data",
+      "gate_outcomes": [],
+      "observation_id": "ff1831497100ad31854e1719b1b0abf5fc31d9e9192daa4b173447f5df9946ef",
+      "selected_back_expiration": null,
+      "selected_front_expiration": null,
+      "signal_verdict": null,
+      "structure_status": null,
+      "symbol": "ADBE",
+      "terminal_reason": "typed unknown evidence gap: missing_earnings_date",
+      "terminal_state": "evidence_unavailable"
+    },
+    {
+      "acquisition": [
+        {
+          "acquisition_result": "degraded",
+          "attempt_count": 3,
+          "capability": "historical_bars_v1",
+          "demand_id": "6a5845317b3e8c4813e786129ec0a99c43502eaa31b0fd31dbac94ea9fe846ec",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": false
+        },
+        {
+          "acquisition_result": "degraded",
+          "attempt_count": 2,
+          "capability": "earnings_calendar_v1",
+          "demand_id": "6d8a0578e866e8194b62b55b75d696880cc1c2c4c51d6375b9f4020fb649165d",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        },
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "option_chain_v1",
+          "demand_id": "8146202711fd2c6ce3184287c19bd7042ea4227eda96636ac2deab194fce75ba",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        },
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "real_time_quote_v1",
+          "demand_id": "ae46739cebf744aa763cdc214ad9256952af3d57ae0cbb1db66a60133a9dfc07",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        }
+      ],
+      "actual_gap_days": null,
+      "classification": "legitimate_temporal_or_policy_absence",
+      "constructibility_reason": null,
+      "earnings_date": null,
+      "evaluation_state": "missing_data",
+      "gate_outcomes": [],
+      "observation_id": "42bd5ee4c64e4467ae7d00b09da26b3a452aef6a418d37330c77c0e6266f2b9d",
+      "selected_back_expiration": null,
+      "selected_front_expiration": null,
+      "signal_verdict": null,
+      "structure_status": null,
+      "symbol": "ADI",
+      "terminal_reason": "typed unknown evidence gap: no_valid_expiration_pair (earnings_date=2026-11-23;listed=2026-09-25(1),2026-10-02(8),2026-10-09(15),2026-10-16(22),2026-10-23(29),2026-10-30(36),2026-11-06(43),2026-11-20(57),2026-12-18(85),2027-01-15(113),2027-03-19(176),2027-06-17(266),2027-09-17(358),2028-01-21(484),2029-01-19(848);eligible_fronts=2026-10-02(8),2026-10-09(15);eligible_backs=none;nearest_pair=none;target_gap=30;tolerance=5)",
+      "terminal_state": "evidence_unavailable"
+    },
+    {
+      "acquisition": [
+        {
+          "acquisition_result": "degraded",
+          "attempt_count": 3,
+          "capability": "historical_bars_v1",
+          "demand_id": "6a5845317b3e8c4813e786129ec0a99c43502eaa31b0fd31dbac94ea9fe846ec",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": false
+        },
+        {
+          "acquisition_result": "degraded",
+          "attempt_count": 2,
+          "capability": "earnings_calendar_v1",
+          "demand_id": "6d8a0578e866e8194b62b55b75d696880cc1c2c4c51d6375b9f4020fb649165d",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        },
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "option_chain_v1",
+          "demand_id": "8146202711fd2c6ce3184287c19bd7042ea4227eda96636ac2deab194fce75ba",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        },
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "real_time_quote_v1",
+          "demand_id": "ae46739cebf744aa763cdc214ad9256952af3d57ae0cbb1db66a60133a9dfc07",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        }
+      ],
+      "actual_gap_days": null,
+      "classification": "legitimate_temporal_or_policy_absence",
+      "constructibility_reason": null,
+      "earnings_date": null,
+      "evaluation_state": "missing_data",
+      "gate_outcomes": [],
+      "observation_id": "028ed3cccbdc2d831a235a8ceaba02ae638adf8a6e53f3f6d40c568eb58b2437",
+      "selected_back_expiration": null,
+      "selected_front_expiration": null,
+      "signal_verdict": null,
+      "structure_status": null,
+      "symbol": "ADM",
+      "terminal_reason": "typed unknown evidence gap: no_valid_expiration_pair (earnings_date=2026-11-02;listed=2026-10-16(22),2026-11-20(57),2026-12-18(85),2027-01-15(113),2027-03-19(176),2027-06-17(266),2027-09-17(358),2028-01-21(484),2029-01-19(848);eligible_fronts=none;eligible_backs=2026-11-20(57);nearest_pair=none;target_gap=30;tolerance=5)",
+      "terminal_state": "evidence_unavailable"
+    },
+    {
+      "acquisition": [
+        {
+          "acquisition_result": "degraded",
+          "attempt_count": 3,
+          "capability": "historical_bars_v1",
+          "demand_id": "6a5845317b3e8c4813e786129ec0a99c43502eaa31b0fd31dbac94ea9fe846ec",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": false
+        },
+        {
+          "acquisition_result": "degraded",
+          "attempt_count": 2,
+          "capability": "earnings_calendar_v1",
+          "demand_id": "6d8a0578e866e8194b62b55b75d696880cc1c2c4c51d6375b9f4020fb649165d",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        },
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "option_chain_v1",
+          "demand_id": "8146202711fd2c6ce3184287c19bd7042ea4227eda96636ac2deab194fce75ba",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        },
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "real_time_quote_v1",
+          "demand_id": "ae46739cebf744aa763cdc214ad9256952af3d57ae0cbb1db66a60133a9dfc07",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        }
+      ],
+      "actual_gap_days": null,
+      "classification": "legitimate_temporal_or_policy_absence",
+      "constructibility_reason": null,
+      "earnings_date": null,
+      "evaluation_state": "missing_data",
+      "gate_outcomes": [],
+      "observation_id": "4ed9a909bba4b490d1d02d1a850970a01d86ec6e39c657199a90b5d0000dfbdc",
+      "selected_back_expiration": null,
+      "selected_front_expiration": null,
+      "signal_verdict": null,
+      "structure_status": null,
+      "symbol": "ADSK",
+      "terminal_reason": "typed unknown evidence gap: no_valid_expiration_pair (earnings_date=2026-11-23;listed=2026-09-25(1),2026-10-02(8),2026-10-09(15),2026-10-16(22),2026-10-23(29),2026-10-30(36),2026-11-06(43),2026-11-20(57),2026-12-18(85),2027-01-15(113),2027-03-19(176),2027-04-16(204),2027-06-17(266),2027-09-17(358),2028-01-21(484),2029-01-19(848);eligible_fronts=2026-10-02(8),2026-10-09(15);eligible_backs=none;nearest_pair=none;target_gap=30;tolerance=5)",
+      "terminal_state": "evidence_unavailable"
+    },
+    {
+      "acquisition": [
+        {
+          "acquisition_result": "degraded",
+          "attempt_count": 3,
+          "capability": "historical_bars_v1",
+          "demand_id": "6a5845317b3e8c4813e786129ec0a99c43502eaa31b0fd31dbac94ea9fe846ec",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": false
+        },
+        {
+          "acquisition_result": "degraded",
+          "attempt_count": 2,
+          "capability": "earnings_calendar_v1",
+          "demand_id": "6d8a0578e866e8194b62b55b75d696880cc1c2c4c51d6375b9f4020fb649165d",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        },
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "option_chain_v1",
+          "demand_id": "8146202711fd2c6ce3184287c19bd7042ea4227eda96636ac2deab194fce75ba",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        },
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "real_time_quote_v1",
+          "demand_id": "ae46739cebf744aa763cdc214ad9256952af3d57ae0cbb1db66a60133a9dfc07",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        }
+      ],
+      "actual_gap_days": null,
+      "classification": "legitimate_temporal_or_policy_absence",
+      "constructibility_reason": null,
+      "earnings_date": null,
+      "evaluation_state": "missing_data",
+      "gate_outcomes": [],
+      "observation_id": "326fddb4b9177e8fa546f8aa48a7b97d4ae01ac4d4b65fdacb7fc59b3a6c2311",
+      "selected_back_expiration": null,
+      "selected_front_expiration": null,
+      "signal_verdict": null,
+      "structure_status": null,
+      "symbol": "AEE",
+      "terminal_reason": "typed unknown evidence gap: no_valid_expiration_pair (earnings_date=2026-11-03;listed=2026-10-16(22),2026-11-20(57),2026-12-18(85),2027-03-19(176);eligible_fronts=none;eligible_backs=2026-11-20(57);nearest_pair=none;target_gap=30;tolerance=5)",
+      "terminal_state": "evidence_unavailable"
+    },
+    {
+      "acquisition": [
+        {
+          "acquisition_result": "degraded",
+          "attempt_count": 3,
+          "capability": "historical_bars_v1",
+          "demand_id": "6a5845317b3e8c4813e786129ec0a99c43502eaa31b0fd31dbac94ea9fe846ec",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": false
+        },
+        {
+          "acquisition_result": "degraded",
+          "attempt_count": 2,
+          "capability": "earnings_calendar_v1",
+          "demand_id": "6d8a0578e866e8194b62b55b75d696880cc1c2c4c51d6375b9f4020fb649165d",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        },
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "option_chain_v1",
+          "demand_id": "8146202711fd2c6ce3184287c19bd7042ea4227eda96636ac2deab194fce75ba",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        },
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "real_time_quote_v1",
+          "demand_id": "ae46739cebf744aa763cdc214ad9256952af3d57ae0cbb1db66a60133a9dfc07",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        }
+      ],
+      "actual_gap_days": null,
+      "classification": "legitimate_temporal_or_policy_absence",
+      "constructibility_reason": null,
+      "earnings_date": null,
+      "evaluation_state": "missing_data",
+      "gate_outcomes": [],
+      "observation_id": "e2df913298196ea0840e231f15eb4248f56096a0221e58c248e4b14a5698d7cb",
+      "selected_back_expiration": null,
+      "selected_front_expiration": null,
+      "signal_verdict": null,
+      "structure_status": null,
+      "symbol": "AEP",
+      "terminal_reason": "typed unknown evidence gap: no_valid_expiration_pair (earnings_date=2026-10-22;listed=2026-10-16(22),2026-11-20(57),2026-12-18(85),2027-01-15(113),2027-02-19(148),2027-03-19(176),2027-05-21(239),2027-06-17(266),2027-09-17(358),2028-01-21(484),2029-01-19(848);eligible_fronts=none;eligible_backs=2026-11-20(57);nearest_pair=none;target_gap=30;tolerance=5)",
+      "terminal_state": "evidence_unavailable"
+    },
+    {
+      "acquisition": [
+        {
+          "acquisition_result": "degraded",
+          "attempt_count": 2,
+          "capability": "earnings_calendar_v1",
+          "demand_id": "0518b535b5c65e43af6c0b399b628a8df957b700ce4a2a60e6da0de6d6adcef3",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        },
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "option_chain_v1",
+          "demand_id": "6ad9ec909ed3d0988c788e04c1d383d9020bfe9d6bb9801f41a7c4f6cd017178",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        },
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "real_time_quote_v1",
+          "demand_id": "6cb1704de4a56020648a58e8e2ce657ddb5290622d1ea1c0271250f657077c14",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        },
+        {
+          "acquisition_result": "degraded",
+          "attempt_count": 3,
+          "capability": "historical_bars_v1",
+          "demand_id": "ee07e6968b1fc46e8c8032a610ddd3454e889b3b71738465a9535fe19e0a98b7",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": false
+        }
+      ],
+      "actual_gap_days": null,
+      "classification": "legitimate_temporal_or_policy_absence",
+      "constructibility_reason": null,
+      "earnings_date": null,
+      "evaluation_state": "missing_data",
+      "gate_outcomes": [],
+      "observation_id": "fd69370e3cccefe249333abd52529dd436607012dbdf08caea8b3195b5e420b9",
+      "selected_back_expiration": null,
+      "selected_front_expiration": null,
+      "signal_verdict": null,
+      "structure_status": null,
+      "symbol": "AES",
+      "terminal_reason": "typed unknown evidence gap: no_valid_expiration_pair (earnings_date=2026-11-02;listed=2026-10-16(22),2026-11-20(57),2027-01-15(113),2027-02-19(148),2027-05-21(239),2027-06-17(266),2028-01-21(484),2028-06-16(631),2028-12-15(813),2029-01-19(848);eligible_fronts=none;eligible_backs=2026-11-20(57);nearest_pair=none;target_gap=30;tolerance=5)",
+      "terminal_state": "evidence_unavailable"
+    },
+    {
+      "acquisition": [
+        {
+          "acquisition_result": "degraded",
+          "attempt_count": 2,
+          "capability": "earnings_calendar_v1",
+          "demand_id": "0518b535b5c65e43af6c0b399b628a8df957b700ce4a2a60e6da0de6d6adcef3",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        },
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "option_chain_v1",
+          "demand_id": "6ad9ec909ed3d0988c788e04c1d383d9020bfe9d6bb9801f41a7c4f6cd017178",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        },
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "real_time_quote_v1",
+          "demand_id": "6cb1704de4a56020648a58e8e2ce657ddb5290622d1ea1c0271250f657077c14",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        },
+        {
+          "acquisition_result": "degraded",
+          "attempt_count": 3,
+          "capability": "historical_bars_v1",
+          "demand_id": "ee07e6968b1fc46e8c8032a610ddd3454e889b3b71738465a9535fe19e0a98b7",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": false
+        }
+      ],
+      "actual_gap_days": null,
+      "classification": "legitimate_temporal_or_policy_absence",
+      "constructibility_reason": null,
+      "earnings_date": null,
+      "evaluation_state": "missing_data",
+      "gate_outcomes": [],
+      "observation_id": "d2a669c89acd888076bef882d3b714613290ebeac627470109d81a5e243f4a89",
+      "selected_back_expiration": null,
+      "selected_front_expiration": null,
+      "signal_verdict": null,
+      "structure_status": null,
+      "symbol": "AIZ",
+      "terminal_reason": "typed unknown evidence gap: no_valid_expiration_pair (earnings_date=2026-11-02;listed=2026-10-16(22),2026-11-20(57),2026-12-18(85),2027-03-19(176);eligible_fronts=none;eligible_backs=2026-11-20(57);nearest_pair=none;target_gap=30;tolerance=5)",
+      "terminal_state": "evidence_unavailable"
+    },
+    {
+      "acquisition": [
+        {
+          "acquisition_result": "degraded",
+          "attempt_count": 2,
+          "capability": "earnings_calendar_v1",
+          "demand_id": "0518b535b5c65e43af6c0b399b628a8df957b700ce4a2a60e6da0de6d6adcef3",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        },
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "option_chain_v1",
+          "demand_id": "6ad9ec909ed3d0988c788e04c1d383d9020bfe9d6bb9801f41a7c4f6cd017178",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        },
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "real_time_quote_v1",
+          "demand_id": "6cb1704de4a56020648a58e8e2ce657ddb5290622d1ea1c0271250f657077c14",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        },
+        {
+          "acquisition_result": "degraded",
+          "attempt_count": 3,
+          "capability": "historical_bars_v1",
+          "demand_id": "ee07e6968b1fc46e8c8032a610ddd3454e889b3b71738465a9535fe19e0a98b7",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": false
+        }
+      ],
+      "actual_gap_days": null,
+      "classification": "legitimate_temporal_or_policy_absence",
+      "constructibility_reason": null,
+      "earnings_date": null,
+      "evaluation_state": "missing_data",
+      "gate_outcomes": [],
+      "observation_id": "2d55f65d154d6d028fd80555e6b27708c83d787ce52b4a53024b19fd1c579160",
+      "selected_back_expiration": null,
+      "selected_front_expiration": null,
+      "signal_verdict": null,
+      "structure_status": null,
+      "symbol": "AJG",
+      "terminal_reason": "typed unknown evidence gap: no_valid_expiration_pair (earnings_date=2026-10-22;listed=2026-10-16(22),2026-11-20(57),2026-12-18(85),2027-01-15(113),2027-04-16(204);eligible_fronts=none;eligible_backs=2026-11-20(57);nearest_pair=none;target_gap=30;tolerance=5)",
+      "terminal_state": "evidence_unavailable"
+    },
+    {
+      "acquisition": [
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "option_chain_v1",
+          "demand_id": "72291ee01283df82b0c718a138db25c648bba3d38789c5cf6520def368984dfd",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        },
+        {
+          "acquisition_result": "fulfilled",
+          "attempt_count": 1,
+          "capability": "real_time_quote_v1",
+          "demand_id": "a641afb8ca4176c05a693076a503a73884a74d200d4318b29b7c266977a45736",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        },
+        {
+          "acquisition_result": "degraded",
+          "attempt_count": 3,
+          "capability": "historical_bars_v1",
+          "demand_id": "b7b89db01f9d8e9cb526197242231fab3a0560038a494886883ccff068f4659a",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": false
+        },
+        {
+          "acquisition_result": "degraded",
+          "attempt_count": 2,
+          "capability": "earnings_calendar_v1",
+          "demand_id": "d60aa11085d7be711d12345a6227b5f337d67a393469f1bdc7657ca17c4919d3",
+          "evidence_usability": "resolved",
+          "missing_reason": null,
+          "reused_across_consumers": true
+        }
+      ],
+      "actual_gap_days": null,
+      "classification": "legitimate_temporal_or_policy_absence",
+      "constructibility_reason": null,
+      "earnings_date": null,
+      "evaluation_state": "missing_data",
+      "gate_outcomes": [],
+      "observation_id": "415a2c879ded1cd38b34fbd11b1670304e027195c9a0571d13acae7cb5362fa2",
+      "selected_back_expiration": null,
+      "selected_front_expiration": null,
+      "signal_verdict": null,
+      "structure_status": null,
+      "symbol": "ALL",
+      "terminal_reason": "typed unknown evidence gap: no_valid_expiration_pair (earnings_date=2026-11-04;listed=2026-10-16(22),2026-11-20(57),2026-12-18(85),2027-01-15(113),2027-03-19(176),2027-04-16(204),2027-06-17(266),2027-09-17(358),2028-01-21(484),2029-01-19(848);eligible_fronts=none;eligible_backs=2026-11-20(57);nearest_pair=none;target_gap=30;tolerance=5)",
+      "terminal_state": "evidence_unavailable"
+    }
+  ],
+  "production_sha": "d6d4c8d65ea45655a8a893b7ab0fa2df10328663",
+  "source_active_total": 503,
+  "sprint": "OPTIONS-TRUTH-001",
+  "ticket": "OT-03"
+}

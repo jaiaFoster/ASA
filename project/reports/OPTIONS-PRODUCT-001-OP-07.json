@@ -1,0 +1,170 @@
+{
+  "artifact_version": "1.0.0",
+  "captured_at": "2026-09-24T16:24:32.957308+00:00",
+  "observation_checksum": "c3c317e7bc781af755a2ca262538f5c4120ca823f142282e7b94703ce31c5f78",
+  "observations": [
+    {
+      "evaluation_state": "pass",
+      "gaps": [],
+      "leg_count": 2,
+      "modeled_net_debit_or_credit": "3.290",
+      "observation_id": "03618eec54cabf3c00b283a386036eebdc3ada8af389ecfba299bd7a380ee8dd",
+      "outcome": "complete_trade_card",
+      "payoff_state": "typed_unavailable:MULTIPLE_EXPIRATIONS_REQUIRE_MODEL_DEPENDENT_VALUE",
+      "proposal_identity": "96dfd757c6a051506eb19063aea3ff4a30df15aaa6cd4a7f287079f986c438d9",
+      "signal_id": "earnings_calendar",
+      "signal_verdict": "WATCH",
+      "structure": "calendar",
+      "structure_status": "constructible_as_intended",
+      "symbol": "GILD",
+      "terminal_reason": "constructible_as_intended",
+      "terminal_state": "actionable_opportunity"
+    },
+    {
+      "evaluation_state": "pass",
+      "gaps": [],
+      "leg_count": 2,
+      "modeled_net_debit_or_credit": "3.1",
+      "observation_id": "77aa8aa28968be525b1c310dcaad6da9c9d85018c89495831fdb0fe4abd87443",
+      "outcome": "complete_trade_card",
+      "payoff_state": "typed_unavailable:MULTIPLE_EXPIRATIONS_REQUIRE_MODEL_DEPENDENT_VALUE",
+      "proposal_identity": "ff075cdee2905e05d3c7fb00b1c8388f9ce1c44b891576f748bcf026f98ce3a7",
+      "signal_id": "earnings_calendar",
+      "signal_verdict": "WATCH",
+      "structure": "calendar",
+      "structure_status": "constructible_as_intended",
+      "symbol": "ICE",
+      "terminal_reason": "constructible_as_intended",
+      "terminal_state": "actionable_opportunity"
+    },
+    {
+      "evaluation_state": "pass",
+      "gaps": [],
+      "leg_count": 2,
+      "modeled_net_debit_or_credit": "0.36",
+      "observation_id": "5ecdb4e0c4dc55aec469bc6abfa0dcde1b4c829906844719febe9264ecd997f0",
+      "outcome": "complete_trade_card",
+      "payoff_state": "typed_unavailable:MULTIPLE_EXPIRATIONS_REQUIRE_MODEL_DEPENDENT_VALUE",
+      "proposal_identity": "9035114537ee9e41685ccf1085832d3c5876cbb0bb8054a3f77822199f2dc3fa",
+      "signal_id": "earnings_calendar",
+      "signal_verdict": "WATCH",
+      "structure": "calendar",
+      "structure_status": "constructible_as_intended",
+      "symbol": "PCG",
+      "terminal_reason": "constructible_as_intended",
+      "terminal_state": "actionable_opportunity"
+    },
+    {
+      "evaluation_state": "pass",
+      "gaps": [],
+      "leg_count": 2,
+      "modeled_net_debit_or_credit": "2.225",
+      "observation_id": "765c599013b3e0da28f91fa7cf96a14e46d9d6fb14642c5a94cea727bf808a2b",
+      "outcome": "complete_trade_card",
+      "payoff_state": "typed_unavailable:MULTIPLE_EXPIRATIONS_REQUIRE_MODEL_DEPENDENT_VALUE",
+      "proposal_identity": "97e454d10d9ad60a409f260b76148e8adc68a5ad39fa8942e21bed258e9e85a3",
+      "signal_id": "earnings_calendar",
+      "signal_verdict": "WATCH",
+      "structure": "calendar",
+      "structure_status": "constructible_as_intended",
+      "symbol": "PPG",
+      "terminal_reason": "constructible_as_intended",
+      "terminal_state": "actionable_opportunity"
+    },
+    {
+      "evaluation_state": "pass",
+      "gaps": [],
+      "leg_count": 2,
+      "modeled_net_debit_or_credit": "8.0",
+      "observation_id": "18a5b90a3330967cd280cd56153233ee0d62502c555b053a988b462fa6d0f8ce",
+      "outcome": "complete_trade_card",
+      "payoff_state": "typed_unavailable:MULTIPLE_EXPIRATIONS_REQUIRE_MODEL_DEPENDENT_VALUE",
+      "proposal_identity": "e68b438f267d8effbb7df8a6814a0d2b063525047f70daae23854dff597b15f9",
+      "signal_id": "earnings_calendar",
+      "signal_verdict": "WATCH",
+      "structure": "calendar",
+      "structure_status": "constructible_as_intended",
+      "symbol": "PSX",
+      "terminal_reason": "constructible_as_intended",
+      "terminal_state": "actionable_opportunity"
+    },
+    {
+      "blocker_category": "contract_selection",
+      "evaluation_state": "pass",
+      "gaps": [],
+      "observation_id": "33f6271282ec46cc867392e9ed0ccc1caf6815802d9ca4793637b569e50b8244",
+      "outcome": "typed_failure_presentation",
+      "reason_code": "no_compatible_contract",
+      "signal_id": "earnings_calendar",
+      "signal_verdict": "WATCH",
+      "structure_status": "not_constructible",
+      "symbol": "VLO",
+      "terminal_reason": "no_compatible_contract",
+      "terminal_state": "structure_unavailable"
+    },
+    {
+      "blocker_category": "earnings_uncertainty",
+      "evaluation_state": "pass",
+      "gaps": [],
+      "observation_id": "23bcf4e449ab62f324f5e0f96c43234b3378705263791434e6c6f3732e337b56",
+      "outcome": "typed_failure_presentation",
+      "reason_code": "earnings_clearance:unknown_unconfirmed",
+      "signal_id": "forward_factor",
+      "signal_verdict": "WATCH",
+      "structure_status": "unknown",
+      "symbol": "GOOG",
+      "terminal_reason": "earnings_clearance:unknown_unconfirmed",
+      "terminal_state": "structure_unknown"
+    },
+    {
+      "blocker_category": "earnings_uncertainty",
+      "evaluation_state": "pass",
+      "gaps": [],
+      "observation_id": "a36cd44d50d5f765ea4dc411ace722ec94e873b985e4373d43fc5baaae35e884",
+      "outcome": "typed_failure_presentation",
+      "reason_code": "earnings_clearance:unknown_unconfirmed",
+      "signal_id": "forward_factor",
+      "signal_verdict": "PASS",
+      "structure_status": "unknown",
+      "symbol": "SWKS",
+      "terminal_reason": "earnings_clearance:unknown_unconfirmed",
+      "terminal_state": "structure_unknown"
+    }
+  ],
+  "outcome_counts": {
+    "complete_trade_card": 5,
+    "typed_failure_presentation": 3
+  },
+  "production_sha": "d6d4c8d65ea45655a8a893b7ab0fa2df10328663",
+  "qualifying_option_results": 8,
+  "signals": {
+    "B001": {
+      "active_total": 0,
+      "declares_option_structure": null,
+      "qualifying_verdict_count": 0
+    },
+    "B002": {
+      "active_total": 0,
+      "declares_option_structure": null,
+      "qualifying_verdict_count": 0
+    },
+    "earnings_calendar": {
+      "active_total": 503,
+      "declares_option_structure": true,
+      "qualifying_verdict_count": 6
+    },
+    "forward_factor": {
+      "active_total": 503,
+      "declares_option_structure": true,
+      "qualifying_verdict_count": 2
+    },
+    "skew_momentum": {
+      "active_total": 503,
+      "declares_option_structure": null,
+      "qualifying_verdict_count": 0
+    }
+  },
+  "sprint": "OPTIONS-PRODUCT-001",
+  "ticket": "OP-07",
+  "verdict": "complete_trade_card_path_observed"
+}

@@ -1,0 +1,68 @@
+{
+  "artifact_version": "1.0.0",
+  "captured_at": "2026-09-24T16:33:15.183519+00:00",
+  "census_checksum": "c0224679515aef9fb9cfe66af9d2279ae2b513b524c2f3f3f17c1553615eab4d",
+  "production_sha": "d6d4c8d65ea45655a8a893b7ab0fa2df10328663",
+  "sprint": "OPTIONS-TRUTH-001",
+  "strategies": {
+    "earnings_calendar": {
+      "active_total": 503,
+      "terminal_counts": {
+        "actionable_opportunity": 4,
+        "evidence_unavailable": 332,
+        "strategy_rejected": 166,
+        "structure_unavailable": 1
+      },
+      "terminal_reason_counts": {
+        "actionable_opportunity:constructible_as_intended": 4,
+        "evidence_unavailable:typed unknown evidence gap: missing_earnings_date": 18,
+        "evidence_unavailable:typed unknown evidence gap: missing_implied_volatility": 11,
+        "evidence_unavailable:typed unknown evidence gap: no_valid_expiration_pair": 298,
+        "evidence_unavailable:typed unknown evidence gap: unusable_phase_two_evidence": 5,
+        "strategy_rejected:verdict:fail": 166,
+        "structure_unavailable:no_compatible_contract": 1
+      },
+      "traced": 503,
+      "unexplained": []
+    },
+    "forward_factor": {
+      "active_total": 503,
+      "terminal_counts": {
+        "evidence_unavailable": 112,
+        "strategy_rejected": 389,
+        "structure_unknown": 2
+      },
+      "terminal_reason_counts": {
+        "evidence_unavailable:typed unknown evidence gap: missing_implied_volatility": 12,
+        "evidence_unavailable:typed unknown evidence gap: no_usable_expiration_pair": 1,
+        "evidence_unavailable:typed unknown evidence gap: no_valid_expiration_pair": 93,
+        "evidence_unavailable:typed unknown evidence gap: non_positive_forward_variance": 3,
+        "evidence_unavailable:typed unknown evidence gap: unusable_option_chain": 2,
+        "evidence_unavailable:typed unknown evidence gap: unusable_quote": 1,
+        "strategy_rejected:verdict:fail": 389,
+        "structure_unknown:earnings_clearance:unknown_unconfirmed": 2
+      },
+      "traced": 503,
+      "unexplained": []
+    },
+    "skew_momentum": {
+      "active_total": 503,
+      "terminal_counts": {
+        "evidence_unavailable": 20,
+        "strategy_rejected": 483
+      },
+      "terminal_reason_counts": {
+        "evidence_unavailable:typed unknown evidence gap: no_call_contracts_at_selected_expiration": 3,
+        "evidence_unavailable:typed unknown evidence gap: no_future_expiration": 12,
+        "evidence_unavailable:typed unknown evidence gap: unusable_option_chain": 3,
+        "evidence_unavailable:typed unknown evidence gap: unusable_quote": 2,
+        "strategy_rejected:verdict:fail": 483
+      },
+      "traced": 503,
+      "unexplained": []
+    }
+  },
+  "ticket": "OT-06",
+  "unexplained_drop_total": 0,
+  "verdict": "pass"
+}
