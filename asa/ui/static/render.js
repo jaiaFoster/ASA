@@ -307,6 +307,19 @@ function detailView(item, handlers) {
       legs.append(card);
     }
     trade.append(legs);
+    if (item.tracked_candidate) {
+      trade.append(element("p", "track-confirmation", `Tracked · ${item.tracked_candidate.id}`));
+    } else {
+      const track = element("button", "button button--primary", "Track This");
+      track.type = "button";
+      track.addEventListener("click", () => handlers.trackProposal(item));
+      trade.append(track);
+    }
+    trade.append(element(
+      "p",
+      "track-disclosure",
+      "Tracking preserves this proposal. It does not place an order or imply a fill.",
+    ));
     if (item.terminal_payoff) {
       trade.append(element("h4", null, "Deterministic expiration payoff"));
       trade.append(definitionList([

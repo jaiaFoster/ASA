@@ -40,6 +40,26 @@ async function requestJson(path, protectedRoute = true) {
   return { data: await response.json(), apiVersion: response.headers.get("API-Version") };
 }
 
+async function postJson(path, payload) {
+  const response = await fetch(path, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      ...(memoryToken ? { Authorization: `Bearer ${memoryToken}` } : {}),
+    },
+    credentials: "same-origin",
+    cache: "no-store",
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    const error = new Error(`POST ${path} returned HTTP ${response.status}`);
+    error.status = response.status;
+    throw error;
+  }
+  return { data: await response.json(), apiVersion: response.headers.get("API-Version") };
+}
+
 export const api = Object.freeze({
   health: () => requestJson("/api/v1/health", false),
   readiness: () => requestJson("/api/v1/readiness", false),
@@ -67,6 +87,12 @@ export const api = Object.freeze({
     requestJson(
       `/api/v1/screening/${encodeURIComponent(signalId)}/${encodeURIComponent(symbol)}/execution-readiness/terminal-payoff`,
     ),
+  trackCandidate: (signalId, symbol, observationId) =>
+    postJson("/api/v1/portfolio/tracked-candidates", {
+      strategy_id: signalId,
+      symbol,
+      observation_id: observationId,
+    }),
   modelPnl: (signalId, symbol, assumptions) =>
     requestJson(
       `/api/v1/screening/${encodeURIComponent(signalId)}/${encodeURIComponent(symbol)}/execution-readiness/modeled-pnl?${new URLSearchParams({

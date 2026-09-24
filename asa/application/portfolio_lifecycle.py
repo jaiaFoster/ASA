@@ -11,7 +11,13 @@ from asa.contracts.portfolio_lifecycle import (
     ReconciliationState,
     TrackedCandidate,
 )
+from strategy_runtime.executable_structures import deserialize_execution_assessment
 from strategy_runtime.persistence import LatestResultRepository, UniversalSignalRow
+from strategy_runtime.trade_proposal import (
+    OptionTradeProposal,
+    build_option_trade_proposal,
+    trade_proposal_to_data,
+)
 
 
 class CandidateNotFoundError(LookupError):
@@ -41,10 +47,25 @@ class TrackCandidateService:
                 sorted(
                     str(item["instrument_id_value"]).upper()
                     for item in payload.get("exact_legs", ())
-                    if isinstance(item, dict)
-                    and item.get("instrument_id_scheme") == "occ"
+                    if isinstance(item, dict) and item.get("instrument_id_scheme") == "occ"
                 )
             )
+            proposal_identity = proposal.assessment_identity
+            proposal_json = proposal.canonical_json
+            try:
+                assessment = deserialize_execution_assessment(proposal.assessment_json)
+                projected = build_option_trade_proposal(row.to_result(), assessment)
+                if isinstance(projected, OptionTradeProposal):
+                    proposal_identity = projected.identity
+                    proposal_json = json.dumps(
+                        trade_proposal_to_data(projected),
+                        sort_keys=True,
+                        separators=(",", ":"),
+                    )
+            except (KeyError, TypeError, ValueError):
+                # Historical/test artifacts predating the canonical proposal retain
+                # their immutable accepted assessment rather than being rewritten.
+                pass
             candidate = TrackedCandidate(
                 id=candidate.id,
                 originating_observation_id=candidate.originating_observation_id,
@@ -56,8 +77,8 @@ class TrackCandidateService:
                 originating_observed_at=candidate.originating_observed_at,
                 evidence_observed_at=candidate.evidence_observed_at,
                 exact_option_symbols=proposal_symbols or candidate.exact_option_symbols,
-                resolved_proposal_identity=proposal.assessment_identity,
-                resolved_proposal_json=proposal.canonical_json,
+                resolved_proposal_identity=proposal_identity,
+                resolved_proposal_json=proposal_json,
             )
         return self._lifecycle.add_candidate(candidate)
 

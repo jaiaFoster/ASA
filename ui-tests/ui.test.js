@@ -30,6 +30,7 @@ const noOpHandlers = {
   connect() {},
   filter() {},
   reload() {},
+  trackProposal() {},
 };
 
 function model(overrides = {}) {
@@ -232,7 +233,12 @@ test("actionable option detail leads with exact trade and expandable rationale",
       route: { name: "detail" },
       detail: { ...fixture, trade_proposal: proposal, terminal_payoff: terminalPayoff },
     }),
-    noOpHandlers,
+    {
+      ...noOpHandlers,
+      trackProposal(item) {
+        assert.equal(item.observation_id, fixture.observation_id);
+      },
+    },
   );
 
   const card = root.querySelector(".trade-card");
@@ -246,6 +252,9 @@ test("actionable option detail leads with exact trade and expandable rationale",
   assert.match(card.querySelector("svg").getAttribute("aria-label"), /expiration payoff/);
   assert.match(card.textContent, /Show exact plotted values/);
   assert.match(card.textContent, /not guaranteed returns/);
+  assert.match(card.textContent, /Track This/);
+  assert.match(card.textContent, /does not place an order or imply a fill/);
+  card.querySelector("button.button--primary").click();
 });
 
 test("promising signal without exact structure keeps signal and blocker distinct", () => {
@@ -276,6 +285,7 @@ test("promising signal without exact structure keeps signal and blocker distinct
   assert.match(card.textContent, /Signal verdict \(unchanged\)PASS/);
   assert.match(card.textContent, /Exact blockerno_compatible_contract/);
   assert.match(card.textContent, /No exact compatible option contract was found/);
+  assert.equal(card.querySelector("button.button--primary"), null);
 });
 
 test("runtime strip renders exact configured build identity and explicit unavailable revision", () => {
