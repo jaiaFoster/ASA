@@ -61,6 +61,7 @@ from asa.integrations.screening_acquisition_attempts_postgres import (
     PostgresAcquisitionAttemptRepository,
 )
 from asa.integrations.universal_screening_postgres import PostgresLatestResultRepository
+from asa.scheduled_outcomes import run_scheduled_outcome_collection
 from domain import CanonicalInstrumentIdentity, MarketObservation, UnknownReason
 from market_data import ReuseDecision, load_market_data_config_from_environment
 from market_data.attempts import AcquisitionAttemptRepository
@@ -987,6 +988,16 @@ def main(argv: Sequence[str] | None = None) -> int:
     except Exception as exc:
         _LOGGER.warning(
             "portfolio_refresh_failed",
+            extra={"failure_class": type(exc).__name__, "detail": str(exc)[:500]},
+            exc_info=True,
+        )
+    # OUTCOME-INTELLIGENCE OI-03: forward outcomes run last, isolated, and do
+    # not change this tick's screening report.
+    try:
+        run_scheduled_outcome_collection()
+    except Exception as exc:
+        _LOGGER.warning(
+            "forward_outcome_collection_failed",
             extra={"failure_class": type(exc).__name__, "detail": str(exc)[:500]},
             exc_info=True,
         )

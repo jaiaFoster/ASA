@@ -12,11 +12,17 @@ from asa.application.portfolio_lifecycle import (
     TrackCandidateService,
 )
 from asa.application.portfolio_valuation import project_exit_state
+from asa.application.ports.forward_outcomes import ForwardOutcomeRepository
 from asa.application.ports.portfolio_lifecycle import PortfolioLifecycleRepository
 from asa.contracts.portfolio_lifecycle import (
     PositionAssociation,
     PositionLifecycleObservation,
     TrackedCandidate,
+)
+from strategy_runtime.forward_outcome import (
+    HORIZON_POLICY_VERSION,
+    horizon_schedule,
+    parse_frozen_structure,
 )
 
 
@@ -103,12 +109,94 @@ class TrackedCandidateDetailResponse(BaseModel):
     exit_policy_status: str
 
 
+class ForwardOutcomeResponse(BaseModel):
+    horizon_id: str
+    status: str
+    due_at: datetime
+    observed_at: datetime | None = None
+    collected_at: datetime | None = None
+    underlying_price: str | None = None
+    modeled_mark: str | None = None
+    modeled_pnl: str | None = None
+    mark_basis: str | None = None
+    mark_model_version: str | None = None
+    unknown_reasons: list[str] = Field(default_factory=list)
+    content_identity: str | None = None
+
+
+class TrackedCandidateOutcomesResponse(BaseModel):
+    tracked_candidate_id: UUID
+    frozen_proposal_identity: str | None
+    horizon_policy_version: str
+    basis: str
+    outcomes: list[ForwardOutcomeResponse]
+
+
+def _text_or_none(value: object) -> str | None:
+    return None if value is None else str(value)
+
+
 def build_portfolio_lifecycle_router(
     service: TrackCandidateService,
     repository: PortfolioLifecycleRepository,
     authorize: Callable[[Request], None],
+    forward_outcome_repository: ForwardOutcomeRepository | None = None,
 ) -> APIRouter:
     router = APIRouter(prefix="/api/v1", dependencies=[Depends(authorize)])
+
+    @router.get(
+        "/portfolio/tracked-candidates/{candidate_id}/outcomes",
+        response_model=TrackedCandidateOutcomesResponse,
+    )
+    def tracked_candidate_outcomes(candidate_id: UUID) -> TrackedCandidateOutcomesResponse:
+        """Recorded forward outcomes plus computed, unstored pending horizons."""
+        candidate = repository.candidate(candidate_id)
+        if candidate is None:
+            raise HTTPException(status_code=404, detail="tracked candidate not found")
+        structure = parse_frozen_structure(
+            candidate.resolved_proposal_identity, candidate.resolved_proposal_json
+        )
+        recorded = {
+            item.horizon_id: item
+            for item in (
+                ()
+                if forward_outcome_repository is None
+                else forward_outcome_repository.for_candidate(candidate_id)
+            )
+        }
+        outcomes: list[ForwardOutcomeResponse] = []
+        for due in horizon_schedule(candidate.evidence_observed_at, structure):
+            item = recorded.get(due.horizon_id)
+            if item is None:
+                outcomes.append(
+                    ForwardOutcomeResponse(
+                        horizon_id=due.horizon_id, status="pending", due_at=due.due_at
+                    )
+                )
+                continue
+            outcomes.append(
+                ForwardOutcomeResponse(
+                    horizon_id=item.horizon_id,
+                    status=item.status.value,
+                    due_at=item.due_at,
+                    observed_at=item.observed_at,
+                    collected_at=item.collected_at,
+                    underlying_price=_text_or_none(item.underlying_price),
+                    modeled_mark=_text_or_none(item.modeled_mark),
+                    modeled_pnl=_text_or_none(item.modeled_pnl),
+                    mark_basis=item.mark_basis,
+                    mark_model_version=item.mark_model_version,
+                    unknown_reasons=list(item.unknown_reasons),
+                    content_identity=item.content_identity,
+                )
+            )
+        return TrackedCandidateOutcomesResponse(
+            tracked_candidate_id=candidate_id,
+            frozen_proposal_identity=candidate.resolved_proposal_identity,
+            horizon_policy_version=HORIZON_POLICY_VERSION,
+            basis="paper_modeled_not_brokerage_fill; user_tracked_corpus",
+            outcomes=outcomes,
+        )
 
     @router.post(
         "/portfolio/tracked-candidates",
