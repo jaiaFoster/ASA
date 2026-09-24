@@ -143,8 +143,10 @@ Default:
 
 ## Merge and review behavior
 
-Use risk-scaled process. Existing Founder Sprint Delegation governs mechanical implementation merges where active. Architecture review is exception-driven for:
-- new subsystem/authority;
+Use the repository's current risk-scaled process exactly. Existing Founder Sprint Delegation governs mechanical implementation merges where active. Any mandatory R3 independent review, Architect approval, or verification that current governance requires must still occur; obtain those reviews autonomously from the appropriate role/reviewer and continue immediately when they pass. A required non-Founder review is not a Founder blocker and is not a reason to ask the Founder for routine approval.
+
+In addition to any mandatory risk-floor review, Architect escalation is required before proceeding on an affected path when implementation reveals:
+- a new subsystem/authority;
 - ownership transfer;
 - canonical identity/model change;
 - material schema/migration semantics;
@@ -154,7 +156,7 @@ Use risk-scaled process. Existing Founder Sprint Delegation governs mechanical i
 - increased risk class;
 - conflict with accepted architecture.
 
-Do not ask for per-PR Founder approval when the work is already inside this program and current delegation permits the merge.
+Do not ask for per-PR Founder approval when the work is already inside this program and current delegation permits the merge. Do not claim that this program waives a governance review floor; no such waiver is granted here.
 
 ## Program success metric
 
