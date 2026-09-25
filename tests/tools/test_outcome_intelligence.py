@@ -262,7 +262,7 @@ def test_closure_is_pending_until_evidence_exists_and_never_claims_closed() -> N
     session = report["per_session"][0]
     assert session["aoy_option"] == 1 and session["aoy_stock"] == 1
     assert session["constructible_rate_after_qualifying"] == 0.5
-    assert session["median_actionable_evidence_age_seconds"] == 2610.0
+    assert session["median_actionable_evidence_age_at_close_seconds"] == 300.0
 
 
 def test_closure_ready_carries_the_strategy_library_downgrade() -> None:

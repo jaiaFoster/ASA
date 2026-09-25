@@ -17,10 +17,11 @@ import argparse
 import hashlib
 import json
 import statistics
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+from market_data.session_calendar import UsEquitySessionCalendar
 from tools.outcome_intelligence.data_value import (
     DEFAULT_MINIMUM_ELIGIBLE_SESSIONS,
     Session,
@@ -63,18 +64,22 @@ def session_metrics(session: Session) -> JsonObject:
             provider_by_capability[row["capability"]] = (
                 provider_by_capability.get(row["capability"], 0) + row["count"]
             )
+    # Evidence age is measured at the session close, not at capture time, so
+    # sessions captured at different hours stay comparable.
     captured_at = datetime.fromisoformat(capture["captured_at"])
-    ages = [
-        (
-            captured_at - datetime.fromisoformat(item["observed_at"].replace("Z", "+00:00"))
-        ).total_seconds()
+    market = UsEquitySessionCalendar().session(date.fromisoformat(session.session_date))
+    if market is None:
+        raise ValueError(f"{session.session_date} is not a market session")
+    observed_times = [
+        datetime.fromisoformat(item["observed_at"].replace("Z", "+00:00"))
         for strategy in census["strategies"].values()
         for item in strategy.get("actionable", [])
     ] + [
-        float(item["evidence_age_seconds"])
+        captured_at - timedelta(seconds=float(item["evidence_age_seconds"]))
         for item in capture["stocks"]["observations"]
         if item["status"] == "actionable" and item.get("evidence_age_seconds") is not None
     ]
+    ages = [max(0.0, (market.closes_at - item).total_seconds()) for item in observed_times]
     cards = capture["trade_cards"]
     option_actionable = sum(item["actionable"] for item in options.values())
     option_qualifying = sum(item["qualifying"] for item in options.values())
@@ -96,7 +101,7 @@ def session_metrics(session: Session) -> JsonObject:
             key: _ratio(value, option_active + stock_active)
             for key, value in sorted(provider_by_capability.items())
         },
-        "median_actionable_evidence_age_seconds": (
+        "median_actionable_evidence_age_at_close_seconds": (
             round(statistics.median(ages), 1) if ages else None
         ),
         "trade_card_completeness": _ratio(
@@ -321,8 +326,8 @@ def render_markdown(report: JsonObject) -> str:
         f"- Constructible rate after qualifying signals (mean): "
         f"{_mean_of(metrics, 'constructible_rate_after_qualifying')}",
         f"- Trade-card completeness (mean): {_mean_of(metrics, 'trade_card_completeness')}",
-        f"- Median actionable evidence age, seconds (mean of sessions): "
-        f"{_mean_of(metrics, 'median_actionable_evidence_age_seconds')}",
+        f"- Median actionable evidence age at session close, seconds (mean of sessions): "
+        f"{_mean_of(metrics, 'median_actionable_evidence_age_at_close_seconds')}",
         f"- Unexplained drops (total): {sum(item['unexplained_drop_count'] for item in metrics)}",
         "",
         "| Session | SHA | AOY | Options | Stocks | Coverage | Completion | Constructible "

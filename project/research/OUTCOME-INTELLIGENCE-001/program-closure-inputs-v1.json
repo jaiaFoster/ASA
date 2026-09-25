@@ -44,9 +44,9 @@
   "next_product_decisions": [
     {
       "id": "ND-01",
-      "decision": "Whether to auto-enroll actionable proposals into the forward-outcome corpus, beyond user tracking",
-      "owner": "Architect",
-      "why": "The corpus grows only when the user tracks a proposal. That leaves the corpus small and selection-biased (BD-01)."
+      "decision": "Founder merge of the auto-enrollment PR (migration 0020). The Architect APPROVED-WITH-AMENDMENTS; the PR must follow #493.",
+      "owner": "Founder (merge); Architect decision recorded",
+      "why": "The corpus grows only when the user tracks a proposal, which keeps it small and selection-biased (BD-01). See project/reports/OUTCOME-INTELLIGENCE-001-ND-01-ARCHITECT-DECISION.md."
     },
     {
       "id": "ND-02",

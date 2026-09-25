@@ -106,6 +106,26 @@ Both exit 2 while the evidence is insufficient.
   - ledger `outcome_route_not_deployed` distinguished from an empty available corpus.
 - `tests/tools` total: 35 passed. ruff and mypy are clean on the new package.
 
-## Current state
+## Current state (first real capture, 2026-09-24 session, `d52146f`)
 
-See the generated `OUTCOME-INTELLIGENCE-001-OI-07.md` and `ASA-OPTIONS-TO-OUTCOMES-2026Q4-CLOSURE.md`, which are regenerated from committed captures.
+These are the generated reports, `OUTCOME-INTELLIGENCE-001-OI-07.{md,json}` and `ASA-OPTIONS-TO-OUTCOMES-2026Q4-CLOSURE.{md,json}`. Regenerating them from the committed capture is byte-identical.
+
+- **OI-07:** `evidence_insufficient`.
+  - 1 of 5 eligible sessions.
+  - Ledger `outcome_route_not_deployed`, because #493 is awaiting the Founder merge.
+- **Program:** `observation_pending`.
+  - Passing gates: prior sprints closed, zero unexplained drops, no presentation defects, no open corrections.
+  - Pending gates: forward ledger deployed, forward outcome observed, AOY over 5 sessions, OI-07 complete.
+- **AOY (n=1):** 3.
+  - Options: 2 (earnings_calendar/CI and spy_put_credit_spread/SPY).
+  - Stocks: 1 (B001/SPY).
+- **Coverage:**
+  - Evaluation coverage 1.0.
+  - Constructible rate after qualifying signals 0.4.
+  - Median actionable evidence age at close about 330 s.
+- **Loss attribution** (1,509 non-actionable rows):
+  - 1,093 strategy semantics;
+  - 382 market structure or policy, which paid data cannot change;
+  - 34 provider capability: earnings 19, option chain 11, quote 3, historical bars 1.
+- **Unmet target:** STRATEGY-LIBRARY-001 SL-02 is carried as **UNMET (downgraded)**.
+- **Forward corpus:** growth depends on ND-01. The Architect APPROVED-WITH-AMENDMENTS system auto-enrollment (`OUTCOME-INTELLIGENCE-001-ND-01-ARCHITECT-DECISION.md`). It requires migration 0020, which means a separate R3 PR after #493 and a Founder merge.

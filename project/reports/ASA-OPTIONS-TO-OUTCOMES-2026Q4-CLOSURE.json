@@ -1,0 +1,230 @@
+{
+  "aoy": {
+    "option": {
+      "max": 2.0,
+      "mean": 2.0,
+      "median": 2.0,
+      "min": 2.0,
+      "n": 1
+    },
+    "stock": {
+      "max": 1.0,
+      "mean": 1.0,
+      "median": 1.0,
+      "min": 1.0,
+      "n": 1
+    },
+    "total": {
+      "max": 3.0,
+      "mean": 3.0,
+      "median": 3.0,
+      "min": 3.0,
+      "n": 1
+    }
+  },
+  "data_value_checksum": "dd3307c5ef849ef1909c464d834fc9d607bb4f343ba5bf0169454641fd6b0de6",
+  "data_value_verdict": "evidence_insufficient",
+  "forward_outcomes": {
+    "by_strategy": {},
+    "ledger_status": "outcome_route_not_deployed"
+  },
+  "gates": [
+    {
+      "detail": "all closed",
+      "gate": "prior_sprints_closed",
+      "state": "pass"
+    },
+    {
+      "detail": "latest eligible capture ledger_status=outcome_route_not_deployed",
+      "gate": "forward_ledger_deployed",
+      "state": "pending"
+    },
+    {
+      "detail": "0 observed horizon(s) in the latest readable ledger",
+      "gate": "forward_outcome_observed",
+      "state": "pending"
+    },
+    {
+      "detail": "1 eligible session(s), required 5",
+      "gate": "aoy_measured",
+      "state": "pending"
+    },
+    {
+      "detail": "0 unexplained drop(s) across eligible sessions",
+      "gate": "zero_unexplained_drops",
+      "state": "pass"
+    },
+    {
+      "detail": "0 trade-card/stock-proposal defect(s) across eligible sessions",
+      "gate": "presentation_defect_free",
+      "state": "pass"
+    },
+    {
+      "detail": "OI-07 verdict=evidence_insufficient",
+      "gate": "oi07_data_value_complete",
+      "state": "pending"
+    },
+    {
+      "detail": "0 open correction(s)",
+      "gate": "no_open_corrections",
+      "state": "pass"
+    }
+  ],
+  "next_product_decisions": [
+    {
+      "decision": "Founder merge of the auto-enrollment PR (migration 0020). The Architect APPROVED-WITH-AMENDMENTS; the PR must follow #493.",
+      "id": "ND-01",
+      "owner": "Founder (merge); Architect decision recorded",
+      "why": "The corpus grows only when the user tracks a proposal, which keeps it small and selection-biased (BD-01). See project/reports/OUTCOME-INTELLIGENCE-001-ND-01-ARCHITECT-DECISION.md."
+    },
+    {
+      "decision": "Whether to procure any capability in the OI-07 paid-capability gaps",
+      "id": "ND-02",
+      "owner": "Founder",
+      "why": "The OI-07 report quantifies the rows each gap costs. Purchase is not delegated."
+    },
+    {
+      "decision": "Whether to fund index-option modelling (ARCH-005 amendment) for SPX strategies such as CNDR",
+      "id": "ND-03",
+      "owner": "Architect",
+      "why": "This is the SL-02 breadth blocker (BD-05). The work is mostly ASA-owned rather than a data purchase."
+    }
+  ],
+  "paid_capability_gaps": [
+    {
+      "blocked_decisions": [
+        "BD-06"
+      ],
+      "observed_rows_partially_resolvable": {
+        "latest_session": 19,
+        "mean_per_session": 19.0
+      },
+      "observed_rows_resolvable": {
+        "latest_session": 0,
+        "mean_per_session": 0.0
+      },
+      "required_capability": "confirmed earnings calendar with announcement status and effective timestamps"
+    },
+    {
+      "blocked_decisions": [
+        "BD-07"
+      ],
+      "observed_rows_partially_resolvable": {
+        "latest_session": 3,
+        "mean_per_session": 3.0
+      },
+      "observed_rows_resolvable": {
+        "latest_session": 11,
+        "mean_per_session": 11.0
+      },
+      "required_capability": "complete option expiration, contract, quote, Greek, and implied-volatility evidence"
+    },
+    {
+      "blocked_decisions": [
+        "BD-02",
+        "BD-08"
+      ],
+      "observed_rows_partially_resolvable": {
+        "latest_session": 0,
+        "mean_per_session": 0.0
+      },
+      "observed_rows_resolvable": {
+        "latest_session": 1,
+        "mean_per_session": 1.0
+      },
+      "required_capability": "split-and-dividend-adjusted or authoritative total-return history"
+    },
+    {
+      "blocked_decisions": [
+        "BD-08"
+      ],
+      "observed_rows_partially_resolvable": {
+        "latest_session": 0,
+        "mean_per_session": 0.0
+      },
+      "observed_rows_resolvable": {
+        "latest_session": 0,
+        "mean_per_session": 0.0
+      },
+      "required_capability": "canonical three-month Treasury total-return history"
+    },
+    {
+      "blocked_decisions": [
+        "BD-08"
+      ],
+      "observed_rows_partially_resolvable": {
+        "latest_session": 0,
+        "mean_per_session": 0.0
+      },
+      "observed_rows_resolvable": {
+        "latest_session": 0,
+        "mean_per_session": 0.0
+      },
+      "required_capability": "authoritative point-in-time sector membership and historical exchange calendar"
+    }
+  ],
+  "per_session": [
+    {
+      "aoy": 3,
+      "aoy_option": 2,
+      "aoy_stock": 1,
+      "constructible_rate_after_qualifying": 0.4,
+      "evaluation_coverage": 1.0,
+      "median_actionable_evidence_age_at_close_seconds": 330.1,
+      "production_sha": "d52146f61856217ecc5174b8082e8aa1add8e382",
+      "provider_limited_rate_by_capability": {
+        "earnings_calendar_v1": 0.0126,
+        "historical_bars_v1": 0.0007,
+        "option_chain_v1": 0.0073,
+        "real_time_quote_v1": 0.002
+      },
+      "session_date": "2026-09-24",
+      "stock_proposal_defects": 0,
+      "strategy_evaluation_completion_rate": 0.7269,
+      "trade_card_completeness": 0.4,
+      "trade_card_defects": 0,
+      "unexplained_drop_count": 0
+    }
+  ],
+  "program": "ASA-OPTIONS-TO-OUTCOMES-2026Q4",
+  "report_checksum": "8c935f803d00225d512cc1dfefa88f3b1841fc2e832718b6e86d6406b70afb72",
+  "report_kind": "program_closure",
+  "report_version": "1.0.0",
+  "sprints": [
+    {
+      "closure_report": "project/reports/OPTIONS-TRUTH-001-OT-06.md",
+      "sprint": "OPTIONS-TRUTH-001",
+      "state": "closed"
+    },
+    {
+      "closure_report": "project/reports/OPTIONS-PRODUCT-001-CLOSURE.md",
+      "sprint": "OPTIONS-PRODUCT-001",
+      "state": "closed"
+    },
+    {
+      "closure_report": "project/reports/STOCK-PRODUCT-001-SP-06.md",
+      "sprint": "STOCK-PRODUCT-001",
+      "state": "closed"
+    },
+    {
+      "closure_report": "project/reports/STRATEGY-LIBRARY-001-CLOSURE.md",
+      "sprint": "STRATEGY-LIBRARY-001",
+      "state": "closed_with_downgrade"
+    },
+    {
+      "closure_report": null,
+      "sprint": "OUTCOME-INTELLIGENCE-001",
+      "state": "in_progress"
+    }
+  ],
+  "unmet_targets": [
+    {
+      "achieved": "1 (spy_put_credit_spread)",
+      "disposition": "downgraded",
+      "met": false,
+      "sprint": "STRATEGY-LIBRARY-001",
+      "target": "SL-02: add 2-4 option strategies"
+    }
+  ],
+  "verdict": "observation_pending"
+}
