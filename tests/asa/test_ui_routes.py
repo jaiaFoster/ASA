@@ -38,6 +38,7 @@ def test_ui_shell_and_packaged_assets_return_200() -> None:
         "app.js",
         "api-client.js",
         "pagination.js",
+        "prioritize.js",
         "state.js",
         "render.js",
         "styles.css",
@@ -175,7 +176,7 @@ def test_ui_classifies_asset_surfaces_by_declared_structure_not_strategy_id() ->
     static = files("asa.ui").joinpath("static")
     sources = "".join(
         static.joinpath(name).read_text(encoding="utf-8")
-        for name in ("app.js", "render.js", "state.js", "api-client.js")
+        for name in ("app.js", "render.js", "state.js", "api-client.js", "prioritize.js")
     )
 
     assert 'signal?.structure === "none"' in sources

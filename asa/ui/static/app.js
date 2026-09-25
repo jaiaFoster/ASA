@@ -1,4 +1,5 @@
 import { api, clearToken, hasToken, setToken } from "./api-client.js";
+import { isQualifying } from "./prioritize.js";
 import { renderApp } from "./render.js";
 import {
   exactCounts,
@@ -30,6 +31,7 @@ function model() {
     route,
     hasToken: hasToken(),
     visible: filteredResults(),
+    opportunityEntries: opportunityEntries(),
     detail: persistedDetail && readiness
       ? {
           ...persistedDetail,
@@ -50,6 +52,36 @@ function model() {
     },
     evaluatedRange: exactTimestampRange(state.results, "evaluated_at"),
   };
+}
+
+// Qualifying rows joined with whatever proposal has been loaded for them; a
+// missing proposal is shown as "no complete proposal", never guessed.
+function opportunityEntries() {
+  return state.results.filter(isQualifying).map((result) => {
+    const key = `${result.signal_id}:${result.symbol}`;
+    const stock = isStockSignal(state.capabilities, result.signal_id);
+    const proposal = stock ? state.stockProposals[key] : state.tradeProposals[key];
+    return { result, stock, proposal: proposal ?? null };
+  });
+}
+
+async function loadOpportunityProposals() {
+  if (routeFromHash(location.hash).name !== "opportunities" || !hasToken()) return;
+  const pending = state.results.filter(isQualifying).map(async (result) => {
+    const key = `${result.signal_id}:${result.symbol}`;
+    const stock = isStockSignal(state.capabilities, result.signal_id);
+    const cache = stock ? state.stockProposals : state.tradeProposals;
+    try {
+      cache[key] = (stock
+        ? await api.stockProposal(result.signal_id, result.symbol)
+        : await api.tradeProposal(result.signal_id, result.symbol)).data;
+    } catch (error) {
+      if (error.status !== 404 && error.status !== 409) state.error = String(error.message || error);
+      delete cache[key];
+    }
+  });
+  await Promise.all(pending);
+  render();
 }
 
 async function loadExecutionReadiness() {
@@ -125,6 +157,7 @@ async function loadPersistedState() {
     state.apiVersion = results.apiVersion || capabilities.apiVersion;
     state.fetchedAt = new Date().toISOString();
     void loadExecutionReadiness();
+    void loadOpportunityProposals();
   } catch (error) {
     state.error = error.status === 404
       ? "The token is missing, invalid, or the protected API is unavailable."
@@ -167,6 +200,10 @@ const handlers = {
     state.filters[key] = value;
     render();
   },
+  filterOpportunities(key, value) {
+    state.opportunityFilters[key] = value;
+    render();
+  },
   async modelPnl(item, payload) {
     const key = `${item.signal_id}:${item.symbol}`;
     try {
@@ -199,7 +236,9 @@ const handlers = {
 };
 
 async function loadForwardOutcomes() {
-  if (routeFromHash(location.hash).name !== "outcomes" || !hasToken()) return;
+  if (!["outcomes", "opportunities"].includes(routeFromHash(location.hash).name) || !hasToken()) {
+    return;
+  }
   try {
     const candidates = (await api.trackedCandidates()).data;
     state.forwardOutcomes = await Promise.all(
@@ -220,6 +259,7 @@ window.addEventListener("hashchange", () => {
   render();
   void loadExecutionReadiness();
   void loadForwardOutcomes();
+  void loadOpportunityProposals();
 });
 if (!location.hash) location.hash = "#/results";
 render();
