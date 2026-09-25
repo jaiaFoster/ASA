@@ -129,3 +129,12 @@ These are the generated reports, `OUTCOME-INTELLIGENCE-001-OI-07.{md,json}` and 
   - 34 provider capability: earnings 19, option chain 11, quote 3, historical bars 1.
 - **Unmet target:** STRATEGY-LIBRARY-001 SL-02 is carried as **UNMET (downgraded)**.
 - **Forward corpus:** growth depends on ND-01. The Architect APPROVED-WITH-AMENDMENTS system auto-enrollment (`OUTCOME-INTELLIGENCE-001-ND-01-ARCHITECT-DECISION.md`). It requires migration 0020, which means a separate R3 PR after #493 and a Founder merge.
+
+## Observation log
+
+- **2026-09-25 (`0f00dfa`, first session with #493 and #494 live):**
+  - **Collector:** it wrote the ledger. BKNG's user-tracked d1/d5/d10 horizons are now recorded as `missed`, because their windows passed before collection existed.
+  - **ND-01 enrollment:** it enrolled **8** system proposals, 7 earnings_calendar and 1 spy_put_credit_spread. The 8-per-session cap was reached by 14:13 UTC.
+  - **Enrollment cap:** the end-of-day census counts 10 actionable option proposals. So at least 2 were not enrolled, by the cap as designed; the log gap below means the exact count isn't visible. The first-come cap favours early-session proposals, which is a sampling bias to disclose.
+  - **Observability gap:** the `proposal_outcome_enrollment` and `forward_outcome_collection` INFO summaries do not reach Railway logs. Only the tick JSON and WARNING/ERROR lines do, and the older INFO diagnostics are also absent, so this is cron logging configuration rather than an OI defect. No `*_failed` warnings were seen. This is a follow-up; the API state is the evidence used here.
+  - **Gates:** zero unexplained drops, zero presentation defects, no unclassified reasons. AOY is 11 (10 options, 1 stock).
