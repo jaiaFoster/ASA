@@ -1,0 +1,64 @@
+{
+  "inputs_version": "1.0.0",
+  "program": "ASA-OPTIONS-TO-OUTCOMES-2026Q4",
+  "sprints": [
+    {
+      "sprint": "OPTIONS-TRUTH-001",
+      "state": "closed",
+      "closure_report": "project/reports/OPTIONS-TRUTH-001-OT-06.md",
+      "targets": []
+    },
+    {
+      "sprint": "OPTIONS-PRODUCT-001",
+      "state": "closed",
+      "closure_report": "project/reports/OPTIONS-PRODUCT-001-CLOSURE.md",
+      "targets": []
+    },
+    {
+      "sprint": "STOCK-PRODUCT-001",
+      "state": "closed",
+      "closure_report": "project/reports/STOCK-PRODUCT-001-SP-06.md",
+      "targets": []
+    },
+    {
+      "sprint": "STRATEGY-LIBRARY-001",
+      "state": "closed_with_downgrade",
+      "closure_report": "project/reports/STRATEGY-LIBRARY-001-CLOSURE.md",
+      "targets": [
+        {
+          "target": "SL-02: add 2-4 option strategies",
+          "met": false,
+          "achieved": "1 (spy_put_credit_spread)",
+          "disposition": "downgraded"
+        }
+      ]
+    },
+    {
+      "sprint": "OUTCOME-INTELLIGENCE-001",
+      "state": "in_progress",
+      "closure_report": null,
+      "targets": []
+    }
+  ],
+  "open_corrections": [],
+  "next_product_decisions": [
+    {
+      "id": "ND-01",
+      "decision": "Whether to auto-enroll actionable proposals into the forward-outcome corpus, beyond user tracking",
+      "owner": "Architect",
+      "why": "The corpus grows only when the user tracks a proposal. That leaves the corpus small and selection-biased (BD-01)."
+    },
+    {
+      "id": "ND-02",
+      "decision": "Whether to procure any capability in the OI-07 paid-capability gaps",
+      "owner": "Founder",
+      "why": "The OI-07 report quantifies the rows each gap costs. Purchase is not delegated."
+    },
+    {
+      "id": "ND-03",
+      "decision": "Whether to fund index-option modelling (ARCH-005 amendment) for SPX strategies such as CNDR",
+      "owner": "Architect",
+      "why": "This is the SL-02 breadth blocker (BD-05). The work is mostly ASA-owned rather than a data purchase."
+    }
+  ]
+}

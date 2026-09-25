@@ -1,0 +1,129 @@
+{
+  "registry_version": "1.0.0",
+  "purpose": "Declared product and research decisions that ASA cannot make on current data, each tied to recorded evidence. OI-07 quantifies them against session captures. Nothing here authorizes procurement.",
+  "decisions": [
+    {
+      "id": "BD-01",
+      "decision": "Weight opportunity ordering by forward outcomes, or claim one strategy outperforms another",
+      "blocked_by": "Forward-outcome sample below the OI-06 guard (30 observed outcomes with modeled P&L per strategy). The corpus is user-tracked only; auto-enrollment needs a separate Architect decision.",
+      "unlock": "Time and corpus growth, not purchase. Paid historical option chains would give backtest evidence, a different evidence class that does not replace ASA's own forward outcomes.",
+      "paid_data_could_resolve": "no",
+      "unlock_gaps": [],
+      "observed_reason_codes": [],
+      "evidence_refs": [
+        "project/reports/OUTCOME-INTELLIGENCE-001-OI-06.md",
+        "project/reports/OUTCOME-INTELLIGENCE-001-OI-02-04-ARCHITECT-DECISION.md"
+      ]
+    },
+    {
+      "id": "BD-02",
+      "decision": "Evaluate B002 (adjusted-close stock benchmark) at all",
+      "blocked_by": "Adjusted-close history entitlement (Alpha Vantage). B002 is typed unknown every session.",
+      "unlock": "A source of split-and-dividend-adjusted or total-return history with explicit semantics",
+      "paid_data_could_resolve": "yes",
+      "unlock_gaps": [
+        "split-and-dividend-adjusted or authoritative total-return history"
+      ],
+      "observed_reason_codes": [
+        "unusable_historical_bars",
+        "insufficient_adjusted_history",
+        "unusable_total_return_history"
+      ],
+      "evidence_refs": [
+        "project/reports/STOCK-RUNTIME-001-STK-01.md",
+        "project/reports/STOCK-PRODUCT-001-SP-06.md"
+      ]
+    },
+    {
+      "id": "BD-03",
+      "decision": "Apply Skew Momentum's historical skew-stretch gate before 40 sessions have accumulated",
+      "blocked_by": "No configured provider supplies prior option chains, so historical skew accumulates one session at a time and nothing is backfilled.",
+      "unlock": "Time (prospective accumulation), or historical option chains/IV history. That capability is absent from the data-adequacy-v1 matrix and would need a matrix amendment.",
+      "paid_data_could_resolve": "yes",
+      "unlock_gaps": [],
+      "observed_reason_codes": [],
+      "evidence_refs": [
+        "project/reports/SPRINT-013-S13-04-trace.md"
+      ]
+    },
+    {
+      "id": "BD-04",
+      "decision": "Add IV-Rank-gated option strategies (e.g. tastylive 45-DTE credit spread, Option Alpha CORE put credit spread)",
+      "blocked_by": "No producer for historical IV / IV Rank; such strategies would be permanently UNKNOWN",
+      "unlock": "Historical implied-volatility series per underlying, or time to accumulate IV prospectively",
+      "paid_data_could_resolve": "yes",
+      "unlock_gaps": [],
+      "observed_reason_codes": [],
+      "evidence_refs": [
+        "project/reports/STRATEGY-LIBRARY-001-SL-02-SELECTION.md"
+      ]
+    },
+    {
+      "id": "BD-05",
+      "decision": "Add SPX index-option strategies (e.g. Cboe CNDR) without an SPY substitution",
+      "blocked_by": "Index-underlying, root and settlement identity are not modelled, and the T-bill rate is not acquired. The missing modelling is ASA-owned work, and it needs an ARCH-005 amendment.",
+      "unlock": "An Architect decision and index modelling (ASA work), plus a rate source",
+      "paid_data_could_resolve": "partially",
+      "unlock_gaps": [],
+      "observed_reason_codes": [],
+      "evidence_refs": [
+        "project/reports/STRATEGY-LIBRARY-001-SL-02-CNDR-ARCHITECT-DECISION.md",
+        "project/reports/STRATEGY-LIBRARY-001-SL-02-SELECTION.md"
+      ]
+    },
+    {
+      "id": "BD-06",
+      "decision": "Evaluate earnings-driven opportunities on symbols without a confirmed earnings date",
+      "blocked_by": "Provider earnings coverage. Some events are genuinely unannounced, and no source can resolve those.",
+      "unlock": "A confirmed earnings calendar with announcement status",
+      "paid_data_could_resolve": "partially",
+      "unlock_gaps": [
+        "confirmed earnings calendar with announcement status and effective timestamps"
+      ],
+      "observed_reason_codes": [
+        "missing_earnings_date",
+        "earnings_clearance"
+      ],
+      "evidence_refs": [
+        "project/reports/DATA-RELIABILITY-001-REL-05.md",
+        "project/reports/OPTIONS-TRUTH-001-OT-06.md"
+      ]
+    },
+    {
+      "id": "BD-07",
+      "decision": "Evaluate option strategies on symbols whose chain lacks IV, Greeks, or a usable quote",
+      "blocked_by": "Provider option-evidence coverage and entitlement",
+      "unlock": "Complete option expiration, contract, quote, Greek, and IV evidence",
+      "paid_data_could_resolve": "yes",
+      "unlock_gaps": [
+        "complete option expiration, contract, quote, Greek, and implied-volatility evidence"
+      ],
+      "observed_reason_codes": [
+        "missing_implied_volatility",
+        "missing_actual_delta",
+        "unusable_quote",
+        "unusable_option_chain"
+      ],
+      "evidence_refs": [
+        "project/reports/DATA-RELIABILITY-001-REL-05.md",
+        "project/reports/OPTIONS-TRUTH-001-OT-06.md"
+      ]
+    },
+    {
+      "id": "BD-08",
+      "decision": "Run TGSM / S001 research on qualified long history",
+      "blocked_by": "No qualified total-return, Treasury total-return, or point-in-time reference data",
+      "unlock": "The corresponding data-adequacy sources",
+      "paid_data_could_resolve": "yes",
+      "unlock_gaps": [
+        "split-and-dividend-adjusted or authoritative total-return history",
+        "canonical three-month Treasury total-return history",
+        "authoritative point-in-time sector membership and historical exchange calendar"
+      ],
+      "observed_reason_codes": [],
+      "evidence_refs": [
+        "project/reports/DATA-RELIABILITY-001-REL-05.md"
+      ]
+    }
+  ]
+}

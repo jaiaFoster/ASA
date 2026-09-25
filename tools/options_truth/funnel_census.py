@@ -53,6 +53,7 @@ def census_signal(fetch: Fetch, signal: str) -> JsonObject | None:
     terminals: dict[str, int] = {}
     reasons: dict[str, int] = {}
     unexplained: list[JsonObject] = []
+    actionable: list[JsonObject] = []
     for row in sorted(rows, key=lambda item: str(item["symbol"])):
         symbol = str(row["symbol"])
         status, funnel = fetch(
@@ -67,6 +68,8 @@ def census_signal(fetch: Fetch, signal: str) -> JsonObject | None:
         reason = str(funnel.get("terminal_reason") or "")
         if not terminal or not reason or terminal in _UNEXPLAINED_TERMINALS:
             unexplained.append({"symbol": symbol, "reason": f"{terminal or 'none'}:{reason}"})
+        if terminal == "actionable_opportunity":
+            actionable.append({"symbol": symbol, "observed_at": str(row.get("observed_at"))})
         terminals[terminal] = terminals.get(terminal, 0) + 1
         key = f"{terminal}:{_terminal_reason_family(reason)}"
         reasons[key] = reasons.get(key, 0) + 1
@@ -76,6 +79,7 @@ def census_signal(fetch: Fetch, signal: str) -> JsonObject | None:
         "terminal_counts": dict(sorted(terminals.items())),
         "terminal_reason_counts": dict(sorted(reasons.items())),
         "unexplained": unexplained,
+        "actionable": actionable,
     }
 
 
