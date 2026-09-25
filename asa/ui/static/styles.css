@@ -60,6 +60,9 @@ input:focus, select:focus, button:focus, a:focus { outline: 2px solid var(--cyan
 .summary-card strong { align-self: end; font: 600 1.15rem/1.2 var(--mono); overflow-wrap: anywhere; }
 .filter-bar { display: grid; grid-template-columns: repeat(4, minmax(9rem, 1fr)); gap: .75rem; margin-bottom: 1.25rem; }
 .filter-bar label { display: grid; gap: .35rem; color: var(--muted); font-size: .75rem; text-transform: uppercase; letter-spacing: .08em; }
+.filter-bar .checkbox-label { display: flex; align-items: center; gap: .5rem; }
+.priority-keys { margin: .75rem 0 0; padding-left: 1.25rem; color: var(--muted); }
+.outcome-sample-guard { margin-top: 1.5rem; }
 .table-wrap { overflow-x: auto; border: 1px solid var(--line); }
 .results-table { width: 100%; border-collapse: collapse; font-size: .78rem; }
 .results-table th { position: sticky; top: 0; padding: .8rem; color: var(--muted); background: #101412; text-align: left; text-transform: uppercase; letter-spacing: .08em; }

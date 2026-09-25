@@ -628,3 +628,124 @@ test("strategy library lists declared contracts with coverage and no ranking", (
   assert.match(rows[1].textContent, /no_valid_expiration_pair \(93\)/);
   assert.match(root.textContent, /no ranking is implied/);
 });
+
+test("outcomes view labels paper results, discloses selection bias, and counts samples", () => {
+  const root = document.createElement("div");
+  renderApp(
+    root,
+    model({
+      route: { name: "outcomes" },
+      forwardOutcomes: [
+        {
+          candidate: {
+            id: "c1", strategy_id: "spy_put_credit_spread", strategy_version: "1.0.0",
+            symbol: "SPY", tracked_at: "2026-09-24T19:00:00Z",
+          },
+          outcomes: {
+            outcomes: [
+              { horizon_id: "d1", status: "observed", modeled_pnl: "249.50", unknown_reasons: [] },
+              { horizon_id: "d5", status: "pending", unknown_reasons: [] },
+              { horizon_id: "d10", status: "missed", unknown_reasons: [] },
+              { horizon_id: "first_expiration", status: "pending", unknown_reasons: [] },
+            ],
+          },
+        },
+      ],
+    }),
+    noOpHandlers,
+  );
+
+  assert.match(root.textContent, /PAPER \/ MODELED, NOT BROKERAGE FILLS/);
+  assert.match(root.textContent, /selection-biased/);
+  assert.match(root.textContent, /1 tracked · 1 observed · n=1 with modeled P&L/);
+  const row = root.querySelector(".outcomes-table tbody tr");
+  assert.match(row.textContent, /P&L 249\.50/);
+  assert.match(row.textContent, /missed/);
+});
+
+const { MINIMUM_OUTCOME_SAMPLE, prioritizeOpportunities, outcomeSampleGuard } = await import(
+  "../asa/ui/static/prioritize.js"
+);
+
+function qualifying(signal, symbol, observedAt, overrides = {}) {
+  return {
+    ...fixture,
+    signal_id: signal,
+    symbol,
+    evaluation_state: "pass",
+    freshness_status: "live",
+    usability_status: "usable",
+    observed_at: observedAt,
+    ...overrides,
+  };
+}
+
+const optionProposal = (maximumLoss) => ({
+  status: "available",
+  liquidity: "acceptable",
+  maximum_loss: maximumLoss == null
+    ? { state: "unbounded", value: null }
+    : { state: "known", value: maximumLoss },
+});
+
+test("prioritization orders by displayed keys only, deterministically, never by strategy", () => {
+  const entries = [
+    { result: qualifying("zeta", "AAA", "2026-09-24T20:00:00Z"), stock: false, proposal: null },
+    { result: qualifying("alpha", "BBB", "2026-09-24T18:00:00Z"), stock: false, proposal: optionProposal("250") },
+    { result: qualifying("alpha", "CCC", "2026-09-24T20:00:00Z"), stock: false, proposal: optionProposal(null) },
+    {
+      result: qualifying("stocky", "SPY", "2026-09-24T21:00:00Z", { freshness_status: "stale" }),
+      stock: true,
+      proposal: { status: "actionable" },
+    },
+  ];
+  const ordered = prioritizeOpportunities(entries).map((item) => item.key);
+  assert.deepEqual(ordered, ["alpha:CCC", "alpha:BBB", "stocky:SPY", "zeta:AAA"]);
+  assert.deepEqual(prioritizeOpportunities([...entries].reverse()).map((item) => item.key), ordered);
+  assert.deepEqual(
+    prioritizeOpportunities(entries, { definedRiskOnly: true }).map((item) => item.key),
+    ["alpha:BBB"],
+  );
+  assert.deepEqual(
+    prioritizeOpportunities(entries, { assetClass: "stock" }).map((item) => item.key),
+    ["stocky:SPY"],
+  );
+  assert.deepEqual(
+    prioritizeOpportunities(entries, { completeOnly: true }).map((item) => item.key),
+    ["alpha:CCC", "alpha:BBB", "stocky:SPY"],
+  );
+});
+
+test("outcome samples below the guard never inform ordering and zero is explicit", () => {
+  assert.equal(outcomeSampleGuard(null), null);
+  const guard = outcomeSampleGuard([
+    {
+      candidate: { strategy_id: "alpha" },
+      outcomes: { outcomes: [{ modeled_pnl: "1" }, { modeled_pnl: null }] },
+    },
+  ]);
+  assert.deepEqual(guard, [
+    { strategy: "alpha", tracked: 1, withPnl: 1, guard: `n=1 < ${MINIMUM_OUTCOME_SAMPLE}; not used in ordering` },
+  ]);
+
+  const root = document.createElement("div");
+  renderApp(
+    root,
+    model({
+      route: { name: "opportunities" },
+      opportunityEntries: [
+        { result: qualifying("alpha", "BBB", "2026-09-24T18:00:00Z"), stock: false, proposal: optionProposal("250") },
+        { result: qualifying("zeta", "AAA", "2026-09-24T20:00:00Z"), stock: false, proposal: null },
+      ],
+      opportunityFilters: { assetClass: "", signal: "", completeOnly: false, definedRiskOnly: false },
+      forwardOutcomes: [],
+    }),
+    { ...noOpHandlers, filterOpportunities() {} },
+  );
+  assert.match(root.textContent, /NOT A SCORE, NOT A STRATEGY RANKING/);
+  assert.match(root.textContent, /n=0 for every strategy/);
+  const rows = [...root.querySelectorAll(".opportunities-table tbody tr")].map((row) => row.textContent);
+  assert.equal(rows.length, 2);
+  assert.match(rows[0], /alpha \/ BBB.*complete proposal.*250.*acceptable/);
+  assert.match(rows[1], /zeta \/ AAA.*qualifying signal, no complete proposal/);
+});

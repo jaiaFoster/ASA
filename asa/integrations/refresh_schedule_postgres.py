@@ -6,7 +6,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
-from sqlalchemy import Engine, text
+from sqlalchemy import Engine, ScalarResult, text
 
 
 @dataclass(frozen=True, slots=True)
@@ -67,7 +67,7 @@ class PostgresSubjectRefreshRepository:
                 """),
                 {"subject_ids": list(normalized)},
             )
-            rows = connection.execute(
+            rows: ScalarResult[str] = connection.execute(
                 text("""
                     WITH eligible AS (
                         SELECT subject_id

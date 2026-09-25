@@ -1,3 +1,9 @@
+import {
+  MINIMUM_OUTCOME_SAMPLE,
+  PRIORITY_KEYS,
+  outcomeSampleGuard,
+  prioritizeOpportunities,
+} from "./prioritize.js";
 import { isStockSignal } from "./state.js";
 
 function element(tag, className, text) {
@@ -108,8 +114,10 @@ function shellHeader(model, handlers) {
   nav.setAttribute("aria-label", "Primary navigation");
   const primaryLinks = [
     { href: "#/results", label: "Latest results", routeName: "results" },
+    { href: "#/opportunities", label: "Opportunities", routeName: "opportunities" },
     { href: "#/stocks", label: "Stocks", routeName: "stocks" },
     { href: "#/strategies", label: "Strategy library", routeName: "strategies" },
+    { href: "#/outcomes", label: "Outcomes", routeName: "outcomes" },
     { href: "#/health", label: "Runtime health", routeName: "health" },
   ];
   for (const { href, label, routeName } of primaryLinks) {
@@ -813,6 +821,195 @@ function stocksView(model) {
   return fragment;
 }
 
+const OUTCOME_HORIZONS = ["d1", "d5", "d10", "first_expiration"];
+
+function outcomeCell(outcome) {
+  if (!outcome) return "not scheduled";
+  if (outcome.status !== "observed") return outcome.status;
+  if (outcome.modeled_pnl != null) return `P&L ${outcome.modeled_pnl}`;
+  return `observed · P&L unknown (${outcome.unknown_reasons.join(", ") || "n/a"})`;
+}
+
+function outcomesView(model) {
+  const fragment = document.createDocumentFragment();
+  const heading = element("section", "page-heading");
+  heading.append(element("p", "eyebrow", "FORWARD OUTCOMES · PAPER / MODELED, NOT BROKERAGE FILLS"));
+  heading.append(element("h2", null, "What tracked proposals did next"));
+  heading.append(element(
+    "p",
+    null,
+    "Modeled midpoint marks against each proposal's frozen modeled entry, sampled at "
+      + "fixed horizons (not path extremes). The corpus is only proposals someone chose "
+      + "to track, so it is selection-biased and small; no strategy is ranked from it.",
+  ));
+  fragment.append(heading);
+  if (model.forwardOutcomesError) {
+    fragment.append(element("p", "empty-state", `Outcomes unavailable: ${model.forwardOutcomesError}`));
+    return fragment;
+  }
+  const rows = model.forwardOutcomes || [];
+  const byStrategy = new Map();
+  for (const { candidate, outcomes } of rows) {
+    const entry = byStrategy.get(candidate.strategy_id) || { tracked: 0, observed: 0, withPnl: 0 };
+    entry.tracked += 1;
+    for (const item of outcomes.outcomes) {
+      if (item.status === "observed") entry.observed += 1;
+      if (item.modeled_pnl != null) entry.withPnl += 1;
+    }
+    byStrategy.set(candidate.strategy_id, entry);
+  }
+  const summary = element("section", "summary-grid");
+  for (const [strategy, entry] of byStrategy) {
+    const card = element("article", "summary-card");
+    card.append(
+      element("span", null, strategy),
+      element(
+        "strong",
+        null,
+        `${entry.tracked} tracked · ${entry.observed} observed · n=${entry.withPnl} with modeled P&L`,
+      ),
+    );
+    summary.append(card);
+  }
+  fragment.append(summary);
+  const tableWrap = element("div", "table-wrap");
+  const table = element("table", "results-table outcomes-table");
+  const head = element("thead");
+  const headRow = element("tr");
+  for (const title of ["Strategy", "Symbol", "Tracked", ...OUTCOME_HORIZONS]) {
+    headRow.append(element("th", null, title));
+  }
+  head.append(headRow);
+  table.append(head);
+  const body = element("tbody");
+  for (const { candidate, outcomes } of rows) {
+    const byHorizon = new Map(outcomes.outcomes.map((item) => [item.horizon_id, item]));
+    const row = element("tr");
+    row.append(
+      element("td", null, `${candidate.strategy_id}@${candidate.strategy_version}`),
+      element("td", null, candidate.symbol),
+      element("td", "timestamp", candidate.tracked_at),
+      ...OUTCOME_HORIZONS.map((horizon) => element("td", null, outcomeCell(byHorizon.get(horizon)))),
+    );
+    body.append(row);
+  }
+  table.append(body);
+  tableWrap.append(table);
+  fragment.append(tableWrap);
+  if (!rows.length) {
+    fragment.append(element("p", "empty-state empty-state--large", "No tracked proposals yet."));
+  }
+  return fragment;
+}
+
+function opportunitiesView(model, handlers) {
+  const fragment = document.createDocumentFragment();
+  const heading = element("section", "page-heading");
+  heading.append(element("p", "eyebrow", "TRANSPARENT ORDERING · NOT A SCORE, NOT A STRATEGY RANKING"));
+  heading.append(element("h2", null, "Qualifying opportunities"));
+  heading.append(element(
+    "p",
+    null,
+    "Only rows whose strategy qualified are listed. They are ordered by the keys below, "
+      + "in order; every key is shown on its row. Forward outcomes do not affect ordering.",
+  ));
+  const keys = element("ol", "priority-keys");
+  keys.append(...PRIORITY_KEYS.map((text) => element("li", null, text)));
+  heading.append(keys);
+  fragment.append(heading);
+
+  const filters = element("form", "filter-bar");
+  filters.setAttribute("aria-label", "Opportunity filters");
+  const signals = [...new Set(model.opportunityEntries.map((item) => item.result.signal_id))].sort();
+  for (const [key, labelText, values] of [
+    ["assetClass", "Asset class", ["option", "stock"]],
+    ["signal", "Strategy", signals],
+  ]) {
+    const label = element("label", null, labelText);
+    const select = element("select");
+    select.name = key;
+    select.append(option("All", ""));
+    for (const value of values) select.append(option(value, value));
+    select.value = model.opportunityFilters[key];
+    select.addEventListener("change", () => handlers.filterOpportunities(key, select.value));
+    label.append(select);
+    filters.append(label);
+  }
+  for (const [key, labelText] of [
+    ["completeOnly", "Complete proposals only"],
+    ["definedRiskOnly", "Stated maximum loss only"],
+  ]) {
+    const label = element("label", "checkbox-label", labelText);
+    const input = element("input");
+    input.type = "checkbox";
+    input.name = key;
+    input.checked = Boolean(model.opportunityFilters[key]);
+    input.addEventListener("change", () => handlers.filterOpportunities(key, input.checked));
+    label.prepend(input);
+    filters.append(label);
+  }
+  fragment.append(filters);
+
+  const ordered = prioritizeOpportunities(model.opportunityEntries, model.opportunityFilters);
+  const tableWrap = element("div", "table-wrap");
+  const table = element("table", "results-table opportunities-table");
+  const head = element("thead");
+  const headRow = element("tr");
+  for (const title of ["#", "Identity", "Actionability", "Evidence", "Observed", "Maximum loss", "Liquidity"]) {
+    headRow.append(element("th", null, title));
+  }
+  head.append(headRow);
+  table.append(head);
+  const body = element("tbody");
+  ordered.forEach((item, index) => {
+    const row = element("tr");
+    const identity = element("td");
+    const link = element("a", "result-link", `${item.signalId} / ${item.symbol}`);
+    link.href = `#/results/${encodeURIComponent(item.signalId)}/${encodeURIComponent(item.symbol)}`;
+    identity.append(link, element("small", null, item.assetClass));
+    row.append(
+      element("td", null, String(index + 1)),
+      identity,
+      element("td", null, item.actionability),
+      element("td", null, item.evidence),
+      element("td", "timestamp", item.observedAt),
+      element("td", null, item.maximumLoss),
+      element("td", null, item.liquidity),
+    );
+    body.append(row);
+  });
+  table.append(body);
+  tableWrap.append(table);
+  fragment.append(tableWrap);
+  if (!ordered.length) {
+    fragment.append(element("p", "empty-state empty-state--large", "No qualifying opportunities match these filters."));
+  }
+
+  const samples = element("section", "outcome-sample-guard");
+  samples.append(element("h3", null, "Forward-outcome sample sizes"));
+  samples.append(element(
+    "p",
+    null,
+    `Outcome evidence could inform ordering only after a strategy has at least `
+      + `${MINIMUM_OUTCOME_SAMPLE} observed outcomes with modeled P&L. Paper/modeled, not brokerage fills.`,
+  ));
+  const guard = outcomeSampleGuard(model.forwardOutcomes);
+  if (model.forwardOutcomesError) {
+    samples.append(element("p", "empty-state", `Outcome samples unavailable: ${model.forwardOutcomesError}`));
+  } else if (!guard) {
+    samples.append(element("p", "empty-state", "Outcome samples not loaded."));
+  } else if (!guard.length) {
+    samples.append(element("p", "empty-state", "No tracked proposals yet (n=0 for every strategy)."));
+  } else {
+    samples.append(definitionList(guard.map((item) => [
+      item.strategy,
+      `${item.tracked} tracked · n=${item.withPnl} with modeled P&L · ${item.guard}`,
+    ])));
+  }
+  fragment.append(samples);
+  return fragment;
+}
+
 function strategyLibraryView(model) {
   const fragment = document.createDocumentFragment();
   const heading = element("section", "page-heading");
@@ -953,6 +1150,10 @@ export function renderApp(root, model, handlers) {
     else main.append(element("p", "empty-state empty-state--large", "Result not found in the persisted snapshot."));
   } else if (model.route.name === "health") {
     main.append(healthView(model));
+  } else if (model.route.name === "opportunities") {
+    main.append(opportunitiesView(model, handlers));
+  } else if (model.route.name === "outcomes") {
+    main.append(outcomesView(model));
   } else if (model.route.name === "strategies") {
     main.append(strategyLibraryView(model));
   } else if (model.route.name === "stocks") {

@@ -13,6 +13,9 @@ export const state = {
   terminalPayoffs: {},
   trackedCandidates: {},
   stockProposals: {},
+  forwardOutcomes: null,
+  forwardOutcomesError: null,
+  opportunityFilters: { assetClass: "", signal: "", completeOnly: false, definedRiskOnly: false },
   portfolio: null,
   positions: null,
   apiVersion: null,
@@ -55,6 +58,8 @@ export function routeFromHash(hash) {
   const parts = route.split("/").filter(Boolean).map(decodeURIComponent);
   if (parts[0] === "health") return { name: "health" };
   if (parts[0] === "strategies") return { name: "strategies" };
+  if (parts[0] === "outcomes") return { name: "outcomes" };
+  if (parts[0] === "opportunities") return { name: "opportunities" };
   if (parts[0] === "stocks") {
     return { name: "stocks", subview: parts[1] === "strategies" ? "strategies" : "portfolio" };
   }

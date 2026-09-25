@@ -1,0 +1,534 @@
+{
+  "adequacy_artifact": "sha256:b4c5ba84c0b889de980191669dc668890e2e7fd6ea712d888322aa31f4c3d4c7",
+  "blocked_decisions": [
+    {
+      "blocked_by": "Forward-outcome sample below the OI-06 guard (30 observed outcomes with modeled P&L per strategy). The corpus is user-tracked only until the Architect-approved system enrollment (ND-01, migration 0020) is Founder-merged.",
+      "decision": "Weight opportunity ordering by forward outcomes, or claim one strategy outperforms another",
+      "evidence_refs": [
+        "project/reports/OUTCOME-INTELLIGENCE-001-OI-06.md",
+        "project/reports/OUTCOME-INTELLIGENCE-001-OI-02-04-ARCHITECT-DECISION.md",
+        "project/reports/OUTCOME-INTELLIGENCE-001-ND-01-ARCHITECT-DECISION.md"
+      ],
+      "id": "BD-01",
+      "latest_session_observed_counts": {},
+      "latest_session_observed_total": 0,
+      "observed_reason_codes": [],
+      "paid_data_could_resolve": "no",
+      "unlock": "Time and corpus growth, not purchase. Paid historical option chains would give backtest evidence, a different evidence class that does not replace ASA's own forward outcomes.",
+      "unlock_gaps": []
+    },
+    {
+      "blocked_by": "Adjusted-close history entitlement (Alpha Vantage). B002 is typed unknown every session.",
+      "decision": "Evaluate B002 (adjusted-close stock benchmark) at all",
+      "evidence_refs": [
+        "project/reports/STOCK-RUNTIME-001-STK-01.md",
+        "project/reports/STOCK-PRODUCT-001-SP-06.md"
+      ],
+      "id": "BD-02",
+      "latest_session_observed_counts": {
+        "insufficient_adjusted_history": 0,
+        "unusable_historical_bars": 1,
+        "unusable_total_return_history": 0
+      },
+      "latest_session_observed_total": 1,
+      "observed_reason_codes": [
+        "unusable_historical_bars",
+        "insufficient_adjusted_history",
+        "unusable_total_return_history"
+      ],
+      "paid_data_could_resolve": "yes",
+      "unlock": "A source of split-and-dividend-adjusted or total-return history with explicit semantics",
+      "unlock_gaps": [
+        "split-and-dividend-adjusted or authoritative total-return history"
+      ]
+    },
+    {
+      "blocked_by": "No configured provider supplies prior option chains, so historical skew accumulates one session at a time and nothing is backfilled.",
+      "decision": "Apply Skew Momentum's historical skew-stretch gate before 40 sessions have accumulated",
+      "evidence_refs": [
+        "project/reports/SPRINT-013-S13-04-trace.md"
+      ],
+      "id": "BD-03",
+      "latest_session_observed_counts": {},
+      "latest_session_observed_total": 0,
+      "observed_reason_codes": [],
+      "paid_data_could_resolve": "yes",
+      "unlock": "Time (prospective accumulation), or historical option chains/IV history. That capability is absent from the data-adequacy-v1 matrix and would need a matrix amendment.",
+      "unlock_gaps": []
+    },
+    {
+      "blocked_by": "No producer for historical IV / IV Rank; such strategies would be permanently UNKNOWN",
+      "decision": "Add IV-Rank-gated option strategies (e.g. tastylive 45-DTE credit spread, Option Alpha CORE put credit spread)",
+      "evidence_refs": [
+        "project/reports/STRATEGY-LIBRARY-001-SL-02-SELECTION.md"
+      ],
+      "id": "BD-04",
+      "latest_session_observed_counts": {},
+      "latest_session_observed_total": 0,
+      "observed_reason_codes": [],
+      "paid_data_could_resolve": "yes",
+      "unlock": "Historical implied-volatility series per underlying, or time to accumulate IV prospectively",
+      "unlock_gaps": []
+    },
+    {
+      "blocked_by": "Index-underlying, root and settlement identity are not modelled, and the T-bill rate is not acquired. The missing modelling is ASA-owned work, and it needs an ARCH-005 amendment.",
+      "decision": "Add SPX index-option strategies (e.g. Cboe CNDR) without an SPY substitution",
+      "evidence_refs": [
+        "project/reports/STRATEGY-LIBRARY-001-SL-02-CNDR-ARCHITECT-DECISION.md",
+        "project/reports/STRATEGY-LIBRARY-001-SL-02-SELECTION.md"
+      ],
+      "id": "BD-05",
+      "latest_session_observed_counts": {},
+      "latest_session_observed_total": 0,
+      "observed_reason_codes": [],
+      "paid_data_could_resolve": "partially",
+      "unlock": "An Architect decision and index modelling (ASA work), plus a rate source",
+      "unlock_gaps": []
+    },
+    {
+      "blocked_by": "Provider earnings coverage. Some events are genuinely unannounced, and no source can resolve those.",
+      "decision": "Evaluate earnings-driven opportunities on symbols without a confirmed earnings date",
+      "evidence_refs": [
+        "project/reports/DATA-RELIABILITY-001-REL-05.md",
+        "project/reports/OPTIONS-TRUTH-001-OT-06.md"
+      ],
+      "id": "BD-06",
+      "latest_session_observed_counts": {
+        "earnings_clearance": 1,
+        "missing_earnings_date": 18
+      },
+      "latest_session_observed_total": 19,
+      "observed_reason_codes": [
+        "missing_earnings_date",
+        "earnings_clearance"
+      ],
+      "paid_data_could_resolve": "partially",
+      "unlock": "A confirmed earnings calendar with announcement status",
+      "unlock_gaps": [
+        "confirmed earnings calendar with announcement status and effective timestamps"
+      ]
+    },
+    {
+      "blocked_by": "Provider option-evidence coverage and entitlement",
+      "decision": "Evaluate option strategies on symbols whose chain lacks IV, Greeks, or a usable quote",
+      "evidence_refs": [
+        "project/reports/DATA-RELIABILITY-001-REL-05.md",
+        "project/reports/OPTIONS-TRUTH-001-OT-06.md"
+      ],
+      "id": "BD-07",
+      "latest_session_observed_counts": {
+        "missing_actual_delta": 0,
+        "missing_implied_volatility": 11,
+        "unusable_option_chain": 0,
+        "unusable_quote": 3
+      },
+      "latest_session_observed_total": 14,
+      "observed_reason_codes": [
+        "missing_implied_volatility",
+        "missing_actual_delta",
+        "unusable_quote",
+        "unusable_option_chain"
+      ],
+      "paid_data_could_resolve": "yes",
+      "unlock": "Complete option expiration, contract, quote, Greek, and IV evidence",
+      "unlock_gaps": [
+        "complete option expiration, contract, quote, Greek, and implied-volatility evidence"
+      ]
+    },
+    {
+      "blocked_by": "No qualified total-return, Treasury total-return, or point-in-time reference data",
+      "decision": "Run TGSM / S001 research on qualified long history",
+      "evidence_refs": [
+        "project/reports/DATA-RELIABILITY-001-REL-05.md"
+      ],
+      "id": "BD-08",
+      "latest_session_observed_counts": {},
+      "latest_session_observed_total": 0,
+      "observed_reason_codes": [],
+      "paid_data_could_resolve": "yes",
+      "unlock": "The corresponding data-adequacy sources",
+      "unlock_gaps": [
+        "split-and-dividend-adjusted or authoritative total-return history",
+        "canonical three-month Treasury total-return history",
+        "authoritative point-in-time sector membership and historical exchange calendar"
+      ]
+    }
+  ],
+  "capability_attribution": {
+    "asa_internal": [],
+    "category_totals": {
+      "market_structure_or_policy": 382,
+      "provider_capability": 34,
+      "strategy_semantics": 1093
+    },
+    "provider_capability_totals": {
+      "earnings_calendar_v1": 19,
+      "historical_bars_v1": 1,
+      "option_chain_v1": 11,
+      "real_time_quote_v1": 3
+    },
+    "reasons": [
+      {
+        "capability": "historical_bars_v1",
+        "category": "provider_capability",
+        "count": 1,
+        "gap": "split-and-dividend-adjusted or authoritative total-return history",
+        "paid_data_could_resolve": "yes",
+        "reason": "unusable_historical_bars",
+        "sessions": 1,
+        "strategy": "B002"
+      },
+      {
+        "capability": "earnings_calendar_v1",
+        "category": "provider_capability",
+        "count": 18,
+        "gap": "confirmed earnings calendar with announcement status and effective timestamps",
+        "paid_data_could_resolve": "partially",
+        "reason": "missing_earnings_date",
+        "sessions": 1,
+        "strategy": "earnings_calendar"
+      },
+      {
+        "capability": null,
+        "category": "market_structure_or_policy",
+        "count": 2,
+        "gap": null,
+        "paid_data_could_resolve": "no",
+        "reason": "no_compatible_contract",
+        "sessions": 1,
+        "strategy": "earnings_calendar"
+      },
+      {
+        "capability": null,
+        "category": "market_structure_or_policy",
+        "count": 290,
+        "gap": null,
+        "paid_data_could_resolve": "no",
+        "reason": "no_valid_expiration_pair",
+        "sessions": 1,
+        "strategy": "earnings_calendar"
+      },
+      {
+        "capability": null,
+        "category": "strategy_semantics",
+        "count": 192,
+        "gap": null,
+        "paid_data_could_resolve": "no",
+        "reason": "verdict",
+        "sessions": 1,
+        "strategy": "earnings_calendar"
+      },
+      {
+        "capability": "earnings_calendar_v1",
+        "category": "provider_capability",
+        "count": 1,
+        "gap": "confirmed earnings calendar with announcement status and effective timestamps",
+        "paid_data_could_resolve": "partially",
+        "reason": "earnings_clearance",
+        "sessions": 1,
+        "strategy": "forward_factor"
+      },
+      {
+        "capability": "option_chain_v1",
+        "category": "provider_capability",
+        "count": 11,
+        "gap": "complete option expiration, contract, quote, Greek, and implied-volatility evidence",
+        "paid_data_could_resolve": "yes",
+        "reason": "missing_implied_volatility",
+        "sessions": 1,
+        "strategy": "forward_factor"
+      },
+      {
+        "capability": null,
+        "category": "market_structure_or_policy",
+        "count": 85,
+        "gap": null,
+        "paid_data_could_resolve": "no",
+        "reason": "no_valid_expiration_pair",
+        "sessions": 1,
+        "strategy": "forward_factor"
+      },
+      {
+        "capability": null,
+        "category": "market_structure_or_policy",
+        "count": 2,
+        "gap": null,
+        "paid_data_could_resolve": "no",
+        "reason": "non_positive_forward_variance",
+        "sessions": 1,
+        "strategy": "forward_factor"
+      },
+      {
+        "capability": "real_time_quote_v1",
+        "category": "provider_capability",
+        "count": 1,
+        "gap": "complete option expiration, contract, quote, Greek, and implied-volatility evidence",
+        "paid_data_could_resolve": "partially",
+        "reason": "unusable_quote",
+        "sessions": 1,
+        "strategy": "forward_factor"
+      },
+      {
+        "capability": null,
+        "category": "strategy_semantics",
+        "count": 403,
+        "gap": null,
+        "paid_data_could_resolve": "no",
+        "reason": "verdict",
+        "sessions": 1,
+        "strategy": "forward_factor"
+      },
+      {
+        "capability": null,
+        "category": "market_structure_or_policy",
+        "count": 3,
+        "gap": null,
+        "paid_data_could_resolve": "no",
+        "reason": "no_future_expiration",
+        "sessions": 1,
+        "strategy": "skew_momentum"
+      },
+      {
+        "capability": "real_time_quote_v1",
+        "category": "provider_capability",
+        "count": 2,
+        "gap": "complete option expiration, contract, quote, Greek, and implied-volatility evidence",
+        "paid_data_could_resolve": "partially",
+        "reason": "unusable_quote",
+        "sessions": 1,
+        "strategy": "skew_momentum"
+      },
+      {
+        "capability": null,
+        "category": "strategy_semantics",
+        "count": 498,
+        "gap": null,
+        "paid_data_could_resolve": "no",
+        "reason": "verdict",
+        "sessions": 1,
+        "strategy": "skew_momentum"
+      }
+    ],
+    "unclassified": []
+  },
+  "eligible_session_count": 1,
+  "forward_outcomes": {
+    "by_strategy": {},
+    "ledger_status": "outcome_route_not_deployed"
+  },
+  "insufficiency": [
+    "eligible_sessions 1 < required 5",
+    "forward_outcome_ledger outcome_route_not_deployed"
+  ],
+  "minimum_eligible_sessions": 5,
+  "opportunity_counts": {
+    "by_strategy": {
+      "B001": {
+        "actionable_mean_per_session": 1.0,
+        "actionable_total": 1,
+        "asset_class": "stock",
+        "qualifying_total": 1,
+        "sessions_observed": 1
+      },
+      "B002": {
+        "actionable_mean_per_session": 0.0,
+        "actionable_total": 0,
+        "asset_class": "stock",
+        "qualifying_total": 0,
+        "sessions_observed": 1
+      },
+      "earnings_calendar": {
+        "actionable_mean_per_session": 1.0,
+        "actionable_total": 1,
+        "asset_class": "option",
+        "qualifying_total": 3,
+        "sessions_observed": 1
+      },
+      "forward_factor": {
+        "actionable_mean_per_session": 0.0,
+        "actionable_total": 0,
+        "asset_class": "option",
+        "qualifying_total": 1,
+        "sessions_observed": 1
+      },
+      "skew_momentum": {
+        "actionable_mean_per_session": 0.0,
+        "actionable_total": 0,
+        "asset_class": "option",
+        "qualifying_total": 0,
+        "sessions_observed": 1
+      },
+      "spy_put_credit_spread": {
+        "actionable_mean_per_session": 1.0,
+        "actionable_total": 1,
+        "asset_class": "option",
+        "qualifying_total": 1,
+        "sessions_observed": 1
+      }
+    },
+    "per_session": {
+      "2026-09-24": {
+        "B001": {
+          "actionable": 1,
+          "active": 1,
+          "asset_class": "stock",
+          "qualifying": 1
+        },
+        "B002": {
+          "actionable": 0,
+          "active": 1,
+          "asset_class": "stock",
+          "qualifying": 0
+        },
+        "earnings_calendar": {
+          "actionable": 1,
+          "active": 503,
+          "asset_class": "option",
+          "qualifying": 3
+        },
+        "forward_factor": {
+          "actionable": 0,
+          "active": 503,
+          "asset_class": "option",
+          "qualifying": 1
+        },
+        "skew_momentum": {
+          "actionable": 0,
+          "active": 503,
+          "asset_class": "option",
+          "qualifying": 0
+        },
+        "spy_put_credit_spread": {
+          "actionable": 1,
+          "active": 1,
+          "asset_class": "option",
+          "qualifying": 1
+        }
+      }
+    }
+  },
+  "paid_capability_gaps": [
+    {
+      "blocked_decisions": [
+        "BD-06"
+      ],
+      "cause": "genuinely unknown or unannounced events after bounded acquisition",
+      "observed_rows_partially_resolvable": {
+        "latest_session": 19,
+        "mean_per_session": 19.0
+      },
+      "observed_rows_resolvable": {
+        "latest_session": 0,
+        "mean_per_session": 0.0
+      },
+      "remaining_missingness": "20 current active missing_earnings_date rows",
+      "required_capability": "confirmed earnings calendar with announcement status and effective timestamps",
+      "strategies_affected": [
+        "earnings_calendar",
+        "forward_factor_execution_readiness"
+      ],
+      "would_better_external_data_solve": "only provider-confirmed coverage/entitlement cases; genuinely unannounced events remain unknown"
+    },
+    {
+      "blocked_decisions": [
+        "BD-07"
+      ],
+      "cause": "provider coverage/entitlement for the external subset; declared expiration policy and temporal absence for the much larger legitimate subset",
+      "observed_rows_partially_resolvable": {
+        "latest_session": 3,
+        "mean_per_session": 3.0
+      },
+      "observed_rows_resolvable": {
+        "latest_session": 11,
+        "mean_per_session": 11.0
+      },
+      "remaining_missingness": "18 current active provider entitlement/coverage gaps; option-policy and temporal absence remain separately typed",
+      "required_capability": "complete option expiration, contract, quote, Greek, and implied-volatility evidence",
+      "strategies_affected": [
+        "forward_factor",
+        "skew_momentum",
+        "earnings_calendar"
+      ],
+      "would_better_external_data_solve": "provider coverage gaps yes; declared expiration policy ineligibility no"
+    },
+    {
+      "blocked_decisions": [
+        "BD-02",
+        "BD-08"
+      ],
+      "cause": "external entitlement and absent qualified historical evidence",
+      "observed_rows_partially_resolvable": {
+        "latest_session": 0,
+        "mean_per_session": 0.0
+      },
+      "observed_rows_resolvable": {
+        "latest_session": 1,
+        "mean_per_session": 1.0
+      },
+      "remaining_missingness": "no qualified sealed long-history corpus; Alpha Vantage adjusted-history entitlement remains unresolved",
+      "required_capability": "split-and-dividend-adjusted or authoritative total-return history",
+      "strategies_affected": [
+        "B002",
+        "S001",
+        "TGSM-RESEARCH-001"
+      ],
+      "would_better_external_data_solve": "yes, if semantics, depth, timestamps, and redistribution treatment are explicit"
+    },
+    {
+      "blocked_decisions": [
+        "BD-08"
+      ],
+      "cause": "out-of-scope source capability gap",
+      "observed_rows_partially_resolvable": {
+        "latest_session": 0,
+        "mean_per_session": 0.0
+      },
+      "observed_rows_resolvable": {
+        "latest_session": 0,
+        "mean_per_session": 0.0
+      },
+      "remaining_missingness": "no canonical source, acquisition path, or sealed series",
+      "required_capability": "canonical three-month Treasury total-return history",
+      "strategies_affected": [
+        "S001",
+        "TGSM-RESEARCH-001"
+      ],
+      "would_better_external_data_solve": "yes, if it supplies total return rather than ETF, cash, or raw-yield proxy"
+    },
+    {
+      "blocked_decisions": [
+        "BD-08"
+      ],
+      "cause": "historical reference-data gap",
+      "observed_rows_partially_resolvable": {
+        "latest_session": 0,
+        "mean_per_session": 0.0
+      },
+      "observed_rows_resolvable": {
+        "latest_session": 0,
+        "mean_per_session": 0.0
+      },
+      "remaining_missingness": "no authoritative historical membership snapshots or qualified historical exceptional-session corpus",
+      "required_capability": "authoritative point-in-time sector membership and historical exchange calendar",
+      "strategies_affected": [
+        "TGSM-RESEARCH-001"
+      ],
+      "would_better_external_data_solve": "yes, if effective dates and source provenance are authoritative"
+    }
+  ],
+  "procurement": "none; this report informs a later Founder decision only",
+  "registry_version": "1.0.0",
+  "report_checksum": "dd3307c5ef849ef1909c464d834fc9d607bb4f343ba5bf0169454641fd6b0de6",
+  "report_kind": "oi07_data_value_report",
+  "report_version": "1.0.0",
+  "sessions": [
+    {
+      "captured_at": "2026-09-25T01:31:31.870585+00:00",
+      "eligible": true,
+      "ineligible_reason": null,
+      "production_sha": "d52146f61856217ecc5174b8082e8aa1add8e382",
+      "session_date": "2026-09-24"
+    }
+  ],
+  "verdict": "evidence_insufficient"
+}

@@ -1,0 +1,226 @@
+{
+  "artifact_kind": "program_session_capture",
+  "artifact_version": "1.0.0",
+  "captured_at": "2026-09-25T01:31:31.870585+00:00",
+  "census": {
+    "artifact_version": "1.0.0",
+    "captured_at": "2026-09-25T01:31:31.870585+00:00",
+    "census_checksum": "f7cdff602b8e3e23f1d1708e55303e3c27995cb882110861f6ca94bfbcd4c2d6",
+    "production_sha": "d52146f61856217ecc5174b8082e8aa1add8e382",
+    "sprint": "OPTIONS-TRUTH-001",
+    "strategies": {
+      "earnings_calendar": {
+        "actionable": [
+          {
+            "observed_at": "2026-09-24T19:40:03.446429Z",
+            "symbol": "CI"
+          }
+        ],
+        "active_total": 503,
+        "terminal_counts": {
+          "actionable_opportunity": 1,
+          "evidence_unavailable": 308,
+          "strategy_rejected": 192,
+          "structure_unavailable": 2
+        },
+        "terminal_reason_counts": {
+          "actionable_opportunity:constructible_as_intended": 1,
+          "evidence_unavailable:typed unknown evidence gap: missing_earnings_date": 18,
+          "evidence_unavailable:typed unknown evidence gap: no_valid_expiration_pair": 290,
+          "strategy_rejected:verdict:fail": 192,
+          "structure_unavailable:no_compatible_contract": 2
+        },
+        "traced": 503,
+        "unexplained": []
+      },
+      "forward_factor": {
+        "actionable": [],
+        "active_total": 503,
+        "terminal_counts": {
+          "evidence_unavailable": 99,
+          "strategy_rejected": 403,
+          "structure_unknown": 1
+        },
+        "terminal_reason_counts": {
+          "evidence_unavailable:typed unknown evidence gap: missing_implied_volatility": 11,
+          "evidence_unavailable:typed unknown evidence gap: no_valid_expiration_pair": 85,
+          "evidence_unavailable:typed unknown evidence gap: non_positive_forward_variance": 2,
+          "evidence_unavailable:typed unknown evidence gap: unusable_quote": 1,
+          "strategy_rejected:verdict:fail": 403,
+          "structure_unknown:earnings_clearance:unknown_unconfirmed": 1
+        },
+        "traced": 503,
+        "unexplained": []
+      },
+      "skew_momentum": {
+        "actionable": [],
+        "active_total": 503,
+        "terminal_counts": {
+          "evidence_unavailable": 5,
+          "strategy_rejected": 498
+        },
+        "terminal_reason_counts": {
+          "evidence_unavailable:typed unknown evidence gap: no_future_expiration": 3,
+          "evidence_unavailable:typed unknown evidence gap: unusable_quote": 2,
+          "strategy_rejected:verdict:fail": 498
+        },
+        "traced": 503,
+        "unexplained": []
+      },
+      "spy_put_credit_spread": {
+        "actionable": [
+          {
+            "observed_at": "2026-09-24T20:50:19.651551Z",
+            "symbol": "SPY"
+          }
+        ],
+        "active_total": 1,
+        "terminal_counts": {
+          "actionable_opportunity": 1
+        },
+        "terminal_reason_counts": {
+          "actionable_opportunity:constructible_as_intended": 1
+        },
+        "traced": 1,
+        "unexplained": []
+      }
+    },
+    "ticket": "OT-06",
+    "unexplained_drop_total": 0,
+    "verdict": "pass"
+  },
+  "outcomes": {
+    "candidates": [],
+    "ledger_status": "outcome_route_not_deployed"
+  },
+  "production_sha": "d52146f61856217ecc5174b8082e8aa1add8e382",
+  "session_date": "2026-09-24",
+  "stocks": {
+    "artifact_version": "1.0.0",
+    "captured_at": "2026-09-25T01:31:31.870585+00:00",
+    "defect_count": 0,
+    "observations": [
+      {
+        "action": "BUY",
+        "action_reason": null,
+        "evidence_age_seconds": 20222,
+        "freshness": "fresh",
+        "gaps": [],
+        "observation_id": "3c6e5ad3a0147b9bd0c74c9693ea8dcbffe3ade4b1e6f3a710147cc177afe5c1",
+        "signal_id": "B001",
+        "status": "actionable",
+        "symbol": "SPY",
+        "unknown_reasons": []
+      },
+      {
+        "action": null,
+        "action_reason": "evaluation_incomplete",
+        "evidence_age_seconds": 20222,
+        "freshness": "fresh",
+        "gaps": [],
+        "observation_id": "042d1e00ba18d5ae928dd332e8d6533e4471a5ee3f03227ec67669d44d00807a",
+        "signal_id": "B002",
+        "status": "unknown",
+        "symbol": "SPY",
+        "unknown_reasons": [
+          "typed unknown evidence gap: unusable_historical_bars"
+        ]
+      }
+    ],
+    "production_sha": "d52146f61856217ecc5174b8082e8aa1add8e382",
+    "sprint": "STOCK-PRODUCT-001",
+    "status_counts": {
+      "actionable": 1,
+      "unknown": 1
+    },
+    "stock_signals": [
+      "B001",
+      "B002"
+    ],
+    "ticket": "SP-06",
+    "verdict": "actionable_stock_path_observed"
+  },
+  "trade_cards": {
+    "artifact_version": "1.0.0",
+    "captured_at": "2026-09-25T01:31:31.870585+00:00",
+    "observation_checksum": "fc4fec41597c8ef2bc76e76fa52fda7e234445ea2094032a264c642551a52508",
+    "observations": [
+      {
+        "gaps": [],
+        "outcome": "complete_trade_card",
+        "signal_id": "earnings_calendar",
+        "symbol": "CI",
+        "terminal_state": "actionable_opportunity"
+      },
+      {
+        "gaps": [],
+        "outcome": "typed_failure_presentation",
+        "signal_id": "earnings_calendar",
+        "symbol": "PSX",
+        "terminal_state": "structure_unavailable"
+      },
+      {
+        "gaps": [],
+        "outcome": "typed_failure_presentation",
+        "signal_id": "earnings_calendar",
+        "symbol": "VLO",
+        "terminal_state": "structure_unavailable"
+      },
+      {
+        "gaps": [],
+        "outcome": "typed_failure_presentation",
+        "signal_id": "forward_factor",
+        "symbol": "GOOG",
+        "terminal_state": "structure_unknown"
+      },
+      {
+        "gaps": [],
+        "outcome": "complete_trade_card",
+        "signal_id": "spy_put_credit_spread",
+        "symbol": "SPY",
+        "terminal_state": "actionable_opportunity"
+      }
+    ],
+    "outcome_counts": {
+      "complete_trade_card": 2,
+      "typed_failure_presentation": 3
+    },
+    "production_sha": "d52146f61856217ecc5174b8082e8aa1add8e382",
+    "qualifying_option_results": 5,
+    "signals": {
+      "B001": {
+        "active_total": 1,
+        "declares_option_structure": false,
+        "qualifying_verdict_count": 1
+      },
+      "B002": {
+        "active_total": 1,
+        "declares_option_structure": null,
+        "qualifying_verdict_count": 0
+      },
+      "earnings_calendar": {
+        "active_total": 503,
+        "declares_option_structure": true,
+        "qualifying_verdict_count": 3
+      },
+      "forward_factor": {
+        "active_total": 503,
+        "declares_option_structure": true,
+        "qualifying_verdict_count": 1
+      },
+      "skew_momentum": {
+        "active_total": 503,
+        "declares_option_structure": null,
+        "qualifying_verdict_count": 0
+      },
+      "spy_put_credit_spread": {
+        "active_total": 1,
+        "declares_option_structure": true,
+        "qualifying_verdict_count": 1
+      }
+    },
+    "sprint": "OPTIONS-PRODUCT-001",
+    "ticket": "OP-07",
+    "verdict": "complete_trade_card_path_observed"
+  }
+}

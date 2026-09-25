@@ -18,12 +18,14 @@ from asa.application.portfolio_use_cases import (
     RunQueryService,
 )
 from asa.application.ports.brokers import BrokerPortfolioProvider
+from asa.application.ports.forward_outcomes import ForwardOutcomeRepository
 from asa.application.ports.portfolio_lifecycle import PortfolioLifecycleRepository
 from asa.application.ports.quotes import QuoteProvider
 from asa.application.ports.repositories import MarketObservationRepository
 from asa.application.ports.runs import RunPublicationRepository
 from asa.application.use_cases import MarketQuoteService
 from asa.config import Settings
+from asa.integrations.forward_outcome_postgres import PostgresForwardOutcomeRepository
 from asa.integrations.observation_history_postgres import PostgresObservationHistoryRepository
 from asa.integrations.portfolio_lifecycle_postgres import (
     PostgresPortfolioLifecycleRepository,
@@ -68,6 +70,7 @@ class DependencyOverrides:
     observation_history_repository: ObservationHistoryRepository | None = None
     acquisition_attempt_repository: AcquisitionAttemptRepository | None = None
     portfolio_lifecycle_repository: PortfolioLifecycleRepository | None = None
+    forward_outcome_repository: ForwardOutcomeRepository | None = None
     screening_operational_health: Callable[[], dict[str, object]] | None = None
 
 
@@ -89,6 +92,10 @@ def build_application(
     portfolio_lifecycle_repository = (
         selected.portfolio_lifecycle_repository
         or PostgresPortfolioLifecycleRepository(engine_factory(settings.database_url))
+    )
+    forward_outcome_repository = (
+        selected.forward_outcome_repository
+        or PostgresForwardOutcomeRepository(engine_factory(settings.database_url))
     )
     broker_provider = selected.broker_provider or _build_broker_provider(settings)
     latest_result_repository = selected.latest_result_repository or PostgresLatestResultRepository(
@@ -192,6 +199,7 @@ def build_application(
             TrackCandidateService(latest_result_repository, portfolio_lifecycle_repository),
             portfolio_lifecycle_repository,
             agent_authorize,
+            forward_outcome_repository,
         )
     )
     mount_ui(app)
