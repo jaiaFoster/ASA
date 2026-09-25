@@ -76,7 +76,7 @@ class MemoryOutcomes:
         self.rows: dict[tuple[UUID, str], ForwardOutcomeObservation] = {}
 
     def append(self, observation: ForwardOutcomeObservation) -> ForwardOutcomeObservation:
-        key = (observation.tracked_candidate_id, observation.horizon_id)
+        key = (observation.subject_id, observation.horizon_id)
         stored = self.rows.setdefault(key, observation)
         if stored.content_identity != observation.content_identity:
             raise ForwardOutcomeConflictError("conflict")

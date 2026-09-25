@@ -193,10 +193,17 @@ def capability_attribution(sessions: list[Session]) -> JsonObject:
     }
 
 
-def forward_outcome_samples(sessions: list[Session]) -> JsonObject:
-    """Sample sizes from the newest capture whose ledger was readable."""
+_NOT_CAPTURED = {"ledger_status": "not_captured", "candidates": []}
+
+
+def forward_outcome_samples(sessions: list[Session], key: str = "outcomes") -> JsonObject:
+    """Sample sizes from the newest capture whose ledger (``key``) was readable.
+
+    ``outcomes`` is the user-tracked corpus and ``system_outcomes`` the ND-01
+    system-actionable corpus. The two are always reported separately.
+    """
     for item in reversed(sessions):
-        ledger = item.capture["outcomes"]
+        ledger = item.capture.get(key, _NOT_CAPTURED)
         if ledger["ledger_status"] != LEDGER_AVAILABLE:
             continue
         by_strategy: dict[str, JsonObject] = {}
@@ -212,6 +219,12 @@ def forward_outcome_samples(sessions: list[Session]) -> JsonObject:
             )
             entry["tracked"] += 1
             entry["with_frozen_proposal"] += int(candidate["has_frozen_proposal"])
+            entry.setdefault("_opportunities", set()).add(
+                candidate.get("opportunity_id") or f"row:{candidate['candidate_id']}"
+            )
+            entry.setdefault("_leg_sets", set()).add(
+                "|".join(candidate.get("exact_leg_set") or [f"row:{candidate['candidate_id']}"])
+            )
             for horizon in candidate["horizons"]:
                 entry["status_counts"][horizon["status"]] += 1
                 entry["observed_with_modeled_pnl"] += int(
@@ -221,6 +234,10 @@ def forward_outcome_samples(sessions: list[Session]) -> JsonObject:
             counts = entry["status_counts"]
             due = counts.get("observed", 0) + counts.get("missed", 0)
             entry["status_counts"] = dict(sorted(counts.items()))
+            # Row count vs distinct opportunities / exact leg sets: a re-enrolled
+            # opportunity inflates rows, never the distinct counts.
+            entry["distinct_opportunities"] = len(entry.pop("_opportunities"))
+            entry["distinct_exact_leg_sets"] = len(entry.pop("_leg_sets"))
             entry["due_horizon_coverage"] = (
                 round(counts.get("observed", 0) / due, 4) if due else None
             )
@@ -232,7 +249,9 @@ def forward_outcome_samples(sessions: list[Session]) -> JsonObject:
             "by_strategy": dict(sorted(by_strategy.items())),
             "sample_guard": FORWARD_SAMPLE_GUARD,
         }
-    status = sessions[-1].capture["outcomes"]["ledger_status"] if sessions else "no_captures"
+    status = (
+        sessions[-1].capture.get(key, _NOT_CAPTURED)["ledger_status"] if sessions else "no_captures"
+    )
     return {"ledger_status": status, "by_strategy": {}}
 
 
@@ -358,6 +377,7 @@ def build_report(
         "opportunity_counts": opportunity_counts(eligible),
         "capability_attribution": attribution,
         "forward_outcomes": outcomes,
+        "system_forward_outcomes": forward_outcome_samples(eligible, "system_outcomes"),
         "blocked_decisions": decisions,
         "paid_capability_gaps": paid_capability_gaps(eligible, adequacy, decisions),
         "verdict": "complete" if not insufficiency else "evidence_insufficient",
@@ -425,23 +445,32 @@ def render_markdown(report: JsonObject) -> str:
             f"| {row['strategy']} | `{row['reason']}` | {row['count']} | {row['sessions']} | "
             f"{row['category']} | {row['capability'] or '—'} | {row['paid_data_could_resolve']} |"
         )
-    outcomes = report["forward_outcomes"]
-    lines += ["", "## Forward-outcome sample sizes", "", f"Ledger: `{outcomes['ledger_status']}`"]
-    if outcomes["by_strategy"]:
-        lines += [
-            "",
-            "| Strategy | Tracked | Horizon statuses | Observed with modeled P&L | "
-            "Due coverage | Meets guard |",
-            "|---|---|---|---|---|---|",
-        ]
-        for name, item in outcomes["by_strategy"].items():
-            lines.append(
-                f"| {name} | {item['tracked']} | {json.dumps(item['status_counts'])} | "
-                f"{item['observed_with_modeled_pnl']} | {item['due_horizon_coverage']} | "
-                f"{'yes' if item['meets_sample_guard'] else 'no'} |"
-            )
-    else:
-        lines += ["", "No readable forward-outcome sample. It is not reported as zero."]
+    for title, outcomes in (
+        ("Forward-outcome sample sizes: user-tracked", report["forward_outcomes"]),
+        (
+            "Forward-outcome sample sizes: system-actionable (ND-01)",
+            report.get(
+                "system_forward_outcomes", {"ledger_status": "not_captured", "by_strategy": {}}
+            ),
+        ),
+    ):
+        lines += ["", f"## {title}", "", f"Ledger: `{outcomes['ledger_status']}`"]
+        if outcomes["by_strategy"]:
+            lines += [
+                "",
+                "| Strategy | Subjects | Distinct opportunities | Distinct leg sets | "
+                "Horizon statuses | Observed with modeled P&L | Due coverage | Meets guard |",
+                "|---|---|---|---|---|---|---|---|",
+            ]
+            for name, item in outcomes["by_strategy"].items():
+                lines.append(
+                    f"| {name} | {item['tracked']} | {item['distinct_opportunities']} | "
+                    f"{item['distinct_exact_leg_sets']} | {json.dumps(item['status_counts'])} | "
+                    f"{item['observed_with_modeled_pnl']} | {item['due_horizon_coverage']} | "
+                    f"{'yes' if item['meets_sample_guard'] else 'no'} |"
+                )
+        else:
+            lines += ["", "No readable forward-outcome sample. It is not reported as zero."]
     lines += ["", "## Decisions blocked by missing data", ""]
     for item in report["blocked_decisions"]:
         lines += [

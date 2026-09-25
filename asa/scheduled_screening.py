@@ -61,6 +61,7 @@ from asa.integrations.screening_acquisition_attempts_postgres import (
     PostgresAcquisitionAttemptRepository,
 )
 from asa.integrations.universal_screening_postgres import PostgresLatestResultRepository
+from asa.scheduled_enrollment import run_scheduled_proposal_enrollment
 from asa.scheduled_outcomes import run_scheduled_outcome_collection
 from domain import CanonicalInstrumentIdentity, MarketObservation, UnknownReason
 from market_data import ReuseDecision, load_market_data_config_from_environment
@@ -312,6 +313,8 @@ class PairOutcome:
     request_count: int | None
     error: str | None
     attempts_recorded: bool
+    # The result this tick produced; ND-01 enrolls only this exact observation.
+    observation_id: str | None = None
 
 
 class RefreshScheduleClaimRepository(Protocol):
@@ -810,6 +813,7 @@ def run_scheduled_refresh(
                     - budget_accounting_start,
                     None,
                     not plan.attempt_recording_degraded,
+                    result.observation_id,
                 )
             )
         except Exception as exc:
@@ -988,6 +992,21 @@ def main(argv: Sequence[str] | None = None) -> int:
     except Exception as exc:
         _LOGGER.warning(
             "portfolio_refresh_failed",
+            extra={"failure_class": type(exc).__name__, "detail": str(exc)[:500]},
+            exc_info=True,
+        )
+    # ND-01: enroll this tick's system-actionable proposals, isolated and
+    # before collection. Qualifying pairs only; the canonical-proposal check
+    # inside the service is the authority.
+    try:
+        run_scheduled_proposal_enrollment(
+            (item.signal_id, item.symbol, item.observation_id)
+            for item in outcomes
+            if item.error is None and item.outcome == "pass" and item.observation_id is not None
+        )
+    except Exception as exc:
+        _LOGGER.warning(
+            "proposal_outcome_enrollment_failed",
             extra={"failure_class": type(exc).__name__, "detail": str(exc)[:500]},
             exc_info=True,
         )

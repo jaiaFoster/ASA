@@ -165,11 +165,19 @@ def evaluate_gates(
     prior = [item for item in inputs["sprints"] if item["sprint"] != _THIS_SPRINT]
     open_prior = [item["sprint"] for item in prior if item["state"] not in _CLOSED_STATES]
     latest_ledger = sessions[-1].capture["outcomes"] if sessions else None
-    observed = sum(
-        horizon["status"] == "observed"
-        for candidate in (latest_ledger or {}).get("candidates", [])
-        for horizon in candidate["horizons"]
-    )
+    ledgers = {
+        "user_tracked": latest_ledger or {},
+        "system_actionable": sessions[-1].capture.get("system_outcomes", {}) if sessions else {},
+    }
+    observed_by_source = {
+        source: sum(
+            horizon["status"] == "observed"
+            for candidate in ledger.get("candidates", [])
+            for horizon in candidate["horizons"]
+        )
+        for source, ledger in ledgers.items()
+    }
+    observed = sum(observed_by_source.values())
     drops = sum(item["unexplained_drop_count"] for item in metrics)
     defects = sum(item["trade_card_defects"] + item["stock_proposal_defects"] for item in metrics)
 
@@ -191,7 +199,8 @@ def evaluate_gates(
         gate(
             "forward_outcome_observed",
             PASS if observed else PENDING,
-            f"{observed} observed horizon(s) in the latest readable ledger",
+            "observed horizons in the latest readable ledgers, by source (never pooled): "
+            + ", ".join(f"{key}={value}" for key, value in observed_by_source.items()),
         ),
         gate(
             "aoy_measured",
@@ -258,6 +267,9 @@ def build_closure(
         },
         "per_session": metrics,
         "forward_outcomes": data_value["forward_outcomes"],
+        "system_forward_outcomes": data_value.get(
+            "system_forward_outcomes", {"ledger_status": "not_captured", "by_strategy": {}}
+        ),
         "data_value_verdict": data_value["verdict"],
         "data_value_checksum": data_value["report_checksum"],
         "paid_capability_gaps": [
@@ -344,13 +356,18 @@ def render_markdown(report: JsonObject) -> str:
         )
     if not metrics:
         lines.append("| — | — | no eligible sessions captured | | | | | | |")
-    outcomes = report["forward_outcomes"]
-    lines += ["", "## Forward-outcome corpus", "", f"Ledger: `{outcomes['ledger_status']}`"]
-    for name, item in outcomes.get("by_strategy", {}).items():
-        lines.append(
-            f"- {name}: {item['tracked']} tracked; horizons {json.dumps(item['status_counts'])}; "
-            f"n={item['observed_with_modeled_pnl']} with modeled P&L"
-        )
+    lines += ["", "## Forward-outcome corpus", ""]
+    for label, outcomes in (
+        ("System-actionable (ND-01)", report["system_forward_outcomes"]),
+        ("User-tracked", report["forward_outcomes"]),
+    ):
+        lines.append(f"- **{label}**, ledger `{outcomes['ledger_status']}`")
+        for name, item in outcomes.get("by_strategy", {}).items():
+            lines.append(
+                f"  - {name}: {item['tracked']} subject(s); horizons "
+                f"{json.dumps(item['status_counts'])}; "
+                f"n={item['observed_with_modeled_pnl']} with modeled P&L"
+            )
     lines += ["", "## Remaining quantified data/provider blockers", ""]
     for row in report["paid_capability_gaps"]:
         lines.append(

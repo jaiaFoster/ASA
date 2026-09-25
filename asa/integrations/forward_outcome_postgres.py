@@ -13,23 +13,31 @@ from asa.application.ports.forward_outcomes import ForwardOutcomeConflictError
 from asa.contracts.forward_outcome import ForwardOutcomeObservation
 from strategy_runtime.forward_outcome import OutcomeStatus
 
-_COLUMNS = (
-    "tracked_candidate_id, horizon_id, status, due_at, collected_at, "
+_VALUE_COLUMNS = (
+    "horizon_id, status, due_at, collected_at, "
     "horizon_policy_version, frozen_proposal_identity, observed_at, underlying_price, "
     "modeled_mark, modeled_pnl, mark_basis, mark_model_version, unknown_reasons_json, "
     "provenance_json, content_identity"
 )
 
 
-class PostgresForwardOutcomeRepository:
-    """No update or delete path exists by design."""
+class AppendOnlyOutcomeLedger:
+    """Shared append-only mechanics for one outcome table keyed by a subject column.
 
-    def __init__(self, engine: Engine) -> None:
+    It has no update or delete path by design. It serves ``user_tracked``
+    (``forward_outcome_observations``) and, under ND-01, ``system_actionable``
+    (``enrolled_proposal_outcome_observations``), with identical semantics.
+    """
+
+    def __init__(self, engine: Engine, table: str, key_column: str) -> None:
         self._engine = engine
+        self._table = table
+        self._key = key_column
+        self._columns = f"{key_column}, {_VALUE_COLUMNS}"
 
     def append(self, observation: ForwardOutcomeObservation) -> ForwardOutcomeObservation:
         params = {
-            "tracked_candidate_id": observation.tracked_candidate_id,
+            self._key: observation.subject_id,
             "horizon_id": observation.horizon_id,
             "status": observation.status.value,
             "due_at": observation.due_at,
@@ -49,52 +57,64 @@ class PostgresForwardOutcomeRepository:
         with self._engine.begin() as connection:
             connection.execute(
                 text(
-                    f"INSERT INTO forward_outcome_observations ({_COLUMNS}) VALUES ("
-                    + ", ".join(f":{name.strip()}" for name in _COLUMNS.split(","))
-                    + ") ON CONFLICT (tracked_candidate_id, horizon_id) DO NOTHING"
+                    f"INSERT INTO {self._table} ({self._columns}) VALUES ("
+                    + ", ".join(f":{name.strip()}" for name in self._columns.split(","))
+                    + f") ON CONFLICT ({self._key}, horizon_id) DO NOTHING"
                 ),
                 params,
             )
             row = (
                 connection.execute(
                     text(
-                        f"SELECT {_COLUMNS} FROM forward_outcome_observations "
-                        "WHERE tracked_candidate_id = :candidate AND horizon_id = :horizon"
+                        f"SELECT {self._columns} FROM {self._table} "
+                        f"WHERE {self._key} = :subject AND horizon_id = :horizon"
                     ),
-                    {
-                        "candidate": observation.tracked_candidate_id,
-                        "horizon": observation.horizon_id,
-                    },
+                    {"subject": observation.subject_id, "horizon": observation.horizon_id},
                 )
                 .mappings()
                 .one()
             )
-        stored = _from_row(row)
+        stored = _from_row(row, self._key)
         if stored.content_identity != observation.content_identity:
             raise ForwardOutcomeConflictError(
                 "a different forward outcome is already recorded for this horizon"
             )
         return stored
 
-    def for_candidate(self, candidate_id: UUID) -> tuple[ForwardOutcomeObservation, ...]:
+    def for_subject(self, subject_id: UUID) -> tuple[ForwardOutcomeObservation, ...]:
         with self._engine.connect() as connection:
             rows = connection.execute(
                 text(
-                    f"SELECT {_COLUMNS} FROM forward_outcome_observations "
-                    "WHERE tracked_candidate_id = :candidate ORDER BY due_at, horizon_id"
+                    f"SELECT {self._columns} FROM {self._table} "
+                    f"WHERE {self._key} = :subject ORDER BY due_at, horizon_id"
                 ),
-                {"candidate": candidate_id},
+                {"subject": subject_id},
             ).mappings()
-            return tuple(_from_row(row) for row in rows)
+            return tuple(_from_row(row, self._key) for row in rows)
+
+
+class PostgresForwardOutcomeRepository:
+    """User-tracked forward outcomes. No update or delete path exists by design."""
+
+    def __init__(self, engine: Engine) -> None:
+        self._ledger = AppendOnlyOutcomeLedger(
+            engine, "forward_outcome_observations", "tracked_candidate_id"
+        )
+
+    def append(self, observation: ForwardOutcomeObservation) -> ForwardOutcomeObservation:
+        return self._ledger.append(observation)
+
+    def for_candidate(self, candidate_id: UUID) -> tuple[ForwardOutcomeObservation, ...]:
+        return self._ledger.for_subject(candidate_id)
 
 
 def _decimal(value: Any) -> Decimal | None:
     return None if value is None else Decimal(str(value))
 
 
-def _from_row(row: Any) -> ForwardOutcomeObservation:
+def _from_row(row: Any, key_column: str) -> ForwardOutcomeObservation:
     return ForwardOutcomeObservation(
-        tracked_candidate_id=UUID(str(row["tracked_candidate_id"])),
+        subject_id=UUID(str(row[key_column])),
         horizon_id=row["horizon_id"],
         status=OutcomeStatus(row["status"]),
         due_at=row["due_at"],

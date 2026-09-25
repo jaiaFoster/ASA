@@ -252,6 +252,22 @@ async function loadForwardOutcomes() {
     state.forwardOutcomes = null;
     state.forwardOutcomesError = String(error.message || error);
   }
+  try {
+    // System enrollments share the per-corpus row shape; never pooled.
+    state.systemEnrollments = (await api.systemEnrollments()).data.map((item) => ({
+      candidate: {
+        strategy_id: item.signal_id,
+        strategy_version: item.signal_version,
+        symbol: item.symbol,
+        tracked_at: item.enrolled_at,
+      },
+      outcomes: { outcomes: item.outcomes },
+    }));
+    state.systemEnrollmentsError = null;
+  } catch (error) {
+    state.systemEnrollments = null;
+    state.systemEnrollmentsError = String(error.message || error);
+  }
   render();
 }
 

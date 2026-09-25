@@ -749,3 +749,30 @@ test("outcome samples below the guard never inform ordering and zero is explicit
   assert.match(rows[0], /alpha \/ BBB.*complete proposal.*250.*acceptable/);
   assert.match(rows[1], /zeta \/ AAA.*qualifying signal, no complete proposal/);
 });
+
+test("outcomes view reports system-actionable and user-tracked corpora separately", () => {
+  const root = document.createElement("div");
+  renderApp(
+    root,
+    model({
+      route: { name: "outcomes" },
+      forwardOutcomes: [],
+      systemEnrollments: [
+        {
+          candidate: {
+            strategy_id: "alpha", strategy_version: "1.0.0", symbol: "SPY",
+            tracked_at: "2026-09-24T20:30:00Z",
+          },
+          outcomes: {
+            outcomes: [{ horizon_id: "d1", status: "observed", modeled_pnl: "10", unknown_reasons: [] }],
+          },
+        },
+      ],
+    }),
+    noOpHandlers,
+  );
+  const sections = [...root.querySelectorAll(".outcome-corpus")].map((item) => item.textContent);
+  assert.equal(sections.length, 2);
+  assert.match(sections[0], /System-actionable corpus.*1 enrolled · 1 observed · n=1 with modeled P&L/);
+  assert.match(sections[1], /User-tracked corpus.*selection-biased.*No tracked proposals yet/);
+});
