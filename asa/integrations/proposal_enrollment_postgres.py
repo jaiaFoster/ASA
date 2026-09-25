@@ -37,7 +37,7 @@ class PostgresProposalEnrollmentRepository:
                 text("SELECT pg_advisory_xact_lock(hashtext(:key))"),
                 {"key": f"proposal_outcome_enrollments:{enrollment.session_date.isoformat()}"},
             )
-            count = connection.execute(
+            count: int = connection.execute(
                 text(
                     "SELECT count(*) FROM proposal_outcome_enrollments "
                     "WHERE session_date = :session_date"
