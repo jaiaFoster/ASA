@@ -15,13 +15,21 @@ Invariants (Architect decision, binding):
 
 Acquisition goes only through ``OutcomeEvidenceSource`` (the shared
 market-data authority in production). No broker call exists.
+
+ND-01: subjects come from two structurally separate sources. They are
+``user_tracked`` candidates and, when an enrollment repository is wired,
+``system_actionable`` enrollments. User subjects are served first. The
+per-tick subject cap is shared, and deferrals are reported per source.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from collections.abc import Callable
+from dataclasses import dataclass, field
 from datetime import date, datetime
 from decimal import Decimal
+from functools import partial
+from uuid import UUID
 
 from asa.application.ports.forward_outcomes import (
     ForwardOutcomeRepository,
@@ -29,8 +37,9 @@ from asa.application.ports.forward_outcomes import (
     OutcomeEvidenceSource,
 )
 from asa.application.ports.portfolio_lifecycle import PortfolioLifecycleRepository
+from asa.application.ports.proposal_enrollment import ProposalEnrollmentRepository
 from asa.contracts.forward_outcome import ForwardOutcomeObservation
-from asa.contracts.portfolio_lifecycle import TrackedCandidate
+from asa.contracts.proposal_enrollment import SYSTEM_ACTIONABLE, USER_TRACKED
 from strategy_runtime.forward_outcome import (
     HORIZON_POLICY_VERSION,
     FrozenStructure,
@@ -55,10 +64,26 @@ class CollectionSummary:
     pending: int = 0
     evidence_outside_window: int = 0
     deferred_by_subject_cap: int = 0
+    deferred_by_source: dict[str, int] = field(default_factory=dict)
+
+
+@dataclass(frozen=True, slots=True)
+class OutcomeSubject:
+    """One frozen proposal to observe, from either enrollment source."""
+
+    source: str
+    key: UUID
+    symbol: str
+    anchor: datetime
+    start_at: datetime
+    proposal_identity: str | None
+    proposal_json: str | None
+    recorded: Callable[[], set[str]]
+    append: Callable[[ForwardOutcomeObservation], ForwardOutcomeObservation]
 
 
 def _record(
-    candidate: TrackedCandidate,
+    candidate: OutcomeSubject,
     due: HorizonDue,
     status: OutcomeStatus,
     now: datetime,
@@ -74,7 +99,7 @@ def _record(
     provenance: tuple[str, ...] = (),
 ) -> ForwardOutcomeObservation:
     payload = {
-        "candidate": str(candidate.id),
+        "candidate": str(candidate.key),
         "horizon": due.horizon_id,
         "status": status.value,
         "due_at": due.due_at.isoformat(),
@@ -90,7 +115,7 @@ def _record(
         "provenance": list(provenance),
     }
     return ForwardOutcomeObservation(
-        tracked_candidate_id=candidate.id,
+        subject_id=candidate.key,
         horizon_id=due.horizon_id,
         status=status,
         due_at=due.due_at,
@@ -109,6 +134,10 @@ def _record(
     )
 
 
+def _recorded(read: Callable[[UUID], tuple[ForwardOutcomeObservation, ...]], key: UUID) -> set[str]:
+    return {row.horizon_id for row in read(key)}
+
+
 def _evidence_times(
     evidence: OutcomeEvidence, structure: FrozenStructure | None
 ) -> tuple[datetime | None, ...]:
@@ -124,12 +153,48 @@ class ForwardOutcomeCollector:
         outcomes: ForwardOutcomeRepository,
         evidence: OutcomeEvidenceSource,
         *,
+        enrollments: ProposalEnrollmentRepository | None = None,
         maximum_subjects_per_tick: int = DEFAULT_MAXIMUM_SUBJECTS_PER_TICK,
     ) -> None:
         self._lifecycle = lifecycle
         self._outcomes = outcomes
+        self._enrollments = enrollments
         self._evidence = evidence
         self._maximum_subjects = maximum_subjects_per_tick
+
+    def _subjects(self) -> list[OutcomeSubject]:
+        outcomes = self._outcomes
+        subjects = [
+            OutcomeSubject(
+                USER_TRACKED,
+                item.id,
+                item.symbol,
+                item.evidence_observed_at,
+                item.tracked_at,
+                item.resolved_proposal_identity,
+                item.resolved_proposal_json,
+                partial(_recorded, outcomes.for_candidate, item.id),
+                outcomes.append,
+            )
+            for item in sorted(self._lifecycle.candidates(), key=lambda item: str(item.id))
+        ]
+        enrollments = self._enrollments
+        if enrollments is not None:
+            subjects.extend(
+                OutcomeSubject(
+                    SYSTEM_ACTIONABLE,
+                    item.id,
+                    item.symbol,
+                    item.evidence_observed_at,
+                    item.enrolled_at,
+                    item.resolved_proposal_identity,
+                    item.resolved_proposal_json,
+                    partial(_recorded, enrollments.outcomes_for, item.id),
+                    enrollments.append_outcome,
+                )
+                for item in sorted(enrollments.enrollments(), key=lambda item: str(item.id))
+            )
+        return subjects
 
     def collect(self, now: datetime) -> CollectionSummary:
         counts = {
@@ -140,31 +205,33 @@ class ForwardOutcomeCollector:
             "evidence_outside_window": 0,
             "deferred_by_subject_cap": 0,
         }
+        deferred: dict[str, int] = {}
         # Keyed by (symbol, frozen expirations): evidence fetched for one
         # subject's expirations never stands in for another's legs.
         evidence_by_subject: dict[tuple[str, tuple[date, ...]], OutcomeEvidence] = {}
-        for candidate in sorted(self._lifecycle.candidates(), key=lambda item: str(item.id)):
-            structure = parse_frozen_structure(
-                candidate.resolved_proposal_identity, candidate.resolved_proposal_json
-            )
-            recorded = {item.horizon_id for item in self._outcomes.for_candidate(candidate.id)}
-            for due in horizon_schedule(candidate.evidence_observed_at, structure):
+        for subject in self._subjects():
+            structure = parse_frozen_structure(subject.proposal_identity, subject.proposal_json)
+            recorded = subject.recorded()
+            for due in horizon_schedule(subject.anchor, structure):
                 if due.horizon_id in recorded:
                     continue
-                self._collect_one(candidate, structure, due, now, evidence_by_subject, counts)
-        return CollectionSummary(**counts)
+                before = counts["deferred_by_subject_cap"]
+                self._collect_one(subject, structure, due, now, evidence_by_subject, counts)
+                if counts["deferred_by_subject_cap"] > before:
+                    deferred[subject.source] = deferred.get(subject.source, 0) + 1
+        return CollectionSummary(**counts, deferred_by_source=dict(sorted(deferred.items())))
 
     def _collect_one(
         self,
-        candidate: TrackedCandidate,
+        candidate: OutcomeSubject,
         structure: FrozenStructure | None,
         due: HorizonDue,
         now: datetime,
         evidence_by_subject: dict[tuple[str, tuple[date, ...]], OutcomeEvidence],
         counts: dict[str, int],
     ) -> None:
-        if due.due_at < candidate.tracked_at:
-            self._outcomes.append(
+        if due.due_at < candidate.start_at:
+            candidate.append(
                 _record(
                     candidate, due, OutcomeStatus.NOT_OBSERVABLE_BEFORE_TRACKING, now, structure
                 )
@@ -172,7 +239,7 @@ class ForwardOutcomeCollector:
             counts["not_observable"] += 1
             return
         if window_has_passed(due.due_at, now):
-            self._outcomes.append(_record(candidate, due, OutcomeStatus.MISSED, now, structure))
+            candidate.append(_record(candidate, due, OutcomeStatus.MISSED, now, structure))
             counts["missed"] += 1
             return
         if not evidence_in_window(due.due_at, now):
@@ -200,7 +267,7 @@ class ForwardOutcomeCollector:
             horizon_id=due.horizon_id,
             underlying_price=evidence.underlying_price,
         )
-        self._outcomes.append(
+        candidate.append(
             _record(
                 candidate,
                 due,

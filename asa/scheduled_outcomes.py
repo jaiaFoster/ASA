@@ -19,6 +19,7 @@ from asa.integrations.forward_outcome_market_data import MarketDataOutcomeEviden
 from asa.integrations.forward_outcome_postgres import PostgresForwardOutcomeRepository
 from asa.integrations.portfolio_lifecycle_postgres import PostgresPortfolioLifecycleRepository
 from asa.integrations.postgres import create_postgres_engine
+from asa.integrations.proposal_enrollment_postgres import PostgresProposalEnrollmentRepository
 from asa.integrations.screening_acquisition_attempts_postgres import (
     PostgresAcquisitionAttemptRepository,
 )
@@ -45,6 +46,7 @@ def run_scheduled_outcome_collection(
         MarketDataOutcomeEvidenceSource(
             config, transport_factory, PostgresAcquisitionAttemptRepository(engine)
         ),
+        enrollments=PostgresProposalEnrollmentRepository(engine),
     )
     summary = collector.collect(now or datetime.now(UTC))
     _LOGGER.info("forward_outcome_collection", extra={"summary": asdict(summary)})

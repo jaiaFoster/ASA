@@ -77,6 +77,41 @@ def _outcome_ledger(fetch: Fetch) -> JsonObject:
     return {"ledger_status": LEDGER_AVAILABLE, "candidates": rows}
 
 
+def _system_ledger(fetch: Fetch) -> JsonObject:
+    """ND-01 system-actionable corpus, captured separately and never pooled."""
+    status, body = fetch("/api/v1/forward-outcomes/system-enrollments")
+    if status == 404:
+        return {"ledger_status": LEDGER_NOT_DEPLOYED, "candidates": []}
+    if status != 200:
+        return {"ledger_status": f"system_enrollments_http_{status}", "candidates": []}
+    rows = cast(list[JsonObject], body)
+    return {
+        "ledger_status": LEDGER_AVAILABLE,
+        "candidates": [
+            {
+                "candidate_id": str(item["enrollment_id"]),
+                "strategy_id": item["signal_id"],
+                "symbol": item["symbol"],
+                "tracked_at": item["enrolled_at"],
+                "session_date": item["session_date"],
+                "opportunity_id": item.get("opportunity_id"),
+                "also_tracked_by_user": item["also_tracked_by_user"],
+                "has_frozen_proposal": True,
+                "horizons": [
+                    {
+                        "horizon_id": horizon["horizon_id"],
+                        "status": horizon["status"],
+                        "due_at": horizon.get("due_at"),
+                        "has_modeled_pnl": horizon.get("modeled_pnl") is not None,
+                    }
+                    for horizon in item["outcomes"]
+                ],
+            }
+            for item in sorted(rows, key=lambda value: str(value["enrollment_id"]))
+        ],
+    }
+
+
 def _session_date(fetch: Fetch) -> str | None:
     """The newest economic session date among active rows (first page suffices)."""
     status, page = fetch("/api/v1/screening?active_only=true&limit=500&offset=0")
@@ -117,6 +152,7 @@ def capture_program_session(
         },
         "stocks": stocks,
         "outcomes": _outcome_ledger(fetch),
+        "system_outcomes": _system_ledger(fetch),
     }
 
 

@@ -12,13 +12,17 @@ from strategy_runtime.forward_outcome import OutcomeStatus
 
 @dataclass(frozen=True, slots=True)
 class ForwardOutcomeObservation:
-    """One (tracked candidate, horizon) outcome; never rewritten.
+    """One (subject, horizon) outcome; never rewritten.
+
+    ``subject_id`` is the tracked candidate id for a ``user_tracked`` subject
+    or the enrollment id for a ``system_actionable`` one. The two live in
+    structurally separate ledgers (ND-01).
 
     ``modeled_mark`` / ``modeled_pnl`` are midpoint or terminal-intrinsic
     models against the frozen modeled entry -- never an executed fill.
     """
 
-    tracked_candidate_id: UUID
+    subject_id: UUID
     horizon_id: str
     status: OutcomeStatus
     due_at: datetime

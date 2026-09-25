@@ -61,6 +61,7 @@ from asa.integrations.screening_acquisition_attempts_postgres import (
     PostgresAcquisitionAttemptRepository,
 )
 from asa.integrations.universal_screening_postgres import PostgresLatestResultRepository
+from asa.scheduled_enrollment import run_scheduled_proposal_enrollment
 from asa.scheduled_outcomes import run_scheduled_outcome_collection
 from domain import CanonicalInstrumentIdentity, MarketObservation, UnknownReason
 from market_data import ReuseDecision, load_market_data_config_from_environment
@@ -988,6 +989,21 @@ def main(argv: Sequence[str] | None = None) -> int:
     except Exception as exc:
         _LOGGER.warning(
             "portfolio_refresh_failed",
+            extra={"failure_class": type(exc).__name__, "detail": str(exc)[:500]},
+            exc_info=True,
+        )
+    # ND-01: enroll this tick's system-actionable proposals, isolated and
+    # before collection. Qualifying pairs only; the canonical-proposal check
+    # inside the service is the authority.
+    try:
+        run_scheduled_proposal_enrollment(
+            (item.signal_id, item.symbol)
+            for item in outcomes
+            if item.error is None and item.outcome == "pass"
+        )
+    except Exception as exc:
+        _LOGGER.warning(
+            "proposal_outcome_enrollment_failed",
             extra={"failure_class": type(exc).__name__, "detail": str(exc)[:500]},
             exc_info=True,
         )

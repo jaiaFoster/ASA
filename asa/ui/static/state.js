@@ -15,6 +15,8 @@ export const state = {
   stockProposals: {},
   forwardOutcomes: null,
   forwardOutcomesError: null,
+  systemEnrollments: null,
+  systemEnrollmentsError: null,
   opportunityFilters: { assetClass: "", signal: "", completeOnly: false, definedRiskOnly: false },
   portfolio: null,
   positions: null,

@@ -834,22 +834,45 @@ function outcomesView(model) {
   const fragment = document.createDocumentFragment();
   const heading = element("section", "page-heading");
   heading.append(element("p", "eyebrow", "FORWARD OUTCOMES · PAPER / MODELED, NOT BROKERAGE FILLS"));
-  heading.append(element("h2", null, "What tracked proposals did next"));
+  heading.append(element("h2", null, "What ASA's proposals did next"));
   heading.append(element(
     "p",
     null,
     "Modeled midpoint marks against each proposal's frozen modeled entry, sampled at "
-      + "fixed horizons (not path extremes). The corpus is only proposals someone chose "
-      + "to track, so it is selection-biased and small; no strategy is ranked from it.",
+      + "fixed horizons (not path extremes). The two corpora below are reported separately "
+      + "and never pooled; no strategy is ranked from them.",
   ));
   fragment.append(heading);
-  if (model.forwardOutcomesError) {
-    fragment.append(element("p", "empty-state", `Outcomes unavailable: ${model.forwardOutcomesError}`));
-    return fragment;
+  fragment.append(outcomeCorpusSection(
+    "System-actionable corpus",
+    "Every option proposal ASA itself judged actionable: the first per strategy, symbol and "
+      + "session, at most 8 per session. Not chosen by anyone, but limited to ASA's own gates.",
+    model.systemEnrollments,
+    model.systemEnrollmentsError,
+    "Enrolled",
+    "enrolled",
+  ));
+  fragment.append(outcomeCorpusSection(
+    "User-tracked corpus",
+    "Only proposals someone chose to track, so it is selection-biased and small.",
+    model.forwardOutcomes,
+    model.forwardOutcomesError,
+    "Tracked",
+    "tracked",
+  ));
+  return fragment;
+}
+
+function outcomeCorpusSection(title, disclosure, rows, error, timeLabel, noun) {
+  const section = element("section", "outcome-corpus");
+  section.append(element("h3", null, title), element("p", null, disclosure));
+  if (error) {
+    section.append(element("p", "empty-state", `Outcomes unavailable: ${error}`));
+    return section;
   }
-  const rows = model.forwardOutcomes || [];
+  const loaded = rows || [];
   const byStrategy = new Map();
-  for (const { candidate, outcomes } of rows) {
+  for (const { candidate, outcomes } of loaded) {
     const entry = byStrategy.get(candidate.strategy_id) || { tracked: 0, observed: 0, withPnl: 0 };
     entry.tracked += 1;
     for (const item of outcomes.outcomes) {
@@ -858,7 +881,7 @@ function outcomesView(model) {
     }
     byStrategy.set(candidate.strategy_id, entry);
   }
-  const summary = element("section", "summary-grid");
+  const summary = element("div", "summary-grid");
   for (const [strategy, entry] of byStrategy) {
     const card = element("article", "summary-card");
     card.append(
@@ -866,23 +889,23 @@ function outcomesView(model) {
       element(
         "strong",
         null,
-        `${entry.tracked} tracked · ${entry.observed} observed · n=${entry.withPnl} with modeled P&L`,
+        `${entry.tracked} ${noun} · ${entry.observed} observed · n=${entry.withPnl} with modeled P&L`,
       ),
     );
     summary.append(card);
   }
-  fragment.append(summary);
+  section.append(summary);
   const tableWrap = element("div", "table-wrap");
   const table = element("table", "results-table outcomes-table");
   const head = element("thead");
   const headRow = element("tr");
-  for (const title of ["Strategy", "Symbol", "Tracked", ...OUTCOME_HORIZONS]) {
-    headRow.append(element("th", null, title));
+  for (const heading of ["Strategy", "Symbol", timeLabel, ...OUTCOME_HORIZONS]) {
+    headRow.append(element("th", null, heading));
   }
   head.append(headRow);
   table.append(head);
   const body = element("tbody");
-  for (const { candidate, outcomes } of rows) {
+  for (const { candidate, outcomes } of loaded) {
     const byHorizon = new Map(outcomes.outcomes.map((item) => [item.horizon_id, item]));
     const row = element("tr");
     row.append(
@@ -895,11 +918,11 @@ function outcomesView(model) {
   }
   table.append(body);
   tableWrap.append(table);
-  fragment.append(tableWrap);
-  if (!rows.length) {
-    fragment.append(element("p", "empty-state empty-state--large", "No tracked proposals yet."));
+  section.append(tableWrap);
+  if (!loaded.length) {
+    section.append(element("p", "empty-state empty-state--large", `No ${noun} proposals yet.`));
   }
-  return fragment;
+  return section;
 }
 
 function opportunitiesView(model, handlers) {
@@ -993,18 +1016,24 @@ function opportunitiesView(model, handlers) {
     `Outcome evidence could inform ordering only after a strategy has at least `
       + `${MINIMUM_OUTCOME_SAMPLE} observed outcomes with modeled P&L. Paper/modeled, not brokerage fills.`,
   ));
-  const guard = outcomeSampleGuard(model.forwardOutcomes);
-  if (model.forwardOutcomesError) {
-    samples.append(element("p", "empty-state", `Outcome samples unavailable: ${model.forwardOutcomesError}`));
-  } else if (!guard) {
-    samples.append(element("p", "empty-state", "Outcome samples not loaded."));
-  } else if (!guard.length) {
-    samples.append(element("p", "empty-state", "No tracked proposals yet (n=0 for every strategy)."));
-  } else {
-    samples.append(definitionList(guard.map((item) => [
-      item.strategy,
-      `${item.tracked} tracked · n=${item.withPnl} with modeled P&L · ${item.guard}`,
-    ])));
+  for (const [label, rows, error] of [
+    ["System-actionable", model.systemEnrollments, model.systemEnrollmentsError],
+    ["User-tracked", model.forwardOutcomes, model.forwardOutcomesError],
+  ]) {
+    samples.append(element("h4", null, label));
+    const guard = outcomeSampleGuard(rows);
+    if (error) {
+      samples.append(element("p", "empty-state", `Outcome samples unavailable: ${error}`));
+    } else if (!guard) {
+      samples.append(element("p", "empty-state", "Outcome samples not loaded."));
+    } else if (!guard.length) {
+      samples.append(element("p", "empty-state", "No proposals yet (n=0 for every strategy)."));
+    } else {
+      samples.append(definitionList(guard.map((item) => [
+        item.strategy,
+        `${item.tracked} proposals · n=${item.withPnl} with modeled P&L · ${item.guard}`,
+      ])));
+    }
   }
   fragment.append(samples);
   return fragment;

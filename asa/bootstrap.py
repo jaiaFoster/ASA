@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import Engine
 
 from asa.api.agent_auth import build_agent_authorizer
+from asa.api.forward_outcome_routes import build_forward_outcome_router
 from asa.api.portfolio_lifecycle_routes import build_portfolio_lifecycle_router
 from asa.api.routes import build_router
 from asa.api.screening_routes import build_screening_router
@@ -20,6 +21,7 @@ from asa.application.portfolio_use_cases import (
 from asa.application.ports.brokers import BrokerPortfolioProvider
 from asa.application.ports.forward_outcomes import ForwardOutcomeRepository
 from asa.application.ports.portfolio_lifecycle import PortfolioLifecycleRepository
+from asa.application.ports.proposal_enrollment import ProposalEnrollmentRepository
 from asa.application.ports.quotes import QuoteProvider
 from asa.application.ports.repositories import MarketObservationRepository
 from asa.application.ports.runs import RunPublicationRepository
@@ -31,6 +33,7 @@ from asa.integrations.portfolio_lifecycle_postgres import (
     PostgresPortfolioLifecycleRepository,
 )
 from asa.integrations.postgres import PostgresMarketObservationRepository, create_postgres_engine
+from asa.integrations.proposal_enrollment_postgres import PostgresProposalEnrollmentRepository
 from asa.integrations.providers.deterministic_fake import DeterministicFakeQuoteProvider
 from asa.integrations.providers.deterministic_fake_broker import (
     DeterministicFakeBrokerPortfolioProvider,
@@ -71,6 +74,7 @@ class DependencyOverrides:
     acquisition_attempt_repository: AcquisitionAttemptRepository | None = None
     portfolio_lifecycle_repository: PortfolioLifecycleRepository | None = None
     forward_outcome_repository: ForwardOutcomeRepository | None = None
+    proposal_enrollment_repository: ProposalEnrollmentRepository | None = None
     screening_operational_health: Callable[[], dict[str, object]] | None = None
 
 
@@ -96,6 +100,10 @@ def build_application(
     forward_outcome_repository = (
         selected.forward_outcome_repository
         or PostgresForwardOutcomeRepository(engine_factory(settings.database_url))
+    )
+    proposal_enrollment_repository = (
+        selected.proposal_enrollment_repository
+        or PostgresProposalEnrollmentRepository(engine_factory(settings.database_url))
     )
     broker_provider = selected.broker_provider or _build_broker_provider(settings)
     latest_result_repository = selected.latest_result_repository or PostgresLatestResultRepository(
@@ -200,6 +208,11 @@ def build_application(
             portfolio_lifecycle_repository,
             agent_authorize,
             forward_outcome_repository,
+        )
+    )
+    app.include_router(
+        build_forward_outcome_router(
+            proposal_enrollment_repository, portfolio_lifecycle_repository, agent_authorize
         )
     )
     mount_ui(app)

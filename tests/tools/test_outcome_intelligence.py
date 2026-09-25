@@ -310,3 +310,21 @@ def test_ledger_distinguishes_undeployed_route_from_available_empty_corpus() -> 
         "ledger_status": LEDGER_AVAILABLE,
         "candidates": [],
     }
+
+
+def test_system_corpus_is_reported_separately_and_counts_toward_observation() -> None:
+    corpus = _corpus()
+    corpus[-1]["outcomes"] = {"ledger_status": LEDGER_AVAILABLE, "candidates": []}
+    corpus[-1]["system_outcomes"] = copy.deepcopy(_OBSERVED_LEDGER)
+    report = build_report(corpus, ADEQUACY, REGISTRY, repository_root=ROOT)
+
+    assert report["forward_outcomes"]["by_strategy"] == {}
+    system = report["system_forward_outcomes"]["by_strategy"]["alpha_option"]
+    assert system["observed_with_modeled_pnl"] == 1
+    assert "system-actionable (ND-01)" in render_markdown(report)
+    closure = build_closure(corpus, report, INPUTS, repository_root=ROOT)
+    gates = {item["gate"]: item["state"] for item in closure["gates"]}
+    assert gates["forward_outcome_observed"] == "pass"
+    # Captures that predate ND-01 carry no system ledger; it is never read as zero.
+    legacy = build_report(_corpus()[:1], ADEQUACY, REGISTRY, repository_root=ROOT)
+    assert legacy["system_forward_outcomes"] == {"ledger_status": "not_captured", "by_strategy": {}}

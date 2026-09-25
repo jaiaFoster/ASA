@@ -14,6 +14,7 @@ from asa.application.portfolio_lifecycle import (
 from asa.application.portfolio_valuation import project_exit_state
 from asa.application.ports.forward_outcomes import ForwardOutcomeRepository
 from asa.application.ports.portfolio_lifecycle import PortfolioLifecycleRepository
+from asa.contracts.forward_outcome import ForwardOutcomeObservation
 from asa.contracts.portfolio_lifecycle import (
     PositionAssociation,
     PositionLifecycleObservation,
@@ -21,6 +22,7 @@ from asa.contracts.portfolio_lifecycle import (
 )
 from strategy_runtime.forward_outcome import (
     HORIZON_POLICY_VERSION,
+    FrozenStructure,
     horizon_schedule,
     parse_frozen_structure,
 )
@@ -136,6 +138,42 @@ def _text_or_none(value: object) -> str | None:
     return None if value is None else str(value)
 
 
+def outcome_rows(
+    anchor: datetime,
+    structure: FrozenStructure | None,
+    recorded_items: tuple[ForwardOutcomeObservation, ...],
+) -> list[ForwardOutcomeResponse]:
+    """Recorded outcomes plus computed, unstored pending horizons, in due order."""
+    recorded = {item.horizon_id: item for item in recorded_items}
+    outcomes: list[ForwardOutcomeResponse] = []
+    for due in horizon_schedule(anchor, structure):
+        item = recorded.get(due.horizon_id)
+        if item is None:
+            outcomes.append(
+                ForwardOutcomeResponse(
+                    horizon_id=due.horizon_id, status="pending", due_at=due.due_at
+                )
+            )
+            continue
+        outcomes.append(
+            ForwardOutcomeResponse(
+                horizon_id=item.horizon_id,
+                status=item.status.value,
+                due_at=item.due_at,
+                observed_at=item.observed_at,
+                collected_at=item.collected_at,
+                underlying_price=_text_or_none(item.underlying_price),
+                modeled_mark=_text_or_none(item.modeled_mark),
+                modeled_pnl=_text_or_none(item.modeled_pnl),
+                mark_basis=item.mark_basis,
+                mark_model_version=item.mark_model_version,
+                unknown_reasons=list(item.unknown_reasons),
+                content_identity=item.content_identity,
+            )
+        )
+    return outcomes
+
+
 def build_portfolio_lifecycle_router(
     service: TrackCandidateService,
     repository: PortfolioLifecycleRepository,
@@ -156,40 +194,13 @@ def build_portfolio_lifecycle_router(
         structure = parse_frozen_structure(
             candidate.resolved_proposal_identity, candidate.resolved_proposal_json
         )
-        recorded = {
-            item.horizon_id: item
-            for item in (
-                ()
-                if forward_outcome_repository is None
-                else forward_outcome_repository.for_candidate(candidate_id)
-            )
-        }
-        outcomes: list[ForwardOutcomeResponse] = []
-        for due in horizon_schedule(candidate.evidence_observed_at, structure):
-            item = recorded.get(due.horizon_id)
-            if item is None:
-                outcomes.append(
-                    ForwardOutcomeResponse(
-                        horizon_id=due.horizon_id, status="pending", due_at=due.due_at
-                    )
-                )
-                continue
-            outcomes.append(
-                ForwardOutcomeResponse(
-                    horizon_id=item.horizon_id,
-                    status=item.status.value,
-                    due_at=item.due_at,
-                    observed_at=item.observed_at,
-                    collected_at=item.collected_at,
-                    underlying_price=_text_or_none(item.underlying_price),
-                    modeled_mark=_text_or_none(item.modeled_mark),
-                    modeled_pnl=_text_or_none(item.modeled_pnl),
-                    mark_basis=item.mark_basis,
-                    mark_model_version=item.mark_model_version,
-                    unknown_reasons=list(item.unknown_reasons),
-                    content_identity=item.content_identity,
-                )
-            )
+        outcomes = outcome_rows(
+            candidate.evidence_observed_at,
+            structure,
+            ()
+            if forward_outcome_repository is None
+            else forward_outcome_repository.for_candidate(candidate_id),
+        )
         return TrackedCandidateOutcomesResponse(
             tracked_candidate_id=candidate_id,
             frozen_proposal_identity=candidate.resolved_proposal_identity,
