@@ -140,7 +140,9 @@ class ForwardOutcomeCollector:
             "evidence_outside_window": 0,
             "deferred_by_subject_cap": 0,
         }
-        evidence_by_subject: dict[str, OutcomeEvidence] = {}
+        # Keyed by (symbol, frozen expirations): evidence fetched for one
+        # subject's expirations never stands in for another's legs.
+        evidence_by_subject: dict[tuple[str, tuple[date, ...]], OutcomeEvidence] = {}
         for candidate in sorted(self._lifecycle.candidates(), key=lambda item: str(item.id)):
             structure = parse_frozen_structure(
                 candidate.resolved_proposal_identity, candidate.resolved_proposal_json
@@ -158,7 +160,7 @@ class ForwardOutcomeCollector:
         structure: FrozenStructure | None,
         due: HorizonDue,
         now: datetime,
-        evidence_by_subject: dict[str, OutcomeEvidence],
+        evidence_by_subject: dict[tuple[str, tuple[date, ...]], OutcomeEvidence],
         counts: dict[str, int],
     ) -> None:
         if due.due_at < candidate.tracked_at:
@@ -176,16 +178,17 @@ class ForwardOutcomeCollector:
         if not evidence_in_window(due.due_at, now):
             counts["pending"] += 1
             return
-        evidence = evidence_by_subject.get(candidate.symbol)
+        expirations = tuple(
+            sorted(set() if structure is None else {leg.expiration for leg in structure.legs})
+        )
+        key = (candidate.symbol, expirations)
+        evidence = evidence_by_subject.get(key)
         if evidence is None:
             if len(evidence_by_subject) >= self._maximum_subjects:
                 counts["deferred_by_subject_cap"] += 1
                 return
-            expirations: set[date] = (
-                set() if structure is None else {leg.expiration for leg in structure.legs}
-            )
-            evidence = self._evidence.collect(candidate.symbol, tuple(sorted(expirations)), now)
-            evidence_by_subject[candidate.symbol] = evidence
+            evidence = self._evidence.collect(candidate.symbol, expirations, now)
+            evidence_by_subject[key] = evidence
         times = _evidence_times(evidence, structure)
         if any(item is None or not evidence_in_window(due.due_at, item) for item in times):
             # Retried on a later tick while the window is open; never backfilled.

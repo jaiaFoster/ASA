@@ -125,6 +125,10 @@ def test_in_window_evidence_records_a_modeled_outcome_once() -> None:
     assert d1.modeled_pnl == Decimal("249.50")
     assert d1.mark_basis == "modeled_midpoint_mark_not_fill"
     assert evidence.calls == [("SPY", (EXPIRY,))]
+    # Golden: a payload change would conflict with every stored ledger row.
+    assert d1.content_identity == (
+        "f99d90cf975e0b33dd27f0d1a6ad68b28d5a6ea143ac6a9b296000c6ad906459"
+    )
     # First eligible observation is final; a later tick never rewrites it.
     collector.collect(D1 + timedelta(minutes=5))
     assert outcomes.rows[(_candidate().id, "d1")] == d1
@@ -296,3 +300,27 @@ def test_postgres_ledger_is_append_only_idempotent_and_restricts_deletes() -> No
         connection.execute(
             text("DELETE FROM tracked_candidates WHERE id = :id"), {"id": candidate.id}
         )
+
+
+def test_same_symbol_subjects_with_different_expirations_never_share_evidence() -> None:
+    later = replace(
+        _candidate(),
+        id=UUID("22222222-2222-2222-2222-222222222222"),
+        originating_observation_id="obs-2",
+        resolved_proposal_identity="proposal-2",
+        resolved_proposal_json=json.dumps(
+            {
+                **PROPOSAL,
+                "legs": [
+                    {**leg, "expiration": "2026-11-20"}
+                    for leg in PROPOSAL["legs"]  # type: ignore[index]
+                ],
+            }
+        ),
+    )
+    lifecycle = MemoryLifecycleRepository()
+    lifecycle.add_candidate(_candidate())
+    lifecycle.add_candidate(later)
+    evidence = FakeEvidence(D1 - timedelta(minutes=5))
+    ForwardOutcomeCollector(lifecycle, MemoryOutcomes(), evidence).collect(D1)
+    assert sorted(evidence.calls) == [("SPY", (EXPIRY,)), ("SPY", (date(2026, 11, 20),))]
