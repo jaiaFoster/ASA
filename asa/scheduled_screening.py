@@ -313,6 +313,8 @@ class PairOutcome:
     request_count: int | None
     error: str | None
     attempts_recorded: bool
+    # The result this tick produced; ND-01 enrolls only this exact observation.
+    observation_id: str | None = None
 
 
 class RefreshScheduleClaimRepository(Protocol):
@@ -811,6 +813,7 @@ def run_scheduled_refresh(
                     - budget_accounting_start,
                     None,
                     not plan.attempt_recording_degraded,
+                    result.observation_id,
                 )
             )
         except Exception as exc:
@@ -997,9 +1000,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     # inside the service is the authority.
     try:
         run_scheduled_proposal_enrollment(
-            (item.signal_id, item.symbol)
+            (item.signal_id, item.symbol, item.observation_id)
             for item in outcomes
-            if item.error is None and item.outcome == "pass"
+            if item.error is None and item.outcome == "pass" and item.observation_id is not None
         )
     except Exception as exc:
         _LOGGER.warning(

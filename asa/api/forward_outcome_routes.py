@@ -33,6 +33,9 @@ class SystemEnrollmentOutcomesResponse(BaseModel):
     evidence_observed_at: datetime
     enrolled_at: datetime
     frozen_proposal_identity: str
+    # Re-enrollment across sessions is allowed; reports show distinct
+    # opportunity and exact-leg-set counts next to the row count (§4).
+    exact_leg_set: list[str]
     also_tracked_by_user: bool
     horizon_policy_version: str
     basis: str
@@ -76,6 +79,11 @@ def build_forward_outcome_router(
                     evidence_observed_at=item.evidence_observed_at,
                     enrolled_at=item.enrolled_at,
                     frozen_proposal_identity=item.resolved_proposal_identity,
+                    exact_leg_set=sorted(
+                        ()
+                        if structure is None
+                        else {leg.canonical_contract_identity for leg in structure.legs}
+                    ),
                     also_tracked_by_user=item.resolved_proposal_identity in tracked,
                     horizon_policy_version=HORIZON_POLICY_VERSION,
                     basis="paper_modeled_not_brokerage_fill; system_actionable_corpus",

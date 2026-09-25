@@ -59,7 +59,7 @@ class MemoryEnrollments:
         self.values: dict[UUID, ProposalEnrollment] = {}
         self.outcome_rows = MemoryOutcomes()
 
-    def add(self, enrollment: ProposalEnrollment) -> bool:
+    def add(self, enrollment: ProposalEnrollment, maximum_per_session: int = 8) -> str:
         slot = (
             enrollment.signal_id,
             enrollment.signal_version,
@@ -71,9 +71,11 @@ class MemoryEnrollments:
             for item in self.values.values()
         }
         if enrollment.id in self.values or slot in taken:
-            return False
+            return "already_enrolled"
+        if self.count_for_session(enrollment.session_date) >= maximum_per_session:
+            return "enrollment_deferred_by_cap"
         self.values[enrollment.id] = enrollment
-        return True
+        return "enrolled"
 
     def slot_taken(
         self, signal_id: str, signal_version: str, symbol: str, session_date: date
@@ -125,7 +127,7 @@ def _world(*rows):  # type: ignore[no-untyped-def]
 def test_system_enrollments_never_appear_in_tracking_or_reconciliation() -> None:
     results, lifecycle, enrollments = _world()
     summary = ProposalEnrollmentService(results, lifecycle, enrollments).enroll(
-        [("earnings_calendar", "AAPL")], NOW
+        [("earnings_calendar", "AAPL", "observation-1")], NOW
     )
     assert summary.enrolled == 1
     assert lifecycle.candidates() == ()
@@ -157,6 +159,9 @@ def test_system_enrollments_never_appear_in_tracking_or_reconciliation() -> None
     assert len(system) == 1
     assert system[0]["enrollment_source"] == SYSTEM_ACTIONABLE
     assert system[0]["also_tracked_by_user"] is False
+    assert system[0]["exact_leg_set"] and system[0]["exact_leg_set"] == sorted(
+        system[0]["exact_leg_set"]
+    )
     assert system[0]["basis"].startswith("paper_modeled_not_brokerage_fill")
     assert {item["status"] for item in system[0]["outcomes"]} == {"pending"}
 
@@ -164,7 +169,7 @@ def test_system_enrollments_never_appear_in_tracking_or_reconciliation() -> None
 def test_user_tracking_an_enrolled_proposal_gets_its_own_record_and_clock() -> None:
     results, lifecycle, enrollments = _world()
     ProposalEnrollmentService(results, lifecycle, enrollments).enroll(
-        [("earnings_calendar", "AAPL")], NOW
+        [("earnings_calendar", "AAPL", "observation-1")], NOW
     )
     tracked_at = NOW + timedelta(hours=2)
     candidate = TrackCandidateService(results, lifecycle).track(
@@ -180,7 +185,7 @@ def test_user_tracking_an_enrolled_proposal_gets_its_own_record_and_clock() -> N
 def test_freezing_is_byte_identical_across_sources() -> None:
     results, lifecycle, enrollments = _world()
     ProposalEnrollmentService(results, lifecycle, enrollments).enroll(
-        [("earnings_calendar", "AAPL")], NOW
+        [("earnings_calendar", "AAPL", "observation-1")], NOW
     )
     candidate = TrackCandidateService(results, lifecycle).track(
         "earnings_calendar", "AAPL", "observation-1", NOW
@@ -194,7 +199,7 @@ def test_stale_and_non_canonical_artifacts_are_never_enrolled() -> None:
     results, lifecycle, enrollments = _world()
     lifecycle.put_execution_readiness(_artifact("an-older-observation"))
     stale = ProposalEnrollmentService(results, lifecycle, enrollments).enroll(
-        [("earnings_calendar", "AAPL"), ("earnings_calendar", "MISSING")], NOW
+        [("earnings_calendar", "AAPL", "observation-1"), ("earnings_calendar", "MISSING", "x")], NOW
     )
     assert stale.stale_or_missing_artifact == 2 and stale.enrolled == 0
 
@@ -203,16 +208,50 @@ def test_stale_and_non_canonical_artifacts_are_never_enrolled() -> None:
     frozen = freeze_proposal(_row(), legacy)
     assert frozen is not None and not frozen.is_canonical_trade_proposal
     summary = ProposalEnrollmentService(results, lifecycle, enrollments).enroll(
-        [("earnings_calendar", "AAPL")], NOW
+        [("earnings_calendar", "AAPL", "observation-1")], NOW
     )
     assert summary.not_actionable == 1 and enrollments.enrollments() == ()
+
+
+def test_only_this_ticks_passing_observation_is_enrolled() -> None:
+    results, lifecycle, enrollments = _world()
+    service = ProposalEnrollmentService(results, lifecycle, enrollments)
+    # The tick produced a different observation than the authoritative row.
+    assert (
+        service.enroll([("earnings_calendar", "AAPL", "tick-obs")], NOW).stale_or_missing_artifact
+        == 1
+    )
+    results.upsert(replace(_row(), evaluation_state="no_signal"))
+    assert (
+        service.enroll(
+            [("earnings_calendar", "AAPL", "observation-1")], NOW
+        ).stale_or_missing_artifact
+        == 1
+    )
+    assert enrollments.enrollments() == ()
+
+
+def test_one_failing_pair_never_aborts_the_tick_and_clock_skew_is_skipped() -> None:
+    rows = [replace(_row(f"obs-{symbol}"), symbol=symbol) for symbol in ("AAA", "BBB")]
+    results, lifecycle, enrollments = _world(*rows)
+    lifecycle.put_execution_readiness(
+        replace(_artifact("obs-AAA", "AAA"), canonical_json="{broken")
+    )
+    summary = ProposalEnrollmentService(results, lifecycle, enrollments).enroll(
+        [("earnings_calendar", "AAA", "obs-AAA"), ("earnings_calendar", "BBB", "obs-BBB")], NOW
+    )
+    assert (summary.enrollment_failed, summary.enrolled) == (1, 1)
+    skewed = ProposalEnrollmentService(results, lifecycle, MemoryEnrollments()).enroll(
+        [("earnings_calendar", "BBB", "obs-BBB")], NOW - timedelta(minutes=1)
+    )
+    assert skewed.evidence_after_clock == 1
 
 
 def test_first_proposal_per_session_wins_cap_holds_and_replay_is_idempotent() -> None:
     rows = [replace(_row(f"obs-{symbol}"), symbol=symbol) for symbol in ("AAA", "BBB", "CCC")]
     results, lifecycle, enrollments = _world(*rows)
     service = ProposalEnrollmentService(results, lifecycle, enrollments, maximum_per_session=2)
-    pairs = [("earnings_calendar", symbol) for symbol in ("CCC", "AAA", "BBB")]
+    pairs = [("earnings_calendar", symbol, f"obs-{symbol}") for symbol in ("CCC", "AAA", "BBB")]
 
     first = service.enroll(pairs, NOW)
     assert (first.enrolled, first.enrollment_deferred_by_cap) == (2, 1)
@@ -228,7 +267,9 @@ def test_first_proposal_per_session_wins_cap_holds_and_replay_is_idempotent() ->
     results.upsert(replace(rows[0], observation_id="obs-AAA-later"))
     lifecycle.put_execution_readiness(_artifact("obs-AAA-later", "AAA"))
     uncapped = ProposalEnrollmentService(results, lifecycle, enrollments)
-    later = uncapped.enroll([("earnings_calendar", "AAA")], NOW + timedelta(hours=1))
+    later = uncapped.enroll(
+        [("earnings_calendar", "AAA", "obs-AAA-later")], NOW + timedelta(hours=1)
+    )
     assert later.already_enrolled == 1
     assert len([item for item in enrollments.enrollments() if item.symbol == "AAA"]) == 1
 
@@ -329,6 +370,7 @@ _NEW_MODULES = (
     "asa/integrations/proposal_enrollment_postgres.py",
     "asa/api/forward_outcome_routes.py",
     "asa/contracts/proposal_enrollment.py",
+    "asa/scheduled_enrollment.py",
 )
 
 
@@ -375,10 +417,13 @@ def test_postgres_enrollment_ledger_is_insert_only_idempotent_and_restricted() -
         connection.execute(text("DELETE FROM proposal_outcome_enrollments"))
     repository = PostgresProposalEnrollmentRepository(engine)
     enrollment = _enrollment(ANCHOR)
-    assert repository.add(enrollment) is True
-    assert repository.add(enrollment) is False
+    assert repository.add(enrollment, 8) == "enrolled"
+    assert repository.add(enrollment, 8) == "already_enrolled"
     same_slot = replace(_enrollment(ANCHOR, key="p-other"), signal_id=enrollment.signal_id)
-    assert repository.add(same_slot) is False
+    assert repository.add(same_slot, 8) == "already_enrolled"
+    assert repository.add(_enrollment(ANCHOR, symbol="QQQ", key="p-cap"), 1) == (
+        "enrollment_deferred_by_cap"
+    )
     assert repository.count_for_session(date(2026, 9, 24)) == 1
     assert repository.enrollment(enrollment.id) == enrollment
 
@@ -398,3 +443,24 @@ def test_postgres_enrollment_ledger_is_insert_only_idempotent_and_restricted() -
             text("DELETE FROM proposal_outcome_enrollments WHERE id = :id"),
             {"id": enrollment.id},
         )
+
+
+def test_cron_hands_enrollment_only_this_ticks_passing_observations(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    import asa.scheduled_screening as module
+
+    tick = (
+        module.PairOutcome("alpha", "AAA", "pass", 1, None, True, "obs-a"),
+        module.PairOutcome("alpha", "BBB", "no_signal", 1, None, True, "obs-b"),
+        module.PairOutcome("alpha", "CCC", None, None, "boom", False),
+    )
+    captured: list[tuple[str, str, str]] = []
+    monkeypatch.setattr(module, "run_scheduled_refresh", lambda **_kwargs: tick)
+    monkeypatch.setattr(module, "run_scheduled_stock_benchmark_refresh", lambda: ())
+    monkeypatch.setattr(module, "run_scheduled_fixed_subject_option_refresh", lambda: ())
+    monkeypatch.setattr(module, "run_scheduled_portfolio_refresh", lambda: None)
+    monkeypatch.setattr(module, "run_scheduled_outcome_collection", lambda: None)
+    monkeypatch.setattr(
+        module, "run_scheduled_proposal_enrollment", lambda pairs: captured.extend(pairs)
+    )
+    module.main(["--json"])
+    assert captured == [("alpha", "AAA", "obs-a")]

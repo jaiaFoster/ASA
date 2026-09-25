@@ -28,3 +28,17 @@
 
 - If a cap deferral turns into a `missed` horizon on 3 or more of 10 sessions, stop and escalate. Budgets are never raised unilaterally.
 - Downgrading `0020` in production destroys system forward evidence that cannot be regenerated, so it is Founder-only.
+
+## Independent review (APPROVE-WITH-FIXES) and disposition
+
+| # | Severity | Finding | Disposition |
+|---|---|---|---|
+| 1 | HIGH | Evidence was cached per symbol, so a second same-symbol subject with different expirations reused a chain that lacked its legs. The outcome was finalized as observed with unknown P&L. | **Fixed in #493** (`f72e73a`), because the defect is latent in OI-03 itself. The cache key is now `(symbol, frozen expirations)`. A test and a golden content-identity pin were added. |
+| 2 | MEDIUM | §4 requires distinct opportunity and exact-leg-set counts. | **Fixed.** The system-enrollments API exposes `exact_leg_set`. The capture records it, and OI-07 reports `distinct_opportunities` and `distinct_exact_leg_sets` beside the row count. |
+| 3 | MEDIUM | Enrollment was not tied to this tick's own result. | **Fixed.** `PairOutcome` carries `observation_id`. The service requires the authoritative row to equal that observation and to still be `pass`. |
+| 4 | MEDIUM | One bad pair aborted the tick. | **Fixed.** Pairs are isolated (`enrollment_failed` is counted and logged). Clock skew is skipped as `evidence_after_clock`. |
+| 5 | LOW | The closure gate pooled the two sources. | **Fixed.** The gate detail reports observed horizons per source. |
+| 6 | LOW | The session cap was not atomic. | **Fixed.** A per-session `pg_advisory_xact_lock` plus a count check now run in the insert transaction. |
+| 7 | LOW | The collector and API run one query per enrollment. | **Follow-up.** Growth is bounded at ≤ 8 enrollments per session, about 2,000 a year. Fully resolved subjects should be skipped before the corpus reaches that size. |
+| 8 | LOW | No golden content identity was pinned. | **Fixed in #493** (`f72e73a`). |
+| 9 | LOW | The scan was narrow, and `deferred_by_source` counts horizons. | **Fixed.** The scan now includes `asa/scheduled_enrollment.py`. The counter counts horizons deferred, matching `deferred_by_subject_cap`. |

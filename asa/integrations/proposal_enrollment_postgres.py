@@ -28,9 +28,24 @@ class PostgresProposalEnrollmentRepository:
             engine, "enrolled_proposal_outcome_observations", "enrollment_id"
         )
 
-    def add(self, enrollment: ProposalEnrollment) -> bool:
+    def add(self, enrollment: ProposalEnrollment, maximum_per_session: int) -> str:
         params = {name.strip(): getattr(enrollment, name.strip()) for name in _COLUMNS.split(",")}
         with self._engine.begin() as connection:
+            # Serialize enrollments for one session so the cap holds even when
+            # two ticks overlap (for example a manual run during the cron).
+            connection.execute(
+                text("SELECT pg_advisory_xact_lock(hashtext(:key))"),
+                {"key": f"proposal_outcome_enrollments:{enrollment.session_date.isoformat()}"},
+            )
+            count = connection.execute(
+                text(
+                    "SELECT count(*) FROM proposal_outcome_enrollments "
+                    "WHERE session_date = :session_date"
+                ),
+                {"session_date": enrollment.session_date},
+            ).scalar_one()
+            if int(count) >= maximum_per_session:
+                return "enrollment_deferred_by_cap"
             result = connection.execute(
                 text(
                     f"INSERT INTO proposal_outcome_enrollments ({_COLUMNS}) VALUES ("
@@ -39,7 +54,7 @@ class PostgresProposalEnrollmentRepository:
                 ),
                 params,
             )
-        return bool(result.rowcount)
+        return "enrolled" if result.rowcount else "already_enrolled"
 
     def count_for_session(self, session_date: date) -> int:
         with self._engine.connect() as connection:

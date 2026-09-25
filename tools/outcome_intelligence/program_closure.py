@@ -165,13 +165,19 @@ def evaluate_gates(
     prior = [item for item in inputs["sprints"] if item["sprint"] != _THIS_SPRINT]
     open_prior = [item["sprint"] for item in prior if item["state"] not in _CLOSED_STATES]
     latest_ledger = sessions[-1].capture["outcomes"] if sessions else None
-    ledgers = [latest_ledger, sessions[-1].capture.get("system_outcomes", {})] if sessions else []
-    observed = sum(
-        horizon["status"] == "observed"
-        for ledger in ledgers
-        for candidate in ledger.get("candidates", [])
-        for horizon in candidate["horizons"]
-    )
+    ledgers = {
+        "user_tracked": latest_ledger or {},
+        "system_actionable": sessions[-1].capture.get("system_outcomes", {}) if sessions else {},
+    }
+    observed_by_source = {
+        source: sum(
+            horizon["status"] == "observed"
+            for candidate in ledger.get("candidates", [])
+            for horizon in candidate["horizons"]
+        )
+        for source, ledger in ledgers.items()
+    }
+    observed = sum(observed_by_source.values())
     drops = sum(item["unexplained_drop_count"] for item in metrics)
     defects = sum(item["trade_card_defects"] + item["stock_proposal_defects"] for item in metrics)
 
@@ -193,7 +199,8 @@ def evaluate_gates(
         gate(
             "forward_outcome_observed",
             PASS if observed else PENDING,
-            f"{observed} observed horizon(s) in the latest readable ledger",
+            "observed horizons in the latest readable ledgers, by source (never pooled): "
+            + ", ".join(f"{key}={value}" for key, value in observed_by_source.items()),
         ),
         gate(
             "aoy_measured",

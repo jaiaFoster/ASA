@@ -328,3 +328,27 @@ def test_system_corpus_is_reported_separately_and_counts_toward_observation() ->
     # Captures that predate ND-01 carry no system ledger; it is never read as zero.
     legacy = build_report(_corpus()[:1], ADEQUACY, REGISTRY, repository_root=ROOT)
     assert legacy["system_forward_outcomes"] == {"ledger_status": "not_captured", "by_strategy": {}}
+
+
+def test_reenrolled_opportunities_inflate_rows_never_distinct_counts() -> None:
+    corpus = _corpus()
+    ledger = copy.deepcopy(_OBSERVED_LEDGER)
+    first = ledger["candidates"][0]
+    first.update(opportunity_id="opp-1", exact_leg_set=["P1", "P2"])
+    ledger["candidates"].append({**copy.deepcopy(first), "candidate_id": "c2"})
+    corpus[-1]["system_outcomes"] = ledger
+    corpus[-1]["outcomes"] = {"ledger_status": LEDGER_AVAILABLE, "candidates": []}
+    report = build_report(corpus, ADEQUACY, REGISTRY, repository_root=ROOT)
+    system = report["system_forward_outcomes"]["by_strategy"]["alpha_option"]
+    assert (
+        system["tracked"],
+        system["distinct_opportunities"],
+        system["distinct_exact_leg_sets"],
+    ) == (
+        2,
+        1,
+        1,
+    )
+    closure = build_closure(corpus, report, INPUTS, repository_root=ROOT)
+    detail = next(g["detail"] for g in closure["gates"] if g["gate"] == "forward_outcome_observed")
+    assert "user_tracked=0, system_actionable=2" in detail

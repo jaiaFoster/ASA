@@ -24,7 +24,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 def run_scheduled_proposal_enrollment(
-    pairs: Iterable[tuple[str, str]], *, now: datetime | None = None
+    pairs: Iterable[tuple[str, str, str]], *, now: datetime | None = None
 ) -> EnrollmentSummary:
     engine = create_postgres_engine(Settings().database_url)
     summary = ProposalEnrollmentService(

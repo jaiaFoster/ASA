@@ -219,6 +219,12 @@ def forward_outcome_samples(sessions: list[Session], key: str = "outcomes") -> J
             )
             entry["tracked"] += 1
             entry["with_frozen_proposal"] += int(candidate["has_frozen_proposal"])
+            entry.setdefault("_opportunities", set()).add(
+                candidate.get("opportunity_id") or f"row:{candidate['candidate_id']}"
+            )
+            entry.setdefault("_leg_sets", set()).add(
+                "|".join(candidate.get("exact_leg_set") or [f"row:{candidate['candidate_id']}"])
+            )
             for horizon in candidate["horizons"]:
                 entry["status_counts"][horizon["status"]] += 1
                 entry["observed_with_modeled_pnl"] += int(
@@ -228,6 +234,10 @@ def forward_outcome_samples(sessions: list[Session], key: str = "outcomes") -> J
             counts = entry["status_counts"]
             due = counts.get("observed", 0) + counts.get("missed", 0)
             entry["status_counts"] = dict(sorted(counts.items()))
+            # Row count vs distinct opportunities / exact leg sets: a re-enrolled
+            # opportunity inflates rows, never the distinct counts.
+            entry["distinct_opportunities"] = len(entry.pop("_opportunities"))
+            entry["distinct_exact_leg_sets"] = len(entry.pop("_leg_sets"))
             entry["due_horizon_coverage"] = (
                 round(counts.get("observed", 0) / due, 4) if due else None
             )
@@ -448,13 +458,14 @@ def render_markdown(report: JsonObject) -> str:
         if outcomes["by_strategy"]:
             lines += [
                 "",
-                "| Strategy | Subjects | Horizon statuses | Observed with modeled P&L | "
-                "Due coverage | Meets guard |",
-                "|---|---|---|---|---|---|",
+                "| Strategy | Subjects | Distinct opportunities | Distinct leg sets | "
+                "Horizon statuses | Observed with modeled P&L | Due coverage | Meets guard |",
+                "|---|---|---|---|---|---|---|---|",
             ]
             for name, item in outcomes["by_strategy"].items():
                 lines.append(
-                    f"| {name} | {item['tracked']} | {json.dumps(item['status_counts'])} | "
+                    f"| {name} | {item['tracked']} | {item['distinct_opportunities']} | "
+                    f"{item['distinct_exact_leg_sets']} | {json.dumps(item['status_counts'])} | "
                     f"{item['observed_with_modeled_pnl']} | {item['due_horizon_coverage']} | "
                     f"{'yes' if item['meets_sample_guard'] else 'no'} |"
                 )

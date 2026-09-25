@@ -11,9 +11,13 @@ from asa.contracts.proposal_enrollment import ProposalEnrollment
 
 
 class ProposalEnrollmentRepository(Protocol):
-    def add(self, enrollment: ProposalEnrollment) -> bool:
-        """Insert-only. Returns False, changing nothing, when the proposal or its
-        (signal, version, symbol, session) slot is already enrolled."""
+    def add(self, enrollment: ProposalEnrollment, maximum_per_session: int) -> str:
+        """Insert-only, atomically enforcing the per-session cap.
+
+        Returns ``enrolled``, or, changing nothing, ``already_enrolled`` (the
+        proposal or its (signal, version, symbol, session) slot exists) or
+        ``enrollment_deferred_by_cap``.
+        """
 
     def count_for_session(self, session_date: date) -> int: ...
 

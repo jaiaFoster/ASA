@@ -95,6 +95,7 @@ def _system_ledger(fetch: Fetch) -> JsonObject:
                 "tracked_at": item["enrolled_at"],
                 "session_date": item["session_date"],
                 "opportunity_id": item.get("opportunity_id"),
+                "exact_leg_set": list(item.get("exact_leg_set") or []),
                 "also_tracked_by_user": item["also_tracked_by_user"],
                 "has_frozen_proposal": True,
                 "horizons": [
