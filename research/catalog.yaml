@@ -1,0 +1,63 @@
+version: "1.0"
+canonical_purpose: external_strategy_evidence_library
+updated_at: "2026-09-25"
+status_semantics:
+  qualification_means: >
+    External evidence is substantial enough that the strategy deserves
+    preservation for downstream ASA consideration.
+  qualification_does_not_mean:
+    - ASA_has_validated_the_strategy
+    - ASA_should_implement_the_strategy
+    - strategy_is_superior_to_another_candidate
+    - strategy_will_produce_future_profits
+
+records:
+  - research_id: ASA-RSCH-TGSM-001
+    strategy_name: Trend-Gated Sector Momentum
+    strategy_family: sector_rotation
+    research_status: TRIAGE
+    dossier: research/strategies/ASA-RSCH-TGSM-001.md
+    prior_ASA_research:
+      - project/research/TGSM-RESEARCH-001/
+      - project/reports/ASA-RELIABILITY-RESEARCH-001.md
+    source_ids:
+      - ASA-PRIOR-TGSM-001
+    next_research_need: >
+      Recover and evaluate the external academic and institutional evidence
+      underlying cross-sectional sector momentum, absolute/trend gating,
+      defensive allocation, and their combination. Existing ASA work is
+      data-limited internal validation and does not itself establish external
+      qualification.
+
+  - research_id: ASA-RSCH-SPY-PCS-001
+    strategy_name: SPY 30-DTE Put Credit Spread
+    strategy_family: systematic_option_premium
+    research_status: TRIAGE
+    dossier: research/strategies/ASA-RSCH-SPY-PCS-001.md
+    prior_ASA_research:
+      - project/reports/STRATEGY-LIBRARY-001-SL-02-SELECTION.md
+      - project/reports/STRATEGY-LIBRARY-001-CLOSURE.md
+    source_ids:
+      - OA-SPY-PCS-2021
+    next_research_need: >
+      Re-verify the original practitioner source, recover full backtest
+      assumptions and reported results, search for independent evidence on
+      comparable delta-targeted SPY put-spread premium selling, and perform
+      an adversarial review of tail risk, transaction costs, sample selection,
+      and volatility-regime dependence.
+
+  - research_id: ASA-RSCH-SKEW-MOMENTUM-001
+    strategy_name: Skew Momentum
+    strategy_family: options_relative_value
+    research_status: TRIAGE
+    dossier: research/strategies/ASA-RSCH-SKEW-MOMENTUM-001.md
+    prior_ASA_research:
+      - docs/contracts/skew-momentum-evidence.md
+    source_ids:
+      - ASA-PRIOR-SKEW-MOMENTUM-001
+    next_research_need: >
+      Identify the external literature separately supporting skew stretch,
+      implied-versus-realized volatility value, cross-sectional/sector
+      momentum, and any evidence for combining these conditions in a
+      directional vertical strategy. Do not treat ASA's current policy as
+      externally validated.
