@@ -1,0 +1,38 @@
+# ASA-RES-SPRINT-001 / RES-001A source record. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN.
+source_id: BONDARENKO-2014
+source_class: EXTERNAL_PRIMARY
+title: Why Are Put Options So Expensive?
+authors:
+- Oleg Bondarenko
+publication: Quarterly Journal of Finance 4(3):1450015
+publication_date: '2014-09-01'
+source_type: peer_reviewed
+canonical_url: https://doi.org/10.1142/s2010139214500153
+doi: 10.1142/s2010139214500153
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: bibliographic_and_abstract
+recovered_at: '2026-09-26'
+sprint: ASA-RES-SPRINT-001
+research_context:
+  sample_period: UNKNOWN
+  universe: S&P 500 put options
+  market: US index options
+  methodology_context: Model-free statistical arbitrage methodology robust to peso problems
+  original_or_replication: original
+  material_limitations:
+  - Pricing puzzle result; not a tradable-strategy net-of-cost evaluation
+preliminary_families:
+- FAM-VRP-INDEX-PUTWRITE
+- FAM-LONGVOL-TAIL-HEDGE
+claims:
+- claim_id: BONDARENKO-2014-C1
+  claim_class: REPORTED
+  reported_metric: overpriced puts puzzle
+  value: no model within the studied class can explain the put anomaly
+  context: abstract
+recoverability:
+  repository_copy: null
+  external_identifier: 10.1142/s2010139214500153
+  notes: Bibliographic identity verified via Crossref; abstract retrieved via OpenAlex, Semantic Scholar
+    or RePEc IDEAS on 2026-09-26. Claims beyond the abstract are not asserted.

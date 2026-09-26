@@ -1,0 +1,40 @@
+# ASA-RES-SPRINT-001 / RES-001A source record. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN.
+source_id: CHAMBERS-ET-AL-2014
+source_class: EXTERNAL_REPLICATION
+title: 'Index Option Returns: Still Puzzling'
+authors:
+- Donald R. Chambers
+- Matthew Foy
+- Jeffrey Liebner
+- Qin Lu
+publication: Review of Financial Studies 27(6):1915-1928
+publication_date: '2014-06-01'
+source_type: peer_reviewed
+canonical_url: https://doi.org/10.1093/rfs/hhu020
+doi: 10.1093/rfs/hhu020
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: bibliographic_and_abstract
+recovered_at: '2026-09-26'
+sprint: ASA-RES-SPRINT-001
+research_context:
+  sample_period: 1987-2012
+  universe: S&P 500 index options
+  market: US
+  methodology_context: Re-examination of BROADIE-CHERNOV-JOHANNES-2009 methodology with longer sample
+  original_or_replication: replication
+  material_limitations: []
+preliminary_families:
+- FAM-VRP-INDEX-PUTWRITE
+- FAM-LONGVOL-TAIL-HEDGE
+claims:
+- claim_id: CHAMBERS-ET-AL-2014-C1
+  claim_class: REPORTED
+  reported_metric: consistency of put returns with pricing models
+  value: generally possible to reject; OTM put protection may include a significant premium
+  context: 1987-2012 including high-volatility periods
+recoverability:
+  repository_copy: null
+  external_identifier: 10.1093/rfs/hhu020
+  notes: Bibliographic identity verified via Crossref; abstract retrieved via OpenAlex, Semantic Scholar
+    or RePEc IDEAS on 2026-09-26. Claims beyond the abstract are not asserted.

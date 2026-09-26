@@ -1,0 +1,46 @@
+# ASA-RES-SPRINT-001 / RES-001A source record. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN.
+source_id: BALI-ET-AL-2023
+source_class: EXTERNAL_PRIMARY
+title: Option Return Predictability with Machine Learning and Big Data
+authors:
+- Turan G. Bali
+- Heiner Beckmeyer
+- Mathis Moerke
+- Florian Weigert
+publication: The Review of Financial Studies 36(9):3548-3602
+publication_date: '2023-09-01'
+source_type: peer_reviewed
+canonical_url: https://doi.org/10.1093/rfs/hhad017
+doi: 10.1093/rfs/hhad017
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: bibliographic_and_abstract
+recovered_at: '2026-09-26'
+sprint: ASA-RES-SPRINT-001
+research_context:
+  sample_period: 1996-2020
+  universe: US equity options (>12 million observations)
+  market: US
+  methodology_context: Nonlinear ML on option and stock characteristics; out-of-sample long-short
+  original_or_replication: original
+  material_limitations:
+  - Model complexity; high data dependency
+preliminary_families:
+- FAM-XS-OPTION-RETURNS
+claims:
+- claim_id: BALI-ET-AL-2023-C1
+  claim_class: REPORTED
+  reported_metric: OOS performance
+  value: nonlinear models generate sizable long-short profits after transaction costs
+  context: abstract
+- claim_id: BALI-ET-AL-2023-C2
+  claim_class: REPORTED
+  reported_metric: predictor importance
+  value: option-based characteristics most important standalone; stock-based measures add incremental
+    power
+  context: abstract
+recoverability:
+  repository_copy: null
+  external_identifier: 10.1093/rfs/hhad017
+  notes: Bibliographic identity verified via Crossref; abstract retrieved via OpenAlex, Semantic Scholar
+    or RePEc IDEAS on 2026-09-26. Claims beyond the abstract are not asserted.

@@ -1,0 +1,43 @@
+# ASA-RES-SPRINT-001 / RES-001A source record. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN.
+source_id: BOYER-VORKINK-2014
+source_class: EXTERNAL_PRIMARY
+title: Stock Options as Lotteries
+authors:
+- Brian H. Boyer
+- Keith Vorkink
+publication: The Journal of Finance 69(4):1485-1527
+publication_date: '2014-08-01'
+source_type: peer_reviewed
+canonical_url: https://doi.org/10.1111/jofi.12152
+doi: 10.1111/jofi.12152
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: bibliographic_and_abstract
+recovered_at: '2026-09-26'
+sprint: ASA-RES-SPRINT-001
+research_context:
+  sample_period: UNKNOWN
+  universe: US single-stock options
+  market: US
+  methodology_context: Option portfolios sorted on ex ante total skewness
+  original_or_replication: original
+  material_limitations:
+  - Weekly magnitudes of this size imply cost and capacity questions that the abstract does not resolve
+preliminary_families:
+- FAM-XS-LOTTERY-SKEW-OPTION
+claims:
+- claim_id: BOYER-VORKINK-2014-C1
+  claim_class: REPORTED
+  reported_metric: skewness-sorted option portfolio return spread
+  value: 10% to 50% per week, negative relation, after risk controls
+  context: abstract
+- claim_id: BOYER-VORKINK-2014-C2
+  claim_class: REPORTED
+  reported_metric: interpretation
+  value: premium compensates intermediaries for unhedgeable risk accommodating lottery demand
+  context: abstract
+recoverability:
+  repository_copy: null
+  external_identifier: 10.1111/jofi.12152
+  notes: Bibliographic identity verified via Crossref; abstract retrieved via OpenAlex, Semantic Scholar
+    or RePEc IDEAS on 2026-09-26. Claims beyond the abstract are not asserted.

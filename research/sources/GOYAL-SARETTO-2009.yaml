@@ -1,0 +1,41 @@
+# ASA-RES-SPRINT-001 / RES-001A source record. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN.
+source_id: GOYAL-SARETTO-2009
+source_class: EXTERNAL_PRIMARY
+title: Cross-section of option returns and volatility
+authors:
+- Amit Goyal
+- Alessio Saretto
+publication: Journal of Financial Economics 94(2):310-326
+publication_date: '2009-11-01'
+source_type: peer_reviewed
+canonical_url: https://doi.org/10.1016/j.jfineco.2009.01.001
+doi: 10.1016/j.jfineco.2009.01.001
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: bibliographic_and_abstract
+recovered_at: '2026-09-26'
+sprint: ASA-RES-SPRINT-001
+research_context:
+  sample_period: UNKNOWN (not in abstract)
+  universe: US single-stock options
+  market: US equity options
+  methodology_context: Sort stocks on historical realized minus ATM implied volatility; long/short option
+    portfolios
+  original_or_replication: original
+  material_limitations:
+  - Magnitudes and cost treatment not recovered from abstract
+  - Later IPCA work (GOYAL-SARETTO-2022-IPCA) attributes much of such alpha to latent factors
+preliminary_families:
+- FAM-XS-OPTION-RETURNS
+claims:
+- claim_id: GOYAL-SARETTO-2009-C1
+  claim_class: REPORTED
+  reported_metric: long high (RV-IV) / short low (RV-IV) option portfolio
+  value: economically and statistically significant average monthly return; robust to market conditions,
+    risk characteristics, industries, option liquidity; not explained by usual factor models
+  context: abstract; magnitude not recovered
+recoverability:
+  repository_copy: null
+  external_identifier: 10.1016/j.jfineco.2009.01.001
+  notes: Bibliographic identity verified via Crossref; abstract retrieved via OpenAlex, Semantic Scholar
+    or RePEc IDEAS on 2026-09-26. Claims beyond the abstract are not asserted.

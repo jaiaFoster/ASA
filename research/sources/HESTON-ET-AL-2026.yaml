@@ -1,0 +1,48 @@
+# ASA-RES-SPRINT-001 / RES-001A source record. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN.
+source_id: HESTON-ET-AL-2026
+source_class: EXTERNAL_PRIMARY
+title: The Variance Premium and Seasonal Momentum in Option Returns
+authors:
+- Steven L. Heston
+- Christopher S. Jones
+- Mehdi Khorram
+- Shuaiqi Li
+- Haitao Mo
+publication: The Review of Financial Studies (advance article)
+publication_date: '2026-06-13'
+source_type: peer_reviewed
+canonical_url: https://doi.org/10.1093/rfs/hhag057
+doi: 10.1093/rfs/hhag057
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: bibliographic_and_abstract
+recovered_at: '2026-09-26'
+sprint: ASA-RES-SPRINT-001
+research_context:
+  sample_period: UNKNOWN
+  universe: Individual US equity options
+  market: US
+  methodology_context: Model-free variance premium decomposition; quarterly seasonal continuation
+  original_or_replication: followup
+  material_limitations:
+  - Very recent; no independent replication yet
+preliminary_families:
+- FAM-XS-OPTION-MOMENTUM
+- FAM-EVENT-VOL
+claims:
+- claim_id: HESTON-ET-AL-2026-C1
+  claim_class: REPORTED
+  reported_metric: seasonal continuation
+  value: options that performed well at quarterly lags continue to earn high returns; implied variance
+    under-anticipates realized variance seasonality
+  context: abstract
+- claim_id: HESTON-ET-AL-2026-C2
+  claim_class: REPORTED
+  reported_metric: channel
+  value: quarterly periodicity in realized variance only on days with analyst earnings revisions
+  context: abstract
+recoverability:
+  repository_copy: null
+  external_identifier: 10.1093/rfs/hhag057
+  notes: Bibliographic identity verified via Crossref; abstract retrieved via OpenAlex, Semantic Scholar
+    or RePEc IDEAS on 2026-09-26. Claims beyond the abstract are not asserted.

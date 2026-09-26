@@ -1,0 +1,38 @@
+# ASA-RES-SPRINT-001 / RES-001A source record. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN.
+source_id: ISRAELOV-NIELSEN-2015-JPM
+source_class: EXTERNAL_PRIMARY
+title: 'Still Not Cheap: Portfolio Protection in Calm Markets'
+authors:
+- Roni Israelov
+- Lars N. Nielsen
+publication: The Journal of Portfolio Management 41(4):108-120
+publication_date: '2015-07-31'
+source_type: institutional_quant_research
+canonical_url: https://doi.org/10.3905/jpm.2015.41.4.108
+doi: 10.3905/jpm.2015.41.4.108
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: bibliographic_and_abstract
+recovered_at: '2026-09-26'
+sprint: ASA-RES-SPRINT-001
+research_context:
+  sample_period: UNKNOWN
+  universe: 10 global equity indexes
+  market: Global
+  methodology_context: Option richness vs volatility level
+  original_or_replication: original
+  material_limitations: []
+preliminary_families:
+- FAM-LONGVOL-TAIL-HEDGE
+- FAM-VRP-INDEX-SHORT-VOL
+claims:
+- claim_id: ISRAELOV-NIELSEN-2015-JPM-C1
+  claim_class: REPORTED
+  reported_metric: protection in calm markets
+  value: option prices low but expected values tend to be even lower; insurance still expensive
+  context: abstract
+recoverability:
+  repository_copy: null
+  external_identifier: 10.3905/jpm.2015.41.4.108
+  notes: Bibliographic identity verified via Crossref; abstract retrieved via OpenAlex, Semantic Scholar
+    or RePEc IDEAS on 2026-09-26. Claims beyond the abstract are not asserted.

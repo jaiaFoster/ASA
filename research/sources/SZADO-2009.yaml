@@ -1,0 +1,38 @@
+# ASA-RES-SPRINT-001 / RES-001A source record. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN.
+source_id: SZADO-2009
+source_class: EXTERNAL_PRIMARY
+title: 'VIX Futures and Options: A Case Study of Portfolio Diversification During the 2008 Financial Crisis'
+authors:
+- Edward Szado
+publication: The Journal of Alternative Investments 12(2):68-85
+publication_date: '2009-09-30'
+source_type: peer_reviewed
+canonical_url: https://doi.org/10.3905/jai.2009.12.2.068
+doi: 10.3905/jai.2009.12.2.068
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: bibliographic_and_abstract
+recovered_at: '2026-09-26'
+sprint: ASA-RES-SPRINT-001
+research_context:
+  sample_period: 2008 (case study)
+  universe: VIX futures/options in institutional portfolio
+  market: US
+  methodology_context: Crisis case study
+  original_or_replication: original
+  material_limitations:
+  - Single crisis episode; selection of a favorable window
+preliminary_families:
+- FAM-LONGVOL-TAIL-HEDGE
+- FAM-VOLDERIV-VIX-CARRY
+claims:
+- claim_id: SZADO-2009-C1
+  claim_class: REPORTED
+  reported_metric: long VIX in 2008
+  value: assessed as diversifier during the crisis
+  context: abstract; single-episode study
+recoverability:
+  repository_copy: null
+  external_identifier: 10.3905/jai.2009.12.2.068
+  notes: Bibliographic identity verified via Crossref; abstract retrieved via OpenAlex, Semantic Scholar
+    or RePEc IDEAS on 2026-09-26. Claims beyond the abstract are not asserted.

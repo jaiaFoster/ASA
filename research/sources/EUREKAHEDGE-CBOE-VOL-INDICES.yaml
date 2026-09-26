@@ -1,0 +1,48 @@
+# ASA-RES-SPRINT-001 / RES-001A source record. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN.
+source_id: EUREKAHEDGE-CBOE-VOL-INDICES
+source_class: EXTERNAL_SECONDARY
+title: Cboe Eurekahedge Volatility Hedge Fund Indexes (Short Vol, Long Vol, Relative Value Vol, Tail Risk)
+authors:
+- Cboe
+- Eurekahedge
+publication: Cboe / Eurekahedge index family, launched 2015-08
+publication_date: '2015-08-18'
+source_type: institutional_quant_research
+canonical_url: https://ir.cboe.com/news/news-details/2015/CBOE-Launches-Hedge-Fund-Benchmarks-with-Eurekahedge-08-18-2015/default.aspx
+doi: null
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: bibliographic_and_search_engine_summary
+recovered_at: '2026-09-26'
+sprint: ASA-RES-SPRINT-001
+research_context:
+  sample_period: index histories to ~2016-03 as summarized
+  universe: Hedge funds self-classified by volatility strategy
+  market: Global
+  methodology_context: Equal-weighted fund indices (self-reported returns)
+  original_or_replication: commentary
+  material_limitations:
+  - Self-reported hedge fund returns; survivorship and backfill bias; used for discovery and post-publication
+    context only
+preliminary_families:
+- FAM-VRP-INDEX-SHORT-VOL
+- FAM-LONGVOL-TAIL-HEDGE
+- FAM-DISPERSION-CORRELATION
+claims:
+- claim_id: EUREKAHEDGE-CBOE-VOL-INDICES-C1
+  claim_class: REPORTED
+  reported_metric: annualized return / Sharpe as of 2016-03
+  value: Short Vol 8.87% / 0.78; Long Vol 7.16% / 0.79; Relative Value Vol 9.74% / 2.01; Tail Risk -3.13%
+    / -0.38
+  context: search summary of Cboe material; secondary
+- claim_id: EUREKAHEDGE-CBOE-VOL-INDICES-C2
+  claim_class: INFERENCE
+  reported_metric: landscape use
+  value: industry practice recognizes four volatility-manager families; used as a saturation check on
+    the taxonomy
+  context: see research_context
+recoverability:
+  repository_copy: null
+  external_identifier: https://ir.cboe.com/news/news-details/2015/CBOE-Launches-Hedge-Fund-Benchmarks-with-Eurekahedge-08-18-2015/default.aspx
+  notes: Identity verified via Crossref/SSRN listing; claims taken from a search-engine summary of the
+    abstract on 2026-09-26 and require full-text confirmation before DEEP_RESEARCH use.

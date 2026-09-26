@@ -1,0 +1,48 @@
+# ASA-RES-SPRINT-001 / RES-001A source record. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN.
+source_id: STILGER-KOSTAKIS-POON-2017
+source_class: EXTERNAL_PRIMARY
+title: What Does Risk-Neutral Skewness Tell Us About Future Stock Returns?
+authors:
+- Przemyslaw S. Stilger
+- Alexandros Kostakis
+- Ser-Huang Poon
+publication: Management Science 63(6):1814-1834
+publication_date: '2017-06-01'
+source_type: peer_reviewed
+canonical_url: https://doi.org/10.1287/mnsc.2015.2379
+doi: 10.1287/mnsc.2015.2379
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: bibliographic_and_abstract
+recovered_at: '2026-09-26'
+sprint: ASA-RES-SPRINT-001
+research_context:
+  sample_period: 1996-2012
+  universe: US stocks with options
+  market: US
+  methodology_context: Quintile sorts on risk-neutral skewness
+  original_or_replication: original
+  material_limitations: []
+preliminary_families:
+- FAM-OPTION-SIGNAL-EQUITY
+claims:
+- claim_id: STILGER-KOSTAKIS-POON-2017-C1
+  claim_class: REPORTED
+  reported_metric: high-RNS minus low-RNS quintile
+  value: Fama-French-Carhart alpha 55 bp per month (t=2.47); positive relation
+  context: 1996-2012
+- claim_id: STILGER-KOSTAKIS-POON-2017-C2
+  claim_class: REPORTED
+  reported_metric: source
+  value: driven by most-negative-RNS stocks that are overpriced and costly/risky to short
+  context: abstract
+- claim_id: STILGER-KOSTAKIS-POON-2017-C3
+  claim_class: DERIVED
+  reported_metric: contradiction
+  value: sign opposite to CONRAD-DITTMAR-GHYSELS-2013
+  context: derived by comparing the two abstracts
+recoverability:
+  repository_copy: null
+  external_identifier: 10.1287/mnsc.2015.2379
+  notes: Bibliographic identity verified via Crossref; abstract retrieved via OpenAlex, Semantic Scholar
+    or RePEc IDEAS on 2026-09-26. Claims beyond the abstract are not asserted.

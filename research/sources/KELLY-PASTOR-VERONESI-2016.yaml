@@ -1,0 +1,40 @@
+# ASA-RES-SPRINT-001 / RES-001A source record. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN.
+source_id: KELLY-PASTOR-VERONESI-2016
+source_class: EXTERNAL_PRIMARY
+title: 'The Price of Political Uncertainty: Theory and Evidence from the Option Market'
+authors:
+- Bryan Kelly
+- Lubos Pastor
+- Pietro Veronesi
+publication: The Journal of Finance 71(5):2417-2480
+publication_date: '2016-10-01'
+source_type: peer_reviewed
+canonical_url: https://doi.org/10.1111/jofi.12406
+doi: 10.1111/jofi.12406
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: bibliographic_and_abstract
+recovered_at: '2026-09-26'
+sprint: ASA-RES-SPRINT-001
+research_context:
+  sample_period: UNKNOWN
+  universe: Equity index options spanning national elections and global summits
+  market: International
+  methodology_context: Event-spanning option pricing
+  original_or_replication: original
+  material_limitations:
+  - Pricing evidence, not a strategy return test
+preliminary_families:
+- FAM-EVENT-VOL
+claims:
+- claim_id: KELLY-PASTOR-VERONESI-2016-C1
+  claim_class: REPORTED
+  reported_metric: event-spanning options
+  value: options whose lives span political events tend to be more expensive; protection more valuable
+    in weaker economy
+  context: abstract
+recoverability:
+  repository_copy: null
+  external_identifier: 10.1111/jofi.12406
+  notes: Bibliographic identity verified via Crossref; abstract retrieved via OpenAlex, Semantic Scholar
+    or RePEc IDEAS on 2026-09-26. Claims beyond the abstract are not asserted.

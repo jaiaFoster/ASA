@@ -1,0 +1,41 @@
+# ASA-RES-SPRINT-001 / RES-001A source record. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN.
+source_id: ILMANEN-2012
+source_class: EXTERNAL_SECONDARY
+title: Do Financial Markets Reward Buying or Selling Insurance and Lottery Tickets?
+authors:
+- Antti Ilmanen
+publication: Financial Analysts Journal 68(5):26-36
+publication_date: '2012-09-01'
+source_type: institutional_quant_research
+canonical_url: https://doi.org/10.2469/faj.v68.n5.7
+doi: 10.2469/faj.v68.n5.7
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: bibliographic_and_abstract
+recovered_at: '2026-09-26'
+sprint: ASA-RES-SPRINT-001
+research_context:
+  sample_period: multi-decade (varies by context)
+  universe: Cross-asset insurance/lottery-like contexts
+  market: Global
+  methodology_context: Review and synthesis of evidence
+  original_or_replication: commentary
+  material_limitations:
+  - Synthesis; used for discovery and mechanism, not as independent evidence
+preliminary_families:
+- FAM-VRP-INDEX-PUTWRITE
+- FAM-LONGVOL-TAIL-HEDGE
+- FAM-CROSS-ASSET-VRP
+- FAM-XS-LOTTERY-SKEW-OPTION
+claims:
+- claim_id: ILMANEN-2012-C1
+  claim_class: REPORTED
+  reported_metric: selling insurance / lottery tickets
+  value: positive long-run rewards across a wide range of contexts; buying catastrophe insurance and lottery-like
+    assets poor
+  context: abstract (review)
+recoverability:
+  repository_copy: null
+  external_identifier: 10.2469/faj.v68.n5.7
+  notes: Bibliographic identity verified via Crossref; abstract retrieved via OpenAlex, Semantic Scholar
+    or RePEc IDEAS on 2026-09-26. Claims beyond the abstract are not asserted.

@@ -1,0 +1,44 @@
+# ASA-RES-SPRINT-001 / RES-001A source record. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN.
+source_id: BAKSHI-KAPADIA-MADAN-2003
+source_class: EXTERNAL_PRIMARY
+title: Stock Return Characteristics, Skew Laws, and the Differential Pricing of Individual Equity Options
+authors:
+- Gurdip Bakshi
+- Nikunj Kapadia
+- Dilip Madan
+publication: Review of Financial Studies 16(1):101-143
+publication_date: '2003-01-01'
+source_type: peer_reviewed
+canonical_url: https://doi.org/10.1093/rfs/16.1.0101
+doi: 10.1093/rfs/16.1.0101
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: bibliographic_and_abstract
+recovered_at: '2026-09-26'
+sprint: ASA-RES-SPRINT-001
+research_context:
+  sample_period: UNKNOWN
+  universe: OEX index options and 30 stocks
+  market: US
+  methodology_context: Model-free risk-neutral moments; skew laws
+  original_or_replication: original
+  material_limitations: []
+preliminary_families:
+- FAM-SKEW-PREMIUM-INDEX
+- FAM-OPTION-SIGNAL-EQUITY
+claims:
+- claim_id: BAKSHI-KAPADIA-MADAN-2003-C1
+  claim_class: REPORTED
+  reported_metric: index vs single-stock risk-neutral skew
+  value: individual risk-neutral distributions far less negatively skewed than the index
+  context: abstract
+- claim_id: BAKSHI-KAPADIA-MADAN-2003-C2
+  claim_class: INFERENCE
+  reported_metric: method relevance
+  value: source of the model-free risk-neutral skewness estimator used by later cross-sectional skew studies
+  context: see research_context
+recoverability:
+  repository_copy: null
+  external_identifier: 10.1093/rfs/16.1.0101
+  notes: Bibliographic identity verified via Crossref; abstract retrieved via OpenAlex, Semantic Scholar
+    or RePEc IDEAS on 2026-09-26. Claims beyond the abstract are not asserted.

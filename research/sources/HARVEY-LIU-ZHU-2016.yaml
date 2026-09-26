@@ -1,0 +1,39 @@
+# ASA-RES-SPRINT-001 / RES-001D methodology source record.
+source_id: HARVEY-LIU-ZHU-2016
+source_class: EXTERNAL_PRIMARY
+title: '... and the Cross-Section of Expected Returns'
+authors:
+- Campbell R. Harvey
+- Yan Liu
+- Heqing Zhu
+publication: Review of Financial Studies 29(1):5-68
+publication_date: '2016-01-01'
+source_type: peer_reviewed
+canonical_url: https://doi.org/10.1093/rfs/hhv059
+doi: 10.1093/rfs/hhv059
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: bibliographic_and_abstract
+recovered_at: '2026-09-26'
+sprint: ASA-RES-SPRINT-001
+use: RES-001D methodology source (not strategy evidence)
+research_context:
+  sample_period: n/a (methodology)
+  universe: n/a
+  market: n/a
+  methodology_context: method for evidence grading, multiple testing, replication, overfitting, or multi-criteria
+    comparison
+  original_or_replication: original
+  material_limitations: []
+preliminary_families: []
+claims:
+- claim_id: HARVEY-LIU-ZHU-2016-C1
+  claim_class: REPORTED
+  reported_metric: multiple-testing hurdle
+  value: new factors need t-statistic greater than 3.0; most claimed findings in financial economics are
+    likely false
+  context: abstract
+recoverability:
+  repository_copy: null
+  external_identifier: 10.1093/rfs/hhv059
+  notes: Bibliographic identity verified via Crossref; abstract via OpenAlex on 2026-09-26.

@@ -1,6 +1,6 @@
 version: "1.0"
 canonical_purpose: external_strategy_evidence_library
-updated_at: "2026-09-25"
+updated_at: "2026-09-26"
 # Canonical qualification semantics live only in GOV-AMD-001 Amendment 017 A.4.
 # tools/pos/lean/research_library.py requires this exact reference.
 status_semantics: governance/amendments/GOV-AMD-017.md#a4-qualification-semantics-canonical
@@ -33,12 +33,20 @@ records:
       - project/reports/STRATEGY-LIBRARY-001-CLOSURE.md
     source_ids:
       - OA-SPY-PCS-2021
+      - BONDARENKO-2019-CBOE
+      - BROADIE-CHERNOV-JOHANNES-2009
+      - CONSTANTINIDES-JACKWERTH-SAVOV-2013
+      - SANTACLARA-SARETTO-2009
+      - COVAL-SHUMWAY-2001
+      - BAKSHI-KAPADIA-2003
+      - CBOE-CNDR-BFLY-METHODOLOGY
+    family_record: ASA-RSCH-FAM-DEFINED-RISK-001
     next_research_need: >
-      Re-verify the original practitioner source, recover full backtest
-      assumptions and reported results, search for independent evidence on
-      comparable delta-targeted SPY put-spread premium selling, and perform
-      an adversarial review of tail risk, transaction costs, sample selection,
-      and volatility-regime dependence.
+      Original source re-verified 2026-09-26 (ASA-RES-SPRINT-001): rules
+      confirmed, sample dates and cost assumptions UNKNOWN. Remaining need:
+      obtain dated trade-level or independent evidence for delta-targeted
+      SPY/SPX put spreads, quantify wing cost versus the parent volatility
+      risk premium, and recover net-of-cost and drawdown evidence.
 
   - research_id: ASA-RSCH-SKEW-MOMENTUM-001
     strategy_name: Skew Momentum
@@ -49,9 +57,312 @@ records:
       - docs/contracts/skew-momentum-evidence.md
     source_ids:
       - ASA-PRIOR-SKEW-MOMENTUM-001
+      - XING-ZHANG-ZHAO-2010
+      - CREMERS-WEINBAUM-2010
+      - STILGER-KOSTAKIS-POON-2017
+      - CONRAD-DITTMAR-GHYSELS-2013
+      - MURAVYEV-PEARSON-POLLET-2025
+      - KOZHAN-NEUBERGER-SCHNEIDER-2013
+      - GOYAL-SARETTO-2009
+      - GOYAL-SARETTO-2022-IPCA
+      - HORENSTEIN-VASQUEZ-XIAO-2026
+      - BALI-HOVAKIMIAN-2009
+      - FRAZZINI-PEDERSEN-2022
+      - COVAL-SHUMWAY-2001
+    family_record: hybrid (ASA-RSCH-FAM-OPTION-SIGNAL-001 signal; ASA-RSCH-FAM-DIRECTIONAL-001 expression)
     next_research_need: >
+      Components mapped 2026-09-26 (ASA-RES-SPRINT-001); two components
+      carry negative external evidence. Remaining need: full-text recovery of
+      MURAVYEV-PEARSON-POLLET-2025 residual predictability for low-fee
+      stocks, resolution of the risk-neutral skewness sign conflict, and
+      any evidence comparing option versus stock expression. Prior need:
       Identify the external literature separately supporting skew stretch,
       implied-versus-realized volatility value, cross-sectional/sector
       momentum, and any evidence for combining these conditions in a
       directional vertical strategy. Do not treat ASA's current policy as
       externally validated.
+
+  # ---- ASA-RES-SPRINT-001 family-level records (RES-001C). Status is evidence state only. ----
+
+  - research_id: ASA-RSCH-FAM-PUTWRITE-001
+    strategy_name: Index Put Writing (cash-secured)
+    strategy_family: FAM-VRP-INDEX-PUTWRITE
+    research_status: TRIAGE
+    dossier: research/strategies/ASA-RSCH-FAM-PUTWRITE-001.md
+    source_ids:
+    - UNGAR-MORAN-2009
+    - BONDARENKO-2019-CBOE
+    - BONDARENKO-2014
+    - CHAMBERS-ET-AL-2014
+    - COVAL-SHUMWAY-2001
+    - BROADIE-CHERNOV-JOHANNES-2009
+    - CONSTANTINIDES-JACKWERTH-SAVOV-2013
+    - SANTACLARA-SARETTO-2009
+    next_research_need: Recover full texts of UNGAR-MORAN-2009, CHAMBERS-ET-AL-2014,
+      SANTACLARA-SARETTO-2009; extract cost treatment, moneyness variants and subperiod
+      statistics; search for post-2018 PUT/WPUT evidence including 2020 and 2022.
+
+  - research_id: ASA-RSCH-FAM-COVERED-CALL-001
+    strategy_name: Covered Call / Buy-Write
+    strategy_family: FAM-VRP-COVERED-CALL
+    research_status: TRIAGE
+    dossier: research/strategies/ASA-RSCH-FAM-COVERED-CALL-001.md
+    source_ids:
+    - WHALEY-2002
+    - HILL-ET-AL-2006
+    - FIGELMAN-2008
+    - ISRAELOV-NIELSEN-2014
+    - KAPADIA-SZADO-2007
+    - ISRAELOV-NIELSEN-2015-FAJ
+    next_research_need: Recover full texts for point estimates and cost treatment;
+      obtain post-2006 BXM/BXMD evidence; search single-stock overwriting studies.
+
+  - research_id: ASA-RSCH-FAM-SHORT-VOL-001
+    strategy_name: Index Short Volatility (straddle / strangle / delta-hedged /
+      variance)
+    strategy_family: FAM-VRP-INDEX-SHORT-VOL
+    research_status: TRIAGE
+    dossier: research/strategies/ASA-RSCH-FAM-SHORT-VOL-001.md
+    source_ids:
+    - COVAL-SHUMWAY-2001
+    - BAKSHI-KAPADIA-2003
+    - CARR-WU-2009
+    - FALLON-PARK-YU-2015
+    - BOLLEN-WHALEY-2004
+    - ISRAELOV-NIELSEN-2015-JPM
+    - BROADIE-CHERNOV-JOHANNES-2009
+    - CONSTANTINIDES-JACKWERTH-SAVOV-2013
+    - EUREKAHEDGE-CBOE-VOL-INDICES
+    - AUGUSTIN-CHENG-VANDENBERGEN-2021
+    next_research_need: Recover strategy-level results (moneyness, hedge frequency,
+      costs) from COVAL-SHUMWAY-2001, BAKSHI-KAPADIA-2003, FALLON-PARK-YU-2015;
+      evaluate VRP-conditioning evidence out of sample.
+
+  - research_id: ASA-RSCH-FAM-DEFINED-RISK-001
+    strategy_name: Defined-Risk Premium Structures (credit spreads, iron condor,
+      iron butterfly)
+    strategy_family: FAM-VRP-DEFINED-RISK
+    research_status: TRIAGE
+    dossier: research/strategies/ASA-RSCH-FAM-DEFINED-RISK-001.md
+    source_ids:
+    - CBOE-CNDR-BFLY-METHODOLOGY
+    - OA-SPY-PCS-2021
+    - CHAPUT-EDERINGTON-2003
+    - VILKOV-0DTE
+    - BAKSHI-KAPADIA-2003
+    next_research_need: Obtain the 2016 Cboe-commissioned study full text and CNDR/BFLY
+      index histories; search for any independent academic evaluation of vertical/condor
+      premium selling; quantify wing cost vs VRP in the literature.
+
+  - research_id: ASA-RSCH-FAM-ULTRA-SHORT-001
+    strategy_name: Ultra-Short-Dated Premium Strategies (0DTE / weekly)
+    strategy_family: FAM-VRP-ULTRA-SHORT-DATED
+    research_status: INSUFFICIENT_EVIDENCE
+    dossier: research/strategies/ASA-RSCH-FAM-ULTRA-SHORT-001.md
+    source_ids:
+    - VILKOV-0DTE
+    - BONDARENKO-2019-CBOE
+    - BANDI-FUSARI-RENO-0DTE
+    - BECKMEYER-BRANGER-GAYDA-0DTE
+    next_research_need: Monitor the corrected VILKOV-0DTE paper; recover BECKMEYER-BRANGER-GAYDA-0DTE
+      full text; seek independent 0DTE strategy studies.
+
+  - research_id: ASA-RSCH-FAM-TAIL-HEDGE-001
+    strategy_name: Tail Hedging / Protective Puts / Long Volatility
+    strategy_family: FAM-LONGVOL-TAIL-HEDGE
+    research_status: INSUFFICIENT_EVIDENCE
+    dossier: research/strategies/ASA-RSCH-FAM-TAIL-HEDGE-001.md
+    source_ids:
+    - ISRAELOV-2018
+    - ISRAELOV-NIELSEN-2015-JPM
+    - BONDARENKO-2019-CBOE
+    - CHAMBERS-ET-AL-2014
+    - SZADO-2009
+    - EUREKAHEDGE-CBOE-VOL-INDICES
+    - ALEXANDER-KOROVILAS-KAPRAUN-2016
+    next_research_need: Record as a negative-evidence reference family; recover
+      full texts only if a downstream authority frames a hedging objective.
+
+  - research_id: ASA-RSCH-FAM-COLLAR-001
+    strategy_name: Equity Collars
+    strategy_family: FAM-LONGVOL-COLLAR
+    research_status: INSUFFICIENT_EVIDENCE
+    dossier: research/strategies/ASA-RSCH-FAM-COLLAR-001.md
+    source_ids:
+    - SZADO-SCHNEEWEIS-2010
+    - ISRAELOV-KLEIN-2016
+    next_research_need: Low research need; retain as a reference risk-management
+      family.
+
+  - research_id: ASA-RSCH-FAM-VIX-CARRY-001
+    strategy_name: VIX Futures / Volatility ETP Term Carry
+    strategy_family: FAM-VOLDERIV-VIX-CARRY
+    research_status: TRIAGE
+    dossier: research/strategies/ASA-RSCH-FAM-VIX-CARRY-001.md
+    source_ids:
+    - JOHNSON-2017
+    - WHALEY-2013
+    - AUGUSTIN-CHENG-VANDENBERGEN-2021
+    - ALEXANDER-KOROVILAS-KAPRAUN-2016
+    next_research_need: Verify SIMON-CAMPASANO-2014 full text; recover futures-level
+      short-carry studies net of costs.
+
+  - research_id: ASA-RSCH-FAM-TERM-STRUCTURE-001
+    strategy_name: Volatility Term-Structure Trades (calendars, forward volatility,
+      slope sorts)
+    strategy_family: FAM-TERM-STRUCTURE
+    research_status: TRIAGE
+    dossier: research/strategies/ASA-RSCH-FAM-TERM-STRUCTURE-001.md
+    source_ids:
+    - VASQUEZ-2017
+    - DEWBECKER-ET-AL-2017
+    - EGLOFF-LEIPPOLD-WU-2010
+    - JOHNSON-2017
+    - DUBINSKY-ET-AL-2019
+    next_research_need: Recover VASQUEZ-2017 full text (portfolio construction,
+      costs); search for calendar/forward-volatility trading studies; relate to
+      ASA Forward Factor only after external evidence is characterized.
+
+  - research_id: ASA-RSCH-FAM-XS-OPTION-RETURNS-001
+    strategy_name: Cross-Sectional Equity Option Return Strategies (IV-RV, idiosyncratic
+      vol, characteristics, illiquidity, order flow)
+    strategy_family: FAM-XS-OPTION-RETURNS
+    research_status: TRIAGE
+    dossier: research/strategies/ASA-RSCH-FAM-XS-OPTION-RETURNS-001.md
+    source_ids:
+    - GOYAL-SARETTO-2009
+    - CAO-HAN-2013
+    - ZHAN-ET-AL-2022
+    - BALI-ET-AL-2023
+    - CHRISTOFFERSEN-ET-AL-2018
+    - MURAVYEV-2016
+    - RAMACHANDRAN-TAYAL-2021
+    - HU-JACOBS-2020
+    - CHOY-2015
+    - HORENSTEIN-VASQUEZ-XIAO-2026
+    - GOYAL-SARETTO-2022-IPCA
+    - ARETZ-LIN-POON-2023
+    next_research_need: Recover full texts of ZHAN-ET-AL-2022 and BALI-ET-AL-2023
+      (cost models, filters); define which sub-signals are independent after HORENSTEIN-VASQUEZ-XIAO-2026.
+
+  - research_id: ASA-RSCH-FAM-XS-OPTION-MOMENTUM-001
+    strategy_name: Option Return Momentum and Seasonality
+    strategy_family: FAM-XS-OPTION-MOMENTUM
+    research_status: TRIAGE
+    dossier: research/strategies/ASA-RSCH-FAM-XS-OPTION-MOMENTUM-001.md
+    source_ids:
+    - HESTON-ET-AL-2023
+    - HESTON-ET-AL-2026
+    next_research_need: Search for independent replications (2024-2026); recover
+      net-of-cost results.
+
+  - research_id: ASA-RSCH-FAM-XS-LOTTERY-001
+    strategy_name: Lottery / Skewness / Embedded-Leverage Option Selling
+    strategy_family: FAM-XS-LOTTERY-SKEW-OPTION
+    research_status: TRIAGE
+    dossier: research/strategies/ASA-RSCH-FAM-XS-LOTTERY-001.md
+    source_ids:
+    - BOYER-VORKINK-2014
+    - FRAZZINI-PEDERSEN-2022
+    - BYUN-KIM-2016
+    - BALI-MURRAY-2013
+    - CHOY-2015
+    - ILMANEN-2012
+    next_research_need: Recover cost-adjusted results; test overlap with HORENSTEIN-VASQUEZ-XIAO-2026
+      factors in the literature.
+
+  - research_id: ASA-RSCH-FAM-EVENT-VOL-001
+    strategy_name: Event Volatility (earnings and scheduled events)
+    strategy_family: FAM-EVENT-VOL
+    research_status: TRIAGE
+    dossier: research/strategies/ASA-RSCH-FAM-EVENT-VOL-001.md
+    source_ids:
+    - GAO-XING-ZHANG-2018
+    - DUBINSKY-ET-AL-2019
+    - HESTON-ET-AL-2026
+    - KELLY-PASTOR-VERONESI-2016
+    - BARTH-SO-2014
+    - DESILVA-SMITH-SO-2026
+    next_research_need: Recover GXZ full text (cost-adjusted results, expiry rules);
+      search replications; search evidence specific to earnings calendar spreads.
+
+  - research_id: ASA-RSCH-FAM-OPTION-SIGNAL-001
+    strategy_name: Option-Implied Signals for Equity Direction
+    strategy_family: FAM-OPTION-SIGNAL-EQUITY
+    research_status: TRIAGE
+    dossier: research/strategies/ASA-RSCH-FAM-OPTION-SIGNAL-001.md
+    source_ids:
+    - XING-ZHANG-ZHAO-2010
+    - CREMERS-WEINBAUM-2010
+    - PAN-POTESHMAN-2006
+    - AN-ET-AL-2014
+    - JOHNSON-SO-2012
+    - BALI-HOVAKIMIAN-2009
+    - BALTUSSEN-ET-AL-2018
+    - STILGER-KOSTAKIS-POON-2017
+    - GE-LIN-PEARSON-2016
+    - CONRAD-DITTMAR-GHYSELS-2013
+    - MURAVYEV-PEARSON-POLLET-2025
+    next_research_need: 'Recover MPP-2025 full text: residual predictability by
+      signal for low-fee stocks; map to Skew Momentum components.'
+
+  - research_id: ASA-RSCH-FAM-SKEW-PREMIUM-001
+    strategy_name: Index Skew Risk Premium (risk reversals / skew swaps)
+    strategy_family: FAM-SKEW-PREMIUM-INDEX
+    research_status: INSUFFICIENT_EVIDENCE
+    dossier: research/strategies/ASA-RSCH-FAM-SKEW-PREMIUM-001.md
+    source_ids:
+    - KOZHAN-NEUBERGER-SCHNEIDER-2013
+    - BOLLEN-WHALEY-2004
+    - BALI-MURRAY-2013
+    next_research_need: Low; record as a negative finding relevant to any skew-based
+      strategy (including Skew Momentum's skew-stretch component).
+
+  - research_id: ASA-RSCH-FAM-DISPERSION-001
+    strategy_name: Dispersion / Correlation Trading
+    strategy_family: FAM-DISPERSION-CORRELATION
+    research_status: INSUFFICIENT_EVIDENCE
+    dossier: research/strategies/ASA-RSCH-FAM-DISPERSION-001.md
+    source_ids:
+    - DRIESSEN-MAENHOUT-VILKOV-2009
+    - EUREKAHEDGE-CBOE-VOL-INDICES
+    - FARIA-KOSOWSKI-WANG-2022
+    next_research_need: Verify MARSHALL-2009 and FARIA-KOSOWSKI-WANG-2022 full texts.
+
+  - research_id: ASA-RSCH-FAM-ARBITRAGE-001
+    strategy_name: Parity, Box-Spread and Exercise Arbitrage
+    strategy_family: FAM-ARBITRAGE-PARITY
+    research_status: DISCOVERED
+    dossier: research/strategies/ASA-RSCH-FAM-ARBITRAGE-001.md
+    source_ids:
+    - VANBINSBERGEN-DIAMOND-GROTTERIA-2022
+    - POOL-STOLL-WHALEY-2008
+    - OFEK-RICHARDSON-WHITELAW-2004
+    next_research_need: Assess only if a downstream authority frames a financing
+      or arbitrage objective.
+
+  - research_id: ASA-RSCH-FAM-CROSS-ASSET-VRP-001
+    strategy_name: Cross-Asset Volatility Premium (FX, commodity, rates)
+    strategy_family: FAM-CROSS-ASSET-VRP
+    research_status: TRIAGE
+    dossier: research/strategies/ASA-RSCH-FAM-CROSS-ASSET-VRP-001.md
+    source_ids:
+    - LOW-ZHANG-2005
+    - FALLON-PARK-YU-2015
+    - ILMANEN-2012
+    - TROLLE-SCHWARTZ-2010
+    next_research_need: Low research need unless scope expands; verify TROLLE-SCHWARTZ-2010.
+
+  - research_id: ASA-RSCH-FAM-DIRECTIONAL-001
+    strategy_name: Directional Option Expression (long options, debit verticals,
+      stock replacement)
+    strategy_family: FAM-DIRECTIONAL-OPTION-EXPRESSION
+    research_status: INSUFFICIENT_EVIDENCE
+    dossier: research/strategies/ASA-RSCH-FAM-DIRECTIONAL-001.md
+    source_ids:
+    - BAUER-COSEMANS-EICHHOLTZ-2009
+    - BRYZGALOVA-ET-AL-2023
+    - FRAZZINI-PEDERSEN-2022
+    - HU-JACOBS-2020
+    next_research_need: Search for studies comparing option vs stock expression
+      of the same signal.

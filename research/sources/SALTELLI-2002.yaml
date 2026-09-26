@@ -1,0 +1,37 @@
+# ASA-RES-SPRINT-001 / RES-001D methodology source record.
+source_id: SALTELLI-2002
+source_class: EXTERNAL_PRIMARY
+title: Sensitivity Analysis for Importance Assessment
+authors:
+- Andrea Saltelli
+publication: Risk Analysis 22(3):579-590
+publication_date: '2002-06-01'
+source_type: peer_reviewed
+canonical_url: https://doi.org/10.1111/0272-4332.00040
+doi: 10.1111/0272-4332.00040
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: bibliographic_and_abstract
+recovered_at: '2026-09-26'
+sprint: ASA-RES-SPRINT-001
+use: RES-001D methodology source (not strategy evidence)
+research_context:
+  sample_period: n/a (methodology)
+  universe: n/a
+  market: n/a
+  methodology_context: method for evidence grading, multiple testing, replication, overfitting, or multi-criteria
+    comparison
+  original_or_replication: original
+  material_limitations: []
+preliminary_families: []
+claims:
+- claim_id: SALTELLI-2002-C1
+  claim_class: REPORTED
+  reported_metric: scope
+  value: reviews requirements and methods for quantitative (global) sensitivity analysis in model-based
+    assessment
+  context: abstract
+recoverability:
+  repository_copy: null
+  external_identifier: 10.1111/0272-4332.00040
+  notes: Bibliographic identity verified via Crossref; abstract via OpenAlex on 2026-09-26.

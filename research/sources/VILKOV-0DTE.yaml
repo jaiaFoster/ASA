@@ -1,0 +1,55 @@
+# ASA-RES-SPRINT-001 / RES-001A source record. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN.
+source_id: VILKOV-0DTE
+source_class: EXTERNAL_PRIMARY
+title: 0DTE Trading Rules (with replication package and August 2026 erratum)
+authors:
+- Grigory Vilkov
+publication: SSRN working paper 4641356; replication package github.com/vilkovgr/0dte-strategies
+publication_date: '2026-08-01'
+source_type: working_paper
+canonical_url: https://github.com/vilkovgr/0dte-strategies
+doi: 10.2139/ssrn.4641356
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: primary_repository_readme_reviewed
+recovered_at: '2026-09-26'
+sprint: ASA-RES-SPRINT-001
+research_context:
+  sample_period: 2016-09 to 2026-01
+  universe: S&P 500 SPXW 0DTE options
+  market: US
+  methodology_context: Straddles/strangles, iron butterflies/condors, verticals, ratio spreads, risk reversals;
+    10:00 ET conditional rules; out-of-sample protocol
+  original_or_replication: original
+  material_limitations:
+  - Pre-erratum versions of the paper report positive conditional net performance; any citation of those
+    numbers is superseded
+preliminary_families:
+- FAM-VRP-ULTRA-SHORT-DATED
+- FAM-VRP-DEFINED-RISK
+claims:
+- claim_id: VILKOV-0DTE-C1
+  claim_class: REPORTED
+  reported_metric: 0DTE variance risk premium
+  value: positive but economically small at same-day horizon and difficult to monetize after frictions
+  context: search summary of paper
+- claim_id: VILKOV-0DTE-C2
+  claim_class: REPORTED
+  reported_metric: erratum (August 2026)
+  value: 'bid-ask half-spread was charged at 1/100 of true size (0.022 bp instead of 2.2 bp); correction
+    reverses the sign of net-of-cost conclusions: no strategy or basket retains a positive net Sharpe
+    ratio'
+  context: repository README
+- claim_id: VILKOV-0DTE-C3
+  claim_class: REPORTED
+  reported_metric: PnL driver
+  value: realized PnL of most strategies explained by realized skewness of the index return
+  context: search summary
+recoverability:
+  repository_copy: null
+  external_identifier: 10.2139/ssrn.4641356
+  notes: Primary replication repository README and erratum reviewed on 2026-09-26; paper full text not
+    reviewed.
+untrusted_content_findings: The repository README instructs readers to consult KNOWN-ISSUES.md before
+  using any number. Recorded as a finding; no instruction from the source was acted on beyond ordinary
+  provenance diligence.

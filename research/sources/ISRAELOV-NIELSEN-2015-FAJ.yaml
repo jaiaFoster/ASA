@@ -1,0 +1,46 @@
+# ASA-RES-SPRINT-001 / RES-001A source record. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN.
+source_id: ISRAELOV-NIELSEN-2015-FAJ
+source_class: EXTERNAL_PRIMARY
+title: Covered Calls Uncovered
+authors:
+- Roni Israelov
+- Lars N. Nielsen
+publication: Financial Analysts Journal 71(6):44-57
+publication_date: '2015-11-01'
+source_type: institutional_quant_research
+canonical_url: https://doi.org/10.2469/faj.v71.n6.1
+doi: 10.2469/faj.v71.n6.1
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: bibliographic_and_abstract
+recovered_at: '2026-09-26'
+sprint: ASA-RES-SPRINT-001
+research_context:
+  sample_period: UNKNOWN
+  universe: Equity index covered calls
+  market: US
+  methodology_context: Attribution into equity, short volatility, and equity reversal exposures
+  original_or_replication: original
+  material_limitations:
+  - Proposed modification evaluated by the proposing authors; no independent replication found
+preliminary_families:
+- FAM-VRP-COVERED-CALL
+- FAM-VRP-INDEX-SHORT-VOL
+claims:
+- claim_id: ISRAELOV-NIELSEN-2015-FAJ-C1
+  claim_class: REPORTED
+  reported_metric: risk attribution
+  value: equity exposure contributed most risk and return; short-volatility exposure Sharpe ratio nearly
+    1.0 but only ~10% of risk; equity-reversal exposure ~25% of risk with little return
+  context: abstract
+- claim_id: ISRAELOV-NIELSEN-2015-FAJ-C2
+  claim_class: REPORTED
+  reported_metric: risk-managed covered call
+  value: eliminating the uncompensated reversal exposure raised Sharpe, reduced volatility and downside
+    beta
+  context: in-sample proposal
+recoverability:
+  repository_copy: null
+  external_identifier: 10.2469/faj.v71.n6.1
+  notes: Bibliographic identity verified via Crossref; abstract retrieved via OpenAlex, Semantic Scholar
+    or RePEc IDEAS on 2026-09-26. Claims beyond the abstract are not asserted.

@@ -1,0 +1,45 @@
+# ASA-RES-SPRINT-001 / RES-001A source record. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN.
+source_id: HORENSTEIN-VASQUEZ-XIAO-2026
+source_class: EXTERNAL_PRIMARY
+title: Common Factors in Equity Option Returns
+authors:
+- Alex R. Horenstein
+- Aurelio Vasquez
+- Xiao Xiao
+publication: The Review of Financial Studies 39(3):835-874
+publication_date: '2026-03-01'
+source_type: peer_reviewed
+canonical_url: https://doi.org/10.1093/rfs/hhaf060
+doi: 10.1093/rfs/hhaf060
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: bibliographic_and_abstract
+recovered_at: '2026-09-26'
+sprint: ASA-RES-SPRINT-001
+research_context:
+  sample_period: UNKNOWN
+  universe: US delta-hedged equity options
+  market: US
+  methodology_context: Latent and characteristic factor models of option returns
+  original_or_replication: followup
+  material_limitations: []
+preliminary_families:
+- FAM-XS-OPTION-RETURNS
+claims:
+- claim_id: HORENSTEIN-VASQUEZ-XIAO-2026-C1
+  claim_class: REPORTED
+  reported_metric: four-factor characteristic model
+  value: equal-weighted option portfolio, historical-minus-implied volatility, cash-to-assets, volatility-of-volatility;
+    comparable to sparse latent model with 0.90+ correlation between average and predicted returns
+  context: abstract
+- claim_id: HORENSTEIN-VASQUEZ-XIAO-2026-C2
+  claim_class: INFERENCE
+  reported_metric: consequence
+  value: many single-characteristic option 'anomalies' overlap common factors; counting them as independent
+    evidence double-counts
+  context: see research_context
+recoverability:
+  repository_copy: null
+  external_identifier: 10.1093/rfs/hhaf060
+  notes: Bibliographic identity verified via Crossref; abstract retrieved via OpenAlex, Semantic Scholar
+    or RePEc IDEAS on 2026-09-26. Claims beyond the abstract are not asserted.

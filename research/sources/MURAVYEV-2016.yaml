@@ -1,0 +1,38 @@
+# ASA-RES-SPRINT-001 / RES-001A source record. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN.
+source_id: MURAVYEV-2016
+source_class: EXTERNAL_PRIMARY
+title: Order Flow and Expected Option Returns
+authors:
+- Dmitriy Muravyev
+publication: The Journal of Finance 71(2):673-708
+publication_date: '2016-04-01'
+source_type: peer_reviewed
+canonical_url: https://doi.org/10.1111/jofi.12380
+doi: 10.1111/jofi.12380
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: bibliographic_and_abstract
+recovered_at: '2026-09-26'
+sprint: ASA-RES-SPRINT-001
+research_context:
+  sample_period: UNKNOWN
+  universe: Full panel of US equity options
+  market: US
+  methodology_context: Price-impact decomposition; order imbalance predictability
+  original_or_replication: original
+  material_limitations:
+  - Requires signed order-flow data
+preliminary_families:
+- FAM-XS-OPTION-RETURNS
+claims:
+- claim_id: MURAVYEV-2016-C1
+  claim_class: REPORTED
+  reported_metric: predictive power
+  value: past order imbalances have greater predictive power than any other commonly used predictor of
+    option returns
+  context: abstract
+recoverability:
+  repository_copy: null
+  external_identifier: 10.1111/jofi.12380
+  notes: Bibliographic identity verified via Crossref; abstract retrieved via OpenAlex, Semantic Scholar
+    or RePEc IDEAS on 2026-09-26. Claims beyond the abstract are not asserted.

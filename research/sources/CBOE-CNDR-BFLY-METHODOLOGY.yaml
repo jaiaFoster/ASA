@@ -1,0 +1,51 @@
+# ASA-RES-SPRINT-001 / RES-001A source record. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN.
+source_id: CBOE-CNDR-BFLY-METHODOLOGY
+source_class: EXTERNAL_SECONDARY
+title: Cboe S&P 500 Iron Condor Index (CNDR) and Iron Butterfly Index (BFLY) methodologies
+authors:
+- Cboe Global Indices
+publication: Cboe index methodology documents
+publication_date: UNKNOWN
+source_type: institutional_quant_research
+canonical_url: https://cdn.cboe.com/api/global/us_indices/governance/CNDR_Methodology.pdf
+doi: null
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: bibliographic_and_search_engine_summary
+recovered_at: '2026-09-26'
+sprint: ASA-RES-SPRINT-001
+research_context:
+  sample_period: UNKNOWN
+  universe: SPX monthly options
+  market: US
+  methodology_context: Benchmark index rules
+  original_or_replication: commentary
+  material_limitations:
+  - Rules are explicit, but performance evidence is sponsor-commissioned; independent academic evaluation
+    of CNDR/BFLY not found
+  - 'Prior ASA work: project/reports/STRATEGY-LIBRARY-001-SL-02-CNDR-ARCHITECT-DECISION.md (capability,
+    not evidence)'
+preliminary_families:
+- FAM-VRP-DEFINED-RISK
+claims:
+- claim_id: CBOE-CNDR-BFLY-METHODOLOGY-C1
+  claim_class: REPORTED
+  reported_metric: CNDR rules
+  value: sell ~0.20-delta monthly SPX put and call; buy ~0.05-delta put and call; T-bill collateral; monthly
+    roll (AM-settled)
+  context: search summary of methodology
+- claim_id: CBOE-CNDR-BFLY-METHODOLOGY-C2
+  claim_class: REPORTED
+  reported_metric: BFLY rules
+  value: sell ATM SPX put and call; buy 5% OTM put and call; T-bill collateral; monthly roll
+  context: search summary of methodology
+- claim_id: CBOE-CNDR-BFLY-METHODOLOGY-C3
+  claim_class: REPORTED
+  reported_metric: 2016 Cboe-commissioned study
+  value: option-selling indexes had returns similar to S&P 500 with lower volatility and max drawdown
+  context: Cboe press release; sponsor interest
+recoverability:
+  repository_copy: null
+  external_identifier: https://cdn.cboe.com/api/global/us_indices/governance/CNDR_Methodology.pdf
+  notes: Identity verified via Crossref/SSRN listing; claims taken from a search-engine summary of the
+    abstract on 2026-09-26 and require full-text confirmation before DEEP_RESEARCH use.

@@ -1,0 +1,37 @@
+# ASA-RES-SPRINT-001 / RES-001A source record. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN.
+source_id: ERAKER-2021
+source_class: EXTERNAL_PRIMARY
+title: The Volatility Premium
+authors:
+- Bjorn Eraker
+publication: The Quarterly Journal of Finance 11(3):2150014
+publication_date: '2021-05-06'
+source_type: peer_reviewed
+canonical_url: https://doi.org/10.1142/s2010139221500142
+doi: 10.1142/s2010139221500142
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: bibliographic_and_abstract
+recovered_at: '2026-09-26'
+sprint: ASA-RES-SPRINT-001
+research_context:
+  sample_period: UNKNOWN
+  universe: S&P 500 options and VIX
+  market: US
+  methodology_context: General-equilibrium long-run-risk model estimation
+  original_or_replication: original
+  material_limitations:
+  - Risk-based explanation implies persistence, not mispricing
+preliminary_families:
+- FAM-VRP-INDEX-SHORT-VOL
+claims:
+- claim_id: ERAKER-2021-C1
+  claim_class: REPORTED
+  reported_metric: equilibrium explanation
+  value: writers of index options earn high returns in equilibrium; model reproduces observed return patterns
+  context: abstract
+recoverability:
+  repository_copy: null
+  external_identifier: 10.1142/s2010139221500142
+  notes: Bibliographic identity verified via Crossref; abstract retrieved via OpenAlex, Semantic Scholar
+    or RePEc IDEAS on 2026-09-26. Claims beyond the abstract are not asserted.

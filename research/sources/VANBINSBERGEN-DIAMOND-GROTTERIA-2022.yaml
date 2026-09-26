@@ -1,0 +1,44 @@
+# ASA-RES-SPRINT-001 / RES-001A source record. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN.
+source_id: VANBINSBERGEN-DIAMOND-GROTTERIA-2022
+source_class: EXTERNAL_PRIMARY
+title: Risk-free interest rates
+authors:
+- Jules H. van Binsbergen
+- William F. Diamond
+- Marco Grotteria
+publication: Journal of Financial Economics 143(1):1-29
+publication_date: '2022-01-01'
+source_type: peer_reviewed
+canonical_url: https://doi.org/10.1016/j.jfineco.2021.06.012
+doi: 10.1016/j.jfineco.2021.06.012
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: bibliographic_and_abstract
+recovered_at: '2026-09-26'
+sprint: ASA-RES-SPRINT-001
+research_context:
+  sample_period: UNKNOWN
+  universe: Risky asset prices (option-implied box rates)
+  market: US
+  methodology_context: Model-free risk-free rate estimation
+  original_or_replication: original
+  material_limitations: []
+preliminary_families:
+- FAM-ARBITRAGE-PARITY
+claims:
+- claim_id: VANBINSBERGEN-DIAMOND-GROTTERIA-2022-C1
+  claim_class: REPORTED
+  reported_metric: convenience yield on Treasuries
+  value: about 40 bp, larger below three months, quadruples in the financial crisis
+  context: abstract
+- claim_id: VANBINSBERGEN-DIAMOND-GROTTERIA-2022-C2
+  claim_class: INFERENCE
+  reported_metric: strategy relevance
+  value: box-spread implied rates are a financing / rate-arbitrage use of options, not a volatility or
+    directional return strategy
+  context: see research_context
+recoverability:
+  repository_copy: null
+  external_identifier: 10.1016/j.jfineco.2021.06.012
+  notes: Bibliographic identity verified via Crossref; abstract retrieved via OpenAlex, Semantic Scholar
+    or RePEc IDEAS on 2026-09-26. Claims beyond the abstract are not asserted.

@@ -1,0 +1,42 @@
+# ASA-RES-SPRINT-001 / RES-001A source record. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN.
+source_id: GARLEANU-PEDERSEN-POTESHMAN-2009
+source_class: EXTERNAL_PRIMARY
+title: Demand-Based Option Pricing
+authors:
+- Nicolae Garleanu
+- Lasse Heje Pedersen
+- Allen M. Poteshman
+publication: Review of Financial Studies 22(10):4259-4299
+publication_date: '2009-10-01'
+source_type: peer_reviewed
+canonical_url: https://doi.org/10.1093/rfs/hhp005
+doi: 10.1093/rfs/hhp005
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: bibliographic_and_abstract
+recovered_at: '2026-09-26'
+sprint: ASA-RES-SPRINT-001
+research_context:
+  sample_period: UNKNOWN
+  universe: Index and single-stock options
+  market: US
+  methodology_context: Demand-pressure model with dealer/end-user position data
+  original_or_replication: original
+  material_limitations:
+  - Mechanism evidence; not a strategy evaluation
+preliminary_families:
+- FAM-VRP-INDEX-PUTWRITE
+- FAM-SKEW-PREMIUM-INDEX
+- FAM-XS-OPTION-RETURNS
+claims:
+- claim_id: GARLEANU-PEDERSEN-POTESHMAN-2009-C1
+  claim_class: REPORTED
+  reported_metric: end-user positioning
+  value: end users are net long index options, especially OTM puts, helping explain expensiveness and
+    the smirk
+  context: abstract
+recoverability:
+  repository_copy: null
+  external_identifier: 10.1093/rfs/hhp005
+  notes: Bibliographic identity verified via Crossref; abstract retrieved via OpenAlex, Semantic Scholar
+    or RePEc IDEAS on 2026-09-26. Claims beyond the abstract are not asserted.

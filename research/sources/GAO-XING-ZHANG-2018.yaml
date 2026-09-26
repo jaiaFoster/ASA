@@ -1,0 +1,53 @@
+# ASA-RES-SPRINT-001 / RES-001A source record. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN.
+source_id: GAO-XING-ZHANG-2018
+source_class: EXTERNAL_PRIMARY
+title: 'Anticipating Uncertainty: Straddles around Earnings Announcements'
+authors:
+- Chao Gao
+- Yuhang Xing
+- Xiaoyan Zhang
+publication: Journal of Financial and Quantitative Analysis 53(6):2587-2617
+publication_date: '2018-12-01'
+source_type: peer_reviewed
+canonical_url: https://doi.org/10.1017/s0022109018000285
+doi: 10.1017/s0022109018000285
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: bibliographic_and_abstract
+recovered_at: '2026-09-26'
+sprint: ASA-RES-SPRINT-001
+research_context:
+  sample_period: UNKNOWN
+  universe: US single-stock ATM straddles
+  market: US equity options
+  methodology_context: Event-window straddle returns from 3 days before to the earnings announcement date
+  original_or_replication: original
+  material_limitations:
+  - Net-of-spread results not recovered
+  - Prior ASA SL-02 search rated it RECOMMEND-WITH-EXTENSION for explicitness (project/reports/STRATEGY-LIBRARY-001-SL-02-SECOND-CANDIDATE-SEARCH.md);
+    that is not evidence quality
+preliminary_families:
+- FAM-EVENT-VOL
+claims:
+- claim_id: GAO-XING-ZHANG-2018-C1
+  claim_class: REPORTED
+  reported_metric: straddle return window [-3,0]
+  value: 3.34% average, highly significant
+  context: abstract; straddles generally earn negative returns outside this window
+- claim_id: GAO-XING-ZHANG-2018-C2
+  claim_class: REPORTED
+  reported_metric: cross-sectional concentration
+  value: larger for smaller firms, higher volatility/kurtosis, more volatile past surprises, lower volume
+    / higher transaction costs
+  context: abstract
+- claim_id: GAO-XING-ZHANG-2018-C3
+  claim_class: INFERENCE
+  reported_metric: implementability tension
+  value: effect concentrates where trading costs are highest; net-of-cost profitability is UNKNOWN from
+    the abstract
+  context: see research_context
+recoverability:
+  repository_copy: null
+  external_identifier: 10.1017/s0022109018000285
+  notes: Bibliographic identity verified via Crossref; abstract retrieved via OpenAlex, Semantic Scholar
+    or RePEc IDEAS on 2026-09-26. Claims beyond the abstract are not asserted.

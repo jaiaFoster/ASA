@@ -1,0 +1,38 @@
+# ASA-RES-SPRINT-001 / RES-001A source record. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN.
+source_id: ISRAELOV-2018
+source_class: EXTERNAL_PRIMARY
+title: 'Pathetic Protection: The Elusive Benefits of Protective Puts'
+authors:
+- Roni Israelov
+publication: The Journal of Alternative Investments 21(3):6-33
+publication_date: '2018-12-10'
+source_type: institutional_quant_research
+canonical_url: https://doi.org/10.3905/jai.2018.1.066
+doi: 10.3905/jai.2018.1.066
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: bibliographic_and_abstract
+recovered_at: '2026-09-26'
+sprint: ASA-RES-SPRINT-001
+research_context:
+  sample_period: UNKNOWN
+  universe: S&P 500; Cboe 5% Put Protection Index (PPUT); simulations
+  market: US
+  methodology_context: Simulation plus index study of drawdowns of put-protected portfolios
+  original_or_replication: original
+  material_limitations:
+  - Practitioner-institutional author; peer-reviewed
+preliminary_families:
+- FAM-LONGVOL-TAIL-HEDGE
+claims:
+- claim_id: ISRAELOV-2018-C1
+  claim_class: REPORTED
+  reported_metric: drawdown protection of typical protective puts
+  value: quite ineffective vs statically reducing exposure; may increase drawdowns and volatility per
+    unit of expected return unless timed around drawdowns
+  context: abstract
+recoverability:
+  repository_copy: null
+  external_identifier: 10.3905/jai.2018.1.066
+  notes: Bibliographic identity verified via Crossref; abstract retrieved via OpenAlex, Semantic Scholar
+    or RePEc IDEAS on 2026-09-26. Claims beyond the abstract are not asserted.

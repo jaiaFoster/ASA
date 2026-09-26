@@ -1,0 +1,48 @@
+# ASA-RES-SPRINT-001 / RES-001A source record. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN.
+source_id: HESTON-ET-AL-2023
+source_class: EXTERNAL_PRIMARY
+title: Option Momentum
+authors:
+- Steven L. Heston
+- Christopher S. Jones
+- Mehdi Khorram
+- Shuaiqi Li
+- Haitao Mo
+publication: The Journal of Finance 78(6):3141-3192
+publication_date: '2023-12-01'
+source_type: peer_reviewed
+canonical_url: https://doi.org/10.1111/jofi.13279
+doi: 10.1111/jofi.13279
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: bibliographic_and_abstract
+recovered_at: '2026-09-26'
+sprint: ASA-RES-SPRINT-001
+research_context:
+  sample_period: UNKNOWN
+  universe: Individual US equities, ATM straddles (also OTM, delta-hedged)
+  market: US equity options
+  methodology_context: Cross-sectional sorts on historical straddle returns
+  original_or_replication: original
+  material_limitations:
+  - Net-of-cost portfolio returns not recovered from abstract
+preliminary_families:
+- FAM-XS-OPTION-MOMENTUM
+claims:
+- claim_id: HESTON-ET-AL-2023-C1
+  claim_class: REPORTED
+  reported_metric: option return continuation
+  value: high-past-return options outperform low over 6-36 months; robust to OTM or delta-hedged; no long-run
+    reversal
+  context: abstract
+- claim_id: HESTON-ET-AL-2023-C2
+  claim_class: REPORTED
+  reported_metric: factor and cost robustness
+  value: significant after factor adjustment and controlling for IV and characteristics; trading costs
+    unrelated to momentum profit magnitude
+  context: abstract
+recoverability:
+  repository_copy: null
+  external_identifier: 10.1111/jofi.13279
+  notes: Bibliographic identity verified via Crossref; abstract retrieved via OpenAlex, Semantic Scholar
+    or RePEc IDEAS on 2026-09-26. Claims beyond the abstract are not asserted.

@@ -33,3 +33,43 @@ research_rule: >
   Do not treat values inherited from the implementation intake packet as
   research-grade empirical claims until the original source is recovered and
   checked directly.
+
+# --- ASA-RES-SPRINT-001 re-verification (2026-09-26). Inherited fields above are preserved unchanged. ---
+verification_depth: primary_page_reviewed
+reverification:
+  reviewed_at: "2026-09-26"
+  canonical_url: https://optionalpha.com/blog/spy-put-credit-spread-backtest
+  page_dates:
+    published: "2021-11-17"
+    updated_as_displayed: "2023-01-11 (also shows 2024-05-06)"
+  confirmed_methodology:
+    short_put_delta: 0.30
+    long_put_delta: 0.10
+    entry: sequential, opened at 30 DTE
+    account_size_usd: 100000
+  sample_period: "UNKNOWN (page states a five-year window without dates)"
+  claims:
+    - claim_id: OA-SPY-PCS-2021-C1
+      claim_class: REPORTED
+      reported_metric: base variant (hold to expiration, one position) at 5% / 10% allocation
+      value: "return on capital 16% / 39%; return on risk 280% / 272%; Sharpe 0.56 / 0.62; win rate 93% / 93%"
+      context: five-year window, dates UNKNOWN; 133 positions at 10% allocation
+    - claim_id: OA-SPY-PCS-2021-C2
+      claim_class: REPORTED
+      reported_metric: managed variant (50% profit target, 25% stop loss, close at 15 DTE), 10% allocation
+      value: "295 positions; max loss reduced from $12,000 to $2,000; Sharpe 0.77"
+      context: same window
+    - claim_id: OA-SPY-PCS-2021-C3
+      claim_class: REPORTED
+      reported_metric: 75% profit target variant
+      value: "average loss $975; profit factor 1.34; Sharpe 0.83"
+      context: same window
+    - claim_id: OA-SPY-PCS-2021-C4
+      claim_class: UNKNOWN
+      reported_metric: fill assumptions, commissions, slippage, drawdown series, exact dates
+      value: UNKNOWN
+      context: not stated on the page as reviewed
+  limitations:
+    - "Five-year single-underlying window with undated sample; variants chosen by the publisher (multiple-testing risk)."
+    - "Practitioner publisher that sells options-automation software (commercial interest)."
+    - "No independent replication found (see research/strategies/ASA-RSCH-FAM-DEFINED-RISK-001.md)."

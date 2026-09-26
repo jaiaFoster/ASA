@@ -1,0 +1,43 @@
+# ASA-RES-SPRINT-001 / RES-001A source record. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN.
+source_id: BARTH-SO-2014
+source_class: EXTERNAL_PRIMARY
+title: Non-Diversifiable Volatility Risk and Risk Premiums at Earnings Announcements
+authors:
+- Mary E. Barth
+- Eric C. So
+publication: The Accounting Review 89(5):1579-1607
+publication_date: '2014-09-01'
+source_type: peer_reviewed
+canonical_url: https://doi.org/10.2308/accr-50758
+doi: 10.2308/accr-50758
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: bibliographic_and_abstract
+recovered_at: '2026-09-26'
+sprint: ASA-RES-SPRINT-001
+research_context:
+  sample_period: UNKNOWN
+  universe: US firms with traded options around earnings
+  market: US
+  methodology_context: Option-implied risk premiums vs non-diversifiable announcement volatility
+  original_or_replication: original
+  material_limitations: []
+preliminary_families:
+- FAM-EVENT-VOL
+claims:
+- claim_id: BARTH-SO-2014-C1
+  claim_class: REPORTED
+  reported_metric: announcement volatility risk premium
+  value: concentrated among bellwether firms; predictable variation in straddle returns around announcements
+  context: abstract
+- claim_id: BARTH-SO-2014-C2
+  claim_class: DERIVED
+  reported_metric: relation to GAO-XING-ZHANG-2018
+  value: sign direction for bellwethers (premium paid by buyers) differs from GXZ's average positive pre-announcement
+    straddle return; the two are not directly comparable windows
+  context: derived from both abstracts
+recoverability:
+  repository_copy: null
+  external_identifier: 10.2308/accr-50758
+  notes: Bibliographic identity verified via Crossref; abstract retrieved via OpenAlex, Semantic Scholar
+    or RePEc IDEAS on 2026-09-26. Claims beyond the abstract are not asserted.

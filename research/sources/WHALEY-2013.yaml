@@ -1,0 +1,37 @@
+# ASA-RES-SPRINT-001 / RES-001A source record. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN.
+source_id: WHALEY-2013
+source_class: EXTERNAL_PRIMARY
+title: 'Trading Volatility: At What Cost?'
+authors:
+- Robert E. Whaley
+publication: The Journal of Portfolio Management 40(1):95-108
+publication_date: '2013-10-31'
+source_type: peer_reviewed
+canonical_url: https://doi.org/10.3905/jpm.2013.40.1.095
+doi: 10.3905/jpm.2013.40.1.095
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: bibliographic_and_abstract
+recovered_at: '2026-09-26'
+sprint: ASA-RES-SPRINT-001
+research_context:
+  sample_period: 2009 onward
+  universe: VIX ETPs on short-term futures indices
+  market: US
+  methodology_context: Product mechanics and realized losses
+  original_or_replication: original
+  material_limitations: []
+preliminary_families:
+- FAM-VOLDERIV-VIX-CARRY
+claims:
+- claim_id: WHALEY-2013-C1
+  claim_class: REPORTED
+  reported_metric: long VIX ETPs
+  value: not suitable buy-and-hold; virtually guaranteed to lose over time; nearly $4 billion losses since
+    launch
+  context: abstract
+recoverability:
+  repository_copy: null
+  external_identifier: 10.3905/jpm.2013.40.1.095
+  notes: Bibliographic identity verified via Crossref; abstract retrieved via OpenAlex, Semantic Scholar
+    or RePEc IDEAS on 2026-09-26. Claims beyond the abstract are not asserted.

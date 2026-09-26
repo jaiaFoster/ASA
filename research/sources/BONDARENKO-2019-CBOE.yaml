@@ -1,0 +1,65 @@
+# ASA-RES-SPRINT-001 / RES-001A source record. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN.
+source_id: BONDARENKO-2019-CBOE
+source_class: EXTERNAL_PRIMARY
+title: Historical Performance of Put-Writing Strategies
+authors:
+- Oleg Bondarenko
+publication: Cboe-published study (SSRN 3393940)
+publication_date: '2019-01-31'
+source_type: institutional_quant_research
+canonical_url: https://cdn.cboe.com/resources/education/research_publications/PutWriteCBOE19_v14_by_Prof_Oleg_Bondarenko_as_of_June_14.pdf
+doi: 10.2139/ssrn.3393940
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: full_text_reviewed
+recovered_at: '2026-09-26'
+sprint: ASA-RES-SPRINT-001
+research_context:
+  sample_period: 1986-06-30 to 2018-12-31 (PUT); 2006-01 to 2018-12 (WPUT)
+  universe: Cboe PUT (monthly ATM SPX put + T-bills), WPUT (weekly), PPUT (5% OTM protective put)
+  market: US
+  methodology_context: Index performance statistics
+  original_or_replication: followup
+  material_limitations:
+  - Published by Cboe, the index owner - sponsor interest
+  - 'Index returns: no explicit bid-ask or commission deduction is described in the extracted summary
+    (UNKNOWN)'
+preliminary_families:
+- FAM-VRP-INDEX-PUTWRITE
+- FAM-LONGVOL-TAIL-HEDGE
+- FAM-VRP-ULTRA-SHORT-DATED
+claims:
+- claim_id: BONDARENKO-2019-CBOE-C1
+  claim_class: REPORTED
+  reported_metric: PUT 1986-2018 annual compound return / SD / Sharpe
+  value: 9.54% / 9.95% / 0.65 vs S&P 500 9.80% / 14.93% / 0.49
+  context: full text, Exhibit 6
+- claim_id: BONDARENKO-2019-CBOE-C2
+  claim_class: REPORTED
+  reported_metric: PUT max drawdown / longest drawdown
+  value: -32.7% (Jan-2009) / 40 months; S&P 500 -50.9% / 73 months
+  context: full text, Exhibit 10
+- claim_id: BONDARENKO-2019-CBOE-C3
+  claim_class: REPORTED
+  reported_metric: PPUT 1986-2018
+  value: 6.64% compound, 12.08% SD, Sharpe 0.33, max drawdown -38.9%, longest drawdown 80 months
+  context: full text
+- claim_id: BONDARENKO-2019-CBOE-C4
+  claim_class: REPORTED
+  reported_metric: 2006-2018 subperiod
+  value: compound return PUT 5.97%, WPUT 4.51%, S&P 500 7.59%; Sharpe 0.50 / 0.40 / 0.51
+  context: full text; post-launch subperiod shows no risk-adjusted advantage over S&P 500
+- claim_id: BONDARENKO-2019-CBOE-C5
+  claim_class: REPORTED
+  reported_metric: VIX vs realized volatility 1990-2018
+  value: average 19.3% vs 15.1% (difference 4.2 points)
+  context: full text
+- claim_id: BONDARENKO-2019-CBOE-C6
+  claim_class: REPORTED
+  reported_metric: volatility-risk contribution
+  value: PUT negative volatility exposure accounts for 0.29% of average monthly excess return; PPUT -0.17%
+  context: full text
+recoverability:
+  repository_copy: null
+  external_identifier: 10.2139/ssrn.3393940
+  notes: Full text retrieved from the canonical URL and reviewed on 2026-09-26.

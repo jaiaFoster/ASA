@@ -1,0 +1,49 @@
+# ASA-RES-SPRINT-001 / RES-001A source record. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN.
+source_id: MURAVYEV-PEARSON-POLLET-2025
+source_class: EXTERNAL_PRIMARY
+title: Why does options market information predict stock returns?
+authors:
+- Dmitriy Muravyev
+- Neil D. Pearson
+- Joshua M. Pollet
+publication: Journal of Financial Economics 172:104153
+publication_date: '2025-10-01'
+source_type: peer_reviewed
+canonical_url: https://doi.org/10.1016/j.jfineco.2025.104153
+doi: 10.1016/j.jfineco.2025.104153
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: bibliographic_and_abstract
+recovered_at: '2026-09-26'
+sprint: ASA-RES-SPRINT-001
+research_context:
+  sample_period: UNKNOWN
+  universe: US optionable stocks
+  market: US
+  methodology_context: Borrow-fee adjustment of option-signal stock return predictability
+  original_or_replication: followup
+  material_limitations: []
+preliminary_families:
+- FAM-OPTION-SIGNAL-EQUITY
+claims:
+- claim_id: MURAVYEV-PEARSON-POLLET-2025-C1
+  claim_class: REPORTED
+  reported_metric: predictability after borrow-fee adjustment
+  value: abnormal predictability from option signals decreases by about two-thirds
+  context: abstract
+- claim_id: MURAVYEV-PEARSON-POLLET-2025-C2
+  claim_class: REPORTED
+  reported_metric: excluding high-fee stocks
+  value: unadjusted predictability decreases by a similar amount
+  context: abstract
+- claim_id: MURAVYEV-PEARSON-POLLET-2025-C3
+  claim_class: INFERENCE
+  reported_metric: consequence
+  value: a long-only or long-biased expression of option-implied signals captures a small residual of
+    published effects; directly contradicts naive use of smirk/IV-spread signals
+  context: see research_context
+recoverability:
+  repository_copy: null
+  external_identifier: 10.1016/j.jfineco.2025.104153
+  notes: Bibliographic identity verified via Crossref; abstract retrieved via OpenAlex, Semantic Scholar
+    or RePEc IDEAS on 2026-09-26. Claims beyond the abstract are not asserted.

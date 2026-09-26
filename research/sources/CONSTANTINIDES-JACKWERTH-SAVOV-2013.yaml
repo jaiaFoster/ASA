@@ -1,0 +1,45 @@
+# ASA-RES-SPRINT-001 / RES-001A source record. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN.
+source_id: CONSTANTINIDES-JACKWERTH-SAVOV-2013
+source_class: EXTERNAL_PRIMARY
+title: The Puzzle of Index Option Returns
+authors:
+- George M. Constantinides
+- Jens Carsten Jackwerth
+- Alexi Savov
+publication: Review of Asset Pricing Studies 3(2):229-257
+publication_date: '2013-05-27'
+source_type: peer_reviewed
+canonical_url: https://doi.org/10.1093/rapstu/rat004
+doi: 10.1093/rapstu/rat004
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: bibliographic_and_abstract
+recovered_at: '2026-09-26'
+sprint: ASA-RES-SPRINT-001
+research_context:
+  sample_period: UNKNOWN
+  universe: S&P 500 call and put portfolios, beta-adjusted
+  market: US
+  methodology_context: Linear factor tests on maturity/moneyness/beta-targeted option portfolios
+  original_or_replication: followup
+  material_limitations: []
+preliminary_families:
+- FAM-VRP-INDEX-PUTWRITE
+- FAM-VRP-INDEX-SHORT-VOL
+claims:
+- claim_id: CONSTANTINIDES-JACKWERTH-SAVOV-2013-C1
+  claim_class: REPORTED
+  reported_metric: alphas of short-maturity OTM puts
+  value: become economically and statistically insignificant once crisis-related factors (price jumps,
+    volatility jumps, liquidity) are included
+  context: abstract
+- claim_id: CONSTANTINIDES-JACKWERTH-SAVOV-2013-C2
+  claim_class: INFERENCE
+  reported_metric: interpretation
+  value: put-writing premium is compensation for crisis risk rather than free alpha
+  context: see research_context
+recoverability:
+  repository_copy: null
+  external_identifier: 10.1093/rapstu/rat004
+  notes: Bibliographic identity verified via Crossref; abstract retrieved via OpenAlex, Semantic Scholar
+    or RePEc IDEAS on 2026-09-26. Claims beyond the abstract are not asserted.

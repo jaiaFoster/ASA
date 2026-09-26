@@ -1,0 +1,44 @@
+# ASA-RES-SPRINT-001 / RES-001A source record. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN.
+source_id: CONRAD-DITTMAR-GHYSELS-2013
+source_class: EXTERNAL_PRIMARY
+title: Ex Ante Skewness and Expected Stock Returns
+authors:
+- Jennifer Conrad
+- Robert F. Dittmar
+- Eric Ghysels
+publication: The Journal of Finance 68(1):85-124
+publication_date: '2013-02-01'
+source_type: peer_reviewed
+canonical_url: https://doi.org/10.1111/j.1540-6261.2012.01795.x
+doi: 10.1111/j.1540-6261.2012.01795.x
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: bibliographic_and_abstract
+recovered_at: '2026-09-26'
+sprint: ASA-RES-SPRINT-001
+research_context:
+  sample_period: UNKNOWN
+  universe: US stocks with options
+  market: US
+  methodology_context: Risk-neutral moments from option prices vs subsequent returns
+  original_or_replication: original
+  material_limitations:
+  - Sign contradicted by STILGER-KOSTAKIS-POON-2017 and RSK literature; see contradiction record
+preliminary_families:
+- FAM-OPTION-SIGNAL-EQUITY
+claims:
+- claim_id: CONRAD-DITTMAR-GHYSELS-2013-C1
+  claim_class: REPORTED
+  reported_metric: risk-neutral skewness vs future returns
+  value: more negatively skewed stocks earn higher subsequent returns (negative relation)
+  context: abstract
+- claim_id: CONRAD-DITTMAR-GHYSELS-2013-C2
+  claim_class: REPORTED
+  reported_metric: volatility and kurtosis
+  value: negative relation for ex ante volatility; positive for kurtosis
+  context: abstract
+recoverability:
+  repository_copy: null
+  external_identifier: 10.1111/j.1540-6261.2012.01795.x
+  notes: Bibliographic identity verified via Crossref; abstract retrieved via OpenAlex, Semantic Scholar
+    or RePEc IDEAS on 2026-09-26. Claims beyond the abstract are not asserted.

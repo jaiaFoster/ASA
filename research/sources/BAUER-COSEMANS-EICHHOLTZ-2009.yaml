@@ -1,0 +1,40 @@
+# ASA-RES-SPRINT-001 / RES-001A source record. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN.
+source_id: BAUER-COSEMANS-EICHHOLTZ-2009
+source_class: EXTERNAL_PRIMARY
+title: Option trading and individual investor performance
+authors:
+- Rob Bauer
+- Mathijs Cosemans
+- Piet Eichholtz
+publication: Journal of Banking & Finance 33(4):731-746
+publication_date: '2009-04-01'
+source_type: peer_reviewed
+canonical_url: https://doi.org/10.1016/j.jbankfin.2008.11.005
+doi: 10.1016/j.jbankfin.2008.11.005
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: bibliographic_and_abstract
+recovered_at: '2026-09-26'
+sprint: ASA-RES-SPRINT-001
+research_context:
+  sample_period: UNKNOWN
+  universe: Individual investor accounts (Dutch broker)
+  market: Netherlands
+  methodology_context: Account-level performance
+  original_or_replication: original
+  material_limitations:
+  - Discretionary retail trading, not a systematic rule
+preliminary_families:
+- FAM-DIRECTIONAL-OPTION-EXPRESSION
+claims:
+- claim_id: BAUER-COSEMANS-EICHHOLTZ-2009-C1
+  claim_class: REPORTED
+  reported_metric: investor option performance
+  value: most investors incur substantial losses, larger than from equity trading; poor timing from overreaction
+    plus high trading costs
+  context: abstract
+recoverability:
+  repository_copy: null
+  external_identifier: 10.1016/j.jbankfin.2008.11.005
+  notes: Bibliographic identity verified via Crossref; abstract retrieved via OpenAlex, Semantic Scholar
+    or RePEc IDEAS on 2026-09-26. Claims beyond the abstract are not asserted.

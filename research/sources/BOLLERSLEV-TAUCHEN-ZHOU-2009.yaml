@@ -1,0 +1,45 @@
+# ASA-RES-SPRINT-001 / RES-001A source record. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN.
+source_id: BOLLERSLEV-TAUCHEN-ZHOU-2009
+source_class: EXTERNAL_PRIMARY
+title: Expected Stock Returns and Variance Risk Premia
+authors:
+- Tim Bollerslev
+- George Tauchen
+- Hao Zhou
+publication: Review of Financial Studies 22(11):4463-4492
+publication_date: '2009-11-01'
+source_type: peer_reviewed
+canonical_url: https://doi.org/10.1093/rfs/hhp008
+doi: 10.1093/rfs/hhp008
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: bibliographic_and_abstract
+recovered_at: '2026-09-26'
+sprint: ASA-RES-SPRINT-001
+research_context:
+  sample_period: post-1990
+  universe: Aggregate US stock market
+  market: US
+  methodology_context: Model-free implied minus high-frequency realized variance as a return predictor
+  original_or_replication: original
+  material_limitations:
+  - Equity-market timing signal; option-strategy conditioning use is INFERENCE
+preliminary_families:
+- FAM-VRP-INDEX-SHORT-VOL
+claims:
+- claim_id: BOLLERSLEV-TAUCHEN-ZHOU-2009-C1
+  claim_class: REPORTED
+  reported_metric: VRP predicting market returns
+  value: explains nontrivial fraction of post-1990 aggregate return variation; strongest at quarterly
+    horizon
+  context: abstract
+- claim_id: BOLLERSLEV-TAUCHEN-ZHOU-2009-C2
+  claim_class: REPORTED
+  reported_metric: measurement dependence
+  value: results depend crucially on model-free IV and high-frequency realized variation
+  context: abstract
+recoverability:
+  repository_copy: null
+  external_identifier: 10.1093/rfs/hhp008
+  notes: Bibliographic identity verified via Crossref; abstract retrieved via OpenAlex, Semantic Scholar
+    or RePEc IDEAS on 2026-09-26. Claims beyond the abstract are not asserted.

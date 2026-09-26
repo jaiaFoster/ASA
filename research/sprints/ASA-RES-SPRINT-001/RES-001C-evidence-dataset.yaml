@@ -1,0 +1,1120 @@
+# ASA-RES-SPRINT-001 / RES-001C comparable evidence dataset. Generated from family dossiers; see RES-001D for permitted use.
+dataset_id: ASA-RES-SPRINT-001-RES-001C
+version: '1.0'
+created_at: '2026-09-26'
+purpose: Standardized, traceable coding of family-level evidence records for downstream comparison (RES-001D).
+  Not a ranking and not a selection input by itself.
+authority_note: Codings are ROLE-RESEARCH evidence characterization (DECIDE). They are DERIVED from the
+  cited dossiers and source records, or INFERENCE where noted. No weights, scores or rankings are defined
+  here.
+independence_rule: Evidence codings (evidence.*, specification.rule_precision) were assigned before, and
+  without reference to, implementation codings (implementation.*). ASA convenience does not affect evidence
+  codings.
+unknown_rule: UNKNOWN or 'none'/'none_found' means absence of recovered evidence, never a zero or a negative
+  finding. See RES-001D missing-data policy.
+vocabulary:
+  source_quality_tier:
+  - peer_reviewed
+  - peer_reviewed_plus_institutional
+  - peer_reviewed_unassessed
+  - working_paper_and_institutional
+  - institutional_sponsor_and_practitioner_only
+  - practitioner_only
+  - internal_specification_with_component_literature
+  post_publication_direction:
+  - positive
+  - mixed
+  - negative
+  - none_found
+  net_of_cost_evidence:
+  - positive
+  - mixed
+  - negative
+  - none (not recovered)
+  rule_precision:
+  - explicit (benchmark or fully specified rule)
+  - partial (core signal specified, execution/filters UNKNOWN)
+  - vague (family concept only)
+  execution_burden:
+  - low
+  - low_medium
+  - medium
+  - medium_high
+  - high
+  - very_high
+  tail_risk_class:
+  - bounded
+  - moderate
+  - severe
+  - protective
+  - low
+  - expression_dependent
+  n_primary_peer_reviewed_sources: count of distinct cited sources whose source record has source_type
+    peer_reviewed (DERIVED mechanically; practitioner journals such as FAJ/JPM/JAI appear as institutional_quant_research
+    when authored by institutions and are not counted)
+  n_independent_replications: count of sources in the dossier's 'Independent replications' section (DERIVED);
+    same-author extensions excluded
+  verification_depth_counts: count of cited sources by verification_depth (DERIVED from source records)
+  unknown_comparison_fields: RES-001C comparison fields whose dossier value begins with UNKNOWN (DERIVED
+    mechanically). Fields that are only partly UNKNOWN are not counted, so this undercounts uncertainty;
+    use as a lower bound.
+records:
+- research_id: ASA-RSCH-FAM-PUTWRITE-001
+  strategy_family: FAM-VRP-INDEX-PUTWRITE
+  exposure_class: E1 insurance selling
+  lifecycle_status: TRIAGE
+  dossier: research/strategies/ASA-RSCH-FAM-PUTWRITE-001.md
+  evidence:
+    source_quality_tier: peer_reviewed_plus_institutional
+    n_primary_peer_reviewed_sources: 6
+    n_independent_replications: 1
+    contradictory_evidence_present: true
+    failed_replication_present: true
+    post_publication_direction: negative
+    net_of_cost_evidence: mixed
+    source_ids_by_role:
+      original:
+      - UNGAR-MORAN-2009
+      supporting:
+      - BONDARENKO-2019-CBOE
+      - BONDARENKO-2014
+      - CHAMBERS-ET-AL-2014
+      - COVAL-SHUMWAY-2001
+      independent_replication:
+      - CHAMBERS-ET-AL-2014
+      failed_replication:
+      - BROADIE-CHERNOV-JOHANNES-2009
+      contradictory:
+      - CONSTANTINIDES-JACKWERTH-SAVOV-2013
+      - SANTACLARA-SARETTO-2009
+      post_publication:
+      - BONDARENKO-2019-CBOE
+    verification_depth_counts:
+      bibliographic_and_abstract: 7
+      full_text_reviewed: 1
+  specification:
+    rule_precision: explicit
+    opportunity_frequency: calendar_monthly_or_weekly
+  implementation:
+    structural_primitives:
+    - P01
+    - A02
+    - A15
+    ASA_data_accessibility: requires_SPX_or_substitute
+    execution_burden: low
+  risk:
+    tail_risk_class: severe
+  unknown_comparison_fields: []
+  n_unknown_comparison_fields: 0
+  n_comparison_fields: 32
+- research_id: ASA-RSCH-FAM-COVERED-CALL-001
+  strategy_family: FAM-VRP-COVERED-CALL
+  exposure_class: E1 insurance selling
+  lifecycle_status: TRIAGE
+  dossier: research/strategies/ASA-RSCH-FAM-COVERED-CALL-001.md
+  evidence:
+    source_quality_tier: peer_reviewed_plus_institutional
+    n_primary_peer_reviewed_sources: 3
+    n_independent_replications: 1
+    contradictory_evidence_present: true
+    failed_replication_present: true
+    post_publication_direction: none_found
+    net_of_cost_evidence: mixed
+    source_ids_by_role:
+      original:
+      - WHALEY-2002
+      supporting:
+      - HILL-ET-AL-2006
+      - FIGELMAN-2008
+      - ISRAELOV-NIELSEN-2014
+      independent_replication:
+      - KAPADIA-SZADO-2007
+      failed_replication:
+      - KAPADIA-SZADO-2007
+      contradictory:
+      - ISRAELOV-NIELSEN-2015-FAJ
+      post_publication: []
+    verification_depth_counts:
+      bibliographic_and_abstract: 6
+  specification:
+    rule_precision: explicit
+    opportunity_frequency: calendar_monthly
+  implementation:
+    structural_primitives:
+    - P09
+    ASA_data_accessibility: existing_chain_plus_overlay
+    execution_burden: low
+  risk:
+    tail_risk_class: severe
+  unknown_comparison_fields:
+  - crowding_or_decay_evidence
+  - persistence
+  n_unknown_comparison_fields: 2
+  n_comparison_fields: 32
+- research_id: ASA-RSCH-FAM-SHORT-VOL-001
+  strategy_family: FAM-VRP-INDEX-SHORT-VOL
+  exposure_class: E1 insurance selling
+  lifecycle_status: TRIAGE
+  dossier: research/strategies/ASA-RSCH-FAM-SHORT-VOL-001.md
+  evidence:
+    source_quality_tier: peer_reviewed
+    n_primary_peer_reviewed_sources: 7
+    n_independent_replications: 1
+    contradictory_evidence_present: true
+    failed_replication_present: true
+    post_publication_direction: mixed
+    net_of_cost_evidence: none
+    source_ids_by_role:
+      original:
+      - COVAL-SHUMWAY-2001
+      - BAKSHI-KAPADIA-2003
+      supporting:
+      - CARR-WU-2009
+      - FALLON-PARK-YU-2015
+      - BOLLEN-WHALEY-2004
+      - ISRAELOV-NIELSEN-2015-JPM
+      independent_replication:
+      - FALLON-PARK-YU-2015
+      failed_replication:
+      - BROADIE-CHERNOV-JOHANNES-2009
+      contradictory:
+      - CONSTANTINIDES-JACKWERTH-SAVOV-2013
+      post_publication:
+      - EUREKAHEDGE-CBOE-VOL-INDICES
+      - AUGUSTIN-CHENG-VANDENBERGEN-2021
+    verification_depth_counts:
+      bibliographic_and_abstract: 9
+      bibliographic_and_search_engine_summary: 1
+  specification:
+    rule_precision: partial
+    opportunity_frequency: calendar_or_signal
+  implementation:
+    structural_primitives:
+    - P03
+    - P04
+    - P10
+    - P11
+    - A14
+    ASA_data_accessibility: requires_hedging_or_new_structure
+    execution_burden: medium_high
+  risk:
+    tail_risk_class: severe
+  unknown_comparison_fields:
+  - sizing_assumptions
+  n_unknown_comparison_fields: 1
+  n_comparison_fields: 32
+- research_id: ASA-RSCH-FAM-DEFINED-RISK-001
+  strategy_family: FAM-VRP-DEFINED-RISK
+  exposure_class: E1 insurance selling
+  lifecycle_status: TRIAGE
+  dossier: research/strategies/ASA-RSCH-FAM-DEFINED-RISK-001.md
+  evidence:
+    source_quality_tier: institutional_sponsor_and_practitioner_only
+    n_primary_peer_reviewed_sources: 2
+    n_independent_replications: 0
+    contradictory_evidence_present: true
+    failed_replication_present: false
+    post_publication_direction: none_found
+    net_of_cost_evidence: none
+    source_ids_by_role:
+      original:
+      - CBOE-CNDR-BFLY-METHODOLOGY
+      - OA-SPY-PCS-2021
+      supporting:
+      - CHAPUT-EDERINGTON-2003
+      independent_replication: []
+      failed_replication:
+      - VILKOV-0DTE
+      contradictory:
+      - BAKSHI-KAPADIA-2003
+      post_publication: []
+    verification_depth_counts:
+      bibliographic_and_search_engine_summary: 1
+      primary_page_reviewed: 1
+      bibliographic_and_abstract: 2
+      primary_repository_readme_reviewed: 1
+    coding_note: The two peer-reviewed sources are usage evidence (CHAPUT-EDERINGTON-2003) and indirect
+      index-level delta-hedged evidence cited as contrary nuance (BAKSHI-KAPADIA-2003); no peer-reviewed
+      return evidence exists for this family.
+  specification:
+    rule_precision: explicit
+    opportunity_frequency: calendar_monthly
+  implementation:
+    structural_primitives:
+    - P02
+    - P05
+    - A02
+    ASA_data_accessibility: existing_for_verticals
+    execution_burden: low_medium
+  risk:
+    tail_risk_class: bounded
+  unknown_comparison_fields:
+  - crowding_or_decay_evidence
+  - persistence
+  - regime_dependence
+  - reported_return_metrics
+  - reported_risk_metrics
+  - transaction_cost_sensitivity
+  n_unknown_comparison_fields: 6
+  n_comparison_fields: 32
+- research_id: ASA-RSCH-FAM-ULTRA-SHORT-001
+  strategy_family: FAM-VRP-ULTRA-SHORT-DATED
+  exposure_class: E1 insurance selling
+  lifecycle_status: INSUFFICIENT_EVIDENCE
+  dossier: research/strategies/ASA-RSCH-FAM-ULTRA-SHORT-001.md
+  evidence:
+    source_quality_tier: working_paper_and_institutional
+    n_primary_peer_reviewed_sources: 0
+    n_independent_replications: 0
+    contradictory_evidence_present: true
+    failed_replication_present: true
+    post_publication_direction: negative
+    net_of_cost_evidence: negative
+    source_ids_by_role:
+      original:
+      - VILKOV-0DTE
+      supporting:
+      - BONDARENKO-2019-CBOE
+      - BANDI-FUSARI-RENO-0DTE
+      independent_replication: []
+      failed_replication:
+      - VILKOV-0DTE
+      contradictory:
+      - BECKMEYER-BRANGER-GAYDA-0DTE
+      post_publication:
+      - VILKOV-0DTE
+    verification_depth_counts:
+      primary_repository_readme_reviewed: 1
+      full_text_reviewed: 1
+      bibliographic_and_search_engine_summary: 2
+  specification:
+    rule_precision: partial
+    opportunity_frequency: daily
+  implementation:
+    structural_primitives:
+    - P03
+    - P04
+    - P05
+    - P08
+    ASA_data_accessibility: requires_SPX_intraday
+    execution_burden: high
+  risk:
+    tail_risk_class: severe
+  unknown_comparison_fields:
+  - exclusions
+  - sizing_assumptions
+  n_unknown_comparison_fields: 2
+  n_comparison_fields: 32
+- research_id: ASA-RSCH-FAM-TAIL-HEDGE-001
+  strategy_family: FAM-LONGVOL-TAIL-HEDGE
+  exposure_class: E2 insurance buying
+  lifecycle_status: INSUFFICIENT_EVIDENCE
+  dossier: research/strategies/ASA-RSCH-FAM-TAIL-HEDGE-001.md
+  evidence:
+    source_quality_tier: peer_reviewed_plus_institutional
+    n_primary_peer_reviewed_sources: 3
+    n_independent_replications: 1
+    contradictory_evidence_present: true
+    failed_replication_present: false
+    post_publication_direction: negative
+    net_of_cost_evidence: negative
+    source_ids_by_role:
+      original:
+      - ISRAELOV-2018
+      supporting:
+      - ISRAELOV-NIELSEN-2015-JPM
+      - BONDARENKO-2019-CBOE
+      - CHAMBERS-ET-AL-2014
+      independent_replication:
+      - ISRAELOV-NIELSEN-2015-JPM
+      failed_replication: []
+      contradictory:
+      - SZADO-2009
+      post_publication:
+      - EUREKAHEDGE-CBOE-VOL-INDICES
+      - ALEXANDER-KOROVILAS-KAPRAUN-2016
+    verification_depth_counts:
+      bibliographic_and_abstract: 5
+      full_text_reviewed: 1
+      bibliographic_and_search_engine_summary: 1
+  specification:
+    rule_precision: explicit
+    opportunity_frequency: calendar_monthly
+  implementation:
+    structural_primitives:
+    - P01
+    - P09
+    ASA_data_accessibility: existing_chain_plus_new_structure
+    execution_burden: low
+  risk:
+    tail_risk_class: protective
+  unknown_comparison_fields:
+  - crowding_or_decay_evidence
+  n_unknown_comparison_fields: 1
+  n_comparison_fields: 32
+- research_id: ASA-RSCH-FAM-COLLAR-001
+  strategy_family: FAM-LONGVOL-COLLAR
+  exposure_class: E2 insurance buying
+  lifecycle_status: INSUFFICIENT_EVIDENCE
+  dossier: research/strategies/ASA-RSCH-FAM-COLLAR-001.md
+  evidence:
+    source_quality_tier: peer_reviewed_plus_institutional
+    n_primary_peer_reviewed_sources: 1
+    n_independent_replications: 0
+    contradictory_evidence_present: true
+    failed_replication_present: false
+    post_publication_direction: none_found
+    net_of_cost_evidence: none
+    source_ids_by_role:
+      original:
+      - SZADO-SCHNEEWEIS-2010
+      supporting: []
+      independent_replication: []
+      failed_replication: []
+      contradictory:
+      - ISRAELOV-KLEIN-2016
+      post_publication: []
+    verification_depth_counts:
+      bibliographic_and_abstract: 2
+  specification:
+    rule_precision: partial
+    opportunity_frequency: calendar
+  implementation:
+    structural_primitives:
+    - P09
+    ASA_data_accessibility: existing_chain_plus_new_structure
+    execution_burden: low_medium
+  risk:
+    tail_risk_class: bounded
+  unknown_comparison_fields:
+  - DTE_or_expiration_rules
+  - crowding_or_decay_evidence
+  - persistence
+  - reported_return_metrics
+  - strike_or_delta_rules
+  - transaction_cost_sensitivity
+  n_unknown_comparison_fields: 6
+  n_comparison_fields: 32
+- research_id: ASA-RSCH-FAM-VIX-CARRY-001
+  strategy_family: FAM-VOLDERIV-VIX-CARRY
+  exposure_class: E1/E2 volatility term premium
+  lifecycle_status: TRIAGE
+  dossier: research/strategies/ASA-RSCH-FAM-VIX-CARRY-001.md
+  evidence:
+    source_quality_tier: peer_reviewed
+    n_primary_peer_reviewed_sources: 4
+    n_independent_replications: 0
+    contradictory_evidence_present: true
+    failed_replication_present: false
+    post_publication_direction: negative
+    net_of_cost_evidence: mixed
+    source_ids_by_role:
+      original:
+      - JOHNSON-2017
+      supporting:
+      - WHALEY-2013
+      independent_replication: []
+      failed_replication: []
+      contradictory:
+      - AUGUSTIN-CHENG-VANDENBERGEN-2021
+      - ALEXANDER-KOROVILAS-KAPRAUN-2016
+      post_publication:
+      - AUGUSTIN-CHENG-VANDENBERGEN-2021
+    verification_depth_counts:
+      bibliographic_and_abstract: 4
+  specification:
+    rule_precision: partial
+    opportunity_frequency: continuous
+  implementation:
+    structural_primitives:
+    - P14
+    - A05
+    ASA_data_accessibility: requires_new_instrument_class
+    execution_burden: medium
+  risk:
+    tail_risk_class: severe
+  unknown_comparison_fields:
+  - reported_return_metrics
+  - sizing_assumptions
+  n_unknown_comparison_fields: 2
+  n_comparison_fields: 32
+- research_id: ASA-RSCH-FAM-TERM-STRUCTURE-001
+  strategy_family: FAM-TERM-STRUCTURE
+  exposure_class: E3 volatility relative value
+  lifecycle_status: TRIAGE
+  dossier: research/strategies/ASA-RSCH-FAM-TERM-STRUCTURE-001.md
+  evidence:
+    source_quality_tier: peer_reviewed
+    n_primary_peer_reviewed_sources: 5
+    n_independent_replications: 0
+    contradictory_evidence_present: false
+    failed_replication_present: false
+    post_publication_direction: none_found
+    net_of_cost_evidence: none
+    source_ids_by_role:
+      original:
+      - VASQUEZ-2017
+      - DEWBECKER-ET-AL-2017
+      supporting:
+      - EGLOFF-LEIPPOLD-WU-2010
+      - JOHNSON-2017
+      - DUBINSKY-ET-AL-2019
+      independent_replication: []
+      failed_replication: []
+      contradictory: []
+      post_publication: []
+    verification_depth_counts:
+      bibliographic_and_abstract: 5
+  specification:
+    rule_precision: partial
+    opportunity_frequency: monthly_cross_section
+  implementation:
+    structural_primitives:
+    - P06
+    - P07
+    - P03
+    - P12
+    - A05
+    - A09
+    ASA_data_accessibility: existing_for_calendars_missing_history
+    execution_burden: medium
+  risk:
+    tail_risk_class: moderate
+  unknown_comparison_fields:
+  - crowding_or_decay_evidence
+  - exclusions
+  - liquidity_requirements
+  - persistence
+  - reported_return_metrics
+  - reported_risk_metrics
+  - transaction_cost_sensitivity
+  n_unknown_comparison_fields: 7
+  n_comparison_fields: 32
+- research_id: ASA-RSCH-FAM-XS-OPTION-RETURNS-001
+  strategy_family: FAM-XS-OPTION-RETURNS
+  exposure_class: E3 volatility relative value
+  lifecycle_status: TRIAGE
+  dossier: research/strategies/ASA-RSCH-FAM-XS-OPTION-RETURNS-001.md
+  evidence:
+    source_quality_tier: peer_reviewed
+    n_primary_peer_reviewed_sources: 11
+    n_independent_replications: 1
+    contradictory_evidence_present: true
+    failed_replication_present: false
+    post_publication_direction: positive
+    net_of_cost_evidence: positive
+    source_ids_by_role:
+      original:
+      - GOYAL-SARETTO-2009
+      supporting:
+      - CAO-HAN-2013
+      - ZHAN-ET-AL-2022
+      - BALI-ET-AL-2023
+      - CHRISTOFFERSEN-ET-AL-2018
+      - MURAVYEV-2016
+      - RAMACHANDRAN-TAYAL-2021
+      - HU-JACOBS-2020
+      - CHOY-2015
+      independent_replication:
+      - HORENSTEIN-VASQUEZ-XIAO-2026
+      failed_replication: []
+      contradictory:
+      - GOYAL-SARETTO-2022-IPCA
+      - ARETZ-LIN-POON-2023
+      post_publication:
+      - BALI-ET-AL-2023
+      - HORENSTEIN-VASQUEZ-XIAO-2026
+    verification_depth_counts:
+      bibliographic_and_abstract: 12
+  specification:
+    rule_precision: partial
+    opportunity_frequency: monthly_cross_section
+  implementation:
+    structural_primitives:
+    - P10
+    - P12
+    - A04
+    - A08
+    - A12
+    - A13
+    - A14
+    ASA_data_accessibility: requires_historical_option_panel
+    execution_burden: high
+  risk:
+    tail_risk_class: moderate
+  unknown_comparison_fields:
+  - crowding_or_decay_evidence
+  - exclusions
+  - regime_dependence
+  - reported_risk_metrics
+  - volatility_regime_risk
+  n_unknown_comparison_fields: 5
+  n_comparison_fields: 32
+- research_id: ASA-RSCH-FAM-XS-OPTION-MOMENTUM-001
+  strategy_family: FAM-XS-OPTION-MOMENTUM
+  exposure_class: E3 volatility relative value
+  lifecycle_status: TRIAGE
+  dossier: research/strategies/ASA-RSCH-FAM-XS-OPTION-MOMENTUM-001.md
+  evidence:
+    source_quality_tier: peer_reviewed
+    n_primary_peer_reviewed_sources: 2
+    n_independent_replications: 0
+    contradictory_evidence_present: false
+    failed_replication_present: false
+    post_publication_direction: none_found
+    net_of_cost_evidence: none
+    source_ids_by_role:
+      original:
+      - HESTON-ET-AL-2023
+      supporting:
+      - HESTON-ET-AL-2026
+      independent_replication: []
+      failed_replication: []
+      contradictory: []
+      post_publication: []
+    verification_depth_counts:
+      bibliographic_and_abstract: 2
+  specification:
+    rule_precision: partial
+    opportunity_frequency: monthly_cross_section
+  implementation:
+    structural_primitives:
+    - P03
+    - P12
+    - A17
+    - A08
+    ASA_data_accessibility: requires_historical_option_panel
+    execution_burden: high
+  risk:
+    tail_risk_class: moderate
+  unknown_comparison_fields:
+  - crowding_or_decay_evidence
+  - drawdown_or_tail_characteristics
+  - exclusions
+  - known_failure_modes
+  - liquidity_requirements
+  - liquidity_risk
+  - persistence
+  - regime_dependence
+  - reported_return_metrics
+  - reported_risk_metrics
+  - sizing_assumptions
+  - volatility_regime_risk
+  n_unknown_comparison_fields: 12
+  n_comparison_fields: 32
+- research_id: ASA-RSCH-FAM-XS-LOTTERY-001
+  strategy_family: FAM-XS-LOTTERY-SKEW-OPTION
+  exposure_class: E3 volatility relative value
+  lifecycle_status: TRIAGE
+  dossier: research/strategies/ASA-RSCH-FAM-XS-LOTTERY-001.md
+  evidence:
+    source_quality_tier: peer_reviewed
+    n_primary_peer_reviewed_sources: 5
+    n_independent_replications: 1
+    contradictory_evidence_present: false
+    failed_replication_present: false
+    post_publication_direction: none_found
+    net_of_cost_evidence: none
+    source_ids_by_role:
+      original:
+      - BOYER-VORKINK-2014
+      supporting:
+      - FRAZZINI-PEDERSEN-2022
+      - BYUN-KIM-2016
+      - BALI-MURRAY-2013
+      - CHOY-2015
+      - ILMANEN-2012
+      independent_replication:
+      - BYUN-KIM-2016
+      failed_replication: []
+      contradictory: []
+      post_publication: []
+    verification_depth_counts:
+      bibliographic_and_abstract: 6
+  specification:
+    rule_precision: partial
+    opportunity_frequency: weekly_monthly_cross_section
+  implementation:
+    structural_primitives:
+    - P01
+    - P03
+    - P10
+    - P12
+    - A07
+    ASA_data_accessibility: requires_historical_option_panel
+    execution_burden: high
+  risk:
+    tail_risk_class: severe
+  unknown_comparison_fields:
+  - crowding_or_decay_evidence
+  - exclusions
+  - liquidity_requirements
+  - persistence
+  - reported_risk_metrics
+  - sizing_assumptions
+  - transaction_cost_sensitivity
+  n_unknown_comparison_fields: 7
+  n_comparison_fields: 32
+- research_id: ASA-RSCH-FAM-EVENT-VOL-001
+  strategy_family: FAM-EVENT-VOL
+  exposure_class: E4 event volatility
+  lifecycle_status: TRIAGE
+  dossier: research/strategies/ASA-RSCH-FAM-EVENT-VOL-001.md
+  evidence:
+    source_quality_tier: peer_reviewed
+    n_primary_peer_reviewed_sources: 6
+    n_independent_replications: 0
+    contradictory_evidence_present: true
+    failed_replication_present: false
+    post_publication_direction: none_found
+    net_of_cost_evidence: mixed
+    source_ids_by_role:
+      original:
+      - GAO-XING-ZHANG-2018
+      supporting:
+      - DUBINSKY-ET-AL-2019
+      - HESTON-ET-AL-2026
+      - KELLY-PASTOR-VERONESI-2016
+      independent_replication: []
+      failed_replication: []
+      contradictory:
+      - BARTH-SO-2014
+      - DESILVA-SMITH-SO-2026
+      post_publication: []
+    verification_depth_counts:
+      bibliographic_and_abstract: 5
+      bibliographic_and_search_engine_summary: 1
+  specification:
+    rule_precision: explicit
+    opportunity_frequency: quarterly_per_name
+  implementation:
+    structural_primitives:
+    - P03
+    - P06
+    - A09
+    ASA_data_accessibility: existing_earnings_missing_straddle
+    execution_burden: medium
+  risk:
+    tail_risk_class: moderate
+  unknown_comparison_fields:
+  - exclusions
+  - persistence
+  - regime_dependence
+  - reported_risk_metrics
+  - sizing_assumptions
+  n_unknown_comparison_fields: 5
+  n_comparison_fields: 32
+- research_id: ASA-RSCH-FAM-OPTION-SIGNAL-001
+  strategy_family: FAM-OPTION-SIGNAL-EQUITY
+  exposure_class: E5 option-implied information
+  lifecycle_status: TRIAGE
+  dossier: research/strategies/ASA-RSCH-FAM-OPTION-SIGNAL-001.md
+  evidence:
+    source_quality_tier: peer_reviewed
+    n_primary_peer_reviewed_sources: 11
+    n_independent_replications: 1
+    contradictory_evidence_present: true
+    failed_replication_present: false
+    post_publication_direction: negative
+    net_of_cost_evidence: none
+    source_ids_by_role:
+      original:
+      - XING-ZHANG-ZHAO-2010
+      - CREMERS-WEINBAUM-2010
+      - PAN-POTESHMAN-2006
+      supporting:
+      - AN-ET-AL-2014
+      - JOHNSON-SO-2012
+      - BALI-HOVAKIMIAN-2009
+      - BALTUSSEN-ET-AL-2018
+      - STILGER-KOSTAKIS-POON-2017
+      independent_replication:
+      - GE-LIN-PEARSON-2016
+      failed_replication: []
+      contradictory:
+      - CONRAD-DITTMAR-GHYSELS-2013
+      - MURAVYEV-PEARSON-POLLET-2025
+      post_publication:
+      - CREMERS-WEINBAUM-2010
+      - MURAVYEV-PEARSON-POLLET-2025
+    verification_depth_counts:
+      bibliographic_and_abstract: 11
+  specification:
+    rule_precision: partial
+    opportunity_frequency: daily_to_monthly_cross_section
+  implementation:
+    structural_primitives:
+    - P02
+    - A06
+    - A07
+    - A10
+    - A11
+    - A13
+    ASA_data_accessibility: partial_existing_skew_missing_borrow_rn_moments
+    execution_burden: medium
+  risk:
+    tail_risk_class: expression_dependent
+  unknown_comparison_fields:
+  - exclusions
+  - regime_dependence
+  - reported_risk_metrics
+  - transaction_cost_sensitivity
+  - volatility_regime_risk
+  n_unknown_comparison_fields: 5
+  n_comparison_fields: 32
+- research_id: ASA-RSCH-FAM-SKEW-PREMIUM-001
+  strategy_family: FAM-SKEW-PREMIUM-INDEX
+  exposure_class: E3 volatility relative value
+  lifecycle_status: INSUFFICIENT_EVIDENCE
+  dossier: research/strategies/ASA-RSCH-FAM-SKEW-PREMIUM-001.md
+  evidence:
+    source_quality_tier: peer_reviewed
+    n_primary_peer_reviewed_sources: 3
+    n_independent_replications: 0
+    contradictory_evidence_present: true
+    failed_replication_present: false
+    post_publication_direction: none_found
+    net_of_cost_evidence: none
+    source_ids_by_role:
+      original:
+      - KOZHAN-NEUBERGER-SCHNEIDER-2013
+      supporting:
+      - BOLLEN-WHALEY-2004
+      - BALI-MURRAY-2013
+      independent_replication: []
+      failed_replication: []
+      contradictory:
+      - KOZHAN-NEUBERGER-SCHNEIDER-2013
+      post_publication: []
+    verification_depth_counts:
+      bibliographic_and_abstract: 3
+  specification:
+    rule_precision: vague
+    opportunity_frequency: monthly
+  implementation:
+    structural_primitives:
+    - P10
+    - P11
+    - A07
+    ASA_data_accessibility: requires_SPX_or_substitute
+    execution_burden: high
+  risk:
+    tail_risk_class: severe
+  unknown_comparison_fields:
+  - DTE_or_expiration_rules
+  - crowding_or_decay_evidence
+  - entry_rules
+  - exclusions
+  - exit_rules
+  - persistence
+  - regime_dependence
+  - reported_risk_metrics
+  - roll_rules
+  - sizing_assumptions
+  - transaction_cost_sensitivity
+  n_unknown_comparison_fields: 11
+  n_comparison_fields: 32
+- research_id: ASA-RSCH-FAM-DISPERSION-001
+  strategy_family: FAM-DISPERSION-CORRELATION
+  exposure_class: E3 volatility relative value
+  lifecycle_status: INSUFFICIENT_EVIDENCE
+  dossier: research/strategies/ASA-RSCH-FAM-DISPERSION-001.md
+  evidence:
+    source_quality_tier: peer_reviewed
+    n_primary_peer_reviewed_sources: 2
+    n_independent_replications: 1
+    contradictory_evidence_present: true
+    failed_replication_present: false
+    post_publication_direction: none_found
+    net_of_cost_evidence: negative
+    source_ids_by_role:
+      original:
+      - DRIESSEN-MAENHOUT-VILKOV-2009
+      supporting:
+      - EUREKAHEDGE-CBOE-VOL-INDICES
+      independent_replication:
+      - FARIA-KOSOWSKI-WANG-2022
+      failed_replication: []
+      contradictory:
+      - DRIESSEN-MAENHOUT-VILKOV-2009
+      post_publication: []
+    verification_depth_counts:
+      bibliographic_and_abstract: 1
+      bibliographic_and_search_engine_summary: 1
+      bibliographic_only: 1
+    coding_note: The replication (FARIA-KOSOWSKI-WANG-2022) is bibliographic_only; its direction is UNKNOWN.
+  specification:
+    rule_precision: vague
+    opportunity_frequency: monthly
+  implementation:
+    structural_primitives:
+    - P13
+    - P10
+    - A16
+    ASA_data_accessibility: requires_multi_underlying_and_index
+    execution_burden: very_high
+  risk:
+    tail_risk_class: severe
+  unknown_comparison_fields:
+  - DTE_or_expiration_rules
+  - entry_rules
+  - exclusions
+  - exit_rules
+  - persistence
+  - reported_risk_metrics
+  - roll_rules
+  - strike_or_delta_rules
+  n_unknown_comparison_fields: 8
+  n_comparison_fields: 32
+- research_id: ASA-RSCH-FAM-ARBITRAGE-001
+  strategy_family: FAM-ARBITRAGE-PARITY
+  exposure_class: E7 structural / arbitrage
+  lifecycle_status: DISCOVERED
+  dossier: research/strategies/ASA-RSCH-FAM-ARBITRAGE-001.md
+  evidence:
+    source_quality_tier: peer_reviewed_unassessed
+    n_primary_peer_reviewed_sources: 3
+    n_independent_replications: 0
+    contradictory_evidence_present: false
+    failed_replication_present: false
+    post_publication_direction: none_found
+    net_of_cost_evidence: none
+    source_ids_by_role:
+      original:
+      - VANBINSBERGEN-DIAMOND-GROTTERIA-2022
+      supporting:
+      - POOL-STOLL-WHALEY-2008
+      - OFEK-RICHARDSON-WHITELAW-2004
+      independent_replication: []
+      failed_replication: []
+      contradictory: []
+      post_publication: []
+    verification_depth_counts:
+      bibliographic_and_abstract: 1
+      bibliographic_only: 2
+    coding_note: Two of three peer-reviewed sources are bibliographic_only; their claims are UNKNOWN.
+  specification:
+    rule_precision: vague
+    opportunity_frequency: event_or_continuous
+  implementation:
+    structural_primitives:
+    - P15
+    ASA_data_accessibility: partial
+    execution_burden: medium
+  risk:
+    tail_risk_class: low
+  unknown_comparison_fields:
+  - DTE_or_expiration_rules
+  - crowding_or_decay_evidence
+  - entry_rules
+  - exclusions
+  - exit_rules
+  - liquidity_requirements
+  - liquidity_risk
+  - persistence
+  - regime_dependence
+  - reported_return_metrics
+  - reported_risk_metrics
+  - roll_rules
+  - sizing_assumptions
+  - strike_or_delta_rules
+  n_unknown_comparison_fields: 14
+  n_comparison_fields: 32
+- research_id: ASA-RSCH-FAM-CROSS-ASSET-VRP-001
+  strategy_family: FAM-CROSS-ASSET-VRP
+  exposure_class: E1 insurance selling
+  lifecycle_status: TRIAGE
+  dossier: research/strategies/ASA-RSCH-FAM-CROSS-ASSET-VRP-001.md
+  evidence:
+    source_quality_tier: peer_reviewed
+    n_primary_peer_reviewed_sources: 2
+    n_independent_replications: 1
+    contradictory_evidence_present: false
+    failed_replication_present: false
+    post_publication_direction: none_found
+    net_of_cost_evidence: none
+    source_ids_by_role:
+      original:
+      - LOW-ZHANG-2005
+      supporting:
+      - FALLON-PARK-YU-2015
+      - ILMANEN-2012
+      - TROLLE-SCHWARTZ-2010
+      independent_replication:
+      - FALLON-PARK-YU-2015
+      failed_replication: []
+      contradictory: []
+      post_publication: []
+    verification_depth_counts:
+      bibliographic_and_abstract: 3
+      bibliographic_only: 1
+  specification:
+    rule_precision: vague
+    opportunity_frequency: monthly
+  implementation:
+    structural_primitives:
+    - P01
+    - P03
+    ASA_data_accessibility: requires_new_instrument_class
+    execution_burden: medium
+  risk:
+    tail_risk_class: severe
+  unknown_comparison_fields:
+  - crowding_or_decay_evidence
+  - entry_rules
+  - exclusions
+  - exit_rules
+  - persistence
+  - regime_dependence
+  - sizing_assumptions
+  - transaction_cost_sensitivity
+  n_unknown_comparison_fields: 8
+  n_comparison_fields: 32
+- research_id: ASA-RSCH-FAM-DIRECTIONAL-001
+  strategy_family: FAM-DIRECTIONAL-OPTION-EXPRESSION
+  exposure_class: E6 directional expression
+  lifecycle_status: INSUFFICIENT_EVIDENCE
+  dossier: research/strategies/ASA-RSCH-FAM-DIRECTIONAL-001.md
+  evidence:
+    source_quality_tier: peer_reviewed
+    n_primary_peer_reviewed_sources: 4
+    n_independent_replications: 1
+    contradictory_evidence_present: false
+    failed_replication_present: false
+    post_publication_direction: negative
+    net_of_cost_evidence: negative
+    source_ids_by_role:
+      original:
+      - BAUER-COSEMANS-EICHHOLTZ-2009
+      supporting:
+      - BRYZGALOVA-ET-AL-2023
+      - FRAZZINI-PEDERSEN-2022
+      - HU-JACOBS-2020
+      independent_replication:
+      - BRYZGALOVA-ET-AL-2023
+      failed_replication: []
+      contradictory: []
+      post_publication: []
+    verification_depth_counts:
+      bibliographic_and_abstract: 4
+  specification:
+    rule_precision: vague
+    opportunity_frequency: signal_dependent
+  implementation:
+    structural_primitives:
+    - P01
+    - P02
+    ASA_data_accessibility: existing_for_verticals
+    execution_burden: low
+  risk:
+    tail_risk_class: bounded
+  unknown_comparison_fields:
+  - DTE_or_expiration_rules
+  - exclusions
+  - exit_rules
+  - liquidity_requirements
+  - regime_dependence
+  - required_event_data
+  - required_history
+  - roll_rules
+  - sizing_assumptions
+  - strike_or_delta_rules
+  n_unknown_comparison_fields: 10
+  n_comparison_fields: 32
+- research_id: ASA-RSCH-SPY-PCS-001
+  strategy_family: FAM-VRP-DEFINED-RISK (instance)
+  exposure_class: E1 insurance selling
+  lifecycle_status: TRIAGE
+  dossier: research/strategies/ASA-RSCH-SPY-PCS-001.md
+  evidence:
+    source_quality_tier: practitioner_only
+    n_primary_peer_reviewed_sources: 0
+    n_independent_replications: 0
+    contradictory_evidence_present: true
+    failed_replication_present: false
+    post_publication_direction: none_found
+    net_of_cost_evidence: none
+    source_ids_by_role:
+      original:
+      - OA-SPY-PCS-2021
+      contradictory:
+      - BROADIE-CHERNOV-JOHANNES-2009
+      - CONSTANTINIDES-JACKWERTH-SAVOV-2013
+      - SANTACLARA-SARETTO-2009
+      post_publication:
+      - BONDARENKO-2019-CBOE
+      note: contradictory/post-publication entries apply to the parent premium, not to this rule set
+    verification_depth_counts:
+      primary_page_reviewed: 1
+  specification:
+    rule_precision: explicit
+    opportunity_frequency: sequential_30DTE_one_position
+  implementation:
+    structural_primitives:
+    - P02
+    - A02
+    ASA_data_accessibility: existing
+    execution_burden: low
+  risk:
+    tail_risk_class: bounded
+  unknown_comparison_fields:
+  - sample_period_dates
+  - transaction_costs
+  - fill_assumptions
+  - drawdown_series
+  - regime_dependence
+  - persistence
+  n_unknown_comparison_fields: 6
+  n_comparison_fields: not_comparable (strategy-instance record in pre-sprint format)
+- research_id: ASA-RSCH-SKEW-MOMENTUM-001
+  strategy_family: 'hybrid: FAM-OPTION-SIGNAL-EQUITY + FAM-XS-OPTION-RETURNS components + FAM-DIRECTIONAL-OPTION-EXPRESSION'
+  exposure_class: E5 + E3 + E6
+  lifecycle_status: TRIAGE
+  dossier: research/strategies/ASA-RSCH-SKEW-MOMENTUM-001.md
+  evidence:
+    source_quality_tier: internal_specification_with_component_literature
+    n_primary_peer_reviewed_sources: 0
+    n_independent_replications: 0
+    contradictory_evidence_present: true
+    failed_replication_present: false
+    post_publication_direction: negative (components)
+    net_of_cost_evidence: none
+    source_ids_by_role:
+      original:
+      - ASA-PRIOR-SKEW-MOMENTUM-001
+      supporting:
+      - XING-ZHANG-ZHAO-2010
+      - GOYAL-SARETTO-2009
+      - BALI-HOVAKIMIAN-2009
+      contradictory:
+      - STILGER-KOSTAKIS-POON-2017
+      - CONRAD-DITTMAR-GHYSELS-2013
+      - MURAVYEV-PEARSON-POLLET-2025
+      - KOZHAN-NEUBERGER-SCHNEIDER-2013
+      - GOYAL-SARETTO-2022-IPCA
+      note: component evidence only; n_primary_peer_reviewed_sources=0 because no source tests the combination
+    verification_depth_counts:
+      internal: 1
+      bibliographic_and_abstract: 11
+  specification:
+    rule_precision: explicit (internal policy)
+    opportunity_frequency: UNKNOWN (signal-dependent; no external evidence)
+  implementation:
+    structural_primitives:
+    - P02
+    - A04
+    - A06
+    - A13
+    ASA_data_accessibility: partial_existing (skew history prospective only)
+    execution_burden: medium
+  risk:
+    tail_risk_class: bounded
+  unknown_comparison_fields:
+  - reported_return_metrics
+  - reported_risk_metrics
+  - opportunity_frequency
+  - regime_dependence
+  - persistence
+  - transaction_cost_sensitivity
+  n_unknown_comparison_fields: 6
+  n_comparison_fields: not_comparable (strategy-instance record in pre-sprint format)

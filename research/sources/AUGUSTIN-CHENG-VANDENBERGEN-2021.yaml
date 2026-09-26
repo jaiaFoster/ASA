@@ -1,0 +1,44 @@
+# ASA-RES-SPRINT-001 / RES-001A source record. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN.
+source_id: AUGUSTIN-CHENG-VANDENBERGEN-2021
+source_class: EXTERNAL_PRIMARY
+title: Volmageddon and the Failure of Short Volatility Products
+authors:
+- Patrick Augustin
+- Ing-Haw Cheng
+- Ludovic Van den Bergen
+publication: Financial Analysts Journal 77(3):35-51
+publication_date: '2021-05-20'
+source_type: peer_reviewed
+canonical_url: https://doi.org/10.1080/0015198x.2021.1913040
+doi: 10.1080/0015198x.2021.1913040
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: bibliographic_and_abstract
+recovered_at: '2026-09-26'
+sprint: ASA-RES-SPRINT-001
+research_context:
+  sample_period: 2018-02-05 event
+  universe: Short-volatility ETPs
+  market: US
+  methodology_context: Event study of hedge/leverage rebalancing
+  original_or_replication: original
+  material_limitations: []
+preliminary_families:
+- FAM-VOLDERIV-VIX-CARRY
+claims:
+- claim_id: AUGUSTIN-CHENG-VANDENBERGEN-2021-C1
+  claim_class: REPORTED
+  reported_metric: Volmageddon mechanism
+  value: abrupt crash of short-volatility strategies driven by hedge and leverage rebalancing in concentrated,
+    volatile markets
+  context: abstract
+- claim_id: AUGUSTIN-CHENG-VANDENBERGEN-2021-C2
+  claim_class: REPORTED
+  reported_metric: event magnitude (secondary)
+  value: one-day losses above 90% in short-volatility ETPs; XIV subsequently terminated
+  context: BIS Quarterly Review March 2018 and search summaries; secondary
+recoverability:
+  repository_copy: null
+  external_identifier: 10.1080/0015198x.2021.1913040
+  notes: Bibliographic identity verified via Crossref; abstract retrieved via OpenAlex, Semantic Scholar
+    or RePEc IDEAS on 2026-09-26. Claims beyond the abstract are not asserted.

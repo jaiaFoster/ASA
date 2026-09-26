@@ -1,0 +1,44 @@
+# ASA-RES-SPRINT-001 / RES-001A source record. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN.
+source_id: AN-ET-AL-2014
+source_class: EXTERNAL_PRIMARY
+title: The Joint Cross Section of Stocks and Options
+authors:
+- Byeong-Je An
+- Andrew Ang
+- Turan G. Bali
+- Nusret Cakici
+publication: The Journal of Finance 69(5):2279-2337
+publication_date: '2014-10-01'
+source_type: peer_reviewed
+canonical_url: https://doi.org/10.1111/jofi.12181
+doi: 10.1111/jofi.12181
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: bibliographic_and_abstract
+recovered_at: '2026-09-26'
+sprint: ASA-RES-SPRINT-001
+research_context:
+  sample_period: UNKNOWN
+  universe: US stocks with options
+  market: US
+  methodology_context: Sort on past-month changes in call/put implied volatility
+  original_or_replication: original
+  material_limitations: []
+preliminary_families:
+- FAM-OPTION-SIGNAL-EQUITY
+claims:
+- claim_id: AN-ET-AL-2014-C1
+  claim_class: REPORTED
+  reported_metric: call IV change decile spread
+  value: approximately 1% per month; persists up to six months
+  context: abstract
+- claim_id: AN-ET-AL-2014-C2
+  claim_class: REPORTED
+  reported_metric: reverse predictability
+  value: high past stock returns predict rising IV with decreasing realized volatility
+  context: abstract
+recoverability:
+  repository_copy: null
+  external_identifier: 10.1111/jofi.12181
+  notes: Bibliographic identity verified via Crossref; abstract retrieved via OpenAlex, Semantic Scholar
+    or RePEc IDEAS on 2026-09-26. Claims beyond the abstract are not asserted.

@@ -1,0 +1,47 @@
+# ASA-RES-SPRINT-001 / RES-001D methodology source record.
+source_id: GUYATT-ET-AL-2008-GRADE
+source_class: EXTERNAL_SECONDARY
+title: 'GRADE: an emerging consensus on rating quality of evidence and strength of recommendations'
+authors:
+- Gordon H. Guyatt
+- Andrew D. Oxman
+- Gunn E. Vist
+- Regina Kunz
+- Yngve Falck-Ytter
+publication: BMJ 336(7650):924-926
+publication_date: '2008-04-24'
+source_type: peer_reviewed
+canonical_url: https://doi.org/10.1136/bmj.39489.470347.ad
+doi: 10.1136/bmj.39489.470347.ad
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: bibliographic_and_abstract
+recovered_at: '2026-09-26'
+sprint: ASA-RES-SPRINT-001
+use: RES-001D methodology source (not strategy evidence)
+research_context:
+  sample_period: n/a (methodology)
+  universe: n/a
+  market: n/a
+  methodology_context: method for evidence grading, multiple testing, replication, overfitting, or multi-criteria
+    comparison
+  original_or_replication: original
+  material_limitations: []
+preliminary_families: []
+claims:
+- claim_id: GUYATT-ET-AL-2008-GRADE-C1
+  claim_class: REPORTED
+  reported_metric: purpose
+  value: guidelines are inconsistent in rating evidence quality and recommendation strength; GRADE is
+    a system increasingly adopted to do so
+  context: abstract
+- claim_id: GUYATT-ET-AL-2008-GRADE-C2
+  claim_class: INFERENCE
+  reported_metric: use in ASA research
+  value: GRADE-style separation of evidence quality from recommendation strength is borrowed as a structural
+    analogy for RES-001D; its specific downgrade domains are adapted, not claimed as finance evidence
+  context: see research_context
+recoverability:
+  repository_copy: null
+  external_identifier: 10.1136/bmj.39489.470347.ad
+  notes: Bibliographic identity verified via Crossref; abstract via OpenAlex on 2026-09-26.

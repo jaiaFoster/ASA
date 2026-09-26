@@ -1,0 +1,41 @@
+# ASA-RES-SPRINT-001 / RES-001A source record. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN.
+source_id: DUBINSKY-ET-AL-2019
+source_class: EXTERNAL_PRIMARY
+title: Option Pricing of Earnings Announcement Risks
+authors:
+- Andrew Dubinsky
+- Michael Johannes
+- Andreas Kaeck
+- Norman J. Seeger
+publication: The Review of Financial Studies 32(2):646-687
+publication_date: '2019-02-01'
+source_type: peer_reviewed
+canonical_url: https://doi.org/10.1093/rfs/hhy060
+doi: 10.1093/rfs/hhy060
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: bibliographic_and_abstract
+recovered_at: '2026-09-26'
+sprint: ASA-RES-SPRINT-001
+research_context:
+  sample_period: UNKNOWN
+  universe: US single-stock options around earnings
+  market: US
+  methodology_context: Reduced-form models separating announcement uncertainty from diffusive volatility
+  original_or_replication: original
+  material_limitations:
+  - Measurement/pricing paper; no trading strategy returns in abstract
+preliminary_families:
+- FAM-EVENT-VOL
+- FAM-TERM-STRUCTURE
+claims:
+- claim_id: DUBINSKY-ET-AL-2019-C1
+  claim_class: REPORTED
+  reported_metric: anticipated announcement uncertainty
+  value: quantitatively large, time-varying, informative about future return volatility
+  context: abstract
+recoverability:
+  repository_copy: null
+  external_identifier: 10.1093/rfs/hhy060
+  notes: Bibliographic identity verified via Crossref; abstract retrieved via OpenAlex, Semantic Scholar
+    or RePEc IDEAS on 2026-09-26. Claims beyond the abstract are not asserted.

@@ -1,0 +1,39 @@
+# ASA-RES-SPRINT-001 / RES-001A source record. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN.
+source_id: WHALEY-2002
+source_class: EXTERNAL_PRIMARY
+title: Return and Risk of CBOE Buy Write Monthly Index
+authors:
+- Robert E. Whaley
+publication: The Journal of Derivatives 10(2):35-42
+publication_date: '2002-11-30'
+source_type: peer_reviewed
+canonical_url: https://doi.org/10.3905/jod.2002.319194
+doi: 10.3905/jod.2002.319194
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: bibliographic_and_abstract
+recovered_at: '2026-09-26'
+sprint: ASA-RES-SPRINT-001
+research_context:
+  sample_period: 1988-2001
+  universe: S&P 500 (SPX) one-month ~ATM covered call (BXM)
+  market: US index options
+  methodology_context: Index construction and performance measurement of a monthly buy-write
+  original_or_replication: original
+  material_limitations:
+  - Short, single-regime sample by later standards
+  - Non-normal returns complicate standard risk measures (acknowledged by the source)
+preliminary_families:
+- FAM-VRP-COVERED-CALL
+claims:
+- claim_id: WHALEY-2002-C1
+  claim_class: REPORTED
+  reported_metric: BXM risk/return vs S&P 500
+  value: earned almost as much as the S&P 500 with substantially lower risk under several standard performance
+    measures
+  context: 1988-2001, SPX monthly ATM calls
+recoverability:
+  repository_copy: null
+  external_identifier: 10.3905/jod.2002.319194
+  notes: Bibliographic identity verified via Crossref; abstract retrieved via OpenAlex, Semantic Scholar
+    or RePEc IDEAS on 2026-09-26. Claims beyond the abstract are not asserted.
