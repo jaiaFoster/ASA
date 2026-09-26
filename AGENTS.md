@@ -23,7 +23,7 @@ Lean POS stores only non-derivable durable governance state (objective, constrai
 
 ## Role packages
 
-See [`roles/`](roles/) for Founder, Architect, Manager, and Worker role definitions.
+See [`roles/`](roles/) for Founder, Architect, Manager, Researcher, and Worker role definitions.
 
 ## Governance
 

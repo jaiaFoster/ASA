@@ -34,3 +34,45 @@ roles:
     authority: architecture_design
     instantiated: false
     first_assignment: roles/architect/FIRST_ASSIGNMENT.md
+
+  - id: ROLE-RESEARCH
+    name: ASA Strategy Researcher
+    type: permanent_ai_role
+    status: prepared
+    specification: governance/amendments/GOV-AMD-017.md
+    instructions: roles/researcher/INSTRUCTIONS.md
+    instantiation_prompt: roles/researcher/INSTANTIATION_PROMPT.md
+    authority: strategy_research
+    instantiated: false
+    owns:
+      - research/
+    authority_classes:
+      decide:
+        - research_method_within_approved_scope
+        - evidence_characterization
+        - source_provenance
+        - research_taxonomy
+        - research_qualification_status
+      recommend:
+        - candidates_for_downstream_consideration
+        - additional_research
+        - missing_ASA_capabilities
+        - technical_research_question_framing
+      consult:
+        - strategy_selection
+        - product_direction
+        - implementation_planning
+        - architecture_interpretation_of_research_requirements
+      none:
+        - product_priority
+        - roadmap_priority
+        - strategy_selection_policy
+        - production_approval
+        - architecture
+        - technical_acceptance_criteria
+        - production_implementation
+        - capital_allocation
+        - deployment
+        - governance
+        - merge_outside_active_research_sprint_delegation
+    merge_authority: research_sprint_delegation_only  # GOV-AMD-001 Amendment 017 Part B

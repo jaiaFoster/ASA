@@ -687,6 +687,44 @@ review record to the default branch.
 
 ---
 
+# Amendment 017
+
+## ROLE-RESEARCH and Research Sprint Delegation
+
+| Field | Value |
+|---|---|
+| `amendment_id` | 017 |
+| `status` | Accepted *(effective only when the canonical amendment and its review record reach the default branch through Founder merge)* |
+| `proposer` | Founder |
+| `date` | 2026-09-26 |
+| `risk_class` | R5 — Constitutional (permanent-role creation), including an R4 merge-authority extension |
+| `applies_to` | RES-001, RES-002, RISK-001 §10.1 merge row, PM-SPEC, ARCH-SPEC, Amendment 013 |
+| `binding_scope` | Model A — accepted-on-entry (§0.1); complete text and review records in `GOV-AMD-017.md` |
+
+This entry creates the permanent role ROLE-RESEARCH (ASA Strategy Researcher). It also adds a
+narrow Research Sprint Delegation. ROLE-RESEARCH owns external strategy evidence in `research/`.
+It holds no product-priority, strategy-selection, architecture, implementation, deployment,
+capital, or governance authority. `QUALIFIED` describes an evidence state; it is not
+implementation approval.
+
+A Founder-activated research sprint may let its named ROLE-RESEARCH delegate merge a PR only
+when every listed condition holds:
+
+- the PR implements an enumerated research ticket;
+- the PR is R0 or R1;
+- every changed path is under `research/`;
+- self-review is recorded;
+- all required gates pass.
+
+The delegation grants no standing merge authority. It never covers governance, role,
+sprint-definition, architecture, or production changes. It expires with the sprint or on
+revocation. Amendment 013 remains unchanged for implementation sprints. See
+`governance/amendments/GOV-AMD-017.md` for the normative RoleSpec, delegation rules,
+acceptance criteria, reversion, and the separate Independent, Structural, and Constitutional
+Review records.
+
+---
+
 ## 12. Open Questions
 
 - **OQ-12.1:** §0.5.1's numeric promotion threshold ("every ten `Accepted` amendments, or annually") is a placeholder pending Founder decision; no evidence in the reviewed corpus fixes this number, and it should be set deliberately rather than defaulted.
