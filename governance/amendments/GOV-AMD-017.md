@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | `amendment_id` | GOV-AMD-017 (register entry: GOV-AMD-001 Amendment 017) |
-| `status` | Proposed. Under GOV-AMD-001 §0.3.2–0.3.3 this becomes Accepted only when the review records below are complete and the Founder personally merges this document and its index entry to the default branch. |
+| `status` | Accepted. It is effective only when this document, its index entry and the completed review record below reach the default branch through the Founder's personal merge (GOV-AMD-001 §0.3). Until that merge, it binds no one. |
 | `proposer` | Founder (assignment GOV-RESEARCHER-001-v1.0) |
 | `date` | 2026-09-26 |
 | `risk_class` | R5 — Constitutional. Creating a permanent role changes the organizational operating model and the fixed roles/Founder relationship (RISK-001 §8, §8.3; GOV-AMD-001 REQ-0.2.2). |
@@ -317,4 +317,59 @@ The Founder explicitly authorized the creation of ROLE-RESEARCH and bounded, aut
 
 ## Review records
 
-*(Recorded below after independent review.)*
+### Independence record
+
+| Field | Value |
+|---|---|
+| `review_id` | GOV-AMD-017-ISRCR-001 |
+| `subject` | GOV-AMD-001 Amendment 017 / `governance/amendments/GOV-AMD-017.md`. Commits 05bc398, e3c6b28 and 46bedff; base `main` c5c1f39; PR #497. |
+| `reviewer` | GOV-AMD-017 independent governance reviewer (a read-only AI subagent instance) |
+| `reviewer_role` | Independent, Structural and Constitutional reviewer |
+| `date` | 2026-09-26 |
+| `independence` | Neither author nor assigner of the amendment. Made no edits, commits or pushes. **Disclosure:** it is a separate instance of the same AI model, running in the same Claude session as the authoring agent. The Founder decides whether this satisfies RISK-001 §12.2 and RES-002 §20.3, or requires an additional human or other-session review before merge. |
+| `inspected` | RISK-001 §8–§14; RES-001 §3, §4, §10, §13–§16; RES-002 §6–§8, §11, §20–§21; ARCH-SPEC §2.2, §3.11; PM-SPEC §2.2, §6.6; GOV-AMD-001 §0 and Amendments 005, 013–017; GOV-AMD-014; manifest; registry; `AUTHORITY_BOUNDARIES`, `GLOSSARY`, `GITHUB_ACCEPTANCE_MODEL`, `RISK_SCALED_PROCESS`; `roles/researcher/*`; `research/`; the sprint template; both validators; the regression suite; the POS workflow. The reviewer re-ran the validators and the POS suite and made about 32 adversarial evaluator probes. |
+
+### Review history
+
+- **Round 1 (05bc398):** all three reviews returned APPROVED-WITH-REQUIRED-CORRECTIONS, with 15 required corrections. R5 was confirmed.
+- **Round 2 (e3c6b28):** corrections 1–14 were resolved. Structural Review was APPROVED. Two new corrections were raised:
+  - **N1:** `RISK_SCALED_PROCESS` R2 overreached; Part B is limited to R0–R1.
+  - **N2:** the CLI closure check depended on the working directory, and `sprint_id` needed to be path-safe.
+- **Round 3 (46bedff):** N1 and N2 (i)–(iii) were verified, with 699 POS tests passing. Correction 15 is this record.
+
+### Independent Review
+
+**Verdict: APPROVED.** The substance is correct:
+
+- **Domain:** the research domain is distinct from product direction, architecture and implementation.
+- **Qualification:** `QUALIFIED` has one canonical definition (A.4), and the catalog is pinned to it by validator rule R010.
+- **Authority:** ROLE-RESEARCH holds no CONSULT class and no standing merge authority.
+- **Sources:** the source-of-truth order follows RES-001 §13.4, and untrusted external content is data only.
+- **Evaluator:** it is default-deny, fails closed on malformed input, expires mechanically by date and by merged closure record, and requires the Founder's personal merge for activation.
+
+### Structural Review
+
+**Verdict: APPROVED.**
+
+- **RoleSpec:** all 17 RES-002 §6 sections are present. §7 metadata is valid (`trial`, no automatic promotion). The §8.2 table is present with no §8.3 DECIDE collision.
+- **Artifacts and contract:** the §11 artifact table names a single owner for each class and covers §11.4 untrusted inputs. The §20.1 interaction contract is named, and a changelog is present.
+- **Regression:** the §21.1 matrix has 15 scenarios with §21.2 fields in the test docstrings.
+- **Consistency:** the registry, authority matrix, glossary, role package, manifest and index entry agree.
+- **Non-blocking:** A.7 says "Read, write, own" rather than the exact §11.1 wording.
+
+### Constitutional Review (RISK-001 §11.4)
+
+**Verdict: APPROVED.** Each dimension was checked separately.
+
+| Dimension | Result |
+|---|---|
+| Human authority | **Pass.** No consultation obligation is imposed on the Founder or ROLE-PM. Permanent-role creation is the stated subject, and the Founder must merge personally. |
+| Fixed authority hierarchy | **Pass.** The Founder remains the ultimate authority. The precedence order follows RES-001 §13.4. |
+| Canonical truth model | **Pass.** GitHub and `research/` are the durable record, and A.4 is the single canonical home for qualification semantics. |
+| Product boundary | **Pass.** `QUALIFIED` is an evidence state. Strategy selection, backtests, optimization and implementation are NONE. |
+| Lower-tier conflicts | **Pass.** `GITHUB_ACCEPTANCE_MODEL` recognizes Part B. `RISK_SCALED_PROCESS` lists Part B for R0–R1 only. |
+| Non-regression | **Pass.** Amendment 013 is textually unchanged. Founder-only merge remains the default. No frozen document is modified. The amendment cannot be merged under any delegation. |
+
+**Risk class:** R5 is confirmed. Part B changes no RISK-001 §10.1 cell.
+
+**Activation:** requires successful POS Validation, frozen-governance integrity, research-library validation, and the Founder's personal merge of PR #497, verified on `main`.

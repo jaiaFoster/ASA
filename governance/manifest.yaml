@@ -74,7 +74,7 @@ documents:
     class: amendment
     status: active
     version: "0.5.0"
-    sha256: "04211890c9638dd09db7c3c02ea3b080c915490f4145f5fc0b9474fb0e83418e"
+    sha256: "ce64c1d34227c81ab615ed53832b63dab81c8810a536607801ef15d92f81bad6"
     original_path: "governance/AMD-001-v0.2-revised.md"
     notes: "Amendment 013 adds bounded Founder Sprint Delegation; Amendment 014 indexes the Founder-approved analytical execution boundary; Amendment 017 indexes ROLE-RESEARCH and Research Sprint Delegation."
 
@@ -92,6 +92,6 @@ documents:
     class: amendment
     status: active
     version: "1.0.0"
-    sha256: "27cc3c22335c82a092cf9e7e2535ba2926b532c2b57bd09a189adc4df9585ca2"
+    sha256: "5581d8a745bb1eab8ae400d84c5daed884a437b884a04017b8600755632638b9"
     original_path: "governance/amendments/GOV-AMD-017.md"
     notes: "R5 amendment creating ROLE-RESEARCH (RoleSpec v1.0.0) and bounded Research Sprint Delegation; effective only on Founder merge."

@@ -694,7 +694,7 @@ review record to the default branch.
 | Field | Value |
 |---|---|
 | `amendment_id` | 017 |
-| `status` | Proposed *(Accepted only when the canonical amendment's review records are complete and the Founder personally merges it to the default branch; GOV-AMD-001 §0.3.2–0.3.3)* |
+| `status` | Accepted *(effective only when the canonical amendment and its completed review record reach the default branch through the Founder's personal merge)* |
 | `proposer` | Founder |
 | `date` | 2026-09-26 |
 | `risk_class` | R5 — Constitutional (permanent-role creation). Part B relaxes the organizational Founder-only merge practice on the Amendment 013 pattern and changes no RISK-001 §10.1 cell. |
