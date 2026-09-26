@@ -1,0 +1,38 @@
+# ASA-RES-SPRINT-001 / RES-001D methodology source record.
+source_id: MCLEAN-PONTIFF-2016
+source_class: EXTERNAL_PRIMARY
+title: Does Academic Research Destroy Stock Return Predictability?
+authors:
+- R. David McLean
+- Jeffrey Pontiff
+publication: The Journal of Finance 71(1):5-32
+publication_date: '2016-02-01'
+source_type: peer_reviewed
+canonical_url: https://doi.org/10.1111/jofi.12365
+doi: 10.1111/jofi.12365
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: bibliographic_and_abstract
+recovered_at: '2026-09-26'
+sprint: ASA-RES-SPRINT-001
+use: RES-001D methodology source (not strategy evidence)
+research_context:
+  sample_period: n/a (methodology)
+  universe: n/a
+  market: n/a
+  methodology_context: method for evidence grading, multiple testing, replication, overfitting, or multi-criteria
+    comparison
+  original_or_replication: original
+  material_limitations: []
+preliminary_families: []
+claims:
+- claim_id: MCLEAN-PONTIFF-2016-C1
+  claim_class: REPORTED
+  reported_metric: post-publication decay
+  value: '97 predictors: returns 26% lower out-of-sample and 58% lower post-publication; larger decline
+    for higher in-sample returns'
+  context: abstract
+recoverability:
+  repository_copy: null
+  external_identifier: 10.1111/jofi.12365
+  notes: Bibliographic identity verified via Crossref; abstract via OpenAlex on 2026-09-26.

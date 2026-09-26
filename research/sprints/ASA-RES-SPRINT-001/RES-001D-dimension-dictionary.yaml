@@ -1,0 +1,242 @@
+# ASA-RES-SPRINT-001 / RES-001D candidate dimension dictionary.
+# Defines measurable candidate attributes and maps each to RES-001C dataset fields.
+# It defines NO weights, NO scores and NO ranking. See RES-001D-filtering-method.md.
+dictionary_id: ASA-RES-SPRINT-001-RES-001D-DIMENSIONS
+version: "1.0"
+created_at: "2026-09-26"
+dataset: research/sprints/ASA-RES-SPRINT-001/RES-001C-evidence-dataset.yaml
+
+# role:
+#   measured_fact              - a coded fact about external evidence or structure; ROLE-RESEARCH owns it
+#   proposed_decision_variable - a variable a downstream authority MAY construct from measured facts;
+#                                its direction, weight and use are downstream decisions
+# axis:
+#   research_quality | architectural_value | implementation_burden | risk
+#   (never merged by ROLE-RESEARCH; see method §6)
+# group: correlation group used to prevent double counting (method §5)
+
+dimensions:
+
+  - id: D01
+    name: empirical_evidence_strength
+    role: proposed_decision_variable
+    axis: research_quality
+    group: G1_evidence
+    definition: >
+      Overall strength of external empirical support for the family's claimed
+      return source, graded by the adapted evidence-grading procedure in
+      method §3 (start level by source tier, then downgrade domains).
+    measurement: ordinal (HIGH / MODERATE / LOW / VERY_LOW / UNGRADED)
+    inputs:
+      - evidence.source_quality_tier
+      - evidence.n_primary_peer_reviewed_sources
+      - evidence.contradictory_evidence_present
+      - evidence.failed_replication_present
+      - evidence.post_publication_direction
+      - evidence.verification_depth_counts
+    unknown_handling: UNGRADED when fewer than one source at bibliographic_and_abstract depth or better; never mapped to VERY_LOW automatically
+    notes: Not computed in this sprint; a downstream authority applies method §3.
+
+  - id: D02
+    name: independent_replication_strength
+    role: measured_fact
+    axis: research_quality
+    group: G1_evidence
+    definition: Count of sources in the dossier's 'Independent replications' section, excluding same-author extensions.
+    measurement: count (0, 1, 2, ...)
+    inputs: [evidence.n_independent_replications]
+    unknown_handling: 0 means none found in the sprint's search coverage, not proven absence; report together with RES-001A coverage record
+    notes: Highly correlated with D01; if both are used, D02 must be a component of D01 or D01 must exclude replication (method §5).
+
+  - id: D03
+    name: source_quality
+    role: measured_fact
+    axis: research_quality
+    group: G1_evidence
+    definition: Highest-quality evidence tier present for the family's return claim.
+    measurement: categorical (dataset vocabulary source_quality_tier)
+    inputs: [evidence.source_quality_tier]
+    unknown_handling: peer_reviewed_unassessed is its own category
+    notes: Input to D01.
+
+  - id: D04
+    name: contradiction_and_failed_replication
+    role: measured_fact
+    axis: research_quality
+    group: G1_evidence
+    definition: Presence of contradictory research and of failed replications.
+    measurement: binary pair
+    inputs: [evidence.contradictory_evidence_present, evidence.failed_replication_present]
+    unknown_handling: false means none found, not refuted
+    notes: Input to D01 (inconsistency domain).
+
+  - id: D05
+    name: post_publication_persistence
+    role: measured_fact
+    axis: research_quality
+    group: G1_evidence
+    definition: Direction of post-publication or out-of-sample evidence.
+    measurement: categorical (positive / mixed / negative / none_found)
+    inputs: [evidence.post_publication_direction]
+    unknown_handling: none_found stays a separate category; do not impute the MCLEAN-PONTIFF-2016 average decay as if observed
+    notes: MCLEAN-PONTIFF-2016 (58% post-publication decline for equity predictors) may inform a downstream prior but is equity, not option, evidence (indirectness).
+
+  - id: D06
+    name: rule_precision
+    role: measured_fact
+    axis: research_quality
+    group: G5_specification
+    definition: Whether a faithful external specification exists.
+    measurement: ordinal (explicit / partial / vague)
+    inputs: [specification.rule_precision]
+    unknown_handling: n/a (always coded)
+    notes: Evidence about specification, not about returns; must not raise D01.
+
+  - id: D07
+    name: evidence_of_opportunity_frequency
+    role: measured_fact
+    axis: research_quality
+    group: G5_specification
+    definition: Documented frequency at which the rule generates positions.
+    measurement: categorical (calendar_monthly, calendar_monthly_or_weekly, daily, quarterly_per_name, monthly_cross_section, signal_dependent, continuous, UNKNOWN ...)
+    inputs: [specification.opportunity_frequency]
+    unknown_handling: signal_dependent and UNKNOWN are not interchangeable
+    notes: Frequency is not return; a downstream utility objective may value it.
+
+  - id: D08
+    name: transaction_cost_sensitivity
+    role: measured_fact
+    axis: research_quality
+    group: G2_implementability
+    definition: Whether net-of-cost evidence exists and its direction.
+    measurement: categorical (positive / mixed / negative / none)
+    inputs: [evidence.net_of_cost_evidence]
+    unknown_handling: none = not recovered; must not be read as cost-insensitive
+    notes: Correlated with D10 (execution burden) through leg count and liquidity.
+
+  - id: D09
+    name: data_accessibility
+    role: measured_fact
+    axis: implementation_burden
+    group: G2_implementability
+    definition: Apparent availability of required data in ASA today (RES-001B §4).
+    measurement: categorical (dataset vocabulary ASA_data_accessibility)
+    inputs: [implementation.ASA_data_accessibility]
+    unknown_handling: apparent state only; owning roles have not confirmed
+    notes: MUST NOT enter any research-quality aggregate (independence rule).
+
+  - id: D10
+    name: execution_burden
+    role: measured_fact
+    axis: implementation_burden
+    group: G2_implementability
+    definition: Operational complexity implied by the documented rule (legs, hedging, rebalancing, intraday).
+    measurement: ordinal (low ... very_high)
+    inputs: [implementation.execution_burden]
+    unknown_handling: n/a
+    notes: Partly overlaps D08.
+
+  - id: D11
+    name: implementation_dependencies
+    role: measured_fact
+    axis: implementation_burden
+    group: G2_implementability
+    definition: Set of structure/analytic primitives the family requires that RES-001B marks as apparently missing in ASA.
+    measurement: set; count derivable
+    inputs: [implementation.structural_primitives, RES-001B §4.2]
+    unknown_handling: primitives marked UNKNOWN in RES-001B (e.g. A15) are listed separately, not counted as present or missing
+    notes: Same primitives underlie D12/D13; see double-counting rule G3.
+
+  - id: D12
+    name: structural_novelty
+    role: proposed_decision_variable
+    axis: architectural_value
+    group: G3_architecture
+    definition: Number of required primitives ASA apparently lacks (novelty relative to current capability).
+    measurement: count derived from D11
+    inputs: [D11]
+    unknown_handling: as D11
+    notes: Identical information to D11 with opposite sign convention; never use both.
+
+  - id: D13
+    name: reusable_capability_expansion
+    role: proposed_decision_variable
+    axis: architectural_value
+    group: G3_architecture
+    definition: For each missing primitive, the number of other families it would also serve (RES-001B §4.3 'would also unlock').
+    measurement: count
+    inputs: [RES-001B §4.3]
+    unknown_handling: n/a
+    notes: Descriptive of reuse; is NOT evidence that the family or primitive should be built.
+
+  - id: D14
+    name: generalization_value
+    role: proposed_decision_variable
+    axis: architectural_value
+    group: G3_architecture
+    definition: Breadth of underlyings/markets across which the external evidence holds (e.g. index-only, single-stock cross-section, multi-country).
+    measurement: ordinal (single_underlying / single_market / cross_section / multi_market)
+    inputs: [dossier 'Sample, universe and method context']
+    unknown_handling: UNKNOWN where context is UNKNOWN
+    notes: Straddles research_quality (external validity) and architectural value; downstream must assign it to one axis only.
+
+  - id: D15
+    name: regime_robustness_evidence
+    role: measured_fact
+    axis: research_quality
+    group: G1_evidence
+    definition: Whether sources report regime/subperiod robustness or dependence.
+    measurement: categorical (reported_robust / reported_dependent / UNKNOWN)
+    inputs: [dossier 'Regime dependence']
+    unknown_handling: UNKNOWN stays UNKNOWN
+    notes: Coded in dossiers as text; a downstream authority must categorize using the dossier wording (traceable).
+
+  - id: D16
+    name: tail_risk_characteristics
+    role: measured_fact
+    axis: risk
+    group: G4_risk
+    definition: Structural and reported tail exposure.
+    measurement: categorical (bounded / moderate / severe / protective / low / expression_dependent)
+    inputs: [risk.tail_risk_class, dossier 'Maximum / tail risk']
+    unknown_handling: n/a
+    notes: Risk is not a 'bad' direction by itself; its direction depends on the downstream objective.
+
+  - id: D17
+    name: unresolved_evidence_uncertainty
+    role: measured_fact
+    axis: research_quality
+    group: G1_evidence
+    definition: Lower-bound count of comparison fields that are UNKNOWN, plus verification-depth mix.
+    measurement: count + categorical mix
+    inputs: [n_unknown_comparison_fields, evidence.verification_depth_counts]
+    unknown_handling: this dimension IS the uncertainty measure; it must be reported beside, not folded into, D01
+    notes: Undercounts partially-UNKNOWN fields (dataset vocabulary note).
+
+  - id: D18
+    name: evidence_cluster
+    role: measured_fact
+    axis: research_quality
+    group: G1_evidence
+    definition: Shared economic premium / evidence base (method §5.2), used to prevent counting one premium's evidence several times.
+    measurement: categorical cluster label
+    inputs: [exposure_class, dossier mechanism]
+    clusters:
+      C_VRP_INDEX: [FAM-VRP-INDEX-PUTWRITE, FAM-VRP-COVERED-CALL, FAM-VRP-INDEX-SHORT-VOL, FAM-VRP-DEFINED-RISK, FAM-VRP-ULTRA-SHORT-DATED, FAM-LONGVOL-TAIL-HEDGE, FAM-LONGVOL-COLLAR, FAM-SKEW-PREMIUM-INDEX]
+      C_VOL_TERM: [FAM-TERM-STRUCTURE, FAM-VOLDERIV-VIX-CARRY]
+      C_XS_OPTION_FACTORS: [FAM-XS-OPTION-RETURNS, FAM-XS-OPTION-MOMENTUM, FAM-XS-LOTTERY-SKEW-OPTION]
+      C_EVENT: [FAM-EVENT-VOL]
+      C_OPTION_INFO: [FAM-OPTION-SIGNAL-EQUITY]
+      C_CORRELATION: [FAM-DISPERSION-CORRELATION]
+      C_ARBITRAGE: [FAM-ARBITRAGE-PARITY]
+      C_CROSS_ASSET: [FAM-CROSS-ASSET-VRP]
+      C_BUYER_SIDE: [FAM-DIRECTIONAL-OPTION-EXPRESSION]
+    unknown_handling: n/a
+    notes: C_VRP_INDEX contains both sides (sellers and buyers) of the same premium; evidence FOR sellers is evidence AGAINST buyers, so the same sources must not be counted as independent support for both.
+
+correlation_groups:
+  G1_evidence: "D01-D05, D15, D17, D18: use D01 as the aggregate OR its components, never both"
+  G2_implementability: "D08-D11: shared drivers (leg count, liquidity, hedging)"
+  G3_architecture: "D11-D14: D12 and D11 are the same information; D13 depends on D11"
+  G4_risk: "D16"
+  G5_specification: "D06, D07"

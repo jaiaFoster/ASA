@@ -1,0 +1,37 @@
+# ASA-RES-SPRINT-001 / RES-001D methodology source record.
+source_id: TRIANTAPHYLLOU-2000
+source_class: EXTERNAL_SECONDARY
+title: 'Multi-criteria Decision Making Methods: A Comparative Study'
+authors:
+- Evangelos Triantaphyllou
+publication: Applied Optimization vol. 44, Springer
+publication_date: '2000-01-01'
+source_type: peer_reviewed
+canonical_url: https://doi.org/10.1007/978-1-4757-3157-6
+doi: 10.1007/978-1-4757-3157-6
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: bibliographic_only
+recovered_at: '2026-09-26'
+sprint: ASA-RES-SPRINT-001
+use: RES-001D methodology source (not strategy evidence)
+research_context:
+  sample_period: n/a (methodology)
+  universe: n/a
+  market: n/a
+  methodology_context: method for evidence grading, multiple testing, replication, overfitting, or multi-criteria
+    comparison
+  original_or_replication: original
+  material_limitations: []
+preliminary_families: []
+claims:
+- claim_id: TRIANTAPHYLLOU-2000-C1
+  claim_class: UNKNOWN
+  reported_metric: rank-reversal findings
+  value: not verified at text level; cited only as the standard comparative reference for MCDA methods
+    including rank reversal
+  context: see research_context
+recoverability:
+  repository_copy: null
+  external_identifier: 10.1007/978-1-4757-3157-6
+  notes: Bibliographic identity verified via Crossref on 2026-09-26; text not reviewed.

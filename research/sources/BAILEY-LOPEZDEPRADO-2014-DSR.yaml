@@ -1,0 +1,37 @@
+# ASA-RES-SPRINT-001 / RES-001D methodology source record.
+source_id: BAILEY-LOPEZDEPRADO-2014-DSR
+source_class: EXTERNAL_PRIMARY
+title: 'The Deflated Sharpe Ratio: Correcting for Selection Bias, Backtest Overfitting, and Non-Normality'
+authors:
+- David H. Bailey
+- Marcos Lopez de Prado
+publication: The Journal of Portfolio Management 40(5):94-107
+publication_date: '2014-09-30'
+source_type: peer_reviewed
+canonical_url: https://doi.org/10.3905/jpm.2014.40.5.094
+doi: 10.3905/jpm.2014.40.5.094
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: bibliographic_and_abstract
+recovered_at: '2026-09-26'
+sprint: ASA-RES-SPRINT-001
+use: RES-001D methodology source (not strategy evidence)
+research_context:
+  sample_period: n/a (methodology)
+  universe: n/a
+  market: n/a
+  methodology_context: method for evidence grading, multiple testing, replication, overfitting, or multi-criteria
+    comparison
+  original_or_replication: original
+  material_limitations: []
+preliminary_families: []
+claims:
+- claim_id: BAILEY-LOPEZDEPRADO-2014-DSR-C1
+  claim_class: REPORTED
+  reported_metric: DSR purpose
+  value: corrects Sharpe ratios for selection bias under multiple testing and non-normal returns
+  context: abstract
+recoverability:
+  repository_copy: null
+  external_identifier: 10.3905/jpm.2014.40.5.094
+  notes: Bibliographic identity verified via Crossref; abstract via OpenAlex on 2026-09-26.

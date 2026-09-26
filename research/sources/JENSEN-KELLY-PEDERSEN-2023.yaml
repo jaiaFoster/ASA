@@ -1,0 +1,44 @@
+# ASA-RES-SPRINT-001 / RES-001D methodology source record.
+source_id: JENSEN-KELLY-PEDERSEN-2023
+source_class: EXTERNAL_PRIMARY
+title: Is There a Replication Crisis in Finance?
+authors:
+- Theis Ingerslev Jensen
+- Bryan Kelly
+- Lasse Heje Pedersen
+publication: The Journal of Finance 78(5):2465-2518
+publication_date: '2023-10-01'
+source_type: peer_reviewed
+canonical_url: https://doi.org/10.1111/jofi.13249
+doi: 10.1111/jofi.13249
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: bibliographic_and_abstract
+recovered_at: '2026-09-26'
+sprint: ASA-RES-SPRINT-001
+use: RES-001D methodology source (not strategy evidence)
+research_context:
+  sample_period: n/a (methodology)
+  universe: n/a
+  market: n/a
+  methodology_context: method for evidence grading, multiple testing, replication, overfitting, or multi-criteria
+    comparison
+  original_or_replication: original
+  material_limitations: []
+preliminary_families: []
+claims:
+- claim_id: JENSEN-KELLY-PEDERSEN-2023-C1
+  claim_class: REPORTED
+  reported_metric: replication
+  value: majority of factors replicate, cluster into 13 themes, work out of sample across 93 countries;
+    Bayesian model
+  context: abstract
+- claim_id: JENSEN-KELLY-PEDERSEN-2023-C2
+  claim_class: DERIVED
+  reported_metric: contradiction with HOU-XUE-ZHANG-2020
+  value: opposite headline conclusions on replicability; methodological choice drives the answer
+  context: derived from both abstracts
+recoverability:
+  repository_copy: null
+  external_identifier: 10.1111/jofi.13249
+  notes: Bibliographic identity verified via Crossref; abstract via OpenAlex on 2026-09-26.
