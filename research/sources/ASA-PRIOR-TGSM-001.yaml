@@ -1,0 +1,30 @@
+source_id: ASA-PRIOR-TGSM-001
+source_class: ASA_PRIOR_INTERNAL
+title: ASA TGSM research package
+authors:
+  - ASA
+publication: ASA repository
+publication_date: "2026-09"
+source_type: internal_research_bundle
+recoverable_paths:
+  - project/research/TGSM-RESEARCH-001/preregistration-v1.json
+  - project/research/TGSM-RESEARCH-001/evidence-qualification-v1.json
+  - project/research/TGSM-RESEARCH-001/research-outcome-v1.json
+  - project/reports/TGSM-RESEARCH-001-RES-02.md
+  - project/reports/TGSM-RESEARCH-001-RES-06.md
+  - project/reports/ASA-RELIABILITY-RESEARCH-001.md
+  - docs/reference-strategies/S001-founder-research-definition.yaml
+claim_use:
+  allowed:
+    - ASA_internal_research_design
+    - ASA_data_requirement_mapping
+    - ASA_evidence_limitations
+    - ASA_replay_and_preregistration_provenance
+  prohibited:
+    - independent_external_replication
+    - external_empirical_support
+    - historical_performance_claim
+summary: >
+  ASA preregistered TGSM research but classified the evidence DATA_LIMITED
+  and executed no result-bearing historical experiment. The bundle is
+  preserved as internal provenance and capability context.
