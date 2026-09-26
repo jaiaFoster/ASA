@@ -1,0 +1,37 @@
+# ASA-RES-SPRINT-001 / RES-001A source record. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN.
+source_id: CHOY-2015
+source_class: EXTERNAL_PRIMARY
+title: Retail clientele and option returns
+authors:
+- Siu Kai Choy
+publication: Journal of Banking & Finance 51:26-42
+publication_date: '2015-02-01'
+source_type: peer_reviewed
+canonical_url: https://doi.org/10.1016/j.jbankfin.2014.11.004
+doi: 10.1016/j.jbankfin.2014.11.004
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: bibliographic_and_abstract
+recovered_at: '2026-09-26'
+sprint: ASA-RES-SPRINT-001
+research_context:
+  sample_period: UNKNOWN
+  universe: US single-stock options
+  market: US
+  methodology_context: Delta-hedged options and straddles sorted on retail trading proportion
+  original_or_replication: original
+  material_limitations: []
+preliminary_families:
+- FAM-XS-LOTTERY-SKEW-OPTION
+- FAM-XS-OPTION-RETURNS
+claims:
+- claim_id: CHOY-2015-C1
+  claim_class: REPORTED
+  reported_metric: low minus high retail-trading-proportion options
+  value: significantly positive abnormal returns; retail pays lottery premium on expected volatility
+  context: abstract
+recoverability:
+  repository_copy: null
+  external_identifier: 10.1016/j.jbankfin.2014.11.004
+  notes: Bibliographic identity verified via Crossref; abstract retrieved via OpenAlex, Semantic Scholar
+    or RePEc IDEAS on 2026-09-26. Claims beyond the abstract are not asserted.

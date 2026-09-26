@@ -1,0 +1,45 @@
+# ASA-RES-SPRINT-001 / RES-001A source record. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN.
+source_id: ZHAN-ET-AL-2022
+source_class: EXTERNAL_PRIMARY
+title: Option Return Predictability
+authors:
+- Xintong Zhan
+- Bing Han
+- Jie Cao
+- Qing Tong
+publication: The Review of Financial Studies 35(3):1394-1442
+publication_date: '2022-03-01'
+source_type: peer_reviewed
+canonical_url: https://doi.org/10.1093/rfs/hhab067
+doi: 10.1093/rfs/hhab067
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: bibliographic_and_abstract
+recovered_at: '2026-09-26'
+sprint: ASA-RES-SPRINT-001
+research_context:
+  sample_period: UNKNOWN
+  universe: US delta-hedged equity options
+  market: US
+  methodology_context: Firm characteristics predicting delta-hedged call writing returns
+  original_or_replication: original
+  material_limitations:
+  - Delta-hedging required
+preliminary_families:
+- FAM-XS-OPTION-RETURNS
+claims:
+- claim_id: ZHAN-ET-AL-2022-C1
+  claim_class: REPORTED
+  reported_metric: long-short option portfolios
+  value: annual Sharpe above two; remain profitable after transaction costs
+  context: abstract
+- claim_id: ZHAN-ET-AL-2022-C2
+  claim_class: REPORTED
+  reported_metric: factor explanation
+  value: profits explained by two option factors; equity factors have no explanatory power
+  context: abstract
+recoverability:
+  repository_copy: null
+  external_identifier: 10.1093/rfs/hhab067
+  notes: Bibliographic identity verified via Crossref; abstract retrieved via OpenAlex, Semantic Scholar
+    or RePEc IDEAS on 2026-09-26. Claims beyond the abstract are not asserted.

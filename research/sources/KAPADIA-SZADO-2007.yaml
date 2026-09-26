@@ -1,0 +1,47 @@
+# ASA-RES-SPRINT-001 / RES-001A source record. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN.
+source_id: KAPADIA-SZADO-2007
+source_class: EXTERNAL_REPLICATION
+title: The Risk and Return Characteristics of the Buy-Write Strategy on the Russell 2000 Index
+authors:
+- Nikunj Kapadia
+- Edward Szado
+publication: The Journal of Alternative Investments 9(4):39-56
+publication_date: '2007-03-31'
+source_type: peer_reviewed
+canonical_url: https://doi.org/10.3905/jai.2007.682735
+doi: 10.3905/jai.2007.682735
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: bibliographic_and_abstract
+recovered_at: '2026-09-26'
+sprint: ASA-RES-SPRINT-001
+research_context:
+  sample_period: UNKNOWN
+  universe: Russell 2000 buy-write
+  market: US
+  methodology_context: Out-of-index replication of buy-write evidence
+  original_or_replication: replication
+  material_limitations: []
+preliminary_families:
+- FAM-VRP-COVERED-CALL
+claims:
+- claim_id: KAPADIA-SZADO-2007-C1
+  claim_class: REPORTED
+  reported_metric: one-month buy-write
+  value: consistently outperformed Russell 2000 risk-adjusted, robust to non-normal measures
+  context: abstract
+- claim_id: KAPADIA-SZADO-2007-C2
+  claim_class: REPORTED
+  reported_metric: two-month calls
+  value: consistent advantage disappears
+  context: abstract; parameter sensitivity
+- claim_id: KAPADIA-SZADO-2007-C3
+  claim_class: REPORTED
+  reported_metric: costs
+  value: written calls on average end ITM; writing at the bid further increases losses
+  context: abstract
+recoverability:
+  repository_copy: null
+  external_identifier: 10.3905/jai.2007.682735
+  notes: Bibliographic identity verified via Crossref; abstract retrieved via OpenAlex, Semantic Scholar
+    or RePEc IDEAS on 2026-09-26. Claims beyond the abstract are not asserted.

@@ -1,0 +1,39 @@
+# ASA-RES-SPRINT-001 / RES-001A source record. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN.
+source_id: EGLOFF-LEIPPOLD-WU-2010
+source_class: EXTERNAL_PRIMARY
+title: The Term Structure of Variance Swap Rates and Optimal Variance Swap Investments
+authors:
+- Daniel Egloff
+- Markus Leippold
+- Liuren Wu
+publication: Journal of Financial and Quantitative Analysis 45(5):1279-1310
+publication_date: '2010-10-01'
+source_type: peer_reviewed
+canonical_url: https://doi.org/10.1017/s0022109010000463
+doi: 10.1017/s0022109010000463
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: bibliographic_and_abstract
+recovered_at: '2026-09-26'
+sprint: ASA-RES-SPRINT-001
+research_context:
+  sample_period: UNKNOWN
+  universe: S&P 500 variance swaps
+  market: US OTC
+  methodology_context: Two-factor variance term structure; optimal allocation
+  original_or_replication: original
+  material_limitations:
+  - OTC variance swaps; listed-option replication is INFERENCE
+preliminary_families:
+- FAM-TERM-STRUCTURE
+claims:
+- claim_id: EGLOFF-LEIPPOLD-WU-2010-C1
+  claim_class: REPORTED
+  reported_metric: optimal positions
+  value: short short-term variance swaps, long long-term variance swaps, short the stock index
+  context: abstract
+recoverability:
+  repository_copy: null
+  external_identifier: 10.1017/s0022109010000463
+  notes: Bibliographic identity verified via Crossref; abstract retrieved via OpenAlex, Semantic Scholar
+    or RePEc IDEAS on 2026-09-26. Claims beyond the abstract are not asserted.

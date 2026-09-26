@@ -1,0 +1,39 @@
+# ASA-RES-SPRINT-001 / RES-001A source record. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN.
+source_id: BALI-MURRAY-2013
+source_class: EXTERNAL_PRIMARY
+title: Does Risk-Neutral Skewness Predict the Cross-Section of Equity Option Portfolio Returns?
+authors:
+- Turan G. Bali
+- Scott Murray
+publication: Journal of Financial and Quantitative Analysis 48(4):1145-1171
+publication_date: '2013-08-01'
+source_type: peer_reviewed
+canonical_url: https://doi.org/10.1017/s0022109013000410
+doi: 10.1017/s0022109013000410
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: bibliographic_and_abstract
+recovered_at: '2026-09-26'
+sprint: ASA-RES-SPRINT-001
+research_context:
+  sample_period: UNKNOWN
+  universe: US single-stock options
+  market: US
+  methodology_context: Delta- and vega-neutral 'skewness assets' (two options plus stock)
+  original_or_replication: original
+  material_limitations: []
+preliminary_families:
+- FAM-XS-LOTTERY-SKEW-OPTION
+- FAM-SKEW-PREMIUM-INDEX
+claims:
+- claim_id: BALI-MURRAY-2013-C1
+  claim_class: REPORTED
+  reported_metric: risk-neutral skewness vs skewness-asset returns
+  value: strong negative relation; not explained by market, size, B/M, momentum, reversal, volatility
+    or option factors
+  context: abstract
+recoverability:
+  repository_copy: null
+  external_identifier: 10.1017/s0022109013000410
+  notes: Bibliographic identity verified via Crossref; abstract retrieved via OpenAlex, Semantic Scholar
+    or RePEc IDEAS on 2026-09-26. Claims beyond the abstract are not asserted.

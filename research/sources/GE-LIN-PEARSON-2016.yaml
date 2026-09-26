@@ -1,0 +1,39 @@
+# ASA-RES-SPRINT-001 / RES-001A source record. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN.
+source_id: GE-LIN-PEARSON-2016
+source_class: EXTERNAL_REPLICATION
+title: Why does the option to stock volume ratio predict stock returns?
+authors:
+- Li Ge
+- Tse-Chun Lin
+- Neil D. Pearson
+publication: Journal of Financial Economics 120(3):601-622
+publication_date: '2016-06-01'
+source_type: peer_reviewed
+canonical_url: https://doi.org/10.1016/j.jfineco.2015.08.019
+doi: 10.1016/j.jfineco.2015.08.019
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: bibliographic_and_abstract
+recovered_at: '2026-09-26'
+sprint: ASA-RES-SPRINT-001
+research_context:
+  sample_period: UNKNOWN
+  universe: US; signed option volume
+  market: US
+  methodology_context: Decomposition of O/S predictability by trade type
+  original_or_replication: followup
+  material_limitations: []
+preliminary_families:
+- FAM-OPTION-SIGNAL-EQUITY
+claims:
+- claim_id: GE-LIN-PEARSON-2016-C1
+  claim_class: REPORTED
+  reported_metric: channel
+  value: embedded leverage (opening call purchases) is the most important channel; no evidence synthetic-short
+    trades are more informative
+  context: abstract
+recoverability:
+  repository_copy: null
+  external_identifier: 10.1016/j.jfineco.2015.08.019
+  notes: Bibliographic identity verified via Crossref; abstract retrieved via OpenAlex, Semantic Scholar
+    or RePEc IDEAS on 2026-09-26. Claims beyond the abstract are not asserted.

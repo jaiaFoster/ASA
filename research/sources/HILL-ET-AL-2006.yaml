@@ -1,0 +1,45 @@
+# ASA-RES-SPRINT-001 / RES-001A source record. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN.
+source_id: HILL-ET-AL-2006
+source_class: EXTERNAL_PRIMARY
+title: Finding Alpha via Covered Index Writing
+authors:
+- Joanne M. Hill
+- Venkatesh Balasubramanian
+- Krag Gregory
+- Ingrid Tierens
+publication: Financial Analysts Journal 62(5):29-46
+publication_date: '2006-09-01'
+source_type: institutional_quant_research
+canonical_url: https://doi.org/10.2469/faj.v62.n5.4281
+doi: 10.2469/faj.v62.n5.4281
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: bibliographic_and_abstract
+recovered_at: '2026-09-26'
+sprint: ASA-RES-SPRINT-001
+research_context:
+  sample_period: ~15+ years to ~2005
+  universe: S&P 500 covered call (BXM) and structured variants
+  market: US
+  methodology_context: Strategy dissection; alternative strike rules
+  original_or_replication: followup
+  material_limitations:
+  - Sell-side authors (Goldman Sachs)
+preliminary_families:
+- FAM-VRP-COVERED-CALL
+claims:
+- claim_id: HILL-ET-AL-2006-C1
+  claim_class: REPORTED
+  reported_metric: BXM vs S&P 500
+  value: outperformed on average over 15+ years with lower standard deviation
+  context: abstract
+- claim_id: HILL-ET-AL-2006-C2
+  claim_class: REPORTED
+  reported_metric: variants
+  value: volatility-adjusted strike variants had more attractive risk-return trade-offs
+  context: abstract; in-sample
+recoverability:
+  repository_copy: null
+  external_identifier: 10.2469/faj.v62.n5.4281
+  notes: Bibliographic identity verified via Crossref; abstract retrieved via OpenAlex, Semantic Scholar
+    or RePEc IDEAS on 2026-09-26. Claims beyond the abstract are not asserted.

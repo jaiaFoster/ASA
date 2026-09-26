@@ -1,0 +1,40 @@
+# ASA-RES-SPRINT-001 / RES-001A source record. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN.
+source_id: SANTACLARA-SARETTO-2009
+source_class: EXTERNAL_PRIMARY
+title: 'Option strategies: Good deals and margin calls'
+authors:
+- Pedro Santa-Clara
+- Alessio Saretto
+publication: Journal of Financial Markets 12(3):391-417
+publication_date: '2009-08-01'
+source_type: peer_reviewed
+canonical_url: https://doi.org/10.1016/j.finmar.2009.01.002
+doi: 10.1016/j.finmar.2009.01.002
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: bibliographic_and_abstract
+recovered_at: '2026-09-26'
+sprint: ASA-RES-SPRINT-001
+research_context:
+  sample_period: UNKNOWN
+  universe: S&P 500 index options
+  market: US
+  methodology_context: Put-writing strategy returns under trading frictions and margin requirements
+  original_or_replication: original
+  material_limitations:
+  - Magnitudes not recovered from abstract
+preliminary_families:
+- FAM-VRP-INDEX-PUTWRITE
+- FAM-VRP-INDEX-SHORT-VOL
+claims:
+- claim_id: SANTACLARA-SARETTO-2009-C1
+  claim_class: REPORTED
+  reported_metric: effect of frictions on OTM put writing
+  value: economically important; margin requirements limit notional and force position closure at losses;
+    stronger for more aggressive writing
+  context: abstract
+recoverability:
+  repository_copy: null
+  external_identifier: 10.1016/j.finmar.2009.01.002
+  notes: Bibliographic identity verified via Crossref; abstract retrieved via OpenAlex, Semantic Scholar
+    or RePEc IDEAS on 2026-09-26. Claims beyond the abstract are not asserted.

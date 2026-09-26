@@ -1,0 +1,51 @@
+# ASA-RES-SPRINT-001 / RES-001A source record. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN.
+source_id: COVAL-SHUMWAY-2001
+source_class: EXTERNAL_PRIMARY
+title: Expected Option Returns
+authors:
+- Joshua D. Coval
+- Tyler Shumway
+publication: The Journal of Finance 56(3):983-1009
+publication_date: '2001-06-01'
+source_type: peer_reviewed
+canonical_url: https://doi.org/10.1111/0022-1082.00352
+doi: 10.1111/0022-1082.00352
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: bibliographic_and_abstract
+recovered_at: '2026-09-26'
+sprint: ASA-RES-SPRINT-001
+research_context:
+  sample_period: UNKNOWN (not in abstract)
+  universe: S&P 500 index options
+  market: US index options
+  methodology_context: Theory of expected option returns plus empirical tests on index option returns
+  original_or_replication: original
+  material_limitations:
+  - Gross of transaction costs as far as the abstract states
+  - Sample period not recovered
+preliminary_families:
+- FAM-VRP-INDEX-SHORT-VOL
+- FAM-DIRECTIONAL-OPTION-EXPRESSION
+claims:
+- claim_id: COVAL-SHUMWAY-2001-C1
+  claim_class: REPORTED
+  reported_metric: zero-beta ATM straddle average return
+  value: approximately -3% per week
+  context: S&P index options
+- claim_id: COVAL-SHUMWAY-2001-C2
+  claim_class: REPORTED
+  reported_metric: expected put returns
+  value: below the risk-free rate and increasing in strike
+  context: S&P index options
+- claim_id: COVAL-SHUMWAY-2001-C3
+  claim_class: INFERENCE
+  reported_metric: implication for sellers
+  value: systematic straddle/put selling earns the negative of these buyer returns before costs and margin;
+    not directly tested as a seller strategy in the abstract
+  context: see research_context
+recoverability:
+  repository_copy: null
+  external_identifier: 10.1111/0022-1082.00352
+  notes: Bibliographic identity verified via Crossref; abstract retrieved via OpenAlex, Semantic Scholar
+    or RePEc IDEAS on 2026-09-26. Claims beyond the abstract are not asserted.

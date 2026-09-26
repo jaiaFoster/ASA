@@ -1,0 +1,43 @@
+# ASA-RES-SPRINT-001 / RES-001A source record. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN.
+source_id: KOZHAN-NEUBERGER-SCHNEIDER-2013
+source_class: EXTERNAL_PRIMARY
+title: The Skew Risk Premium in the Equity Index Market
+authors:
+- Roman Kozhan
+- Anthony Neuberger
+- Paul Schneider
+publication: Review of Financial Studies 26(9):2174-2203
+publication_date: '2013-09-01'
+source_type: peer_reviewed
+canonical_url: https://doi.org/10.1093/rfs/hht039
+doi: 10.1093/rfs/hht039
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: bibliographic_and_abstract
+recovered_at: '2026-09-26'
+sprint: ASA-RES-SPRINT-001
+research_context:
+  sample_period: UNKNOWN
+  universe: S&P 500 options
+  market: US
+  methodology_context: Replicating contracts that swap implied for realized moments
+  original_or_replication: original
+  material_limitations: []
+preliminary_families:
+- FAM-SKEW-PREMIUM-INDEX
+claims:
+- claim_id: KOZHAN-NEUBERGER-SCHNEIDER-2013-C1
+  claim_class: REPORTED
+  reported_metric: skew premium share of IV slope
+  value: over 40% of the slope of the implied volatility curve
+  context: S&P 500
+- claim_id: KOZHAN-NEUBERGER-SCHNEIDER-2013-C2
+  claim_class: REPORTED
+  reported_metric: skew vs variance premium
+  value: strategies capturing one while hedging the other earn an insignificant premium
+  context: abstract; negative finding for standalone skew trading
+recoverability:
+  repository_copy: null
+  external_identifier: 10.1093/rfs/hht039
+  notes: Bibliographic identity verified via Crossref; abstract retrieved via OpenAlex, Semantic Scholar
+    or RePEc IDEAS on 2026-09-26. Claims beyond the abstract are not asserted.

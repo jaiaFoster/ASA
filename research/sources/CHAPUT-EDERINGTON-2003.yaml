@@ -1,0 +1,45 @@
+# ASA-RES-SPRINT-001 / RES-001A source record. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN.
+source_id: CHAPUT-EDERINGTON-2003
+source_class: EXTERNAL_PRIMARY
+title: Option Spread and Combination Trading
+authors:
+- J. Scott Chaput
+- Louis H. Ederington
+publication: The Journal of Derivatives 10(4):70-88
+publication_date: '2003-05-31'
+source_type: peer_reviewed
+canonical_url: https://doi.org/10.3905/jod.2003.319207
+doi: 10.3905/jod.2003.319207
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: bibliographic_and_abstract
+recovered_at: '2026-09-26'
+sprint: ASA-RES-SPRINT-001
+research_context:
+  sample_period: UNKNOWN
+  universe: Large Eurodollar futures option trades
+  market: US futures options
+  methodology_context: Usage study of combinations
+  original_or_replication: original
+  material_limitations:
+  - Usage evidence, not return evidence
+preliminary_families:
+- FAM-VRP-DEFINED-RISK
+claims:
+- claim_id: CHAPUT-EDERINGTON-2003-C1
+  claim_class: REPORTED
+  reported_metric: combination usage
+  value: more than half of large trades and ~3/4 of volume are combinations; spreads, straddles, strangles
+    common; butterflies, condors, iron flies mostly colorful names
+  context: abstract
+- claim_id: CHAPUT-EDERINGTON-2003-C2
+  claim_class: REPORTED
+  reported_metric: motives
+  value: focus exposure on specific risk factors (esp. volatility); possibly reduce effective bid-ask
+    spread
+  context: abstract
+recoverability:
+  repository_copy: null
+  external_identifier: 10.3905/jod.2003.319207
+  notes: Bibliographic identity verified via Crossref; abstract retrieved via OpenAlex, Semantic Scholar
+    or RePEc IDEAS on 2026-09-26. Claims beyond the abstract are not asserted.

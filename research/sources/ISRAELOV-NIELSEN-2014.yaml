@@ -1,0 +1,39 @@
+# ASA-RES-SPRINT-001 / RES-001A source record. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN.
+source_id: ISRAELOV-NIELSEN-2014
+source_class: EXTERNAL_PRIMARY
+title: 'Covered Call Strategies: One Fact and Eight Myths'
+authors:
+- Roni Israelov
+- Lars N. Nielsen
+publication: Financial Analysts Journal 70(6):23-31
+publication_date: '2014-11-01'
+source_type: institutional_quant_research
+canonical_url: https://doi.org/10.2469/faj.v70.n6.3
+doi: 10.2469/faj.v70.n6.3
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: bibliographic_and_abstract
+recovered_at: '2026-09-26'
+sprint: ASA-RES-SPRINT-001
+research_context:
+  sample_period: UNKNOWN
+  universe: Equity index covered calls
+  market: US
+  methodology_context: Risk/return decomposition and myth review (AQR authors)
+  original_or_replication: commentary
+  material_limitations:
+  - Practitioner-institutional authors (AQR); peer-reviewed practitioner journal
+preliminary_families:
+- FAM-VRP-COVERED-CALL
+claims:
+- claim_id: ISRAELOV-NIELSEN-2014-C1
+  claim_class: REPORTED
+  reported_metric: index covered call realized profile
+  value: returns not much lower than equity market with much lower volatility; eight commonly held beliefs
+    about why it works are disputed
+  context: abstract
+recoverability:
+  repository_copy: null
+  external_identifier: 10.2469/faj.v70.n6.3
+  notes: Bibliographic identity verified via Crossref; abstract retrieved via OpenAlex, Semantic Scholar
+    or RePEc IDEAS on 2026-09-26. Claims beyond the abstract are not asserted.

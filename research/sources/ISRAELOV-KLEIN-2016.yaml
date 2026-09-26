@@ -1,0 +1,38 @@
+# ASA-RES-SPRINT-001 / RES-001A source record. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN.
+source_id: ISRAELOV-KLEIN-2016
+source_class: EXTERNAL_PRIMARY
+title: Risk and Return of Equity Index Collar Strategies
+authors:
+- Roni Israelov
+- Matthew Klein
+publication: The Journal of Alternative Investments 19(1):41-54
+publication_date: '2016-06-30'
+source_type: institutional_quant_research
+canonical_url: https://doi.org/10.3905/jai.2016.19.1.041
+doi: 10.3905/jai.2016.19.1.041
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: bibliographic_and_abstract
+recovered_at: '2026-09-26'
+sprint: ASA-RES-SPRINT-001
+research_context:
+  sample_period: UNKNOWN
+  universe: Equity index collars
+  market: US
+  methodology_context: Return decomposition vs alternatives
+  original_or_replication: original
+  material_limitations: []
+preliminary_families:
+- FAM-LONGVOL-COLLAR
+claims:
+- claim_id: ISRAELOV-KLEIN-2016-C1
+  claim_class: REPORTED
+  reported_metric: collar expected return
+  value: lower than underlying, mainly less equity risk premium; net long volatility collars pay VRP;
+    historically performed poorly vs alternatives and expected to underperform
+  context: abstract
+recoverability:
+  repository_copy: null
+  external_identifier: 10.3905/jai.2016.19.1.041
+  notes: Bibliographic identity verified via Crossref; abstract retrieved via OpenAlex, Semantic Scholar
+    or RePEc IDEAS on 2026-09-26. Claims beyond the abstract are not asserted.

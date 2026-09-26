@@ -1,0 +1,40 @@
+# ASA-RES-SPRINT-001 / RES-001A source record. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN.
+source_id: BANDI-FUSARI-RENO-0DTE
+source_class: EXTERNAL_PRIMARY
+title: 0DTE Option Pricing
+authors:
+- Federico M. Bandi
+- Nicola Fusari
+- Roberto Reno
+publication: SSRN working paper 4503344 (reported as Journal of Finance forthcoming)
+publication_date: '2023-07-07'
+source_type: working_paper
+canonical_url: https://doi.org/10.2139/ssrn.4503344
+doi: 10.2139/ssrn.4503344
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: bibliographic_and_search_engine_summary
+recovered_at: '2026-09-26'
+sprint: ASA-RES-SPRINT-001
+research_context:
+  sample_period: UNKNOWN
+  universe: S&P 500 0DTE options
+  market: US
+  methodology_context: Closed-form local-in-time pricing; 0DTE risk premia
+  original_or_replication: original
+  material_limitations:
+  - Pricing paper; strategy profitability not established
+preliminary_families:
+- FAM-VRP-ULTRA-SHORT-DATED
+claims:
+- claim_id: BANDI-FUSARI-RENO-0DTE-C1
+  claim_class: REPORTED
+  reported_metric: pricing/hedging
+  value: significant improvements vs state-of-the-art models; suggestive nearly instantaneous predictability
+    from 0DTE risk premia
+  context: search-engine summary of abstract
+recoverability:
+  repository_copy: null
+  external_identifier: 10.2139/ssrn.4503344
+  notes: Identity verified via Crossref/SSRN listing; claims taken from a search-engine summary of the
+    abstract on 2026-09-26 and require full-text confirmation before DEEP_RESEARCH use.

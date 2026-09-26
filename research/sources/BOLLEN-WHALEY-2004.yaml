@@ -1,0 +1,44 @@
+# ASA-RES-SPRINT-001 / RES-001A source record. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN.
+source_id: BOLLEN-WHALEY-2004
+source_class: EXTERNAL_PRIMARY
+title: Does Net Buying Pressure Affect the Shape of Implied Volatility Functions?
+authors:
+- Nicolas P. B. Bollen
+- Robert E. Whaley
+publication: The Journal of Finance 59(2):711-753
+publication_date: '2004-04-01'
+source_type: peer_reviewed
+canonical_url: https://doi.org/10.1111/j.1540-6261.2004.00647.x
+doi: 10.1111/j.1540-6261.2004.00647.x
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: bibliographic_and_abstract
+recovered_at: '2026-09-26'
+sprint: ASA-RES-SPRINT-001
+research_context:
+  sample_period: UNKNOWN
+  universe: S&P 500 and individual stock options
+  market: US
+  methodology_context: Net buying pressure vs IV changes; simulated delta-neutral writing
+  original_or_replication: original
+  material_limitations: []
+preliminary_families:
+- FAM-SKEW-PREMIUM-INDEX
+- FAM-VRP-INDEX-SHORT-VOL
+claims:
+- claim_id: BOLLEN-WHALEY-2004-C1
+  claim_class: REPORTED
+  reported_metric: demand and IV
+  value: IV changes directly related to net public buying pressure; index IV driven by put demand, stock
+    IV by call demand
+  context: abstract
+- claim_id: BOLLEN-WHALEY-2004-C2
+  claim_class: REPORTED
+  reported_metric: simulated delta-neutral writing
+  value: abnormal returns matching IV deviations above realized volatility
+  context: abstract
+recoverability:
+  repository_copy: null
+  external_identifier: 10.1111/j.1540-6261.2004.00647.x
+  notes: Bibliographic identity verified via Crossref; abstract retrieved via OpenAlex, Semantic Scholar
+    or RePEc IDEAS on 2026-09-26. Claims beyond the abstract are not asserted.

@@ -1,0 +1,43 @@
+# ASA-RES-SPRINT-001 / RES-001A source record. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN.
+source_id: SZADO-SCHNEEWEIS-2010
+source_class: EXTERNAL_PRIMARY
+title: 'Loosening Your Collar: Alternative Implementations of QQQ Collars'
+authors:
+- Edward Szado
+- Thomas Schneeweis
+publication: The Journal of Trading 5(2):35-56
+publication_date: '2010-03-31'
+source_type: peer_reviewed
+canonical_url: https://doi.org/10.3905/jot.2010.5.2.035
+doi: 10.3905/jot.2010.5.2.035
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: bibliographic_and_abstract
+recovered_at: '2026-09-26'
+sprint: ASA-RES-SPRINT-001
+research_context:
+  sample_period: UNKNOWN (includes credit crisis)
+  universe: QQQ ETF and a small-cap mutual fund
+  market: US
+  methodology_context: Passive and conditioned active collars
+  original_or_replication: original
+  material_limitations:
+  - Conditioning rules chosen by authors; no independent replication found
+preliminary_families:
+- FAM-LONGVOL-COLLAR
+claims:
+- claim_id: SZADO-SCHNEEWEIS-2010-C1
+  claim_class: REPORTED
+  reported_metric: passive collar
+  value: most effective in declining markets, less in rising markets
+  context: abstract
+- claim_id: SZADO-SCHNEEWEIS-2010-C2
+  claim_class: REPORTED
+  reported_metric: active collar
+  value: conditioning on momentum, volatility and macro factors (in-sample rule set)
+  context: abstract; data-mining risk
+recoverability:
+  repository_copy: null
+  external_identifier: 10.3905/jot.2010.5.2.035
+  notes: Bibliographic identity verified via Crossref; abstract retrieved via OpenAlex, Semantic Scholar
+    or RePEc IDEAS on 2026-09-26. Claims beyond the abstract are not asserted.

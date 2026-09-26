@@ -1,0 +1,40 @@
+# ASA-RES-SPRINT-001 / RES-001A source record. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN.
+source_id: BRYZGALOVA-ET-AL-2023
+source_class: EXTERNAL_PRIMARY
+title: Retail Trading in Options and the Rise of the Big Three Wholesalers
+authors:
+- Svetlana Bryzgalova
+- Anna Pavlova
+- Taisiya Sikorskaya
+publication: The Journal of Finance 78(6):3465-3514
+publication_date: '2023-12-01'
+source_type: peer_reviewed
+canonical_url: https://doi.org/10.1111/jofi.13285
+doi: 10.1111/jofi.13285
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: bibliographic_and_abstract
+recovered_at: '2026-09-26'
+sprint: ASA-RES-SPRINT-001
+research_context:
+  sample_period: UNKNOWN
+  universe: US options, wholesaler-flagged retail trades
+  market: US
+  methodology_context: Transaction-level retail identification
+  original_or_replication: original
+  material_limitations: []
+preliminary_families:
+- FAM-DIRECTIONAL-OPTION-EXPRESSION
+- FAM-VRP-ULTRA-SHORT-DATED
+claims:
+- claim_id: BRYZGALOVA-ET-AL-2023-C1
+  claim_class: REPORTED
+  reported_metric: retail share and outcome
+  value: retail reached over 60% of volume; prefer cheaper weekly options with 12.6% average bid-ask spread;
+    lose money on average
+  context: abstract
+recoverability:
+  repository_copy: null
+  external_identifier: 10.1111/jofi.13285
+  notes: Bibliographic identity verified via Crossref; abstract retrieved via OpenAlex, Semantic Scholar
+    or RePEc IDEAS on 2026-09-26. Claims beyond the abstract are not asserted.

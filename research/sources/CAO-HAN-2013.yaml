@@ -1,0 +1,45 @@
+# ASA-RES-SPRINT-001 / RES-001A source record. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN.
+source_id: CAO-HAN-2013
+source_class: EXTERNAL_REPLICATION
+title: Cross section of option returns and idiosyncratic stock volatility
+authors:
+- Jie Cao
+- Bing Han
+publication: Journal of Financial Economics 108(1):231-249
+publication_date: '2013-04-01'
+source_type: peer_reviewed
+canonical_url: https://doi.org/10.1016/j.jfineco.2012.11.010
+doi: 10.1016/j.jfineco.2012.11.010
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: bibliographic_and_abstract
+recovered_at: '2026-09-26'
+sprint: ASA-RES-SPRINT-001
+research_context:
+  sample_period: UNKNOWN
+  universe: US single-stock options
+  market: US equity options
+  methodology_context: Delta-hedged option returns sorted on idiosyncratic volatility
+  original_or_replication: followup
+  material_limitations:
+  - Distinct signal from GOYAL-SARETTO-2009; counts as related subsequent literature, not a replication
+    of the same signal
+preliminary_families:
+- FAM-XS-OPTION-RETURNS
+claims:
+- claim_id: CAO-HAN-2013-C1
+  claim_class: REPORTED
+  reported_metric: delta-hedged option return vs idiosyncratic volatility
+  value: decreases monotonically; not explained by standard risk factors; distinct from volatility-mispricing
+    anomalies
+  context: abstract
+- claim_id: CAO-HAN-2013-C2
+  claim_class: REPORTED
+  reported_metric: limits-to-arbitrage control
+  value: reduces the relation by about 40%
+  context: see research_context
+recoverability:
+  repository_copy: null
+  external_identifier: 10.1016/j.jfineco.2012.11.010
+  notes: Bibliographic identity verified via Crossref; abstract retrieved via OpenAlex, Semantic Scholar
+    or RePEc IDEAS on 2026-09-26. Claims beyond the abstract are not asserted.

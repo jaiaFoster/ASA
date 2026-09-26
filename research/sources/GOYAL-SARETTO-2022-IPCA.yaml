@@ -1,0 +1,45 @@
+# ASA-RES-SPRINT-001 / RES-001A source record. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN.
+source_id: GOYAL-SARETTO-2022-IPCA
+source_class: EXTERNAL_PRIMARY
+title: Are Equity Option Returns Abnormal? IPCA Says No
+authors:
+- Amit Goyal
+- Alessio Saretto
+publication: Federal Reserve Bank of Dallas Working Paper 2214
+publication_date: '2022-08-01'
+source_type: working_paper
+canonical_url: https://doi.org/10.24149/wp2214
+doi: 10.24149/wp2214
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: bibliographic_and_abstract
+recovered_at: '2026-09-26'
+sprint: ASA-RES-SPRINT-001
+research_context:
+  sample_period: UNKNOWN
+  universe: US equity option strategies
+  market: US
+  methodology_context: Instrumented PCA factor model vs static factor models
+  original_or_replication: followup
+  material_limitations:
+  - Working paper; co-author of the original IV-RV anomaly
+preliminary_families:
+- FAM-XS-OPTION-RETURNS
+claims:
+- claim_id: GOYAL-SARETTO-2022-IPCA-C1
+  claim_class: REPORTED
+  reported_metric: alpha reduction
+  value: IPCA explains much of equity option strategy profitability; alpha reduction 50-75% relative to
+    competing static factor models
+  context: abstract
+- claim_id: GOYAL-SARETTO-2022-IPCA-C2
+  claim_class: INFERENCE
+  reported_metric: interpretation
+  value: contradicts the 'mispricing' reading of cross-sectional option anomalies but not necessarily
+    their existence as priced exposures
+  context: see research_context
+recoverability:
+  repository_copy: null
+  external_identifier: 10.24149/wp2214
+  notes: Bibliographic identity verified via Crossref; abstract retrieved via OpenAlex, Semantic Scholar
+    or RePEc IDEAS on 2026-09-26. Claims beyond the abstract are not asserted.

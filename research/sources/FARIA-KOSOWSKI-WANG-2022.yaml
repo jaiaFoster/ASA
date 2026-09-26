@@ -1,0 +1,39 @@
+# ASA-RES-SPRINT-001 / RES-001A source record. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN.
+source_id: FARIA-KOSOWSKI-WANG-2022
+source_class: EXTERNAL_PRIMARY
+title: 'The Correlation Risk Premium: International Evidence'
+authors:
+- Gonçalo Faria
+- Robert Kosowski
+- Tianyu Wang
+publication: Journal of Banking & Finance 136:106399
+publication_date: '2022-03-01'
+source_type: peer_reviewed
+canonical_url: https://doi.org/10.1016/j.jbankfin.2021.106399
+doi: 10.1016/j.jbankfin.2021.106399
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: bibliographic_only
+recovered_at: '2026-09-26'
+sprint: ASA-RES-SPRINT-001
+research_context:
+  sample_period: UNKNOWN
+  universe: International equity index and constituent options
+  market: International
+  methodology_context: UNKNOWN (abstract not retrieved)
+  original_or_replication: followup
+  material_limitations:
+  - Bibliographic identity only
+preliminary_families:
+- FAM-DISPERSION-CORRELATION
+claims:
+- claim_id: FARIA-KOSOWSKI-WANG-2022-C1
+  claim_class: UNKNOWN
+  reported_metric: international correlation risk premium
+  value: not verified in this sprint
+  context: see research_context
+recoverability:
+  repository_copy: null
+  external_identifier: 10.1016/j.jbankfin.2021.106399
+  notes: Bibliographic identity verified via Crossref on 2026-09-26; abstract not retrievable. No empirical
+    claim is asserted.

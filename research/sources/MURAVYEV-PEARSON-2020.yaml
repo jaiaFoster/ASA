@@ -1,0 +1,49 @@
+# ASA-RES-SPRINT-001 / RES-001A source record. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN.
+source_id: MURAVYEV-PEARSON-2020
+source_class: EXTERNAL_PRIMARY
+title: Options Trading Costs Are Lower than You Think
+authors:
+- Dmitriy Muravyev
+- Neil D. Pearson
+publication: The Review of Financial Studies 33(11):4973-5014
+publication_date: '2020-11-01'
+source_type: peer_reviewed
+canonical_url: https://doi.org/10.1093/rfs/hhaa010
+doi: 10.1093/rfs/hhaa010
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: bibliographic_and_abstract
+recovered_at: '2026-09-26'
+sprint: ASA-RES-SPRINT-001
+research_context:
+  sample_period: UNKNOWN
+  universe: Liquid US equity options
+  market: US
+  methodology_context: Execution-timing-adjusted effective spreads
+  original_or_replication: original
+  material_limitations: []
+preliminary_families:
+- FAM-XS-OPTION-RETURNS
+- FAM-VRP-INDEX-SHORT-VOL
+claims:
+- claim_id: MURAVYEV-PEARSON-2020-C1
+  claim_class: REPORTED
+  reported_metric: timing-adjusted effective spread
+  value: one-third smaller than conventional for the average trade; five times smaller for timed trades
+  context: abstract
+- claim_id: MURAVYEV-PEARSON-2020-C2
+  claim_class: REPORTED
+  reported_metric: price impact
+  value: conventionally overstated by more than a factor of two
+  context: abstract
+- claim_id: MURAVYEV-PEARSON-2020-C3
+  claim_class: INFERENCE
+  reported_metric: cost-sensitivity implication
+  value: cost-based rejections of option strategies depend heavily on the execution model; ASA-type quote-and-route
+    execution does not obviously achieve algorithmic timing
+  context: see research_context
+recoverability:
+  repository_copy: null
+  external_identifier: 10.1093/rfs/hhaa010
+  notes: Bibliographic identity verified via Crossref; abstract retrieved via OpenAlex, Semantic Scholar
+    or RePEc IDEAS on 2026-09-26. Claims beyond the abstract are not asserted.

@@ -1,0 +1,39 @@
+# ASA-RES-SPRINT-001 / RES-001A source record. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN.
+source_id: FRAZZINI-PEDERSEN-2022
+source_class: EXTERNAL_PRIMARY
+title: Embedded Leverage
+authors:
+- Andrea Frazzini
+- Lasse Heje Pedersen
+publication: The Review of Asset Pricing Studies 12(1):1-52
+publication_date: '2022-03-01'
+source_type: peer_reviewed
+canonical_url: https://doi.org/10.1093/rapstu/raab022
+doi: 10.1093/rapstu/raab022
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: bibliographic_and_abstract
+recovered_at: '2026-09-26'
+sprint: ASA-RES-SPRINT-001
+research_context:
+  sample_period: UNKNOWN
+  universe: Options and leveraged ETFs
+  market: US
+  methodology_context: Embedded leverage vs risk-adjusted returns
+  original_or_replication: original
+  material_limitations: []
+preliminary_families:
+- FAM-XS-LOTTERY-SKEW-OPTION
+- FAM-DIRECTIONAL-OPTION-EXPRESSION
+claims:
+- claim_id: FRAZZINI-PEDERSEN-2022-C1
+  claim_class: REPORTED
+  reported_metric: embedded leverage vs risk-adjusted return
+  value: higher embedded leverage associated with lower risk-adjusted returns; statistically and economically
+    significant
+  context: abstract
+recoverability:
+  repository_copy: null
+  external_identifier: 10.1093/rapstu/raab022
+  notes: Bibliographic identity verified via Crossref; abstract retrieved via OpenAlex, Semantic Scholar
+    or RePEc IDEAS on 2026-09-26. Claims beyond the abstract are not asserted.

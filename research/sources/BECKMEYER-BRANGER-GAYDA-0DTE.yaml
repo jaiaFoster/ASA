@@ -1,0 +1,41 @@
+# ASA-RES-SPRINT-001 / RES-001A source record. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN.
+source_id: BECKMEYER-BRANGER-GAYDA-0DTE
+source_class: EXTERNAL_PRIMARY
+title: Retail Traders Love 0DTE Options... But Should They?
+authors:
+- Heiner Beckmeyer
+- Nicole Branger
+- Leander Gayda
+publication: SSRN working paper 4404704
+publication_date: '2023-03-30'
+source_type: working_paper
+canonical_url: https://doi.org/10.2139/ssrn.4404704
+doi: 10.2139/ssrn.4404704
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: bibliographic_and_search_engine_summary
+recovered_at: '2026-09-26'
+sprint: ASA-RES-SPRINT-001
+research_context:
+  sample_period: 2021-02 to 2023-09
+  universe: S&P 500 options; retail trades
+  market: US
+  methodology_context: Retail trade identification; PnL decomposition
+  original_or_replication: original
+  material_limitations:
+  - Search-summary depth
+preliminary_families:
+- FAM-VRP-ULTRA-SHORT-DATED
+- FAM-DIRECTIONAL-OPTION-EXPRESSION
+claims:
+- claim_id: BECKMEYER-BRANGER-GAYDA-0DTE-C1
+  claim_class: REPORTED
+  reported_metric: retail 0DTE share and losses
+  value: more than 75% of retail S&P 500 option trades are 0DTE; average daily retail loss about $241,000;
+    >$50M of >$70M losses from transaction costs
+  context: search-engine summary; requires full-text check
+recoverability:
+  repository_copy: null
+  external_identifier: 10.2139/ssrn.4404704
+  notes: Identity verified via Crossref/SSRN listing; claims taken from a search-engine summary of the
+    abstract on 2026-09-26 and require full-text confirmation before DEEP_RESEARCH use.

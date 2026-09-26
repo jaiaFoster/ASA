@@ -1,0 +1,39 @@
+# ASA-RES-SPRINT-001 / RES-001A source record. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN.
+source_id: ARETZ-LIN-POON-2023
+source_class: EXTERNAL_PRIMARY
+title: Moneyness, Underlying Asset Volatility, and the Cross-Section of Option Returns
+authors:
+- Kevin Aretz
+- Ming-Tsung Lin
+- Ser-Huang Poon
+publication: Review of Finance 27(1):289-323
+publication_date: '2023-01-01'
+source_type: peer_reviewed
+canonical_url: https://doi.org/10.1093/rof/rfac003
+doi: 10.1093/rof/rfac003
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: bibliographic_and_abstract
+recovered_at: '2026-09-26'
+sprint: ASA-RES-SPRINT-001
+research_context:
+  sample_period: UNKNOWN
+  universe: US single-stock calls
+  market: US
+  methodology_context: SDF model predictions; double sorts and Fama-MacBeth
+  original_or_replication: followup
+  material_limitations: []
+preliminary_families:
+- FAM-XS-OPTION-RETURNS
+claims:
+- claim_id: ARETZ-LIN-POON-2023-C1
+  claim_class: REPORTED
+  reported_metric: volatility effect sign
+  value: depends on systematic vs idiosyncratic volatility and moneyness; broadly supported by double
+    sorts
+  context: abstract
+recoverability:
+  repository_copy: null
+  external_identifier: 10.1093/rof/rfac003
+  notes: Bibliographic identity verified via Crossref; abstract retrieved via OpenAlex, Semantic Scholar
+    or RePEc IDEAS on 2026-09-26. Claims beyond the abstract are not asserted.

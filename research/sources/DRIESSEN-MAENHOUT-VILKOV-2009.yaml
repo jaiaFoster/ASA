@@ -1,0 +1,43 @@
+# ASA-RES-SPRINT-001 / RES-001A source record. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN.
+source_id: DRIESSEN-MAENHOUT-VILKOV-2009
+source_class: EXTERNAL_PRIMARY
+title: 'The Price of Correlation Risk: Evidence from Equity Options'
+authors:
+- Joost Driessen
+- Pascal J. Maenhout
+- Grigory Vilkov
+publication: The Journal of Finance 64(3):1377-1406
+publication_date: '2009-06-01'
+source_type: peer_reviewed
+canonical_url: https://doi.org/10.1111/j.1540-6261.2009.01467.x
+doi: 10.1111/j.1540-6261.2009.01467.x
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: bibliographic_and_abstract
+recovered_at: '2026-09-26'
+sprint: ASA-RES-SPRINT-001
+research_context:
+  sample_period: UNKNOWN
+  universe: S&P 100 index options and all component options
+  market: US
+  methodology_context: Index vs individual variance risk; correlation trading strategy
+  original_or_replication: original
+  material_limitations: []
+preliminary_families:
+- FAM-DISPERSION-CORRELATION
+claims:
+- claim_id: DRIESSEN-MAENHOUT-VILKOV-2009-C1
+  claim_class: REPORTED
+  reported_metric: correlation trading strategy
+  value: high alpha, attractive for CRRA investors without frictions
+  context: abstract
+- claim_id: DRIESSEN-MAENHOUT-VILKOV-2009-C2
+  claim_class: REPORTED
+  reported_metric: with realistic frictions
+  value: correlation risk premium cannot be exploited (limits to arbitrage)
+  context: abstract; direct negative implementability finding
+recoverability:
+  repository_copy: null
+  external_identifier: 10.1111/j.1540-6261.2009.01467.x
+  notes: Bibliographic identity verified via Crossref; abstract retrieved via OpenAlex, Semantic Scholar
+    or RePEc IDEAS on 2026-09-26. Claims beyond the abstract are not asserted.

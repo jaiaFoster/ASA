@@ -1,0 +1,43 @@
+# ASA-RES-SPRINT-001 / RES-001A source record. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN.
+source_id: BAKSHI-KAPADIA-2003
+source_class: EXTERNAL_PRIMARY
+title: Delta-Hedged Gains and the Negative Market Volatility Risk Premium
+authors:
+- Gurdip Bakshi
+- Nikunj Kapadia
+publication: Review of Financial Studies 16(2):527-566
+publication_date: '2003-04-01'
+source_type: peer_reviewed
+canonical_url: https://doi.org/10.1093/rfs/hhg002
+doi: 10.1093/rfs/hhg002
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: bibliographic_and_abstract
+recovered_at: '2026-09-26'
+sprint: ASA-RES-SPRINT-001
+research_context:
+  sample_period: UNKNOWN (not in abstract)
+  universe: S&P 500 index options
+  market: US index options
+  methodology_context: Delta-hedged option portfolio returns under stochastic volatility
+  original_or_replication: original
+  material_limitations:
+  - Sample period not recovered from abstract
+preliminary_families:
+- FAM-VRP-INDEX-SHORT-VOL
+claims:
+- claim_id: BAKSHI-KAPADIA-2003-C1
+  claim_class: REPORTED
+  reported_metric: delta-hedged long option gains
+  value: underperform zero; less so away from the money; more at times of higher volatility
+  context: S&P 500 index options
+- claim_id: BAKSHI-KAPADIA-2003-C2
+  claim_class: REPORTED
+  reported_metric: volatility risk premium sign
+  value: negative, even after accounting for jump fears
+  context: see research_context
+recoverability:
+  repository_copy: null
+  external_identifier: 10.1093/rfs/hhg002
+  notes: Bibliographic identity verified via Crossref; abstract retrieved via OpenAlex, Semantic Scholar
+    or RePEc IDEAS on 2026-09-26. Claims beyond the abstract are not asserted.

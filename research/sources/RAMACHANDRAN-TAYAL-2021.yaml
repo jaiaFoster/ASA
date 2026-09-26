@@ -1,0 +1,42 @@
+# ASA-RES-SPRINT-001 / RES-001A source record. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN.
+source_id: RAMACHANDRAN-TAYAL-2021
+source_class: EXTERNAL_PRIMARY
+title: Mispricing, short-sale constraints, and the cross-section of option returns
+authors:
+- Lakshmi Shankar Ramachandran
+- Jitendra Tayal
+publication: Journal of Financial Economics 141(1):297-321
+publication_date: '2021-07-01'
+source_type: peer_reviewed
+canonical_url: https://doi.org/10.1016/j.jfineco.2021.03.006
+doi: 10.1016/j.jfineco.2021.03.006
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: bibliographic_and_abstract
+recovered_at: '2026-09-26'
+sprint: ASA-RES-SPRINT-001
+research_context:
+  sample_period: UNKNOWN
+  universe: US single-stock options
+  market: US
+  methodology_context: Delta-hedged put returns vs short-sale constraints conditional on mispricing
+  original_or_replication: original
+  material_limitations: []
+preliminary_families:
+- FAM-XS-OPTION-RETURNS
+claims:
+- claim_id: RAMACHANDRAN-TAYAL-2021-C1
+  claim_class: REPORTED
+  reported_metric: puts on overpriced short-constrained stocks
+  value: monotonic relation between short-sale constraints and delta-hedged put returns
+  context: abstract
+- claim_id: RAMACHANDRAN-TAYAL-2021-C2
+  claim_class: REPORTED
+  reported_metric: negative finding
+  value: no robust relation for puts on underpriced stocks or for calls
+  context: abstract
+recoverability:
+  repository_copy: null
+  external_identifier: 10.1016/j.jfineco.2021.03.006
+  notes: Bibliographic identity verified via Crossref; abstract retrieved via OpenAlex, Semantic Scholar
+    or RePEc IDEAS on 2026-09-26. Claims beyond the abstract are not asserted.

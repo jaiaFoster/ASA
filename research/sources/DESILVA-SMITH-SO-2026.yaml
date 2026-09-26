@@ -1,0 +1,41 @@
+# ASA-RES-SPRINT-001 / RES-001A source record. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN.
+source_id: DESILVA-SMITH-SO-2026
+source_class: EXTERNAL_PRIMARY
+title: 'Losing is optional: retail option trading and expected announcement volatility'
+authors:
+- Tim de Silva
+- Kevin Smith
+- Eric C. So
+publication: Review of Finance 30(2):489-
+publication_date: '2026-03-01'
+source_type: peer_reviewed
+canonical_url: https://doi.org/10.2139/ssrn.4050165
+doi: 10.2139/ssrn.4050165
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: bibliographic_and_search_engine_summary
+recovered_at: '2026-09-26'
+sprint: ASA-RES-SPRINT-001
+research_context:
+  sample_period: UNKNOWN
+  universe: US retail option trades around earnings
+  market: US
+  methodology_context: Retail flow identification; realized vs implied
+  original_or_replication: original
+  material_limitations:
+  - Journal DOI not recovered; claim verified at search-summary depth only
+preliminary_families:
+- FAM-EVENT-VOL
+- FAM-DIRECTIONAL-OPTION-EXPRESSION
+claims:
+- claim_id: DESILVA-SMITH-SO-2026-C1
+  claim_class: REPORTED
+  reported_metric: retail losses around announcements
+  value: 5-9% average; 10-14% for high expected-volatility announcements; overpay vs realized volatility,
+    large spreads, late closing
+  context: search-engine summary of abstract; requires full-text check
+recoverability:
+  repository_copy: null
+  external_identifier: 10.2139/ssrn.4050165
+  notes: Identity verified via Crossref/SSRN listing; claims taken from a search-engine summary of the
+    abstract on 2026-09-26 and require full-text confirmation before DEEP_RESEARCH use.

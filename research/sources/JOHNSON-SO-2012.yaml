@@ -1,0 +1,42 @@
+# ASA-RES-SPRINT-001 / RES-001A source record. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN.
+source_id: JOHNSON-SO-2012
+source_class: EXTERNAL_PRIMARY
+title: The option to stock volume ratio and future returns
+authors:
+- Travis L. Johnson
+- Eric C. So
+publication: Journal of Financial Economics 106(2):262-286
+publication_date: '2012-11-01'
+source_type: peer_reviewed
+canonical_url: https://doi.org/10.1016/j.jfineco.2012.05.008
+doi: 10.1016/j.jfineco.2012.05.008
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: bibliographic_and_abstract
+recovered_at: '2026-09-26'
+sprint: ASA-RES-SPRINT-001
+research_context:
+  sample_period: UNKNOWN
+  universe: US optionable stocks
+  market: US
+  methodology_context: Option-to-stock volume ratio (O/S) decile sorts
+  original_or_replication: original
+  material_limitations: []
+preliminary_families:
+- FAM-OPTION-SIGNAL-EQUITY
+claims:
+- claim_id: JOHNSON-SO-2012-C1
+  claim_class: REPORTED
+  reported_metric: lowest minus highest O/S decile
+  value: 0.34% per week (19.3% annualized)
+  context: abstract
+- claim_id: JOHNSON-SO-2012-C2
+  claim_class: REPORTED
+  reported_metric: conditioning
+  value: stronger when short-sale costs high or option leverage low
+  context: abstract
+recoverability:
+  repository_copy: null
+  external_identifier: 10.1016/j.jfineco.2012.05.008
+  notes: Bibliographic identity verified via Crossref; abstract retrieved via OpenAlex, Semantic Scholar
+    or RePEc IDEAS on 2026-09-26. Claims beyond the abstract are not asserted.

@@ -1,0 +1,39 @@
+# ASA-RES-SPRINT-001 / RES-001A source record. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN.
+source_id: UNGAR-MORAN-2009
+source_class: EXTERNAL_PRIMARY
+title: The Cash-secured PutWrite Strategy and Performance of Related Benchmark Indexes
+authors:
+- Jason Ungar
+- Matthew T. Moran
+publication: The Journal of Alternative Investments 11(4):43-56
+publication_date: '2009-03-31'
+source_type: institutional_quant_research
+canonical_url: https://doi.org/10.3905/jai.2009.11.4.043
+doi: 10.3905/jai.2009.11.4.043
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: bibliographic_and_abstract
+recovered_at: '2026-09-26'
+sprint: ASA-RES-SPRINT-001
+research_context:
+  sample_period: 1986-06 onward (index history); end date UNKNOWN
+  universe: S&P 500 one-month ATM cash-secured puts (Cboe PUT)
+  market: US
+  methodology_context: Benchmark index performance analysis
+  original_or_replication: original
+  material_limitations:
+  - Co-author affiliated with Cboe (index sponsor) - sponsor interest
+preliminary_families:
+- FAM-VRP-INDEX-PUTWRITE
+claims:
+- claim_id: UNGAR-MORAN-2009-C1
+  claim_class: REPORTED
+  reported_metric: PUT vs S&P 500
+  value: outperformed with significantly lower volatility over the period studied; IV usually above subsequent
+    realized volatility
+  context: abstract
+recoverability:
+  repository_copy: null
+  external_identifier: 10.3905/jai.2009.11.4.043
+  notes: Bibliographic identity verified via Crossref; abstract retrieved via OpenAlex, Semantic Scholar
+    or RePEc IDEAS on 2026-09-26. Claims beyond the abstract are not asserted.

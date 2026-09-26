@@ -1,0 +1,42 @@
+# ASA-RES-SPRINT-001 / RES-001A source record. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN.
+source_id: BALI-HOVAKIMIAN-2009
+source_class: EXTERNAL_PRIMARY
+title: Volatility Spreads and Expected Stock Returns
+authors:
+- Turan G. Bali
+- Armen Hovakimian
+publication: Management Science 55(11):1797-1812
+publication_date: '2009-11-01'
+source_type: peer_reviewed
+canonical_url: https://doi.org/10.1287/mnsc.1090.1063
+doi: 10.1287/mnsc.1090.1063
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: bibliographic_and_abstract
+recovered_at: '2026-09-26'
+sprint: ASA-RES-SPRINT-001
+research_context:
+  sample_period: UNKNOWN
+  universe: US stocks with options
+  market: US
+  methodology_context: Realized-implied and call-put IV spreads vs stock returns
+  original_or_replication: original
+  material_limitations: []
+preliminary_families:
+- FAM-OPTION-SIGNAL-EQUITY
+claims:
+- claim_id: BALI-HOVAKIMIAN-2009-C1
+  claim_class: REPORTED
+  reported_metric: realized-implied volatility spread
+  value: negative significant relation with expected stock returns
+  context: abstract
+- claim_id: BALI-HOVAKIMIAN-2009-C2
+  claim_class: REPORTED
+  reported_metric: call-put IV spread
+  value: positive significant relation
+  context: abstract
+recoverability:
+  repository_copy: null
+  external_identifier: 10.1287/mnsc.1090.1063
+  notes: Bibliographic identity verified via Crossref; abstract retrieved via OpenAlex, Semantic Scholar
+    or RePEc IDEAS on 2026-09-26. Claims beyond the abstract are not asserted.
