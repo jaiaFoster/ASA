@@ -34,7 +34,7 @@ Source: RISK-001 §8–§12, ROLE-BOOTSTRAP-01 Founder directions §7–8.
 - Verification commands (what to run to confirm it works)
 - Implementation summary in PR or result field
 - PR opened on a branch
-- Founder merge, or an eligible delegated merge under an active Amendment 013 implementation-sprint delegation or Amendment 017 Part B research-sprint delegation
+- Founder merge
 
 **Architect review:** Only if the change materially affects system architecture, interfaces, or canonical data. Routine tooling and POS implementation does not require Architect review.
 

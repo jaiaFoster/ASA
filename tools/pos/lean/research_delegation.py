@@ -19,6 +19,7 @@ The delegate verifies both, as its startup checklist requires.
 
 from __future__ import annotations
 
+import re
 import sys
 from dataclasses import dataclass, field
 from datetime import date
@@ -28,6 +29,9 @@ from typing import Any
 import yaml
 
 AMENDMENT = "GOV-AMD-001-017"
+REPO_ROOT = Path(__file__).resolve().parents[3]
+# Path-safe sprint IDs: the closure record path is derived from them.
+_SPRINT_ID = re.compile(r"(?!\.\.?$)[A-Za-z0-9][A-Za-z0-9._-]*")
 DELEGATE_ROLE = "ROLE-RESEARCH"
 RESEARCH_ROOT = "research/"
 ACTIVE = "active"
@@ -133,8 +137,8 @@ def validate_activation(activation: Any) -> list[str]:
     if activation.get("sprint_type") != "research":
         errors.append("A002 sprint_type must be 'research'")
     sprint_id = activation.get("sprint_id")
-    if not isinstance(sprint_id, str) or not sprint_id.strip() or "/" in sprint_id:
-        errors.append("A003 sprint_id must be a non-empty path-safe string")
+    if not isinstance(sprint_id, str) or _SPRINT_ID.fullmatch(sprint_id) is None:
+        errors.append("A003 sprint_id must match [A-Za-z0-9][A-Za-z0-9._-]* and not be . or ..")
     if activation.get("founder_authorized") is not True:
         errors.append("A004 founder_authorized must be true")
     delegate = activation.get("delegate")
@@ -266,8 +270,9 @@ def main(argv: list[str] | None = None) -> int:
     """`research_delegation.py <sprint.yaml> [--pr <pr.yaml> [--on YYYY-MM-DD]]`.
 
     With only a sprint file, validate its activation. With `--pr`, evaluate that
-    PR record against the activation, as of `--on` (default: today), against the
-    current checkout (a merged closure record ends the delegation).
+    PR record against the activation, as of `--on` (default: today), against this
+    repository checkout, resolved from this file's location, never the working
+    directory. A merged closure record ends the delegation.
     """
     args = list(argv if argv is not None else sys.argv[1:])
     usage = "usage: research_delegation.py <sprint.yaml> [--pr <pr.yaml> [--on YYYY-MM-DD]]"
@@ -286,7 +291,7 @@ def main(argv: list[str] | None = None) -> int:
         pull_request = yaml.safe_load(Path(args[2]).read_text(encoding="utf-8"))
         on = date.fromisoformat(args[4]) if len(args) == 5 else date.today()
         decision = evaluate_merge(
-            activation, pull_request, evaluated_on=on, repository_root=Path.cwd()
+            activation, pull_request, evaluated_on=on, repository_root=REPO_ROOT
         )
         for reason in decision.reasons:
             if reason not in errors:

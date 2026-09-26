@@ -136,6 +136,9 @@ def test_negative_no_activation_no_research_merge_authority() -> None:
         {"expires_at": "soon"},
         {"required_validation": ["required_ci_checks"]},
         {"sprint_id": "../x"},
+        {"sprint_id": ".."},
+        {"sprint_id": "."},
+        {"sprint_id": "a b"},
     ],
 )
 def test_negative_invalid_or_unauthorized_activation_denies(changes) -> None:  # type: ignore[no-untyped-def]
@@ -584,3 +587,28 @@ def test_decide_classes_are_bounded_by_the_library_gate(tmp_path: Path) -> None:
     catalog_path.write_text(catalog)
     codes = {error.split()[0] for error in validate_library(root)}
     assert {"R003", "R007", "R010"} <= codes
+
+
+def test_cli_checks_closure_against_the_repository_not_the_working_directory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """#15 CLI run from another directory | B.6 | deny once closure is merged | — |
+    closure check silently skipped | M013 / DENIED."""
+    import tools.pos.lean.research_delegation as delegation
+
+    repository = tmp_path / "repo"
+    closure = repository / "research/sprints/ASA-RES-SPRINT-TEST/CLOSURE.md"
+    closure.parent.mkdir(parents=True)
+    closure.write_text("closed")
+    sprint_file = tmp_path / "sprint.yaml"
+    sprint_file.write_text(yaml.safe_dump({"activation": ACTIVE_SPRINT}))
+    pr_file = tmp_path / "pr.yaml"
+    pr_file.write_text(yaml.safe_dump(ELIGIBLE_PR))
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    monkeypatch.chdir(elsewhere)
+    monkeypatch.setattr(delegation, "REPO_ROOT", repository)
+    args = [str(sprint_file), "--pr", str(pr_file), "--on", "2026-10-01"]
+    assert delegation.main(args) == 1
+    closure.unlink()
+    assert delegation.main(args) == 0

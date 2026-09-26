@@ -20,7 +20,7 @@ requirements are evidenced. The governing delegations are:**
 - **Amendment 017 Part B**, for eligible `research/` PRs in a research sprint.
 
 **Acceptance of research is never strategy selection.** No separate POS decision record is required for
-ordinary merged work.**
+ordinary merged work.
 
 ## What GitHub Already Stores
 
