@@ -6,9 +6,9 @@ Source: PM-SPEC §2.2, ARCH-SPEC §2.2, GOV-AMD-017 Part A (ROLE-RESEARCH), ROLE
 
 | Action | Founder | Manager | Architect | Researcher | Worker |
 |--------|---------|---------|-----------|------------|--------|
-| Set product direction | Yes | Recommend | Recommend | Consult | No |
+| Set product direction | Yes | Recommend | Recommend | Recommend | No |
 | Set roadmap priority | Yes | Yes, within direction | Recommend | No | No |
-| Define architecture | Override | Coordinate | **DECIDE** | Consult (research requirements) | Implement |
+| Define architecture | Override | Coordinate | **DECIDE** | Recommend (research requirements) | Implement |
 | Author technical acceptance criteria | Yes | No | **DECIDE** | No | No |
 | Create bounded worker tickets | Yes | **DECIDE** | Recommend | No | No |
 | Modify frozen governance | Founder process only | No | No | No | No |
@@ -23,8 +23,8 @@ Source: PM-SPEC §2.2, ARCH-SPEC §2.2, GOV-AMD-017 Part A (ROLE-RESEARCH), ROLE
 | Architecture risk classification | Yes (accept) | No | **DECIDE** (classify) | No | No |
 | Recommend merge/release readiness | — | Recommend | Recommend | No | No |
 | Research question framing (technical) | — | Route | **DECIDE** | Recommend | No |
-| Select strategies / what ASA builds | Yes | Recommend | Recommend | Recommend (candidates only) | No |
-| External strategy research method (within approved scope) | Yes | Route | Consult | **DECIDE** | No |
+| Select strategies / what ASA builds | Yes | Recommend | Recommend | Recommend (evidence-based input only) | No |
+| External strategy research method (within approved scope) | Yes | Route | No | **DECIDE** | No |
 | Evidence characterization and source provenance | Yes | No | No | **DECIDE** | No |
 | Research taxonomy | Yes | No | No | **DECIDE** | No |
 | Research qualification status (evidence state, not priority) | Yes | No | No | **DECIDE** | No |
@@ -64,9 +64,12 @@ covers only PRs that meet every one of these conditions:
 - self-review is recorded;
 - all required gates pass.
 
-The delegation never covers governance, role, sprint-definition, architecture, product-priority,
-strategy-selection, or production changes, and it grants no deployment authority. It expires
-when the sprint completes, stops, or is revoked. ROLE-RESEARCH has no standing merge authority.
+The activating sprint file must be merged personally by the Founder. Delegated files must
+be data or document files. The delegation never covers governance, role, sprint-definition,
+architecture, product-priority, strategy-selection, or production changes, and it grants no
+deployment authority. Researcher RECOMMEND rights create no consultation obligation for any
+deciding authority. It expires
+when the sprint completes, stops, passes `expires_at`, or is revoked. ROLE-RESEARCH has no standing merge authority.
 Founder-only merge authority remains the default, and Amendment 013 is unchanged for
 implementation sprints.
 

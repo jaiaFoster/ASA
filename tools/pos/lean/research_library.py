@@ -2,7 +2,8 @@
 
 Validates `research/` as durable research state (GOV-AMD-001 Amendment 017):
 
-- `catalog.yaml` parses, and every record has a unique `research_id` and a
+- `catalog.yaml` parses, its `status_semantics` references Amendment 017 A.4
+  instead of restating it, and every record has a unique `research_id` and a
   lifecycle status from the accepted set;
 - each dossier exists and carries the same status as its catalog record;
 - every dossier under `research/strategies/` is catalogued, so there is no
@@ -39,6 +40,7 @@ SOURCE_CLASSES = (
     "EXTERNAL_SECONDARY",
     "ASA_PRIOR_INTERNAL",
 )
+CANONICAL_SEMANTICS = "governance/amendments/GOV-AMD-017.md#a4-qualification-semantics-canonical"
 _STATUS_LINE = re.compile(r"^\s*-\s*\*\*Research status:\*\*\s*([A-Z_]+)\s*$", re.MULTILINE)
 
 
@@ -52,6 +54,10 @@ def validate_library(repo_root: Path = REPO_ROOT) -> list[str]:
     except yaml.YAMLError as error:
         return [f"R001 INVALID_CATALOG: {error}"]
     errors: list[str] = []
+    if not isinstance(catalog, dict) or catalog.get("status_semantics") != CANONICAL_SEMANTICS:
+        # Qualification semantics have one canonical home (Amendment 017 A.4);
+        # the delegable catalog may only reference it, never restate it.
+        errors.append(f"R010 STATUS_SEMANTICS_NOT_CANONICAL: must be {CANONICAL_SEMANTICS!r}")
     records = catalog.get("records") if isinstance(catalog, dict) else None
     if not isinstance(records, list):
         return ["R001 INVALID_CATALOG: 'records' must be a list"]

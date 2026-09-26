@@ -10,9 +10,9 @@ Operationally important terms only.
 
 **Researcher** — The ASA Strategy Researcher (ROLE-RESEARCH). Permanent AI role owning external strategy evidence in `research/`: discovery, evidence qualification, provenance, taxonomy, and ASA capability mapping. Does not select strategies, set product priority, design architecture, implement, deploy, or merge outside an active Research Sprint Delegation. RoleSpec: `governance/amendments/GOV-AMD-017.md` Part A.
 
-**Research qualification (`QUALIFIED`)** — An evidence state: credible external evidence is sufficient to preserve a strategy as a serious candidate for downstream ASA consideration. It does not mean ASA validated or should implement the strategy, that it outranks another, that it is production-approved, or that it will be profitable. Lifecycle: DISCOVERED, TRIAGE, DEEP_RESEARCH, QUALIFIED, INSUFFICIENT_EVIDENCE, REJECTED.
+**Research qualification (`QUALIFIED`)** — An evidence state, defined canonically in GOV-AMD-001 Amendment 017 A.4. Lifecycle: DISCOVERED, TRIAGE, DEEP_RESEARCH, QUALIFIED, INSUFFICIENT_EVIDENCE, REJECTED. It is not validation, an implementation decision, a ranking, production approval, or a profit claim.
 
-**Research Sprint Delegation** — Founder-activated, sprint-bound merge delegation (GOV-AMD-001 Amendment 017 Part B). It covers only eligible `research/` PRs that implement enumerated research tickets. It expires with the sprint or on revocation, and never covers governance or production changes.
+**Research Sprint Delegation** — Merge delegation for one research sprint (GOV-AMD-001 Amendment 017 Part B). It is activated only by the Founder's personal merge, and it covers only eligible `research/` data or document PRs that implement enumerated research tickets. It expires when the sprint completes, stops, or passes `expires_at`, or on revocation. It never covers governance or production changes.
 
 **Worker** — A temporary implementation agent. Operates within the bounds of a single assignment. Produces a result record and PR. Has no authority beyond the assignment scope.
 

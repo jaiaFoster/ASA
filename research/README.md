@@ -12,6 +12,16 @@ The library answers:
 
 A strategy appearing here is **not** approved for implementation, capital allocation, or production. Research qualification means only that the external evidence is substantial enough to preserve for downstream consideration.
 
+The canonical qualification semantics are GOV-AMD-001 Amendment 017 A.4 (`governance/amendments/GOV-AMD-017.md`). `QUALIFIED` does not mean:
+
+- that ASA validated the strategy;
+- that ASA should implement it;
+- that it outranks another strategy;
+- that it is approved for production;
+- that it will generate future profits.
+
+Where this README and A.4 differ, A.4 controls. The library is owned by ROLE-RESEARCH. This README is governance-controlled and never changes under delegation.
+
 ## Structure
 
 - `catalog.yaml` — canonical research inventory and lifecycle state.

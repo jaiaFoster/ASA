@@ -694,11 +694,11 @@ review record to the default branch.
 | Field | Value |
 |---|---|
 | `amendment_id` | 017 |
-| `status` | Accepted *(effective only when the canonical amendment and its review record reach the default branch through Founder merge)* |
+| `status` | Proposed *(Accepted only when the canonical amendment's review records are complete and the Founder personally merges it to the default branch; GOV-AMD-001 §0.3.2–0.3.3)* |
 | `proposer` | Founder |
 | `date` | 2026-09-26 |
-| `risk_class` | R5 — Constitutional (permanent-role creation), including an R4 merge-authority extension |
-| `applies_to` | RES-001, RES-002, RISK-001 §10.1 merge row, PM-SPEC, ARCH-SPEC, Amendment 013 |
+| `risk_class` | R5 — Constitutional (permanent-role creation). Part B relaxes the organizational Founder-only merge practice on the Amendment 013 pattern and changes no RISK-001 §10.1 cell. |
+| `applies_to` | RES-001, RES-002, PM-SPEC, ARCH-SPEC; Amendment 013 (sibling; unchanged) |
 | `binding_scope` | Model A — accepted-on-entry (§0.1); complete text and review records in `GOV-AMD-017.md` |
 
 This entry creates the permanent role ROLE-RESEARCH (ASA Strategy Researcher). It also adds a
@@ -710,15 +710,16 @@ implementation approval.
 A Founder-activated research sprint may let its named ROLE-RESEARCH delegate merge a PR only
 when every listed condition holds:
 
+- the Founder merged the sprint's activation personally;
 - the PR implements an enumerated research ticket;
 - the PR is R0 or R1;
-- every changed path is under `research/`;
+- every changed file is a data or document file under `research/`;
 - self-review is recorded;
 - all required gates pass.
 
 The delegation grants no standing merge authority. It never covers governance, role,
-sprint-definition, architecture, or production changes. It expires with the sprint or on
-revocation. Amendment 013 remains unchanged for implementation sprints. See
+sprint-definition, architecture, or production changes. It expires when the sprint completes, stops, or passes `expires_at`,
+or on revocation. Amendment 013 remains unchanged for implementation sprints. See
 `governance/amendments/GOV-AMD-017.md` for the normative RoleSpec, delegation rules,
 acceptance criteria, reversion, and the separate Independent, Structural, and Constitutional
 Review records.

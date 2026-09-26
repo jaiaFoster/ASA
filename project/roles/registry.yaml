@@ -5,6 +5,7 @@ roles:
     type: human_authority
     status: active
     specification: null
+    github_login: jaiaFoster  # personal merges of governance and sprint activations (GOV-AMD-017 Part B.1)
     authority:
       - final_organizational_authority
       - permanent_role_creation
@@ -53,19 +54,20 @@ roles:
         - source_provenance
         - research_taxonomy
         - research_qualification_status
-      recommend:
+      recommend:  # evidence-based input only; creates no consultation obligation
         - candidates_for_downstream_consideration
         - additional_research
         - missing_ASA_capabilities
         - technical_research_question_framing
-      consult:
-        - strategy_selection
-        - product_direction
-        - implementation_planning
+        - strategy_selection_input
+        - product_direction_input
+        - implementation_planning_input
         - architecture_interpretation_of_research_requirements
+      consult: []  # holds no CONSULT class (GOV-AMD-017 A.3)
       none:
         - product_priority
         - roadmap_priority
+        - strategy_selection
         - strategy_selection_policy
         - production_approval
         - architecture

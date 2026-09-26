@@ -6,9 +6,11 @@
 # before the Founder merge:
 #   python tools/pos/lean/research_delegation.py docs/sprints/<SPRINT-ID>.yaml
 #
-# The Founder merge of the completed file (founder_authorized: true, status: active)
-# IS the activation. The delegate verifies the file is on `main` before acting and
-# records that merge commit in the closure record.
+# The Founder's PERSONAL merge of the completed file (founder_authorized: true,
+# status: active) IS the activation. It is valid only if the PR's merged_by equals the
+# Founder login in project/roles/registry.yaml, and never under any delegation. The
+# delegate verifies this on `main` before acting and records the merge commit in the
+# closure record. A merged research/sprints/<ID>/CLOSURE.md ends the delegation.
 #
 # This template grants nothing. Its status is `proposed`.
 id: <RESEARCH-SPRINT-ID>
@@ -22,6 +24,7 @@ activation:
   governance_amendment: GOV-AMD-001-017
   founder_authorized: false            # the Founder sets this to true in the activating merge
   status: proposed                     # proposed | active | completed | stopped | revoked
+  expires_at: YYYY-MM-DD               # hard expiry date; the delegation ends after it
   delegate:
     role: ROLE-RESEARCH
     instance: <named instance>
@@ -57,9 +60,10 @@ activation:
     - scope_check
     - no_governance_violation
     - no_unresolved_blocking_issue
-  expires:
-    - sprint_completes
+  expires:                             # the first of these ends the delegation
+    - sprint_completes                 # every enumerated ticket merged, or CLOSURE.md merged
     - sprint_stops
+    - expires_at_passes
     - Founder_revokes_delegation
 
 closure:

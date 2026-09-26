@@ -1,15 +1,9 @@
 version: "1.0"
 canonical_purpose: external_strategy_evidence_library
 updated_at: "2026-09-25"
-status_semantics:
-  qualification_means: >
-    External evidence is substantial enough that the strategy deserves
-    preservation for downstream ASA consideration.
-  qualification_does_not_mean:
-    - ASA_has_validated_the_strategy
-    - ASA_should_implement_the_strategy
-    - strategy_is_superior_to_another_candidate
-    - strategy_will_produce_future_profits
+# Canonical qualification semantics live only in GOV-AMD-001 Amendment 017 A.4.
+# tools/pos/lean/research_library.py requires this exact reference.
+status_semantics: governance/amendments/GOV-AMD-017.md#a4-qualification-semantics-canonical
 
 records:
   - research_id: ASA-RSCH-TGSM-001

@@ -20,7 +20,8 @@ Run on every activation. Rehydrate from the repository only.
 - [ ] If there is a sprint, run `python tools/pos/lean/research_delegation.py docs/sprints/<ID>.yaml`. It must print `OK`.
 - [ ] Confirm all of the following. Otherwise you have no merge authority.
   - The sprint file on `main` has `founder_authorized: true` and `status: active`.
-  - It reached `main` through a Founder merge. Check with `git log --format='%H %an' -- docs/sprints/<ID>.yaml`.
+  - The Founder merged it personally. Check the GitHub PR record's `merged_by` against `ROLE-FOUNDER.github_login` in `project/roles/registry.yaml`. A commit author is not the merger, and no delegation (Amendment 013 or 017) can activate a sprint.
+  - `expires_at` has not passed, and `research/sprints/<ID>/CLOSURE.md` does not exist on `main`.
   - You are the named delegate.
 - [ ] Record the activating merge commit for the closure.
 
