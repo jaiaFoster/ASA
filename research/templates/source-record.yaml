@@ -1,0 +1,35 @@
+source_id: <stable-source-id>
+source_class: EXTERNAL_PRIMARY | EXTERNAL_REPLICATION | EXTERNAL_SECONDARY | ASA_PRIOR_INTERNAL
+title: <title>
+authors: []
+publication: <journal-institution-publisher>
+publication_date: YYYY-MM-DD
+source_type: peer_reviewed | working_paper | institutional_quant_research | practitioner_research | secondary_commentary | internal_research
+canonical_url: <url-or-null>
+doi: <doi-or-null>
+working_paper_id: <id-or-null>
+
+provenance_status: verified_directly | inherited_requires_reverification
+recovered_at: YYYY-MM-DD
+
+research_context:
+  sample_period: <reported-or-UNKNOWN>
+  universe: <reported-or-UNKNOWN>
+  market: <reported-or-UNKNOWN>
+  methodology_context: <short-description>
+  original_or_replication: original | replication | followup | commentary | internal
+  material_limitations: []
+
+claims: []
+# Suggested claim entry:
+# - claim_id: <stable-id>
+#   claim_class: REPORTED | DERIVED | INFERENCE | UNKNOWN
+#   reported_metric: <metric>
+#   value: <value-or-UNKNOWN>
+#   context: <sample/universe/method>
+#   limitations: []
+
+recoverability:
+  repository_copy: <path-or-null>
+  external_identifier: <doi-url-working-paper-id>
+  notes: <how another researcher can recover the source>
