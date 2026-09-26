@@ -1,6 +1,6 @@
 # Founder Instantiation Guide
 
-Practical steps to instantiate the Manager and Architect and start the first operating sequence.
+Practical steps to instantiate the Manager, Architect, and Researcher and start the first operating sequence.
 
 ---
 
@@ -32,6 +32,23 @@ You are now active. Please execute your startup checklist (roles/manager/STARTUP
 **Copy-ready first message to the Architect:**
 ```
 You are now active. Please execute your startup checklist (roles/architect/STARTUP_CHECKLIST.md). Inspect the current POS implementation (tools/pos/, project/schemas/). Then read your first assignment at roles/architect/FIRST_ASSIGNMENT.md and tell me: what are the key design questions, what constraints did you identify, and what do you need clarified before you start the design?
+```
+
+---
+
+## Instantiate the Researcher
+
+Available only after GOV-AMD-001 Amendment 017 (`governance/amendments/GOV-AMD-017.md`) is Founder-merged.
+
+1. Create a new AI agent session with repository access.
+2. Paste `roles/researcher/INSTANTIATION_PROMPT.md` as the system prompt.
+3. Give it bounded research work. Use either:
+   - a bounded research assignment; or
+   - an activated research sprint: fill in `docs/sprints/RESEARCH-SPRINT-TEMPLATE.yaml` as `docs/sprints/<ID>.yaml`, validate it with `python tools/pos/lean/research_delegation.py`, set `founder_authorized: true` and `status: active`, and merge it yourself. That merge is the activation. The delegate records the activating merge commit in the sprint's closure record.
+
+**Copy-ready first message to the Researcher:**
+```
+You are now active. Execute roles/researcher/STARTUP_CHECKLIST.md, then work the enumerated tickets of the active research sprint (or your assignment). Report status changes, negative findings, and any non-delegable question.
 ```
 
 ---

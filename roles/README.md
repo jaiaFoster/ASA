@@ -1,6 +1,6 @@
 # ASA Role Operating System
 
-This directory contains operational packages for the two permanent AI roles in ASA 2.
+This directory contains operational packages for the permanent AI roles in ASA 2.
 
 ## Roles
 
@@ -8,6 +8,7 @@ This directory contains operational packages for the two permanent AI roles in A
 |------|--------|-------------|--------------|
 | ASA Manager | Prepared, not instantiated | `governance/frozen/PM-SPEC-v0.2.md` | [manager/INSTRUCTIONS.md](manager/INSTRUCTIONS.md) |
 | ASA System Architect | Prepared, not instantiated | `governance/frozen/ARCH-SPEC-v0.2.md` | [architect/INSTRUCTIONS.md](architect/INSTRUCTIONS.md) |
+| ASA Strategy Researcher | Prepared, not instantiated (effective on Founder merge of GOV-AMD-017) | `governance/amendments/GOV-AMD-017.md` Part A | [researcher/INSTRUCTIONS.md](researcher/INSTRUCTIONS.md) |
 
 ## Quick Links
 
@@ -15,6 +16,8 @@ This directory contains operational packages for the two permanent AI roles in A
 |----------|------|
 | Manager instantiation prompt | [manager/INSTANTIATION_PROMPT.md](manager/INSTANTIATION_PROMPT.md) |
 | Architect instantiation prompt | [architect/INSTANTIATION_PROMPT.md](architect/INSTANTIATION_PROMPT.md) |
+| Researcher instantiation prompt | [researcher/INSTANTIATION_PROMPT.md](researcher/INSTANTIATION_PROMPT.md) |
+| Research sprint activation template | [../docs/sprints/RESEARCH-SPRINT-TEMPLATE.yaml](../docs/sprints/RESEARCH-SPRINT-TEMPLATE.yaml) |
 | Architect first assignment (ARCH-POS-001) | [architect/FIRST_ASSIGNMENT.md](architect/FIRST_ASSIGNMENT.md) |
 | Authority boundaries | [shared/AUTHORITY_BOUNDARIES.md](shared/AUTHORITY_BOUNDARIES.md) |
 | GitHub acceptance model | [shared/GITHUB_ACCEPTANCE_MODEL.md](shared/GITHUB_ACCEPTANCE_MODEL.md) |
@@ -31,11 +34,15 @@ Manager (coordinates work, issues tickets)
 Architect (designs systems, reviews architecture)
    ↓
 Workers (implement bounded assignments)
+
+Researcher (external strategy evidence in research/; peer role, recommends only)
 ```
 
 - Founder merging a PR is acceptance. A merge by a worker is acceptance only
   within an active Founder Sprint Delegation under Accepted Amendment 013.
 - Neither Manager nor Architect may merge, deploy, or accept on behalf of the Founder.
+- The Researcher may merge only eligible `research/` PRs within an active Research Sprint
+  Delegation (GOV-AMD-001 Amendment 017 Part B); research qualification is never strategy selection.
 - The current POS is provisional scaffolding. The Architect's first task is to design Lean POS v1.
 
 ## Governance Notes

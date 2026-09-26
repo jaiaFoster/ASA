@@ -2,11 +2,17 @@
 
 Operationally important terms only.
 
-**Founder** — The human owner of ASA 2. Ultimate authority for merging PRs, and sole authority for deploying, creating permanent roles, and constitutional amendments. Merge authority may be delegated only through Accepted GOV-AMD-001 Amendment 013.
+**Founder** — The human owner of ASA 2. Ultimate authority for merging PRs, and sole authority for deploying, creating permanent roles, and constitutional amendments. Merge authority may be delegated only through Accepted GOV-AMD-001 Amendment 013 (implementation sprints) or Amendment 017 Part B (research sprints).
 
 **Manager** — The ASA Manager (ROLE-PM). Permanent AI role responsible for delivery coordination: breaking objectives into tickets, assigning workers, summarizing results, surfacing blockers, and keeping project state current. Does not merge, deploy, or accept work.
 
 **Architect** — The ASA System Architect (ROLE-ARCH). Permanent AI role responsible for system design quality: boundaries, interfaces, data models, technical criteria, migration plans. Does not manage the roadmap, merge, or accept work.
+
+**Researcher** — The ASA Strategy Researcher (ROLE-RESEARCH). Permanent AI role owning external strategy evidence in `research/`: discovery, evidence qualification, provenance, taxonomy, and ASA capability mapping. Does not select strategies, set product priority, design architecture, implement, deploy, or merge outside an active Research Sprint Delegation. RoleSpec: `governance/amendments/GOV-AMD-017.md` Part A.
+
+**Research qualification (`QUALIFIED`)** — An evidence state, defined canonically in GOV-AMD-001 Amendment 017 A.4. Lifecycle: DISCOVERED, TRIAGE, DEEP_RESEARCH, QUALIFIED, INSUFFICIENT_EVIDENCE, REJECTED. It is not validation, an implementation decision, a ranking, production approval, or a profit claim.
+
+**Research Sprint Delegation** — Merge delegation for one research sprint (GOV-AMD-001 Amendment 017 Part B). It is activated only by the Founder's personal merge, and it covers only eligible `research/` data or document PRs that implement enumerated research tickets. It expires when the sprint completes, stops, or passes `expires_at`, or on revocation. It never covers governance or production changes.
 
 **Worker** — A temporary implementation agent. Operates within the bounds of a single assignment. Produces a result record and PR. Has no authority beyond the assignment scope.
 
@@ -18,7 +24,7 @@ Operationally important terms only.
 
 **Acceptance** — A work item is accepted when the Founder merges the associated PR. No separate acceptance record is required for ordinary work.
 
-**Merge** — An action that integrates a branch into `main` and constitutes acceptance of the work. The Founder may merge; a worker may merge only an eligible sprint PR while an Accepted Founder Sprint Delegation is active.
+**Merge** — An action that integrates a branch into `main` and constitutes acceptance of the work. The Founder may merge; a worker may merge only an eligible sprint PR while an Accepted Founder Sprint Delegation is active, and a ROLE-RESEARCH delegate only an eligible `research/` PR while a Research Sprint Delegation is active.
 
 **Risk class** — R0 through R5 (R0 < R1 < R2 < R3 < R4 < R5). Governs how much process a unit of work must pass through. Defined in `governance/frozen/RISK-001`. Not a scheduling priority.
 

@@ -7,15 +7,20 @@ Source: ROLE-BOOTSTRAP-01 Founder directions §1–5.
 | GitHub Event | POS Meaning |
 |--------------|-------------|
 | Founder merges PR | Work accepted |
-| Authorized sprint delegate merges an eligible PR | Work accepted under the Founder's recorded, bounded delegation |
+| Authorized sprint delegate merges an eligible PR | Work accepted under the Founder's recorded, bounded delegation (Amendment 013 implementation sprint, or Amendment 017 Part B research sprint) |
 | Founder requests changes | Work active (changes required) |
 | Founder closes PR without merge | Work rejected or cancelled |
 | PR open, no action | Pending Founder review |
 
 **A Founder merge is acceptance. A delegated sprint merge is acceptance only
-when Accepted GOV-AMD-001 Amendment 013 is active and all of its scope and gate
-requirements are evidenced. No separate POS decision record is required for
-ordinary merged work.**
+when its governing delegation is active and all of that delegation's scope and gate
+requirements are evidenced. The governing delegations are:**
+
+- **Accepted GOV-AMD-001 Amendment 013**, for implementation sprints.
+- **Amendment 017 Part B**, for eligible `research/` PRs in a research sprint.
+
+**Acceptance of research is never strategy selection.** No separate POS decision record is required for
+ordinary merged work.
 
 ## What GitHub Already Stores
 

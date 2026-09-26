@@ -21,7 +21,7 @@ Source: RISK-001 §8–§12, ROLE-BOOTSTRAP-01 Founder directions §7–8.
 - Concise work item (can be a single field in a PR description)
 - Implementation
 - PR opened on a branch
-- Founder merge
+- Founder merge, or an eligible delegated merge under an active Amendment 013 implementation-sprint delegation or Amendment 017 Part B research-sprint delegation
 
 **Optional:**
 - Tests (proportional to change — trivial fixes may not need new tests)

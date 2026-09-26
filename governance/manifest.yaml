@@ -73,10 +73,10 @@ documents:
     filename: governance/amendments/GOV-AMD-001.md
     class: amendment
     status: active
-    version: "0.4.0"
-    sha256: "6350c1ec86496688a708539181e84fb288c1b1193cbcfe6f3e3c1d268474a1f9"
+    version: "0.5.0"
+    sha256: "ce64c1d34227c81ab615ed53832b63dab81c8810a536607801ef15d92f81bad6"
     original_path: "governance/AMD-001-v0.2-revised.md"
-    notes: "Amendment 013 adds bounded Founder Sprint Delegation; Amendment 014 indexes the Founder-approved analytical execution boundary."
+    notes: "Amendment 013 adds bounded Founder Sprint Delegation; Amendment 014 indexes the Founder-approved analytical execution boundary; Amendment 017 indexes ROLE-RESEARCH and Research Sprint Delegation."
 
   - id: GOV-AMD-014
     filename: governance/amendments/GOV-AMD-014.md
@@ -86,3 +86,12 @@ documents:
     sha256: "c4bbf76c1f0c1157aa1f3e42fa71fdc26aebe979650f2f9166a1b91c7285b4ef"
     original_path: "governance/amendments/GOV-AMD-014.md"
     notes: "R5 amendment clarifying ASA Core may generate inert Execution Plans and deterministic simulation but cannot mutate live brokerage state."
+
+  - id: GOV-AMD-017
+    filename: governance/amendments/GOV-AMD-017.md
+    class: amendment
+    status: active
+    version: "1.0.0"
+    sha256: "5581d8a745bb1eab8ae400d84c5daed884a437b884a04017b8600755632638b9"
+    original_path: "governance/amendments/GOV-AMD-017.md"
+    notes: "R5 amendment creating ROLE-RESEARCH (RoleSpec v1.0.0) and bounded Research Sprint Delegation; effective only on Founder merge."

@@ -8,9 +8,19 @@ It is distinct from `project/research/`, which remains the home of ASA-specific 
 
 The library answers:
 
-> Which externally researched systematic strategies have enough credible evidence to deserve preservation as candidates for future ASA consideration, and exactly what does the evidence say about them?
+> Which externally researched systematic strategies have credible external evidence sufficient to preserve them as serious candidates for downstream ASA consideration (Amendment 017 A.4), and exactly what does the evidence say about them?
 
-A strategy appearing here is **not** approved for implementation, capital allocation, or production. Research qualification means only that the external evidence is substantial enough to preserve for downstream consideration.
+A strategy appearing here is **not** approved for implementation, capital allocation, or production. Research qualification means only that credible external evidence is sufficient to preserve the strategy as a serious candidate for downstream consideration.
+
+The canonical qualification semantics are GOV-AMD-001 Amendment 017 A.4 (`governance/amendments/GOV-AMD-017.md`). `QUALIFIED` does not mean:
+
+- that ASA validated the strategy;
+- that ASA should implement it;
+- that it outranks another strategy;
+- that it is approved for production;
+- that it will generate future profits.
+
+Where this README and A.4 differ, A.4 controls. The library is owned by ROLE-RESEARCH. This README is governance-controlled and never changes under delegation.
 
 ## Structure
 
@@ -26,7 +36,7 @@ Allowed dossier states:
 - `DISCOVERED` — candidate identified; evidence quality not assessed.
 - `TRIAGE` — preliminary evidence justifies deeper research.
 - `DEEP_RESEARCH` — primary sources, replications, contradictions, methodology, practical constraints, and ASA capability mapping are being investigated.
-- `QUALIFIED` — external evidence is sufficiently substantial and reproducible to preserve the strategy as a serious candidate.
+- `QUALIFIED` — credible external evidence is sufficient to preserve the strategy as a serious candidate for downstream ASA consideration (A.4).
 - `INSUFFICIENT_EVIDENCE` — interesting, but evidence does not currently justify qualification.
 - `REJECTED` — material research findings make additional ASA research resources unwarranted at present.
 

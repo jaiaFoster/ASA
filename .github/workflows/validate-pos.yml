@@ -7,6 +7,9 @@ on:
       - 'project/**'
       - 'tools/pos/**'
       - 'tests/pos/**'
+      - 'roles/**'
+      - 'research/**'
+      - 'docs/sprints/**'
       - 'AGENTS.md'
       - 'CURRENT_STATE.md'
   workflow_dispatch:
@@ -54,6 +57,9 @@ jobs:
 
       - name: Check entrypoint invariants
         run: python tools/pos/lean/check_entrypoints.py
+
+      - name: Validate research library (GOV-AMD-001 Amendment 017)
+        run: python tools/pos/lean/research_library.py
 
 # This workflow performs mechanical checks only.
 # A passing workflow does NOT constitute approval, merge authorization,

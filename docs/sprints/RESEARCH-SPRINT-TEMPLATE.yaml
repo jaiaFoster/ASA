@@ -1,0 +1,75 @@
+# Research Sprint activation template (GOV-AMD-001 Amendment 017).
+#
+# Copy this file to docs/sprints/<SPRINT-ID>.yaml and fill in every field.
+# The activation takes effect only when the Founder merges the completed file
+# to the default branch. It is never merged under any delegation. Validate it
+# before the Founder merge:
+#   python tools/pos/lean/research_delegation.py docs/sprints/<SPRINT-ID>.yaml
+#
+# The Founder's PERSONAL merge of the completed file (founder_authorized: true,
+# status: active) IS the activation. It is valid only if the PR's merged_by equals the
+# Founder login in project/roles/registry.yaml, and never under any delegation. The
+# delegate verifies this on `main` before acting and records the merge commit in the
+# closure record. A merged research/sprints/<ID>/CLOSURE.md ends the delegation.
+#
+# This template grants nothing. Its status is `proposed`.
+id: <RESEARCH-SPRINT-ID>
+title: <short title>
+objective: >
+  <what evidence questions this sprint investigates>
+
+activation:
+  sprint_id: <RESEARCH-SPRINT-ID>
+  sprint_type: research
+  governance_amendment: GOV-AMD-001-017
+  founder_authorized: false            # the Founder sets this to true in the activating merge
+  status: proposed                     # proposed | active | completed | stopped | revoked
+  expires_at: YYYY-MM-DD               # hard expiry date; the delegation ends after it
+  delegate:
+    role: ROLE-RESEARCH
+    instance: <named instance>
+  approved_tickets:
+    - <TICKET-ID>
+  scope:
+    allowed_paths:                     # must all lie under research/, excluding research/README.md
+      - research/strategies/
+      - research/sources/
+      - research/catalog.yaml
+      - research/sprints/<RESEARCH-SPRINT-ID>/
+  out_of_scope:
+    - product_priority_or_strategy_selection
+    - ASA_backtests_parameter_optimization_or_fitting_to_ASA_data
+    - architecture_or_contract_changes
+    - production_code_tests_tools_or_migrations
+    - governance_role_or_sprint_definition_changes
+    - research_qualification_semantics
+    - deployment_capital_or_trading
+    - work_outside_enumerated_tickets
+  stop_conditions:
+    - a_non_delegable_decision_is_required
+    - scope_or_authority_expansion_is_required
+    - a_required_gate_is_unavailable_and_cannot_be_restored_in_scope
+    - Founder_revokes_delegation
+  acceptance_criteria:
+    - <per-ticket evidence criteria>
+  required_validation:
+    - required_ci_checks
+    - pos_validation
+    - research_library_validation
+    - frozen_governance_integrity
+    - scope_check
+    - no_governance_violation
+    - no_unresolved_blocking_issue
+  expires:                             # the first of these ends the delegation
+    - sprint_completes                 # every enumerated ticket merged, or CLOSURE.md merged
+    - sprint_stops
+    - expires_at_passes
+    - Founder_revokes_delegation
+
+closure:
+  record: research/sprints/<RESEARCH-SPRINT-ID>/CLOSURE.md
+  requires:
+    - activating_Founder_merge_commit
+    - every_delegated_merge_listed_with_PR_and_merge_commit
+    - exact_main_research_library_validation
+    - status_changes_and_negative_findings_summarized
