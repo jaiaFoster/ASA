@@ -1,0 +1,23 @@
+source_id: ASA-PRIOR-SKEW-MOMENTUM-001
+source_class: ASA_PRIOR_INTERNAL
+title: Skew Momentum canonical evidence and research policy v2
+authors:
+  - ASA
+publication: ASA repository
+publication_date: "2026"
+source_type: internal_strategy_specification
+recoverable_paths:
+  - docs/contracts/skew-momentum-evidence.md
+claim_use:
+  allowed:
+    - current_ASA_strategy_specification
+    - formula_and_threshold_provenance
+    - current_unknown_behavior
+    - ASA_capability_mapping
+  prohibited:
+    - independent_external_validation
+    - profitable_effect_claim
+summary: >
+  Defines ASA's current Skew Momentum evidence contracts and policy thresholds.
+  Deterministic vectors validate calculation behavior only and do not establish
+  strategy profitability or external empirical support.
