@@ -1,0 +1,35 @@
+source_id: OA-SPY-PCS-2021
+source_class: EXTERNAL_SECONDARY
+title: 8 SPY Put Credit Spread Backtest Results Analyzed
+authors:
+  - Kirk Du Plessis
+  - Steve Henry
+  - Ryan Hysmith
+publication: Option Alpha
+publication_date: "2021-11-17"
+updated_date_in_prior_ASA_record: "2023-01-11"
+source_type: established_practitioner_research
+canonical_url_from_prior_ASA_record: https://optionalpha.com/blog/spy-put-credit-spread-backtest
+provenance_status: inherited_from_prior_ASA_intake_requires_independent_reverification
+prior_ASA_record:
+  - project/reports/STRATEGY-LIBRARY-001-SL-02-SELECTION.md
+known_methodology_from_prior_ASA_record:
+  underlying: SPY
+  target_dte: 30
+  short_put_delta: -0.30
+  long_put_delta: -0.10
+  base_variant_exit: hold_to_expiration
+  portfolio_constraint: one_position_active_at_a_time
+not_yet_reverified_for_research:
+  - full_sample_period
+  - trade_count
+  - fill_assumptions
+  - transaction_costs
+  - complete_reported_metrics
+  - drawdowns
+  - independent_replication
+  - contradictory_evidence
+research_rule: >
+  Do not treat values inherited from the implementation intake packet as
+  research-grade empirical claims until the original source is recovered and
+  checked directly.
