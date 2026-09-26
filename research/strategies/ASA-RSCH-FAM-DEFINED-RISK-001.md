@@ -9,7 +9,7 @@
 - **Created:** 2026-09-26
 - **Updated:** 2026-09-26
 
-This is a family-level comparable record (RES-001C). Status describes evidence only. It is not a priority, selection, or implementation signal. Numeric values are stated only where a source reports them; everything else is UNKNOWN. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN. Source verification depth for this record: bibliographic_and_abstract: 1, bibliographic_and_search_engine_summary: 1, inherited: 1, primary_repository_readme_reviewed: 1.
+This is a family-level comparable record (RES-001C). Status describes evidence only. It is not a priority, selection, or implementation signal. Numeric values are stated only where a source reports them; everything else is UNKNOWN. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN. Source verification depth for this record: bibliographic_and_abstract: 2, bibliographic_and_search_engine_summary: 1, primary_page_reviewed: 1, primary_repository_readme_reviewed: 1.
 
 ## Thesis
 
@@ -19,7 +19,7 @@ Sell short-dated option premium through structures with long protective wings: p
 
 ### Proposed economic or behavioral mechanism
 
-INFERENCE: same volatility risk premium as FAM-VRP-INDEX-SHORT-VOL with the far tail purchased back. Whether the premium survives paying for the wings is an open empirical question; far-OTM puts are themselves the most expensive options (COVAL-SHUMWAY-2001, BAKSHI-KAPADIA-2003 moneyness result), so buying wings may give back a disproportionate share of the premium (INFERENCE).
+INFERENCE: same volatility risk premium as FAM-VRP-INDEX-SHORT-VOL with the far tail purchased back. Whether the premium survives paying for the wings is an open empirical question; expected put returns increase with strike, so the lowest-strike (wing) puts carry the most negative expected returns (COVAL-SHUMWAY-2001), suggesting wings may give back a disproportionate share of the premium (INFERENCE). Counter-evidence: delta-hedged underperformance is smaller for options away from the money (BAKSHI-KAPADIA-2003), so the net effect on a truncated structure is UNKNOWN.
 
 ## Evidence
 
@@ -44,7 +44,7 @@ Sample, universe and method context: Only sponsor-commissioned index studies (SP
 
 ### Contradictory research
 
-- None found in this sprint's search coverage (see `research/sprints/ASA-RES-SPRINT-001/RES-001A-landscape.md` §2).
+- **BAKSHI-KAPADIA-2003** — Delta-hedged underperformance is smaller away from the money: a nuance against assuming wings are disproportionately expensive (index-level, delta-hedged; indirect).
 
 ### Post-publication evidence
 
@@ -133,7 +133,7 @@ Explicit benchmark rules and sponsor study (CBOE-CNDR-BFLY-METHODOLOGY).
 
 ### Strongest contradictory evidence
 
-No direct contradiction found; the absence of independent evidence is itself the finding.
+No direct contradiction of the rule set found; the absence of independent evidence is itself the finding. Wing-cost direction is contested (COVAL-SHUMWAY-2001 vs BAKSHI-KAPADIA-2003).
 
 ### Unresolved questions
 
@@ -163,3 +163,4 @@ TRIAGE (not DISCOVERED): rules are explicit and the parent premium is well docum
 - `research/sources/OA-SPY-PCS-2021.yaml`
 - `research/sources/CHAPUT-EDERINGTON-2003.yaml`
 - `research/sources/VILKOV-0DTE.yaml`
+- `research/sources/BAKSHI-KAPADIA-2003.yaml`

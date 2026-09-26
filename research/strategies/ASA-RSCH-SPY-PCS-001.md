@@ -124,7 +124,7 @@ Before qualification, determine whether:
 
 - The volatility risk premium on index puts is well documented (see `ASA-RSCH-FAM-PUTWRITE-001` and `ASA-RSCH-FAM-SHORT-VOL-001`).
 - No independent peer-reviewed study of delta-targeted put credit spreads on SPY or SPX was found.
-- Whether buying the 0.10Δ wing preserves the premium per unit of risk is unresolved. Far-OTM puts are the most expensive options per COVAL-SHUMWAY-2001 and BAKSHI-KAPADIA-2003, so the long wing may carry a disproportionate share of the premium.
+- Whether buying the 0.10Δ wing preserves the premium per unit of risk is unresolved. COVAL-SHUMWAY-2001 reports expected put returns increasing in strike, so the long wing may carry a disproportionate share of the premium. BAKSHI-KAPADIA-2003, by contrast, finds delta-hedged underperformance smaller away from the money. The net effect is UNKNOWN.
 
 **Contradictory / adversarial evidence now recorded:**
 

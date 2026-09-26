@@ -210,9 +210,9 @@ records:
   dossier: research/strategies/ASA-RSCH-FAM-DEFINED-RISK-001.md
   evidence:
     source_quality_tier: institutional_sponsor_and_practitioner_only
-    n_primary_peer_reviewed_sources: 1
+    n_primary_peer_reviewed_sources: 2
     n_independent_replications: 0
-    contradictory_evidence_present: false
+    contradictory_evidence_present: true
     failed_replication_present: false
     post_publication_direction: none_found
     net_of_cost_evidence: none
@@ -225,15 +225,17 @@ records:
       independent_replication: []
       failed_replication:
       - VILKOV-0DTE
-      contradictory: []
+      contradictory:
+      - BAKSHI-KAPADIA-2003
       post_publication: []
     verification_depth_counts:
       bibliographic_and_search_engine_summary: 1
-      inherited: 1
-      bibliographic_and_abstract: 1
+      primary_page_reviewed: 1
+      bibliographic_and_abstract: 2
       primary_repository_readme_reviewed: 1
-    coding_note: The single peer-reviewed source (CHAPUT-EDERINGTON-2003) is usage evidence, not return
-      evidence; no peer-reviewed return evidence exists for this family.
+    coding_note: The two peer-reviewed sources are usage evidence (CHAPUT-EDERINGTON-2003) and indirect
+      index-level delta-hedged evidence cited as contrary nuance (BAKSHI-KAPADIA-2003); no peer-reviewed
+      return evidence exists for this family.
   specification:
     rule_precision: explicit
     opportunity_frequency: calendar_monthly
