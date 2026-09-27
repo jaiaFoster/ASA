@@ -18,9 +18,9 @@ from strategies.manifest import (
 GXZ_STRATEGY_ID = "event_vol_gxz_preea_straddle_to_expiry"
 GXZ_STRATEGY_VERSION = "1.0.0-research"
 
-# Parameters include the source rules and both closeout assumptions. They are
-# identity-bearing even though evaluation is intentionally performed by the
-# typed subject-first binding rather than duplicated as graph components.
+# Parameters include the source rules and both closeout assumptions. Financial
+# gates enter the manifest as explicit three-state values; the graph owns their
+# composition and the frozen entry-session verdict precedence.
 GXZ_MANIFEST = StrategyManifest(
     "1.1.0",
     GXZ_STRATEGY_ID,
@@ -44,21 +44,16 @@ GXZ_MANIFEST = StrategyManifest(
     ),
     (),
     (
-        NodeSpec(
-            "unit",
-            ComponentReference("asa.core", "constant", "1.0.0"),
-            (ParameterSpec("value", "Decimal", "1"),),
-        ),
-        NodeSpec(
-            "verdict",
-            ComponentReference("asa.stonk.shared", "verdict_classifier", "1.0.0"),
-            (
-                ParameterSpec("pass_threshold", "Decimal", "1"),
-                ParameterSpec("watch_threshold", "Decimal", "1"),
-            ),
-        ),
+        NodeSpec("ea_stock", ComponentReference("asa.tristate", "tri_and", "1.0.0")),
+        NodeSpec("expiry_pair", ComponentReference("asa.tristate", "tri_and", "1.0.0")),
+        NodeSpec("financial_gates", ComponentReference("asa.tristate", "tri_and", "1.0.0")),
+        NodeSpec("verdict", ComponentReference("asa.gxz", "verdict", "1.0.0")),
     ),
-    (EdgeSpec("unit", "value", "verdict", "score"),),
+    (
+        EdgeSpec("ea_stock", "result", "financial_gates", "left"),
+        EdgeSpec("expiry_pair", "result", "financial_gates", "right"),
+        EdgeSpec("financial_gates", "result", "verdict", "financial_gates"),
+    ),
     (OutputSpec("verdict", "verdict", "verdict", "verdict"),),
     (),
     required_market_capabilities=tuple(

@@ -34,7 +34,9 @@ SECURITY = Security(
 )
 
 
-def _contract(strike: str, option_type: OptionType, delta: str, volume: int) -> OptionContract:
+def _contract(
+    strike: str, option_type: OptionType, delta: str, volume: int | None
+) -> OptionContract:
     suffix = option_type.value
     return OptionContract(
         CanonicalInstrumentIdentity("occ", f"ACME-{EXPIRY}-{strike}-{suffix}"),
@@ -114,7 +116,26 @@ def test_frozen_truth_table_preserves_fail_no_action_and_unknown() -> None:
     assert _decision(earnings_confirmed=False).verdict == UNKNOWN
     assert _decision(entry_session_state=FAIL).verdict == NO_ACTION
     assert _decision(entry_session_state=UNKNOWN).verdict == UNKNOWN
+    assert _decision(earnings_confirmed=False, entry_session_state=FAIL).verdict == NO_ACTION
     assert _decision(spot=Decimal("4.99")).verdict == FAIL
+
+
+def test_unknown_candidate_evidence_prevents_incomplete_all_pair_pass() -> None:
+    chain = OptionChain(
+        "gxz-chain-unknown",
+        SECURITY,
+        NOW,
+        CHAIN.contracts
+        + (
+            _contract("101", OptionType.CALL, "0.50", None),
+            _contract("101", OptionType.PUT, "-0.50", 10),
+        ),
+        EVIDENCE,
+    )
+    decision = _decision(chain=chain)
+    assert decision.verdict == UNKNOWN
+    assert decision.reason == "G_GXZ_PAIR_INPUT_UNKNOWN"
+    assert decision.pairs == ()
 
 
 def test_no_expiration_after_event_in_literal_calendar_window_fails() -> None:

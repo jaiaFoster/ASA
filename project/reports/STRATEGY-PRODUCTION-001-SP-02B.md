@@ -15,7 +15,11 @@ The source gates and closeout assumptions are identity-bearing in the manifest.
 Selection is deterministic: first expiry after earnings in the literal 4–10
 calendar-day entry window, all qualifying same-strike call/put pairs,
 delta-neutral within-pair quantities, and `call volume + put volume` weighting
-across pairs (`RA-EV-01`). PASS/FAIL/UNKNOWN/NO_ACTION remain distinct.
+across pairs (`RA-EV-01`). `DF-GXZ-PAIR-VOLUME@1.0.0` owns that reusable
+calculation. The manifest graph owns financial-gate composition and the frozen
+entry-session verdict precedence. Any potentially qualifying pair with unknown
+required evidence makes the all-pair decision UNKNOWN. PASS/FAIL/UNKNOWN/NO_ACTION
+remain distinct.
 
 ## Truthful live deferral
 
@@ -33,6 +37,6 @@ outcome compatibility are live while this explicit data limitation remains.
   proposal tests: green.
 - Strategy/runtime/scheduler/architecture integration: `1477 passed`.
 - Ruff and mypy over changed strategy/runtime scope: green.
-- Full repository suite: `3833 passed, 50 skipped`.
+- Full repository suite: `3837 passed, 50 skipped`.
 - Lean integrity, entrypoint, and pre-push validation: green.
 - CI evidence is recorded on the implementation PR.

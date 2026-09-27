@@ -75,6 +75,7 @@ DF_FIRST_TRADING_DAY_OF_MONTH = "DF-FIRST-TRADING-DAY-OF-MONTH"
 DF_LAST_TRADING_DAY_OF_MONTH = "DF-LAST-TRADING-DAY-OF-MONTH"
 DF_MONTHLY_EXPIRATION_DAY = "DF-MONTHLY-EXPIRATION-DAY"
 DF_OPTION_TRADE_WINDOW_VWAP = "DF-OPTION-TRADE-WINDOW-VWAP"
+DF_GXZ_PAIR_VOLUME = "DF-GXZ-PAIR-VOLUME"
 
 _SNAPSHOT = "one quote snapshot t"
 _CALENDAR = "exchange trading calendar, US/Eastern dates"
@@ -221,6 +222,13 @@ OPTION_STRATEGY_FORMULAS = FormulaRegistry(
             "USD per option unit",
             "inclusive event-time window with explicit excluded sale-condition codes",
             "UNKNOWN if the tape is absent or no eligible prints occur in the window",
+        ),
+        FormulaDefinition(
+            DF_GXZ_PAIR_VOLUME,
+            "1.0.0",
+            "contracts",
+            "one exact call-put pair at the entry snapshot",
+            "UNKNOWN if either leg volume is unavailable",
         ),
     )
 )

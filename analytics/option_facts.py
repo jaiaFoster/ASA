@@ -163,6 +163,15 @@ def option_trade_window_vwap(
     return sum((trade.price * trade.size for trade in eligible), Decimal(0)) / total_size
 
 
+def gxz_pair_volume(call_volume: int | None, put_volume: int | None) -> Decimal | UnknownReason:
+    """DF-GXZ-PAIR-VOLUME 1.0.0: call volume + put volume for one pair."""
+    if call_volume is None or put_volume is None:
+        return UnknownReason("missing_pair_volume")
+    if call_volume < 0 or put_volume < 0:
+        raise ValueError("option volume must be non-negative")
+    return Decimal(call_volume + put_volume)
+
+
 def delta_neutral_hedge_quantity(
     delta: Decimal | None, option_quantity: Decimal, multiplier: Decimal, *, long_option: bool
 ) -> Decimal | UnknownReason:
