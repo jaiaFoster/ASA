@@ -2,7 +2,7 @@
 id: STRATEGY-PRODUCTION-001
 name: Seven-Strategy Capability-First Production Expansion
 version: 0.2-final-draft
-status: FINAL_DRAFT
+status: ACTIVE
 type: IMPLEMENTATION_SPRINT
 priority: P0
 
@@ -33,7 +33,7 @@ draft_state:
 activation:
   id: AMD-013-STRATEGY-PRODUCTION-001-V1
   governance_amendment: GOV-AMD-001-013
-  founder_authorized: false
+  founder_authorized: true
   founder_direction: >
     Implement the complete seven-strategy research handoff in one sprint,
     capability-first and without strategy-specific runtime paths. Do not stop
