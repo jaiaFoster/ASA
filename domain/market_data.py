@@ -81,6 +81,11 @@ class MarketCapability(str, Enum):
     # X05 (SP-01C): provider-neutral option trade prints. Quotes, marks and
     # midpoint observations are deliberately separate capabilities.
     OPTION_TRADE_TAPE_V1 = "option_trade_tape_v1"
+    # X07 (SP-01D): published index-level dividend points. Constituent
+    # corporate actions are not an equivalent source for this capability.
+    INDEX_DIVIDEND_POINTS_V1 = "index_dividend_points_v1"
+    # Point-in-time security classification and shares outstanding.
+    SECURITY_MASTER_V1 = "security_master_v1"
 
 
 class MarketDataSubjectType(str, Enum):
@@ -235,6 +240,8 @@ class MarketDataSubject:
             MarketCapability.INDEX_SETTLEMENT_VALUE_V1: MarketDataSubjectType.INSTRUMENT,
             MarketCapability.RATE_OBSERVATION_V1: MarketDataSubjectType.INSTRUMENT,
             MarketCapability.OPTION_TRADE_TAPE_V1: MarketDataSubjectType.OPTION_UNDERLYING,
+            MarketCapability.INDEX_DIVIDEND_POINTS_V1: MarketDataSubjectType.INSTRUMENT,
+            MarketCapability.SECURITY_MASTER_V1: MarketDataSubjectType.INSTRUMENT,
         }.get(self.requested_capability)
         if expected_type is not None and self.subject_type is not expected_type:
             raise DomainInvariantError("MarketDataSubject subject type does not match capability")
@@ -386,6 +393,57 @@ class OptionTradeTape:
         if len(identities) != len(set(identities)):
             raise DomainInvariantError("OptionTradeTape contains duplicate trades")
         object.__setattr__(self, "trades", ordered)
+
+
+@dataclass(frozen=True, slots=True)
+class IndexDividendPoints:
+    """X07: published dividends for an index, denominated in index points."""
+
+    instrument: Instrument
+    points: Decimal
+    effective_date: date
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.instrument, Instrument):
+            raise DomainInvariantError("IndexDividendPoints.instrument must be an Instrument")
+        if self.instrument.kind is not InstrumentKind.INDEX:
+            raise DomainInvariantError("IndexDividendPoints.instrument must be an INDEX")
+        _decimal(self.points, "IndexDividendPoints", "points")
+        if not isinstance(self.effective_date, date) or isinstance(self.effective_date, datetime):
+            raise DomainInvariantError("IndexDividendPoints.effective_date must be a date")
+
+
+class SecurityType(str, Enum):  # noqa: UP042 -- canonical external classification
+    COMMON_STOCK = "common_stock"
+    PREFERRED_STOCK = "preferred_stock"
+    ETF = "etf"
+    OTHER = "other"
+
+
+@dataclass(frozen=True, slots=True)
+class SecurityMasterRecord:
+    """Point-in-time canonical security classification and capitalization input."""
+
+    instrument: Instrument
+    security_type: SecurityType
+    shares_outstanding: Decimal
+    effective_date: date
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.instrument, Instrument):
+            raise DomainInvariantError("SecurityMasterRecord.instrument must be an Instrument")
+        if self.instrument.kind is not InstrumentKind.EQUITY:
+            raise DomainInvariantError("SecurityMasterRecord.instrument must be an EQUITY")
+        if not isinstance(self.security_type, SecurityType):
+            raise DomainInvariantError("SecurityMasterRecord.security_type must be a SecurityType")
+        _decimal(
+            self.shares_outstanding,
+            "SecurityMasterRecord",
+            "shares_outstanding",
+            positive=True,
+        )
+        if not isinstance(self.effective_date, date) or isinstance(self.effective_date, datetime):
+            raise DomainInvariantError("SecurityMasterRecord.effective_date must be a date")
 
 
 @dataclass(frozen=True, slots=True)
@@ -611,6 +669,8 @@ MarketObservationValue: TypeAlias = (
     | IndexSettlementValue
     | RateObservation
     | OptionTradeTape
+    | IndexDividendPoints
+    | SecurityMasterRecord
 )
 
 
@@ -650,6 +710,8 @@ class MarketObservation:
             IndexSettlementValue: MarketCapability.INDEX_SETTLEMENT_VALUE_V1,
             RateObservation: MarketCapability.RATE_OBSERVATION_V1,
             OptionTradeTape: MarketCapability.OPTION_TRADE_TAPE_V1,
+            IndexDividendPoints: MarketCapability.INDEX_DIVIDEND_POINTS_V1,
+            SecurityMasterRecord: MarketCapability.SECURITY_MASTER_V1,
         }.get(type(self.value))
         if expected_capability is not self.capability:
             raise DomainInvariantError("MarketObservation value does not match capability")
@@ -670,6 +732,8 @@ MarketDataContract: TypeAlias = (
     | RateObservation
     | OptionTrade
     | OptionTradeTape
+    | IndexDividendPoints
+    | SecurityMasterRecord
     | OHLCVBar
     | OHLCVSeries
     | TradingCalendarEvent
@@ -691,6 +755,8 @@ _MARKET_TYPES = {
         RateObservation,
         OptionTrade,
         OptionTradeTape,
+        IndexDividendPoints,
+        SecurityMasterRecord,
         OHLCVBar,
         OHLCVSeries,
         TradingCalendarEvent,
@@ -711,6 +777,7 @@ _ENUM_TYPES = {
         MarketCapability,
         AdjustedCloseBasis,
         RateBasis,
+        SecurityType,
         FreshnessStatus,
         ProviderErrorKind,
         TradingCalendarEventType,
