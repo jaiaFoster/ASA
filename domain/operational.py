@@ -38,6 +38,9 @@ class InstrumentKind(str, Enum):
     EQUITY = "equity"
     OPTION = "option"
     CASH = "cash"
+    # X01 (STRATEGY-PRODUCTION-001 SP-01A): a non-tradable index such as the
+    # S&P 500 is its own kind; it is never normalized to EQUITY.
+    INDEX = "index"
 
 
 class PositionDirection(str, Enum):

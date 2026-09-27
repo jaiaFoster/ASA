@@ -11,6 +11,7 @@ from domain import (
     EarningsEvent,
     ExpirationCollection,
     ExpirationCycle,
+    IndexSettlementValue,
     MarketCapability,
     MarketObservation,
     OptionChain,
@@ -212,7 +213,14 @@ class ObservationResolver:
     def _value_data(observation: MarketObservation) -> dict[str, object]:
         if isinstance(
             observation.value,
-            (OptionContract, OptionChain, ExpirationCycle, ExpirationCollection, EarningsEvent),
+            (
+                OptionContract,
+                OptionChain,
+                ExpirationCycle,
+                ExpirationCollection,
+                EarningsEvent,
+                IndexSettlementValue,
+            ),
         ):
             data = financial_contract_to_data(observation.value)
         else:

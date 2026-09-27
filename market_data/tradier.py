@@ -15,6 +15,7 @@ from domain import (
     EvidenceReference,
     ExpirationCollection,
     ExpirationCycle,
+    InstrumentKind,
     MarketCapability,
     MarketDataSubject,
     MarketObservation,
@@ -34,6 +35,7 @@ from domain.operational import CanonicalInstrumentIdentity
 from domain.values import DomainInvariantError
 from market_data.config import ProviderConfig, ProviderEndpointEnvironment
 from market_data.factory import ProviderDependencies, ProviderRegistration
+from market_data.index_instruments import index_option_settlement_style, security_asset_type_for
 from market_data.providers import (
     CapabilityRequest,
     HealthProbe,
@@ -548,7 +550,29 @@ def _evidence(response: ReadOnlyHttpResponse) -> tuple[EvidenceReference, ...]:
     return (EvidenceReference(EvidenceKind.OBSERVATION, f"tradier:{response.request_reference}"),)
 
 
+def _index_side(row: Mapping[str, object], name: str) -> Decimal | None:
+    # An index is disseminated as a value, not a two-sided market: an absent
+    # or zero side is no quote, never a price.
+    raw = row.get(name)
+    if raw is None:
+        return None
+    value = _decimal(raw)
+    return value if value > 0 else None
+
+
 def _quote(subject: MarketDataSubject, row: Mapping[str, object]) -> Quote:
+    if subject.canonical_instrument.kind is InstrumentKind.INDEX:
+        return Quote(
+            subject.canonical_instrument,
+            _index_side(row, "bid"),
+            _index_side(row, "ask"),
+            # An index level of zero is never real: it is no value, never a price.
+            _index_side(row, "last"),
+            None,
+            None,
+            None,
+            subject.canonical_instrument.currency,
+        )
     return Quote(
         subject.canonical_instrument,
         _decimal(row["bid"]),
@@ -578,7 +602,12 @@ def _bar(subject: MarketDataSubject, row: Mapping[str, object]) -> OHLCVBar:
 
 
 def _security(subject: MarketDataSubject, symbol: str) -> Security:
-    return Security(subject.canonical_instrument, symbol.upper(), SecurityAssetType.EQUITY, "US")
+    return Security(
+        subject.canonical_instrument,
+        symbol.upper(),
+        security_asset_type_for(subject.canonical_instrument.kind),
+        "US",
+    )
 
 
 def _chain(
@@ -647,6 +676,12 @@ def _option(
         raw = values.get(name, row.get(name))
         return None if raw is None else _decimal(raw)
 
+    # X01: index-option contracts carry the provider root and its typed
+    # settlement style; equity options keep their existing identity.
+    root: str | None = None
+    if security.asset_type is SecurityAssetType.INDEX and row.get("root_symbol") is not None:
+        root = str(row["root_symbol"]).upper()
+
     return OptionContract(
         CanonicalInstrumentIdentity("occ", str(row["symbol"])),
         security,
@@ -666,6 +701,8 @@ def _option(
         optional("mid_iv"),
         observed,
         evidence,
+        root,
+        index_option_settlement_style(root),
     )
 
 

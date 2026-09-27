@@ -45,6 +45,19 @@ class AnnouncementTime(str, Enum):
     UNKNOWN = "unknown"
 
 
+class SettlementStyle(str, Enum):
+    """X01: exercise-settlement timing of a cash-settled index option.
+
+    AM contracts settle to the special opening quotation (SOQ) on expiration
+    day; PM contracts settle to the closing value. Set by market-data
+    normalization from the provider's contract root, never parsed from OCC
+    text or inferred from a strategy.
+    """
+
+    AM = "am"
+    PM = "pm"
+
+
 class OptionLegPosition(str, Enum):
     LONG = "long"
     SHORT = "short"
@@ -162,7 +175,7 @@ class Security:
         expected = {
             SecurityAssetType.EQUITY: InstrumentKind.EQUITY,
             SecurityAssetType.ETF: InstrumentKind.EQUITY,
-            SecurityAssetType.INDEX: InstrumentKind.EQUITY,
+            SecurityAssetType.INDEX: InstrumentKind.INDEX,
             SecurityAssetType.CASH: InstrumentKind.CASH,
         }[self.asset_type]
         if self.instrument.kind is not expected:
@@ -219,6 +232,12 @@ class OptionContract:
     implied_volatility: Decimal | None
     observed_at: datetime
     evidence: tuple[EvidenceReference, ...]
+    # X01 (SP-01A), additive: the provider-reported contract root (e.g. SPX vs
+    # SPXW) and its typed settlement style. Present only when semantically
+    # relevant (index options); both are then identity-bearing. Absent values
+    # leave every existing identity unchanged.
+    root: str | None = None
+    settlement_style: SettlementStyle | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.option_contract_id, CanonicalInstrumentIdentity):
@@ -242,6 +261,14 @@ class OptionContract:
             raise DomainInvariantError("OptionContract.expiration cannot precede observed_at")
         if self.bid is not None and self.ask is not None and self.bid > self.ask:
             raise DomainInvariantError("OptionContract market cannot be crossed")
+        if self.root is not None:
+            _text(self.root, "OptionContract", "root")
+            if self.root != self.root.upper():
+                raise DomainInvariantError("OptionContract.root must be uppercase")
+        if self.settlement_style is not None:
+            _enum(self.settlement_style, SettlementStyle, "OptionContract", "settlement_style")
+            if self.root is None:
+                raise DomainInvariantError("OptionContract.settlement_style requires a root")
         object.__setattr__(self, "evidence", _evidence(self.evidence, "OptionContract"))
 
     @property
@@ -659,6 +686,39 @@ class OptionStructure:
         return _hash("asa.option_structure", financial_contract_to_data(self))
 
 
+@dataclass(frozen=True, slots=True)
+class IndexSettlementValue:
+    """X01: an exchange-published index settlement value (e.g. the SOQ).
+
+    A canonical observation of the value an AM- or PM-settled index option
+    settles to on ``settlement_date``. It is never derived from a quote,
+    futures price or ETF.
+    """
+
+    index: Security
+    settlement_date: date
+    settlement_style: SettlementStyle
+    value: Decimal
+    observed_at: datetime
+    evidence: tuple[EvidenceReference, ...]
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.index, Security):
+            raise DomainInvariantError("IndexSettlementValue.index must be a Security")
+        if self.index.asset_type is not SecurityAssetType.INDEX:
+            raise DomainInvariantError("IndexSettlementValue.index must be an INDEX security")
+        if not isinstance(self.settlement_date, date) or isinstance(self.settlement_date, datetime):
+            raise DomainInvariantError("IndexSettlementValue.settlement_date must be a date")
+        _enum(self.settlement_style, SettlementStyle, "IndexSettlementValue", "settlement_style")
+        _decimal(self.value, "IndexSettlementValue", "value", positive=True)
+        require_tz_aware(self.observed_at, "IndexSettlementValue", "observed_at")
+        object.__setattr__(self, "evidence", _evidence(self.evidence, "IndexSettlementValue"))
+
+    @property
+    def identity(self) -> str:
+        return _hash("asa.index_settlement_value", financial_contract_to_data(self))
+
+
 FinancialContract: TypeAlias = (
     Security
     | SecurityCollection
@@ -673,6 +733,7 @@ FinancialContract: TypeAlias = (
     | VolatilityEvidence
     | OptionLeg
     | OptionStructure
+    | IndexSettlementValue
 )
 
 _FINANCIAL_CONTRACT_TYPES = (
@@ -689,6 +750,13 @@ _FINANCIAL_CONTRACT_TYPES = (
     VolatilityEvidence,
     OptionLeg,
     OptionStructure,
+    IndexSettlementValue,
+)
+
+# Additive optional fields omitted from the wire form when absent, so records
+# written before the field existed keep byte-identical canonical data.
+_OMITTED_WHEN_NONE: frozenset[tuple[str, str]] = frozenset(
+    {("OptionContract", "root"), ("OptionContract", "settlement_style")}
 )
 
 
@@ -740,13 +808,20 @@ def _evidence_data(value: EvidenceReference) -> dict[str, object]:
 
 
 def _option_natural_data(value: OptionContract) -> dict[str, object]:
-    return {
+    data: dict[str, object] = {
         "canonical_id": _identity_data(value.option_contract_id),
         "expiration": value.expiration.isoformat(),
         "option_type": value.option_type.value,
         "strike": _decimal_text(value.strike),
         "underlying_identity": _identity_data(value.underlying.instrument.identity),
     }
+    # X01: identity-bearing only when present, so contracts without these
+    # fields keep their existing identities.
+    if value.root is not None:
+        data["root"] = value.root
+    if value.settlement_style is not None:
+        data["settlement_style"] = value.settlement_style.value
+    return data
 
 
 def _wire(value: object) -> object:
@@ -784,7 +859,14 @@ def financial_contract_to_data(value: FinancialContract) -> dict[str, object]:
     return {
         "contract_type": type(value).__name__,
         "contract_version": FINANCIAL_CONTRACT_VERSION,
-        "fields": {item.name: _wire(getattr(value, item.name)) for item in fields(value)},
+        "fields": {
+            item.name: _wire(getattr(value, item.name))
+            for item in fields(value)
+            if not (
+                (type(value).__name__, item.name) in _OMITTED_WHEN_NONE
+                and getattr(value, item.name) is None
+            )
+        },
     }
 
 
@@ -911,6 +993,8 @@ _ENUM_FIELDS: dict[tuple[str, str], type[Enum]] = {
     ("EarningsEvent", "announcement_time"): AnnouncementTime,
     ("OptionLeg", "position"): OptionLegPosition,
     ("OptionStructure", "structure_type"): OptionStructureType,
+    ("OptionContract", "settlement_style"): SettlementStyle,
+    ("IndexSettlementValue", "settlement_style"): SettlementStyle,
 }
 
 _CONTRACT_TYPES: dict[str, type[Any]] = {
@@ -927,12 +1011,18 @@ def _contract_from_data(root: dict[str, object]) -> FinancialContract:
         raise FinancialContractSerializationError("unknown financial contract type")
     raw_fields = _object(root.get("fields"), "fields")
     expected = {item.name for item in fields(cls)}
-    if set(raw_fields) != expected:
+    optional = {field for owner, field in _OMITTED_WHEN_NONE if owner == name}
+    if not set(raw_fields) <= expected or expected - set(raw_fields) - optional:
         raise FinancialContractSerializationError("financial contract fields do not match schema")
     values: dict[str, object] = {}
     for field_name, raw in raw_fields.items():
         enum_type = _ENUM_FIELDS.get((cast(str, name), field_name))
-        values[field_name] = enum_type(cast(str, raw)) if enum_type else _decode(raw)
+        try:
+            values[field_name] = (
+                enum_type(cast(str, raw)) if enum_type and raw is not None else _decode(raw)
+            )
+        except ValueError as exc:
+            raise FinancialContractSerializationError(f"invalid {field_name} value") from exc
     try:
         return cast(FinancialContract, cls(**values))
     except (DomainInvariantError, TypeError, ValueError) as exc:
