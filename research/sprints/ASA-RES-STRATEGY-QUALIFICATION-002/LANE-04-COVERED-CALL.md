@@ -49,3 +49,7 @@ BXMD's strike depends on a Black-formula delta whose volatility, rate and divide
 - The evidence is sponsor-commissioned index history.
 - Independent academic work (Israelov and co-authors) confirms the premium but argues the naive covered call carries uncompensated timing risk.
 - Net-of-cost replication results are absent.
+
+## Closeout disposition (2026-09-27)
+
+**Selected:** BXM (CC-01), with architecture status ARCHITECT_REVIEW_REQUIRED for P09. BXMD is not selected (Black inputs still undefined). BXY is not selected (trivial moneyness variant). See [FINAL-SELECTION.md](FINAL-SELECTION.md).

@@ -1,0 +1,49 @@
+# ASA-RES-STRATEGY-QUALIFICATION-002-CLOSEOUT source record. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN.
+source_id: CBOE-PUTY-FACTSHEET-2026
+source_class: EXTERNAL_SECONDARY
+title: Cboe S&P 500 2% OTM PutWrite Index (PUTY) factsheet, as of August 31, 2026
+authors:
+- Cboe Global Indices
+publication: Cboe Global Indices strategy-index factsheet
+publication_date: '2026-08-31'
+source_type: index_factsheet
+canonical_url: https://cdn.cboe.com/resources/indices/factsheet/CboeGlobalIndices_PUTY-Index.pdf
+doi: null
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: full_text_reviewed
+recovered_at: '2026-09-27'
+sprint: ASA-RES-STRATEGY-QUALIFICATION-002
+research_context:
+  sample_period: 1986-06-30 to 2026-08-31 (back-tested before launch 2019-02-15)
+  universe: PUTY index
+  market: US
+  methodology_context: index statistics
+  original_or_replication: followup
+  material_limitations:
+  - Sponsor-published
+  - Back-tested before 2019
+  - Excludes fees, taxes and transaction costs
+preliminary_families:
+- FAM-VRP-INDEX-PUTWRITE
+claims:
+- claim_id: CBOE-PUTY-FACTSHEET-2026-C1
+  claim_class: REPORTED
+  reported_metric: metrics since June 30, 1986
+  value: PUTY annualized return 6.9%, volatility 8.7%, max drawdown -28.9%, beta 0.43, Sharpe 0.53, Sortino 0.67;
+    S&P 500 TR 11.2%, 15.2%, -50.9%, 1.0, 0.57, 0.85
+  context: Metrics table (Sharpe/Sortino from July 1989)
+- claim_id: CBOE-PUTY-FACTSHEET-2026-C2
+  claim_class: REPORTED
+  reported_metric: post-launch calendar-year returns
+  value: 2019 9.7%; 2020 -2.4%; 2021 15.7%; 2022 -1.5%; 2023 12.2%; 2024 13.5%; 2025 7.2%
+  context: Calendar Year Returns
+- claim_id: CBOE-PUTY-FACTSHEET-2026-C3
+  claim_class: REPORTED
+  reported_metric: annualized returns to 2026-08-31
+  value: 1y 14.3%; 3y 10.4%; 5y 8.8%; 10y 6.8%
+  context: Annualized Returns
+recoverability:
+  repository_copy: null
+  external_identifier: https://cdn.cboe.com/resources/indices/factsheet/CboeGlobalIndices_PUTY-Index.pdf
+  notes: Full text retrieved from the Cboe CDN and reviewed 2026-09-27 (closeout targeted pass).

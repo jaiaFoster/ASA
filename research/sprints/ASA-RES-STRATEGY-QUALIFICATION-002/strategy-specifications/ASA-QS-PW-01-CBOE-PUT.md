@@ -38,10 +38,10 @@ U_t = { listed SPX put options on the S&P 500 index, observable on roll date t, 
 
 | Canonical fact | Meaning | Unit | Observation time | Freshness | ASA status | Missing / invalid |
 |---|---|---|---|---|---|---|
-| `spx_value(t)` | S&P 500 index level | index points | last value disseminated strictly before 11:00:00 ET on the roll date | must be timestamped < 11:00 ET on that date | REAL_TIME_QUOTE_V1 on an index identity: **X01 + X02a** | UNKNOWN |
+| `spx_value(t)` | S&P 500 index level | index points | last value disseminated strictly before 11:00:00 ET on the roll date | must be timestamped < 11:00 ET on that date | canonical INDEX quote (X01 identity + provider-neutral quote path extended to INDEX subjects; PR #501 Architect review item 1) | UNKNOWN |
 | `option_chain(SPX, exp)` | listed SPX puts, strikes, identity | — | roll date, before 11:00 ET and during 11:30–12:00 ET | same session | OPTION_CHAIN_V1; root/settlement identity needs **X01** | UNKNOWN |
 | `option_bid/ask(c,t)` | NBBO quotes | USD per index unit | last quote before 4:00 p.m. ET (daily marks) | same session | OPTION_CHAIN_V1 | UNKNOWN |
-| `option_trades(c, 11:30–12:00 ET)` | OPRA trade prints, excluding sale-condition codes A–H and f–t | USD, contracts | roll date | same window | **Not available.** No existing capability and no taxonomy entry (see capability-map `GAP-OPTION-TRADE-PRINTS`). | fallback defined by source only for the *no trades* case |
+| `option_trades(c, 11:30–12:00 ET)` | OPRA trade prints, excluding sale-condition codes A–H and f–t | USD, contracts | roll date | same window | **Not available: X05 OPTION_TRADE_TAPE** (Architect classification of the former GAP-OPTION-TRADE-PRINTS). | fallback defined by source only for the *no trades* case |
 | `soq(t)` | SPX Special Opening Quotation on the expiration date | index points | roll date morning | same day | **not available** (X01 settlement semantics) | UNKNOWN |
 | `usbr_4w(t)`, `usbr_13w(t)` | US Treasury 4-week and 13-week bank-discount rates | decimal | per business day | daily | **X04** | UNKNOWN |
 | `trading_calendar` | Cboe Options holiday schedule | dates | — | current | TRADING_CALENDAR_V1 (Cboe schedule equivalence not verified) | UNKNOWN |
@@ -233,15 +233,15 @@ ASA's current max-loss model must not be substituted for this collateral definit
 | capital_model | cash-secured T-bill collateral (A15 must represent it without substituting ASA max-loss) |
 | unknown_states | §18 |
 | current_ASA_reuse | OPTION_CHAIN_V1, TRADING_CALENDAR_V1, generic verdict classifier |
-| missing_reusable_primitives | X01 (HARD), P01 (HARD), X02a (HARD for the 11:00 ET index reference), X04 (HARD for sizing/accrual), A15 (collateral representation), GAP-OPTION-TRADE-PRINTS (outcome price only) |
-| architecture_review_required | **No** for the strategy graph. **Yes (tracking scope only)** for the option-trade-print gap, which has no taxonomy entry. |
+| missing_reusable_primitives | X01 (HARD, incl. INDEX quote and SOQ settlement), P01 (HARD), X04 (HARD for sizing/accrual), A15 (collateral representation), X05 OPTION_TRADE_TAPE (source-faithful VWAP entry/outcome accounting) |
+| architecture_review_required | **No** for the strategy graph. The option-trade-print need is classified by the Architect as X05 (PR #501 review). |
 
 ## 21. Manifest readiness test
 
 | Item | Status |
 |---|---|
 | identity/version | known |
-| capabilities | named (X01, X02a, X04 missing) |
+| capabilities | named (X01, P01, X04, X05 missing) |
 | canonical inputs | known |
 | derived facts | defined |
 | parameters | sourced |
@@ -268,3 +268,7 @@ Two further open items:
 - Post-launch performance does not beat the S&P 500 on a risk-adjusted basis.
 
 These are **evidence** limits, recorded above. They are not specification gaps.
+
+## Closeout disposition (2026-09-27)
+
+SELECTED (lane-2 reference target). No research change. Architect corrections applied: X02a removed; X05 for the VWAP entry; INDEX quote via X01. State: READY_WITH_EXPLICIT_UNKNOWNS.

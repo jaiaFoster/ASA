@@ -29,3 +29,7 @@
 ## Readiness
 
 The specification is complete apart from the tie case, which is typed. It is not advanced because evidence is lacking.
+
+## Closeout disposition (2026-09-27)
+
+NOT SELECTED. BXY is a 2%-moneyness variant of BXM. The lane-4 requirement forbids counting "a trivial delta variant" as a second strategy, and no independent evaluation distinguishing it was recovered. State unchanged: INSUFFICIENT_EVIDENCE.

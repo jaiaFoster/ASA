@@ -202,3 +202,7 @@ The sourced option filters include relative spread ≤ 20% of mid, OI > 0 and vo
 - a live universe rule;
 - a source-authored position direction;
 - net level returns.
+
+## Closeout disposition (2026-09-27)
+
+NOT SELECTED. The universe (same-year option-volume ranking) is look-ahead, and the source authors no trade direction. Selecting it would require inventing both. State unchanged: DEEP_RESEARCH_REQUIRED.

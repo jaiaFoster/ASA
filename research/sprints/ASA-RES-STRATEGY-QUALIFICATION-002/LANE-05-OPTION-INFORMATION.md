@@ -55,3 +55,7 @@ No second signal family (such as model-free risk-neutral moments via A07) with n
 
 - The final JFE version was not accessed.
 - In the conference text, the skew definition is internally inconsistent: §4.2 says "OTM call", while the data section says "OTM put".
+
+## Closeout disposition (2026-09-27)
+
+**Closed with zero targets.** The existing evidence base holds no signal with more than abstract-level evidence or with net-positive results after the MPP borrow-fee adjustment. See [FINAL-SELECTION.md](FINAL-SELECTION.md).

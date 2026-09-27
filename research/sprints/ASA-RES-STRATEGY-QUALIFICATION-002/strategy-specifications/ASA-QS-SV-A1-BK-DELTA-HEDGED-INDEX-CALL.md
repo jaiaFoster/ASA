@@ -30,3 +30,7 @@ BK is a **measurement design**, not a trading strategy. It evaluates every eligi
 5. **Needs A14** (daily hedge simulation) and X01.
 
 The paper remains the lane's best-specified evidence for the **phenomenon** (a negative market volatility risk premium). DF-BK-DELTA-HEDGED-GAIN is registered for reuse.
+
+## Closeout disposition (2026-09-27)
+
+NOT SELECTED. It remains a measurement design; the lane-3 target is ASA-QS-SV-01-SCS-SHORT-NEAR-ATM-STRADDLE. State unchanged: DEEP_RESEARCH_REQUIRED.

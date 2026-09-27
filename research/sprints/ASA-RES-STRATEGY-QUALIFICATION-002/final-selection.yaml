@@ -1,0 +1,421 @@
+# ASA-RES-STRATEGY-QUALIFICATION-002 — final strategy selection (frozen). See FINAL-SELECTION.md.
+schema: asa.research.final_selection/v1
+sprint: ASA-RES-STRATEGY-QUALIFICATION-002
+closeout: ASA-RES-STRATEGY-QUALIFICATION-002-CLOSEOUT
+recorded_at: '2026-09-27'
+authority: Founder bounded research-selection delegation (closeout only). Selection for implementation handoff is
+  NOT implementation authorization.
+selected_count: 7
+lane_disposition:
+  1-event-volatility:
+    selected:
+    - ASA-QS-EV-01-GXZ-PREEA-STRADDLE-TO-EXPIRY
+    count: 1
+  2-index-put-writing:
+    selected:
+    - ASA-QS-PW-01-CBOE-PUT
+    - ASA-QS-PW-A1-CBOE-PUTY
+    count: 2
+  3-index-short-volatility:
+    selected:
+    - ASA-QS-SV-01-SCS-SHORT-NEAR-ATM-STRADDLE
+    count: 1
+  4-covered-call:
+    selected:
+    - ASA-QS-CC-01-CBOE-BXM
+    count: 1
+  5-option-implied-information:
+    selected: []
+    count: 0
+  6-cross-sectional-option-returns:
+    selected:
+    - ASA-QS-XR-01-ZHAN-NEG-LNPRICE-DN-CALL
+    - ASA-QS-XR-02-HESTON-STRADDLE-MOMENTUM
+    count: 2
+unresolved_item_types:
+  RESEARCH: evidence or source-text item; does not block manifest authoring
+  DATA: canonical fact availability
+  ARCHITECTURE: reusable primitive semantics requiring Architect resolution
+  PROVIDER: vendor entitlement/equivalence (e.g. provider delta vs source delta)
+strategies:
+- strategy_id: ASA-QS-PW-01-CBOE-PUT
+  final_strategy_id: index_putwrite_cboe_put
+  lane: 2-index-put-writing
+  selected: true
+  selection_reason: Complete source-defined rule (Cboe methodology); qualified 1986-2018 index evidence (BONDARENKO-2019-CBOE,
+    WILSHIRE-2019-CBOE); Architect confirms no new financial policy needed; lane-2 reference target.
+  qualification_state: READY_WITH_EXPLICIT_UNKNOWNS
+  architecture_status: no architecture-incompatibility
+  evidence_strength: MODERATE
+  evidence_direction: QUALIFIED (lower volatility and drawdown than S&P 500; no post-launch risk-adjusted edge 2006-2018)
+  evidence_confidence: MEDIUM
+  source_rule_complete: true
+  manifest_ready_financially: true
+  remaining_data_unknowns:
+  - X05 option trade tape for VWAP entry price (outcome valuation)
+  - SOQ availability (X01)
+  - Treasury bank-discount rates (X04)
+  - INDEX quote before 11:00 ET (X01 INDEX quote path)
+  remaining_architecture_unknowns:
+  - A15 representation of cash-secured T-bill collateral
+  - fractional N vs whole contracts (implementation assumption, disclosed; index definition is fractional)
+  remaining_research_unknowns:
+  - net-of-cost replication evidence (evidence, not rule)
+  derived_fact_ids:
+  - DF-THIRD-FRIDAY-ROLL-DATE
+  - DF-OPT-MID
+  - DF-CBOE-TBILL-DAILY-ACCRUAL
+  - DF-CBOE-PUT-CONTRACT-COUNT
+  gate_ids:
+  - G-CBOE-MONTHLY-ROLL-DATE
+  - G-CBOE-SPX-REF-BEFORE-1100
+  - G-PUT-STRIKE-EXISTS
+  required_primitives:
+  - X01
+  - INDEX_QUOTE
+  - P01
+  - X04
+  - A15
+  - X05
+  implementation_sequence_group: G2-lane-reference
+- strategy_id: ASA-QS-PW-A1-CBOE-PUTY
+  final_strategy_id: index_putwrite_cboe_puty
+  lane: 2-index-put-writing
+  selected: true
+  selection_reason: Complete source-defined rule; exact-rule evidence recovered at closeout (Cboe factsheet 1986-2026
+    incl. post-2019 launch years); systematically OTM vs PUT ATM is legitimate lane-2 differentiation; reuses the
+    PUT stack (reuse proof).
+  qualification_state: READY_WITH_EXPLICIT_UNKNOWNS
+  architecture_status: no architecture-incompatibility
+  evidence_strength: MODERATE
+  evidence_direction: QUALIFIED (6.9% ann., vol 8.7%, MDD -28.9%, beta 0.43 vs S&P TR 11.2%/15.2%/-50.9%)
+  evidence_confidence: LOW-MEDIUM (sponsor factsheet)
+  source_rule_complete: true
+  manifest_ready_financially: true
+  remaining_data_unknowns:
+  - X05 trade tape
+  - SOQ (X01)
+  - 4-week rate (X04)
+  - INDEX quote
+  remaining_architecture_unknowns:
+  - A15 collateral representation (shared with PUT)
+  remaining_research_unknowns:
+  - independent (non-sponsor) evaluation not recovered
+  derived_fact_ids:
+  - DF-THIRD-FRIDAY-ROLL-DATE
+  - DF-OPT-MID
+  - DF-CBOE-TBILL-DAILY-ACCRUAL
+  gate_ids:
+  - G-CBOE-MONTHLY-ROLL-DATE
+  - G-CBOE-SPX-REF-BEFORE-1100
+  - G-PUTY-STRIKE-EXISTS
+  required_primitives:
+  - X01
+  - INDEX_QUOTE
+  - P01
+  - X04
+  - A15
+  - X05
+  implementation_sequence_group: G3-lane-second
+- strategy_id: ASA-QS-CC-01-CBOE-BXM
+  final_strategy_id: index_buywrite_cboe_bxm
+  lane: 4-covered-call
+  selected: true
+  selection_reason: 'Complete source-defined rule; qualified index evidence plus independent decomposition (Israelov-Nielsen;
+    Israelov-Klein-Tummala). Selected with architecture status ARCHITECT_REVIEW_REQUIRED for the P09 expression
+    (PR #501 review item 7).'
+  qualification_state: READY_WITH_EXPLICIT_UNKNOWNS
+  architecture_status: ARCHITECT_REVIEW_REQUIRED
+  evidence_strength: MODERATE
+  evidence_direction: QUALIFIED (8.50% vs 9.80%, vol 10.6% vs 14.9%, MDD -35.8% vs -50.9%, 1986-2018; timing component
+    uncompensated)
+  evidence_confidence: MEDIUM
+  source_rule_complete: true
+  manifest_ready_financially: true
+  remaining_data_unknowns:
+  - X05 trade tape and S_VWAV
+  - X07 index dividend points
+  - SOQ (X01)
+  - INDEX quote
+  remaining_architecture_unknowns:
+  - P09 reusable semantics for a non-tradable index covered leg (generic underlying-exposure + option overlay or
+    another faithful generic representation)
+  remaining_research_unknowns:
+  - net-of-cost evidence
+  derived_fact_ids:
+  - DF-THIRD-FRIDAY-ROLL-DATE
+  - DF-OPT-MID
+  - DF-CBOE-BUYWRITE-DAILY-RETURN
+  gate_ids:
+  - G-CBOE-MONTHLY-ROLL-DATE
+  - G-CBOE-SPX-REF-BEFORE-1100
+  - G-BXM-STRIKE-EXISTS
+  required_primitives:
+  - X01
+  - INDEX_QUOTE
+  - P09
+  - X05
+  - X07
+  implementation_sequence_group: G4-architecture-gated
+- strategy_id: ASA-QS-SV-01-SCS-SHORT-NEAR-ATM-STRADDLE
+  final_strategy_id: index_short_vol_scs_near_atm_straddle
+  lane: 3-index-short-volatility
+  selected: true
+  selection_reason: Only rule-explicit, peer-reviewed, cost-evaluated SPX short-volatility strategy recovered (closeout
+    targeted pass); positive net of quoted spread (SPX 1996-2002); margin-call caveat recorded.
+  qualification_state: READY_WITH_EXPLICIT_UNKNOWNS
+  architecture_status: no architecture-incompatibility
+  evidence_strength: MODERATE
+  evidence_direction: MIXED/QUALIFIED (bid-to-ask 10.3%/month, monthly Sharpe 0.351; levered margin-call portfolio
+    results weak)
+  evidence_confidence: LOW-MEDIUM
+  source_rule_complete: true
+  manifest_ready_financially: true
+  remaining_data_unknowns:
+  - X04 rates/dividend yield
+  - SOQ (X01)
+  - INDEX quote
+  remaining_architecture_unknowns:
+  - A15 CBOE straddle-combination margin
+  - P03 short with proceeds accounting
+  remaining_research_unknowns:
+  - post-2002 persistence; weekly-era evidence transfer
+  derived_fact_ids:
+  - DF-FIRST-TRADING-DAY-OF-MONTH
+  - DF-OPT-DTE-CALENDAR
+  - DF-OPT-MID
+  - DF-ZERO-COST-OPTION-RETURN
+  - DF-CBOE-NAKED-MARGIN
+  gate_ids:
+  - G-SCS-ENTRY-DATE
+  - G-SCS-EXPIRY-UNIQUE
+  - G-SCS-STRIKE-UNIQUE
+  - G-SCS-QUOTE-FILTERS
+  required_primitives:
+  - X01
+  - INDEX_QUOTE
+  - P03
+  - X04
+  - A15
+  implementation_sequence_group: G2-lane-reference
+- strategy_id: ASA-QS-EV-01-GXZ-PREEA-STRADDLE-TO-EXPIRY
+  final_strategy_id: event_vol_gxz_preea_straddle_to_expiry
+  lane: 1-event-volatility
+  selected: true
+  selection_reason: Preprint resolves delta-neutral ratio and calendar-day DTE; only lane-1 rule that is positive
+    at 100% of the quoted spread (0.61%/day, t 2.08); remaining items are an explicit bounded research assumption
+    and data questions.
+  qualification_state: READY_WITH_EXPLICIT_UNKNOWNS
+  architecture_status: no architecture-incompatibility
+  evidence_strength: MODERATE
+  evidence_direction: QUALIFIED (1996-2010 positive net of full quoted spread for 4-10 day group; recent unconditional
+    EAD evidence negative in a different design)
+  evidence_confidence: LOW-MEDIUM
+  source_rule_complete: true
+  manifest_ready_financially: true
+  remaining_data_unknowns:
+  - provider delta vs OptionMetrics delta equivalence
+  - earnings-date confirmation quality
+  remaining_architecture_unknowns:
+  - P03 multi-pair (volume-weighted) and non-unit ratio semantics
+  remaining_research_unknowns:
+  - published JFQA text unread
+  - post-2010 persistence; weekly-expiry era evidence transfer (RA-EV-02)
+  derived_fact_ids:
+  - DF-EA-EFFECTIVE-DATE-GXZ
+  - DF-TRADING-SESSION-OFFSET
+  - DF-OPT-MID
+  - DF-OPT-MONEYNESS-SK
+  - DF-OPT-DTE-CALENDAR
+  - DF-STRADDLE-ZERO-DELTA-WEIGHT
+  - DF-GXZ-PAIR-VOLUME
+  - DF-OPT-HOLDING-RETURN
+  - DF-STRADDLE-RETURN
+  - DF-OPT-EFFECTIVE-PRICE
+  gate_ids:
+  - G-GXZ-EA-DATE-KNOWN
+  - G-GXZ-ENTRY-SESSION
+  - G-GXZ-STOCK-PRICE-MIN
+  - G-GXZ-OPT-MID-MIN
+  - G-GXZ-QUOTE-VALID
+  - G-GXZ-ARBITRAGE-BOUNDS
+  - G-GXZ-ABS-DELTA-BAND
+  - G-GXZ-OI-POSITIVE
+  - G-GXZ-MONEYNESS
+  - G-GXZ-EXPIRES-AFTER-EA
+  - G-GXZ-HOLD-TO-EXPIRY-DTE
+  required_primitives:
+  - P03
+  - A12 (diagnostic)
+  implementation_sequence_group: G2-lane-reference
+- strategy_id: ASA-QS-XR-01-ZHAN-NEG-LNPRICE-DN-CALL
+  final_strategy_id: xs_option_zhan_neg_lnprice_dn_call
+  lane: 6-cross-sectional-option-returns
+  selected: true
+  selection_reason: Strongest net-of-cost evidence in the sprint (1.01%/month at 100% quoted spread, t 5.48; 2.78%
+    at actual OPRA effective spread); footnote-8 variant removes the look-ahead filter; lane-6 reference target.
+  qualification_state: READY_WITH_EXPLICIT_UNKNOWNS
+  architecture_status: no architecture-incompatibility
+  evidence_strength: STRONG
+  evidence_direction: FAVORABLE net (spanned by two option factors)
+  evidence_confidence: MEDIUM
+  source_rule_complete: true
+  manifest_ready_financially: true
+  remaining_data_unknowns:
+  - security_type
+  - shares_outstanding
+  - provider delta equivalence (bounded by footnote 12)
+  - X04 rate for margin cost
+  remaining_architecture_unknowns:
+  - P10 static hedge semantics
+  - P12 decile long/short book over ~700 names
+  - A15 CBOE equity margin
+  remaining_research_unknowns:
+  - post-2016 persistence
+  - stock borrow cost of decile-1 hedge
+  derived_fact_ids:
+  - DF-LAST-TRADING-DAY-OF-MONTH
+  - DF-NEG-LN-PRICE
+  - DF-XS-QUANTILE-ASSIGNMENT
+  - DF-OPT-MID
+  - DF-OPT-DTE-CALENDAR
+  - DF-OPT-MONEYNESS-KS
+  - DF-OPT-MONEYNESS-SK
+  - DF-DELTA-NEUTRAL-HEDGE-QUANTITY
+  - DF-DN-CALL-WRITE-RETURN
+  - DF-CBOE-NAKED-MARGIN
+  - DF-OPT-EFFECTIVE-PRICE
+  gate_ids:
+  - G-ZHAN-FORMATION-DATE
+  - G-ZHAN-COMMON-STOCK
+  - G-ZHAN-PRICE-MIN
+  - G-ZHAN-OPTION-QUOTE
+  - G-ZHAN-NO-ARBITRAGE
+  - G-ZHAN-MONEYNESS
+  - G-ZHAN-MODAL-MATURITY
+  - G-ZHAN-CALL-AND-PUT
+  required_primitives:
+  - P10
+  - P12
+  - A15
+  - X04
+  - security_master.security_type
+  - security_master.shares_outstanding
+  - A12 (diagnostic)
+  implementation_sequence_group: G2-lane-reference
+- strategy_id: ASA-QS-XR-02-HESTON-STRADDLE-MOMENTUM
+  final_strategy_id: xs_option_heston_straddle_momentum_lowcost
+  lane: 6-cross-sectional-option-returns
+  selected: true
+  selection_reason: Materially different signal family (option-return history) and structure (zero-delta straddle
+    held to expiry) from Zhan; strong gross evidence and positive net at adjusted costs in the cost-optimized variant;
+    reuses P03 and P12, proves A08/A17.
+  qualification_state: READY_WITH_EXPLICIT_UNKNOWNS
+  architecture_status: no architecture-incompatibility
+  evidence_strength: STRONG gross / WEAK-MODERATE net
+  evidence_direction: 'QUALIFIED (low-cost decile: adjusted 4.08% t 2.74; effective 2.60% t 1.75; quoted 1.12% t
+    0.75)'
+  evidence_confidence: MEDIUM gross / LOW net
+  source_rule_complete: true
+  manifest_ready_financially: true
+  remaining_data_unknowns:
+  - A08 12-month historical option panel
+  - security_type
+  - provider delta equivalence
+  remaining_architecture_unknowns:
+  - A08/A17 point-in-time panel semantics
+  - P12 semantics
+  - A15 SPAN margin
+  remaining_research_unknowns:
+  - net significance depends on execution quality
+  - post-2019 persistence
+  derived_fact_ids:
+  - DF-MONTHLY-EXPIRATION-DAY
+  - DF-OPT-MID
+  - DF-OPT-RELATIVE-SPREAD
+  - DF-STRADDLE-ZERO-DELTA-WEIGHT
+  - DF-OPT-HOLDING-RETURN
+  - DF-STRADDLE-RETURN
+  - DF-STRADDLE-MOMENTUM-FORMATION
+  - DF-XS-QUANTILE-ASSIGNMENT
+  - DF-HESTON-SPAN-MARGIN
+  gate_ids:
+  - G-HES-FORMATION-DATE
+  - G-HES-CALL-DELTA-BAND
+  - G-HES-OI-HOLDING
+  - G-HES-LOWCOST-LEG-SPREAD
+  - G-HES-FORMATION-COMPLETE
+  required_primitives:
+  - A08
+  - A17
+  - P03
+  - P12
+  - A15
+  - security_master.security_type
+  - A12 (diagnostic)
+  implementation_sequence_group: G3-lane-second
+- strategy_id: ASA-QS-EV-02-ALX-CONCAVE-EA-STRADDLE
+  lane: 1-event-volatility
+  selected: false
+  selection_reason: look-ahead universe; no source-authored trade direction
+  qualification_state: DEEP_RESEARCH_REQUIRED
+  source_rule_complete: false
+  manifest_ready_financially: false
+  implementation_sequence_group: null
+- strategy_id: ASA-QS-EV-A1-GXZ-DN-STRADDLE-M3-0
+  lane: 1-event-volatility
+  selected: false
+  selection_reason: net-negative round trip; Founder direction not to resurrect
+  qualification_state: RESEARCH_REJECT
+  source_rule_complete: false
+  manifest_ready_financially: false
+  implementation_sequence_group: null
+- strategy_id: ASA-QS-PW-02-CBOE-WPUT
+  lane: 2-index-put-writing
+  selected: false
+  selection_reason: AM-roll strike/premium ordering undefined; blocker attempt failed (methodology access denied)
+  qualification_state: DEEP_RESEARCH_REQUIRED
+  source_rule_complete: false
+  manifest_ready_financially: false
+  implementation_sequence_group: null
+- strategy_id: ASA-QS-SV-A1-BK-DELTA-HEDGED-INDEX-CALL
+  lane: 3-index-short-volatility
+  selected: false
+  selection_reason: measurement design; no tradable schedule
+  qualification_state: DEEP_RESEARCH_REQUIRED
+  source_rule_complete: false
+  manifest_ready_financially: false
+  implementation_sequence_group: null
+- strategy_id: ASA-QS-CC-02-CBOE-BXMD
+  lane: 4-covered-call
+  selected: false
+  selection_reason: Black-delta inputs undefined (financial rule, not architecture)
+  qualification_state: DEEP_RESEARCH_REQUIRED
+  source_rule_complete: false
+  manifest_ready_financially: false
+  implementation_sequence_group: null
+- strategy_id: ASA-QS-CC-A1-CBOE-BXY
+  lane: 4-covered-call
+  selected: false
+  selection_reason: trivial moneyness variant of BXM under lane-4 rule; no distinguishing evaluation
+  qualification_state: INSUFFICIENT_EVIDENCE
+  source_rule_complete: false
+  manifest_ready_financially: false
+  implementation_sequence_group: null
+- strategy_id: ASA-QS-OS-A1-MPP-SMIRK-DECILE
+  lane: 5-option-implied-information
+  selected: false
+  selection_reason: insignificant net of borrow fees; no other signal in the evidence base with better than abstract-level
+    evidence
+  qualification_state: RESEARCH_REJECT
+  source_rule_complete: false
+  manifest_ready_financially: false
+  implementation_sequence_group: null
+- strategy_id: ASA-QS-XR-A1-CAOHAN-IVOL-DH-CALL
+  lane: 6-cross-sectional-option-returns
+  selected: false
+  selection_reason: marginal net of costs; live rule needs academic factor data
+  qualification_state: INSUFFICIENT_EVIDENCE
+  source_rule_complete: false
+  manifest_ready_financially: false
+  implementation_sequence_group: null

@@ -42,3 +42,7 @@
 - All evidence is index back-fill published or commissioned by the index owner (Cboe).
 - Net-of-cost results for replication are absent.
 - After launch (2006–2018), PUT's Sharpe ratio (0.50) did not exceed the S&P 500's (0.51).
+
+## Closeout disposition (2026-09-27)
+
+**Selected:** PUT (PW-01) and PUTY (PW-A1). PUTY was promoted after exact-rule evidence was recovered from the Cboe factsheet (1986–2026: 6.9% annualized, volatility 8.7%, max drawdown −28.9%). WPUT is not selected: the AM-roll blocker is unresolved. See [FINAL-SELECTION.md](FINAL-SELECTION.md).

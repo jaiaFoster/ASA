@@ -194,3 +194,21 @@ The sourced gates are: OI > 0 in the holding period; weighted spread ≤ 50%; an
 - replacement ordering and spread aggregation are undefined;
 - net evidence at conventional execution costs is not significant;
 - the signal requires a historical option panel that ASA does not have.
+
+## Closeout resolution (2026-09-27)
+
+The original DEEP_RESEARCH_REQUIRED determination above is preserved.
+
+No internet appendix was recoverable; the JF page and the co-author's site list none. The Researcher freezes the **cost-optimized "low-cost with deciles" variant**, the only variant with significant positive net evidence at the adjusted cost level (Table 13 Panel B: 0.0408, t 2.74; effective cost 0.0260, t 1.75).
+
+| Item | Frozen rule | Basis |
+|---|---|---|
+| Sort | deciles (top minus bottom), equal weight | Heston §6, Table 13 |
+| Low-cost filter | G-HES-LOWCOST-LEG-SPREAD: each leg (ask − bid)/mid ≤ 0.10. "avoid options with bid-ask spreads above 10% of option midpoints" is read per option. | DERIVED (literal) |
+| Replacement | **Research assumption RA-XR-03:** in this variant, no replacement. If the closest-to-0.5-delta pair fails the 10% leg filter, the stock is excluded that month. Basis: any pair that failed the 50% weighted-spread test would also fail the per-leg 10% test, so the 50% replacement rule is not needed to define the variant. Ordering is unstated in the source. | RESEARCH ASSUMPTION |
+| Weighted-spread aggregation | not needed under RA-XR-03 (G-HES-SPREAD-MAX is dominated by the per-leg 10% test) | DERIVED |
+| Formation history | 11 complete monthly straddle returns from the formation-period pair (no OI requirement) | source |
+| Execution-cost caveat | Net significance depends on execution quality below the full effective spread. This is recorded as evidence risk. | evidence |
+
+- **Qualification after closeout:** READY_WITH_EXPLICIT_UNKNOWNS.
+- **Selected** as the second lane-6 target.
