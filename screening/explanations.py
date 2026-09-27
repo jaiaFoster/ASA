@@ -7,9 +7,26 @@ from decimal import Decimal
 from enum import Enum
 
 from analytics.derived_facts import DERIVED_FACT_REGISTRY
+from analytics.formulas import OPTION_STRATEGY_FORMULAS
 from screening.results import ExplanationScalar, ScreeningExplanation
 from strategies.manifest import StrategyManifest
 from strategies.type_system import ComponentValues
+
+# Three-state gate values (SP-01E). UNKNOWN projects to None, never False.
+_GATE_STATES: dict[object, bool | None] = {"PASS": True, "FAIL": False, "UNKNOWN": None}
+
+
+def _gate_value(value: object) -> bool | None:
+    if isinstance(value, bool) or value is None:
+        return value
+    return _GATE_STATES.get(value)
+
+
+def _formula_version(formula_id: str) -> str:
+    if DERIVED_FACT_REGISTRY.is_registered(formula_id):
+        return DERIVED_FACT_REGISTRY.get(formula_id).feature_version
+    return OPTION_STRATEGY_FORMULAS.get(formula_id).formula_version
+
 
 def _scalar(value: object) -> ExplanationScalar:
     if value is None or isinstance(value, (bool, int, Decimal, str)):
@@ -54,20 +71,14 @@ def build_graph_explanation(
         )
     )
     gates = tuple(
-        (
-            name,
-            typed.value
-            if isinstance(typed.value, bool) or typed.value is None
-            else None,
-        )
+        (name, _gate_value(typed.value))
         for name, typed in outputs.entries
         if output_specs[name].explanation_role == "gate"
     )
     formula_versions = []
     for spec in manifest.outputs:
         if spec.formula_id is not None:
-            definition = DERIVED_FACT_REGISTRY.get(spec.formula_id)
-            formula_versions.append((spec.name, definition.feature_version))
+            formula_versions.append((spec.name, _formula_version(spec.formula_id)))
 
     direction_value = next(
         (
@@ -100,9 +111,18 @@ def build_graph_explanation(
     )
     assumptions = tuple(
         sorted(
-            f"{node.node_id}.{parameter.name}={parameter.value}"
-            for node in manifest.nodes
-            for parameter in node.parameters
+            [
+                f"{node.node_id}.{parameter.name}={parameter.value}"
+                for node in manifest.nodes
+                for parameter in node.parameters
+            ]
+            + [
+                # Material research/implementation assumptions are disclosed by
+                # id; they are never presented as source-authored rules.
+                f"assumption:{item.assumption_id}:{item.kind}"
+                + (f"[{','.join(item.parameter_names)}]" if item.parameter_names else "")
+                for item in manifest.assumptions
+            ]
         )
     )
     warnings = tuple(

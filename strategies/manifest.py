@@ -306,6 +306,38 @@ class OutputSpec:
                 )
 
 
+ASSUMPTION_KINDS = frozenset({"research", "implementation"})
+_ASSUMPTION_ID = re.compile(r"^(RA|IA)-[A-Z0-9]+(-[A-Z0-9]+)*$")
+
+
+@dataclass(frozen=True, slots=True, order=True)
+class AssumptionReference:
+    """One research (RA-*) or implementation (IA-*) assumption a manifest relies on.
+
+    Identity-bearing (STRATEGY-PRODUCTION-001 assumption provenance freeze):
+    the id and the manifest parameters that carry a semantics-changing value
+    are part of manifest identity, so replay identity changes with them. An
+    assumption is never labelled source-authored.
+    """
+
+    assumption_id: str
+    kind: str
+    parameter_names: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        if _ASSUMPTION_ID.fullmatch(self.assumption_id) is None:
+            raise ManifestValidationError("assumption_id must be RA-* or IA-*")
+        if self.kind not in ASSUMPTION_KINDS:
+            raise ManifestValidationError("assumption kind must be research or implementation")
+        if (self.kind == "research") != self.assumption_id.startswith("RA-"):
+            raise ManifestValidationError("RA-* assumptions are research, IA-* are implementation")
+        names = tuple(sorted(self.parameter_names))
+        for name in names:
+            _require_identifier(name, "assumption.parameter_names")
+        _require_unique(names, "assumption.parameter_names")
+        object.__setattr__(self, "parameter_names", names)
+
+
 @dataclass(frozen=True, slots=True)
 class StrategyManifest:
     """Complete canonical serialized definition of one strategy."""
@@ -323,6 +355,7 @@ class StrategyManifest:
     required_market_capabilities: tuple[CapabilityRequirement, ...] = field(
         default_factory=tuple
     )
+    assumptions: tuple[AssumptionReference, ...] = field(default_factory=tuple)
 
     def __post_init__(self) -> None:
         _require_semver(self.schema_version, "schema_version")
@@ -375,6 +408,19 @@ class StrategyManifest:
         object.__setattr__(self, "edges", edges)
         object.__setattr__(self, "outputs", outputs)
         object.__setattr__(self, "events", events)
+        assumptions = tuple(sorted(self.assumptions))
+        _require_unique(tuple(item.assumption_id for item in assumptions), "manifest.assumptions")
+        declared = {item.name for item in parameters} | {
+            value.name for node in nodes for value in node.parameters
+        }
+        for assumption in assumptions:
+            missing = set(assumption.parameter_names) - declared
+            if missing:
+                raise ManifestValidationError(
+                    f"assumption {assumption.assumption_id} names undeclared parameters "
+                    f"{sorted(missing)}"
+                )
+        object.__setattr__(self, "assumptions", assumptions)
 
     @property
     def manifest_id(self) -> str:
@@ -459,6 +505,17 @@ def _semantic_manifest_data(manifest: StrategyManifest) -> dict[str, object]:
         data["required_market_capabilities"] = [
             {"name": item.name, "version": item.version}
             for item in manifest.required_market_capabilities
+        ]
+    if manifest.assumptions:
+        # Emitted only when present, so manifests without assumptions keep
+        # their existing identities byte for byte.
+        data["assumptions"] = [
+            {
+                "assumption_id": item.assumption_id,
+                "kind": item.kind,
+                "parameter_names": list(item.parameter_names),
+            }
+            for item in manifest.assumptions
         ]
     return data
 
@@ -606,7 +663,7 @@ def _parse_manifest_data(root: dict[str, object]) -> StrategyManifest:
         "outputs",
         "events",
     }
-    _reject_unknown(root, required, {"required_market_capabilities"}, "$")
+    _reject_unknown(root, required, {"required_market_capabilities", "assumptions"}, "$")
 
     metadata_data = _require_object(root["metadata"], "$.metadata")
     _reject_unknown(metadata_data, {"name", "description", "tags"}, set(), "$.metadata")
@@ -773,6 +830,27 @@ def _parse_manifest_data(root: dict[str, object]) -> StrategyManifest:
         outputs=tuple(outputs),
         events=tuple(events),
         required_market_capabilities=tuple(market_capabilities),
+        assumptions=tuple(
+            _parse_assumption(item, f"$.assumptions[{index}]")
+            for index, item in enumerate(
+                _require_array(root.get("assumptions", []), "$.assumptions")
+            )
+        ),
+    )
+
+
+def _parse_assumption(value: object, path: str) -> AssumptionReference:
+    item = _require_object(value, path)
+    _reject_unknown(item, {"assumption_id", "kind", "parameter_names"}, set(), path)
+    return AssumptionReference(
+        _require_string(item["assumption_id"], f"{path}.assumption_id"),
+        _require_string(item["kind"], f"{path}.kind"),
+        tuple(
+            _require_string(name, f"{path}.parameter_names[{index}]")
+            for index, name in enumerate(
+                _require_array(item["parameter_names"], f"{path}.parameter_names")
+            )
+        ),
     )
 
 
