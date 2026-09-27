@@ -1017,7 +1017,12 @@ def _contract_from_data(root: dict[str, object]) -> FinancialContract:
     values: dict[str, object] = {}
     for field_name, raw in raw_fields.items():
         enum_type = _ENUM_FIELDS.get((cast(str, name), field_name))
-        values[field_name] = enum_type(cast(str, raw)) if enum_type else _decode(raw)
+        try:
+            values[field_name] = (
+                enum_type(cast(str, raw)) if enum_type and raw is not None else _decode(raw)
+            )
+        except ValueError as exc:
+            raise FinancialContractSerializationError(f"invalid {field_name} value") from exc
     try:
         return cast(FinancialContract, cls(**values))
     except (DomainInvariantError, TypeError, ValueError) as exc:

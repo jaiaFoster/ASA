@@ -36,6 +36,7 @@ All deltas are additive. None redefines an existing identity for data that lacks
 |---|---|---|---|---|
 | INDEX quote (value last disseminated before t) | `market_data/` quote path, `REAL_TIME_QUOTE_V1` with an INDEX subject | quote path exists; INDEX kind is new | PUT, PUTY, SCS, BXM | SP-01A |
 | Index option chain with root/settlement | `market_data/tradier.py` normalization → `OptionContract` | chain exists; fields new | PUT, PUTY, SCS, BXM | SP-01A |
+| Canonical index symbols and root → settlement table | `market_data/index_instruments.py`. This is the single extension point: a new index (XSP, NDX, RUT, VIX) adds rows here, never a second path (per SP-01A-IR-001). | SPX only | index strategies | SP-01A |
 | SOQ settlement value | `market_data/`: `INDEX_SETTLEMENT_VALUE_V1` | new | PUT, PUTY, SCS, BXM (outcomes) | SP-01A |
 | Treasury 4w/13w bank-discount; risk-free; dividend yield | `market_data/`: `RATE_OBSERVATION_V1`, a provider-neutral `RateObservation` (series id, tenor, basis, effective date) | new | PUT, PUTY, SCS, Zhan | SP-01B |
 | Option trade tape; Cboe VWAP input | `market_data/`: `OPTION_TRADE_TAPE_V1` (`OptionTrade`: identity, price, size, event and observed time, sale condition). VWAP formula owned by `analytics/`. | new | PUT, PUTY, BXM | SP-01C |

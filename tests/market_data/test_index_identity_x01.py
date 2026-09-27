@@ -226,3 +226,58 @@ def test_settlement_value_uses_the_financial_wire_inside_market_data() -> None:
     encoded = _wire(soq)
     assert isinstance(encoded, dict) and set(encoded) == {"$financial_contract"}
     assert _decode(encoded) == soq
+
+
+def test_zero_index_level_is_no_value_not_a_price() -> None:
+    row = {
+        "symbol": "SPX",
+        "last": "0",
+        "bid": 0,
+        "ask": 0,
+        "trade_date": int(NOW.timestamp() * 1000),
+    }
+    transport = Transport((response({"quotes": {"quote": row}}),))
+    result = provider(transport).fetch(
+        _spx_request(MarketCapability.REAL_TIME_QUOTE_V1, ("last",)), authorization()
+    )
+    assert result.observations == ()
+    assert result.error is not None
+
+
+def test_settlement_value_has_no_provider_and_is_typed_unavailable() -> None:
+    from domain.values import DomainInvariantError as InvariantError
+    from market_data.alpha_vantage import ALPHA_VANTAGE_CAPABILITIES
+    from market_data.finnhub import FINNHUB_CAPABILITIES
+    from market_data.fixture import FIXTURE_CAPABILITIES
+    from market_data.registry import ProviderPriority, ProviderPriorityPolicy
+    from market_data.tradier import TRADIER_CAPABILITIES
+    from screening.live_context import classify_domain_invariant_error
+
+    declared = {
+        *TRADIER_CAPABILITIES,
+        *FINNHUB_CAPABILITIES,
+        *ALPHA_VANTAGE_CAPABILITIES,
+        *FIXTURE_CAPABILITIES,
+    }
+    capability = MarketCapability.INDEX_SETTLEMENT_VALUE_V1
+    assert capability not in declared
+    policy = ProviderPriorityPolicy(
+        "test",
+        tuple(ProviderPriority(item, ("p",)) for item in sorted(declared, key=lambda c: c.value)),
+    )
+    with pytest.raises(InvariantError) as raised:
+        policy.for_capability(capability)
+    assert classify_domain_invariant_error(raised.value, capability, "SPX").startswith(
+        "no enabled provider declares"
+    )
+
+
+def test_explicit_null_settlement_style_is_a_serialization_error() -> None:
+    import json
+
+    from domain import FinancialContractSerializationError
+
+    data = json.loads(serialize_financial_contract(_contract(root="SPX")))
+    data["fields"]["settlement_style"] = None
+    with pytest.raises(FinancialContractSerializationError):
+        deserialize_financial_contract(json.dumps(data, sort_keys=True).encode())

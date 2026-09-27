@@ -566,7 +566,8 @@ def _quote(subject: MarketDataSubject, row: Mapping[str, object]) -> Quote:
             subject.canonical_instrument,
             _index_side(row, "bid"),
             _index_side(row, "ask"),
-            _decimal(row["last"]),
+            # An index level of zero is never real: it is no value, never a price.
+            _index_side(row, "last"),
             None,
             None,
             None,
