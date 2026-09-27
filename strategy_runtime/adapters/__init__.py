@@ -27,6 +27,8 @@ from strategies.earnings_calendar_planning import earnings_calendar_resolved_fie
 from strategies.forward_factor_planning import (
     resolved_field_requirements as forward_factor_resolved_field_requirements,
 )
+from strategies.gxz_manifest import GXZ_MANIFEST
+from strategies.gxz_planning import resolved_field_requirements as gxz_resolved_field_requirements
 from strategies.manifest_version_pins import version_pin_violations
 from strategies.put_credit_spread_manifest import SPY_PUT_CREDIT_SPREAD_MANIFEST
 from strategies.put_credit_spread_planning import (
@@ -52,6 +54,8 @@ from strategy_runtime.adapters.forward_factor import (
 from strategy_runtime.adapters.forward_factor_subject_first import (
     build_forward_factor_subject_preparation_binding,
 )
+from strategy_runtime.adapters.gxz import GXZ_CONTRACT
+from strategy_runtime.adapters.gxz_subject_first import build_gxz_subject_preparation_binding
 from strategy_runtime.adapters.put_credit_spread import SPY_PUT_CREDIT_SPREAD_CONTRACT
 from strategy_runtime.adapters.put_credit_spread_subject_first import (
     build_put_credit_spread_subject_preparation_binding,
@@ -100,6 +104,7 @@ def build_migrated_strategy_registry() -> StrategyRegistry[UniversalScreeningRes
         (B001_MANIFEST, B001_CONTRACT),
         (B002_MANIFEST, B002_CONTRACT),
         (SPY_PUT_CREDIT_SPREAD_MANIFEST, SPY_PUT_CREDIT_SPREAD_CONTRACT),
+        (GXZ_MANIFEST, GXZ_CONTRACT),
     )
     for manifest, contract in pairs:
         validate_manifest_contract(manifest, contract)
@@ -114,6 +119,7 @@ def build_migrated_strategy_registry() -> StrategyRegistry[UniversalScreeningRes
             (B001_CONTRACT, _subject_first_only),
             (B002_CONTRACT, _subject_first_only),
             (SPY_PUT_CREDIT_SPREAD_CONTRACT, _subject_first_only),
+            (GXZ_CONTRACT, _subject_first_only),
         )
     )
 
@@ -154,6 +160,7 @@ def build_migrated_shadow_registry(
                 SPY_PUT_CREDIT_SPREAD_CONTRACT.strategy_id,
                 build_put_credit_spread_subject_preparation_binding(now),
             ),
+            (GXZ_CONTRACT.strategy_id, build_gxz_subject_preparation_binding(now)),
         )
     )
 
@@ -194,6 +201,7 @@ def migrated_shadow_resolution_policy(
             B001_CONTRACT.strategy_id,
             B002_CONTRACT.strategy_id,
             SPY_PUT_CREDIT_SPREAD_CONTRACT.strategy_id,
+            GXZ_CONTRACT.strategy_id,
         )
     )
     requirements: dict[MarketCapability, tuple[tuple[str, ...], int]] = {}
@@ -209,6 +217,8 @@ def migrated_shadow_resolution_policy(
         requirements.update(b002_resolved_field_requirements())
     if SPY_PUT_CREDIT_SPREAD_CONTRACT.strategy_id in selected:
         requirements.update(put_credit_spread_resolved_field_requirements())
+    if GXZ_CONTRACT.strategy_id in selected:
+        requirements.update(gxz_resolved_field_requirements())
     return resolution_policy_for_capabilities(capability_registry, requirements)
 
 
@@ -233,6 +243,7 @@ def build_migrated_signal_catalog() -> tuple[SignalCatalogEntry, ...]:
             SPY_PUT_CREDIT_SPREAD_CONTRACT,
             manifest_id=SPY_PUT_CREDIT_SPREAD_MANIFEST.manifest_id,
         ),
+        SignalCatalogEntry.from_contract(GXZ_CONTRACT, manifest_id=GXZ_MANIFEST.manifest_id),
     )
     return tuple(sorted(entries, key=lambda item: item.signal_id))
 
@@ -256,5 +267,6 @@ def build_migrated_cutover_policy(values: Mapping[str, str]) -> CutoverPolicy:
             B001_CONTRACT.strategy_id: True,
             B002_CONTRACT.strategy_id: True,
             SPY_PUT_CREDIT_SPREAD_CONTRACT.strategy_id: True,
+            GXZ_CONTRACT.strategy_id: True,
         }
     )

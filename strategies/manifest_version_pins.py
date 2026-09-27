@@ -16,7 +16,12 @@ from strategies.manifest import StrategyManifest
 
 # Populated by each strategy ticket when it registers an assumption-bearing
 # manifest. Keys are (strategy_id, strategy_version).
-MANIFEST_VERSION_PINS: Mapping[tuple[str, str], str] = {}
+MANIFEST_VERSION_PINS: Mapping[tuple[str, str], str] = {
+    (
+        "event_vol_gxz_preea_straddle_to_expiry",
+        "1.0.0-research",
+    ): "a13f294bca27bef47d3925902fce4a7a9722f0c7326016351a6644c870d6e3f7",
+}
 
 
 def version_pin_violations(

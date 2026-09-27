@@ -98,6 +98,7 @@ def test_bootstrap_first_run_from_a_genuinely_empty_deployment(
         "B001",
         "B002",
         "earnings_calendar",
+        "event_vol_gxz_preea_straddle_to_expiry",
         "forward_factor",
         "skew_momentum",
         "spy_put_credit_spread",

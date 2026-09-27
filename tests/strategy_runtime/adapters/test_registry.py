@@ -16,6 +16,7 @@ def test_all_three_migration_targets_are_registered() -> None:
         "B001",
         "B002",
         "earnings_calendar",
+        "event_vol_gxz_preea_straddle_to_expiry",
         "forward_factor",
         "skew_momentum",
         "spy_put_credit_spread",
