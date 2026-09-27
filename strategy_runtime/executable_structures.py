@@ -29,6 +29,12 @@ def _aware(value: datetime, owner: str, field: str) -> None:
         raise ValueError(f"{owner}.{field} must be timezone-aware")
 
 
+# Structure kinds the exact-leg resolver can assess (P03 straddle added by SP-02A).
+RESOLVABLE_STRUCTURE_KINDS = frozenset(
+    {StructureKind.CALENDAR, StructureKind.VERTICAL, StructureKind.STRADDLE}
+)
+
+
 class ExecutableStructureStatus(StrEnum):
     CONSTRUCTIBLE_AS_INTENDED = "constructible_as_intended"
     DIFFERENT_STRUCTURE_AVAILABLE = "different_structure_available"
@@ -116,7 +122,7 @@ class ExecutableStructureAssessment:
         for field in ("originating_result_identity", "subject", "evidence_snapshot_identity"):
             _text(getattr(self, field), "ExecutableStructureAssessment", field)
         _aware(self.assessed_at, "ExecutableStructureAssessment", "assessed_at")
-        if self.intended_structure_kind not in {StructureKind.CALENDAR, StructureKind.VERTICAL}:
+        if self.intended_structure_kind not in RESOLVABLE_STRUCTURE_KINDS:
             raise ValueError("ExecutableStructureAssessment supports active v1 structures only")
         if self.status is ExecutableStructureStatus.CONSTRUCTIBLE_AS_INTENDED:
             if (

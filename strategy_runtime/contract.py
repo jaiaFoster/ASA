@@ -148,6 +148,10 @@ class StructureKind(str, Enum):
     NONE = "none"
     VERTICAL = "vertical"
     CALENDAR = "calendar"
+    # P03 (STRATEGY-PRODUCTION-001 SP-02A): one or more same-strike,
+    # same-expiration call/put pairs sharing one direction; any positive
+    # per-leg quantity (unit or non-unit ratios).
+    STRADDLE = "straddle"
     CUSTOM = "custom"
 
 

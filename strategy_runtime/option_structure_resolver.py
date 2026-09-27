@@ -9,6 +9,7 @@ from decimal import Decimal
 from domain import OptionChain, OptionContract, OptionLeg, OptionLegPosition, OptionType
 from strategy_runtime.contract import StructureKind
 from strategy_runtime.executable_structures import (
+    RESOLVABLE_STRUCTURE_KINDS,
     ExecutableStructureAssessment,
     ExecutableStructureStatus,
     ModeledEntryEconomics,
@@ -58,9 +59,14 @@ class OptionStructureIntent:
     def __post_init__(self) -> None:
         if not self.subject or self.subject != self.subject.strip():
             raise ValueError("OptionStructureIntent.subject must be normalized non-empty text")
-        if self.intended_structure_kind not in {StructureKind.CALENDAR, StructureKind.VERTICAL}:
+        if self.intended_structure_kind not in RESOLVABLE_STRUCTURE_KINDS:
             raise ValueError("OptionStructureIntent supports active v1 structures only")
-        if len(self.legs) != 2:
+        if self.intended_structure_kind is StructureKind.STRADDLE:
+            # P03: one or more call/put pairs; pair shape is verified on the
+            # exact resolved contracts, never inferred from roles.
+            if not self.legs or len(self.legs) % 2:
+                raise ValueError("OptionStructureIntent straddle requires call/put pairs")
+        elif len(self.legs) != 2:
             raise ValueError("OptionStructureIntent v1 structures require exactly two legs")
         roles = tuple(item.role for item in self.legs)
         if len(roles) != len(set(roles)):
@@ -125,7 +131,43 @@ def _midpoint_entry(
     return ModeledEntryEconomics(tuple(per_leg), total, _MIDPOINT_MODEL_VERSION, assessed_at)
 
 
+def _is_straddle(legs: tuple[ResolvedOptionLeg, ...]) -> bool:
+    """P03 shape: every (expiration, strike) group is exactly one call and one
+    put, and every leg shares one direction (all long or all short)."""
+    if not legs or len(legs) % 2:
+        return False
+    if len({item.leg.position for item in legs}) != 1:
+        return False
+    groups: dict[tuple[object, object], list[OptionType]] = {}
+    for item in legs:
+        contract = item.leg.contract
+        groups.setdefault((contract.expiration, contract.strike), []).append(contract.option_type)
+    return all(
+        sorted(types, key=lambda value: value.value) == [OptionType.CALL, OptionType.PUT]
+        for types in groups.values()
+    )
+
+
+def canonical_leg_order(legs: tuple[ResolvedOptionLeg, ...]) -> tuple[ResolvedOptionLeg, ...]:
+    """Deterministic pair and position ordering independent of intent order."""
+    return tuple(
+        sorted(
+            legs,
+            key=lambda item: (
+                item.leg.contract.expiration,
+                item.leg.contract.strike,
+                item.leg.contract.option_type.value,
+                item.leg.contract.identity,
+            ),
+        )
+    )
+
+
 def _shape(legs: tuple[ResolvedOptionLeg, ...]) -> StructureKind:
+    if _is_straddle(legs):
+        return StructureKind.STRADDLE
+    if len(legs) != 2:
+        return StructureKind.CUSTOM
     first, second = (item.leg.contract for item in legs)
     same_expiration = first.expiration == second.expiration
     same_strike = first.strike == second.strike
@@ -154,8 +196,7 @@ def resolve_option_structure(
             and not any(
                 contract.delta is not None
                 for contract in chain.contracts
-                if contract.expiration == leg.expiration
-                and contract.option_type is leg.option_type
+                if contract.expiration == leg.expiration and contract.option_type is leg.option_type
             )
             for leg, item in zip(intent.legs, resolved, strict=True)
             if item is None
@@ -176,6 +217,21 @@ def resolve_option_structure(
         )
 
     exact = tuple(item for item in resolved if item is not None)
+    if intent.intended_structure_kind is StructureKind.STRADDLE:
+        exact = canonical_leg_order(exact)
+        if len({item.leg.contract.identity for item in exact}) != len(exact):
+            return ExecutableStructureAssessment(
+                originating_result_identity,
+                intent.subject,
+                intent.intended_structure_kind,
+                ExecutableStructureStatus.NOT_CONSTRUCTIBLE,
+                (),
+                (),
+                None,
+                evidence_snapshot_identity,
+                assessed_at,
+                reason_code="duplicate_contract_in_structure",
+            )
     actual_shape = _shape(exact)
     diagnostics = tuple(
         SelectionDiagnostic(item.leg.role, item.target_delta, item.leg.contract.delta)
