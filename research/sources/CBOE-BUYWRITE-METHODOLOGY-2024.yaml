@@ -1,0 +1,64 @@
+# ASA-RES-STRATEGY-QUALIFICATION-002 source record. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN.
+source_id: CBOE-BUYWRITE-METHODOLOGY-2024
+source_class: EXTERNAL_PRIMARY
+title: Cboe BuyWrite Indices Methodology (BXD, BXDE, BXM, BXMD, BXR, BXRD, BXY and variants)
+authors:
+- Cboe Global Indices
+publication: Cboe Global Indices index methodology
+publication_date: UNKNOWN (current version retrieved 2026-09-27)
+source_type: index_methodology
+canonical_url: https://cdn.cboe.com/api/global/us_indices/governance/Cboe_BuyWrite_Indices_Methodology.pdf
+doi: null
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: full_text_reviewed
+recovered_at: '2026-09-27'
+sprint: ASA-RES-STRATEGY-QUALIFICATION-002
+research_context:
+  sample_period: methodology
+  universe: S&P 500 / DJIA / Russell 2000 index + short monthly call
+  market: US
+  methodology_context: index calculation rules
+  original_or_replication: original
+  material_limitations:
+  - BXMD Black-formula inputs (volatility, rate, dividends) not specified
+  - Index sponsor document
+preliminary_families:
+- FAM-VRP-COVERED-CALL
+claims:
+- claim_id: CBOE-BUYWRITE-METHODOLOGY-2024-C1
+  claim_class: REPORTED
+  reported_metric: BXM strike
+  value: closest strike at or above the last S&P 500 value reported before 11:00 a.m. ET
+  context: §2.2 table
+- claim_id: CBOE-BUYWRITE-METHODOLOGY-2024-C2
+  claim_class: REPORTED
+  reported_metric: BXMD strike
+  value: OTM call with delta closest to 0.30 using the Black formula with inputs as of the last values before 11:00
+    a.m. ET; equal-distance tie -> higher strike
+  context: §2.2 table, footnote 3
+- claim_id: CBOE-BUYWRITE-METHODOLOGY-2024-C3
+  claim_class: REPORTED
+  reported_metric: BXY strike
+  value: strike closest to 102% of the last S&P 500 value before 11:00 a.m. ET
+  context: §2.2 table
+- claim_id: CBOE-BUYWRITE-METHODOLOGY-2024-C4
+  claim_class: REPORTED
+  reported_metric: VWAP windows
+  value: BXM 11:30 a.m.-1:30 p.m. ET since 2010-11-19 (half hour from 2004-05-21); BXMD 11:30-12:00 since 2022-02-18
+    (30-minute VWAP before); BXY 11:30-12:00
+  context: §2.2
+- claim_id: CBOE-BUYWRITE-METHODOLOGY-2024-C5
+  claim_class: REPORTED
+  reported_metric: return formulas
+  value: non-roll 1+R = (S_t + Div_t - C_t)/(S_{t-1} - C_{t-1}); roll (1+Ra)(1+Rb)(1+Rc)
+  context: §3.1
+- claim_id: CBOE-BUYWRITE-METHODOLOGY-2024-C6
+  claim_class: REPORTED
+  reported_metric: notional
+  value: index and short call held in equal notional amounts
+  context: §2.2
+recoverability:
+  repository_copy: null
+  external_identifier: https://cdn.cboe.com/api/global/us_indices/governance/Cboe_BuyWrite_Indices_Methodology.pdf
+  notes: Full text retrieved from the Cboe CDN and reviewed 2026-09-27.

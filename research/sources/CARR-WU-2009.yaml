@@ -38,3 +38,23 @@ recoverability:
   external_identifier: 10.1093/rfs/hhn038
   notes: Bibliographic identity verified via Crossref; abstract retrieved via OpenAlex, Semantic Scholar
     or RePEc IDEAS on 2026-09-26. Claims beyond the abstract are not asserted.
+
+# --- ASA-RES-STRATEGY-QUALIFICATION-002 verification (2026-09-27). Fields above are preserved unchanged; verification_depth_after supersedes verification_depth for this sprint only. ---
+qualification_002_verification:
+  reviewed_at: '2026-09-27'
+  sprint: ASA-RES-STRATEGY-QUALIFICATION-002
+  verification_depth_after: full_text_reviewed
+  full_text_url: https://engineering.nyu.edu/sites/default/files/2019-01/CarrReviewofFinStudiesMarch2009-a.pdf
+  sample_period: 1996-01 to 2003-02 (OptionMetrics)
+  claims:
+  - claim_id: CARR-WU-2009-Q2-C1
+    claim_class: REPORTED
+    reported_metric: synthetic variance swap rate
+    value: eq. (49)-(50) over linearly interpolated IV in k = ln(K/F), flat extrapolation, 2,000 points over ±8
+      SD; two nearest maturities >= 8 days; linear interpolation to 30 days without extrapolation
+    context: §3
+  - claim_id: CARR-WU-2009-Q2-C2
+    claim_class: REPORTED
+    reported_metric: realized variance
+    value: 'eq. (51): (365/30)·Σ daily squared forward returns over 30 calendar days'
+    context: §3

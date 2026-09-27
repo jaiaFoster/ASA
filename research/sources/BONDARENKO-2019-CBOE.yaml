@@ -63,3 +63,17 @@ recoverability:
   repository_copy: null
   external_identifier: 10.2139/ssrn.3393940
   notes: Full text retrieved from the canonical URL and reviewed on 2026-09-26.
+
+# --- ASA-RES-STRATEGY-QUALIFICATION-002 verification (2026-09-27). Fields above are preserved unchanged; verification_depth_after supersedes verification_depth for this sprint only. ---
+qualification_002_verification:
+  reviewed_at: '2026-09-27'
+  sprint: ASA-RES-STRATEGY-QUALIFICATION-002
+  verification_depth_after: full_text_reviewed
+  full_text_url: null
+  sample_period: 2006-2018 (WPUT figures)
+  claims:
+  - claim_id: BONDARENKO-2019-CBOE-Q2-C1
+    claim_class: REPORTED
+    reported_metric: WPUT 2006-2018
+    value: compound 4.51%, Sharpe 0.40, max drawdown -24.2%; gross premium 37.1% per year vs 22.1% for PUT
+    context: full text, WPUT comparison exhibits (canonical URL above), reviewed 2026-09-26/27

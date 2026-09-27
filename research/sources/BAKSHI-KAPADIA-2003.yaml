@@ -41,3 +41,23 @@ recoverability:
   external_identifier: 10.1093/rfs/hhg002
   notes: Bibliographic identity verified via Crossref; abstract retrieved via OpenAlex, Semantic Scholar
     or RePEc IDEAS on 2026-09-26. Claims beyond the abstract are not asserted.
+
+# --- ASA-RES-STRATEGY-QUALIFICATION-002 verification (2026-09-27). Fields above are preserved unchanged; verification_depth_after supersedes verification_depth for this sprint only. ---
+qualification_002_verification:
+  reviewed_at: '2026-09-27'
+  sprint: ASA-RES-STRATEGY-QUALIFICATION-002
+  verification_depth_after: full_text_reviewed
+  full_text_url: https://people.umass.edu/~nkapadia/docs/Bakshi_and_Kapadia_2003_RFS.pdf
+  sample_period: 1988-01 to 1995-12
+  claims:
+  - claim_id: BAKSHI-KAPADIA-2003-Q2-C1
+    claim_class: REPORTED
+    reported_metric: delta-hedged gain
+    value: ATM calls lose about 0.10% of index level, about $0.43 per call vs mean spread about $0.375
+    context: results
+  - claim_id: BAKSHI-KAPADIA-2003-Q2-C2
+    claim_class: REPORTED
+    reported_metric: design
+    value: every option-day with 14-60 days, ±10% moneyness, IV 1-100%, arbitrage bounds; daily Black-Scholes hedge
+      with GARCH (full sample) or historical volatility; r from put-call parity
+    context: §2-§3

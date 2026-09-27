@@ -1,0 +1,400 @@
+# ASA-RES-STRATEGY-QUALIFICATION-002 — qualification matrix (ROLE-RESEARCH).
+schema: asa.research.qualification_matrix/v1
+sprint: ASA-RES-STRATEGY-QUALIFICATION-002
+recorded_at: '2026-09-27'
+note: implementation_ready is true only for IMPLEMENTATION_READY_RESEARCH. No candidate reached that state. Qualification
+  is a research-evidence status, not a build authorization or a ranking.
+summary:
+  candidates: 14
+  IMPLEMENTATION_READY_RESEARCH: 0
+  READY_WITH_EXPLICIT_UNKNOWNS: 2
+  DEEP_RESEARCH_REQUIRED: 7
+  INSUFFICIENT_EVIDENCE: 3
+  RESEARCH_REJECT: 2
+  ARCHITECT_REVIEW_REQUIRED: 0
+lanes:
+  1-event-volatility:
+    primaries_ready_with_explicit_unknowns: 0
+    primaries_specified: 2
+    alternates: 1
+    reason: 'No event-volatility rule reached READY: GXZ hold-to-expiry has unresolved DTE, leg-ratio and multi-pair
+      semantics in the only accessible version; ALX has no live universe and no source-authored trade direction.
+      The headline GXZ [-3,0] round trip is rejected on the authors'' own cost calculation.'
+  2-index-put-writing:
+    primaries_ready_with_explicit_unknowns: 1
+    primaries_specified: 2
+    alternates: 1
+    reason: 'PUT is fully specified (READY_WITH_EXPLICIT_UNKNOWNS: provider questions only). WPUT has an AM-roll
+      timing inconsistency in the methodology. PUTY is complete but has no recovered performance evidence.'
+  3-index-short-volatility:
+    primaries_ready_with_explicit_unknowns: 0
+    primaries_specified: 0
+    alternates: 1
+    reason: No recovered source defines a tradable index short-volatility rule (entry schedule, sizing, exit) with
+      evidence. Bakshi-Kapadia and Carr-Wu are measurement designs; Cboe iron condor / butterfly indexes require
+      P05 (not in the advanced bundle) and were not deep-researched. 0DTE excluded by assignment.
+  4-covered-call:
+    primaries_ready_with_explicit_unknowns: 1
+    primaries_specified: 2
+    alternates: 1
+    reason: BXM is fully specified. BXMD strike selection depends on undefined Black-formula inputs; the BXM/BXMD
+      pair is at the boundary of the diversity rule (distinct only in market-regime exposure). BXY lacks evidence.
+  5-option-implied-information:
+    primaries_ready_with_explicit_unknowns: 0
+    primaries_specified: 0
+    alternates: 1
+    reason: The strongest full-text evidence (Muravyev-Pearson-Pollet) shows skew, IV-spread and O/S stock-return
+      predictability is insignificant net of borrow fees, concentrated in hard-to-borrow stocks. No second signal
+      family with net-positive evidence was recovered (risk-neutral-moment signals not recovered in full text).
+  6-cross-sectional-option-returns:
+    primaries_ready_with_explicit_unknowns: 0
+    primaries_specified: 2
+    alternates: 1
+    reason: Zhan -Ln(PRICE) has the strongest net evidence in the sprint but an ex-post dividend filter, missing
+      weighting inputs and an unspecified long-book capital convention. Option momentum is gross-strong but net-insignificant
+      at non-algorithmic costs, with undefined replacement ordering and an A08 dependency.
+rows:
+- strategy_id: ASA-QS-EV-01-GXZ-PREEA-STRADDLE-TO-EXPIRY
+  lane: 1-event-volatility
+  primary_or_alternate: PRIMARY
+  qualification_state: DEEP_RESEARCH_REQUIRED
+  evidence_strength: 'MODERATE (Table 6: 4-10 day group 0.61%/day at full quoted spread, t 2.08)'
+  evidence_direction: FAVORABLE (1996-2010); recent unconditional EAD evidence contrary (ALX 2013-2020)
+  evidence_confidence: LOW-MEDIUM
+  rule_precision: PARTIAL
+  implementation_ready: false
+  material_unknowns:
+  - DTE unit and Table 6 maturity filter conflict
+  - delta-neutral vs simple straddle in Table 6
+  - multi-pair volume weighting
+  - sizing
+  - 'published JFQA text not accessed (versions differ: 3.00% vs 3.34%)'
+  - provider delta equivalence
+  required_existing_primitives:
+  - EARNINGS_CALENDAR_V1
+  - OPTION_CHAIN_V1
+  - TRADING_CALENDAR_V1
+  - verdict_classifier
+  required_missing_primitives:
+  - P03
+  - A12 (diagnostic)
+  architecture_review_required: P03 multi-pair semantics
+  blocker_resolution: obtain published JFQA 2018 text
+- strategy_id: ASA-QS-EV-02-ALX-CONCAVE-EA-STRADDLE
+  lane: 1-event-volatility
+  primary_or_alternate: PRIMARY
+  qualification_state: DEEP_RESEARCH_REQUIRED
+  evidence_strength: MODERATE (differential -4.65%, t -2.16; regression -4.57%, t 2.40 as printed)
+  evidence_direction: CONDITIONAL (differential only; no source-authored trade)
+  evidence_confidence: LOW-MEDIUM
+  rule_precision: HIGH for signal; NONE for position direction
+  implementation_ready: false
+  material_unknowns:
+  - live universe (same-year top-100 option volume is look-ahead)
+  - position direction not source-authored
+  - net level returns not reported
+  - spline software equivalence
+  - sizing
+  required_existing_primitives:
+  - EARNINGS_CALENDAR_V1
+  - OPTION_CHAIN_V1
+  - TRADING_CALENDAR_V1
+  required_missing_primitives:
+  - P03
+  - X04
+  - DF-ALX-CONCAVE analytic
+  architecture_review_required: software-specific smoothing spline as pinned analytics fact
+  blocker_resolution: authors or replication for a live universe and a tradable direction; net levels
+- strategy_id: ASA-QS-EV-A1-GXZ-DN-STRADDLE-M3-0
+  lane: 1-event-volatility
+  primary_or_alternate: ALTERNATE
+  qualification_state: RESEARCH_REJECT
+  evidence_strength: STRONG gross (3.00%) / NEGATIVE net (about -8% at 50% spread, authors own calculation)
+  evidence_direction: UNFAVORABLE net
+  evidence_confidence: MEDIUM
+  rule_precision: PARTIAL
+  implementation_ready: false
+  material_unknowns:
+  - DTE unit
+  required_existing_primitives:
+  - EARNINGS_CALENDAR_V1
+  - OPTION_CHAIN_V1
+  required_missing_primitives:
+  - P03
+  architecture_review_required: none
+  blocker_resolution: n/a (rejected)
+- strategy_id: ASA-QS-PW-01-CBOE-PUT
+  lane: 2-index-put-writing
+  primary_or_alternate: PRIMARY
+  qualification_state: READY_WITH_EXPLICIT_UNKNOWNS
+  evidence_strength: 'MODERATE (1986-2018 index: 9.54%, SD 9.95%, Sharpe 0.65; 2006-2018 Sharpe 0.50 vs S&P 0.51)'
+  evidence_direction: FAVORABLE gross (risk reduction); no post-launch risk-adjusted edge
+  evidence_confidence: MEDIUM
+  rule_precision: COMPLETE
+  implementation_ready: false
+  material_unknowns:
+  - option trade prints for VWAP entry price (outcome valuation only)
+  - SOQ settlement value availability
+  - Treasury bank-discount rates
+  - net-of-cost performance
+  required_existing_primitives:
+  - OPTION_CHAIN_V1
+  - REAL_TIME_QUOTE_V1
+  - TRADING_CALENDAR_V1
+  - verdict_classifier
+  required_missing_primitives:
+  - X01
+  - P01
+  - X02a
+  - X04
+  - A15 (collateral)
+  - GAP-OPTION-TRADE-PRINTS
+  architecture_review_required: tracking-price source for VWAP entry only
+  blocker_resolution: none for the strategy graph; provider questions only
+- strategy_id: ASA-QS-PW-02-CBOE-WPUT
+  lane: 2-index-put-writing
+  primary_or_alternate: PRIMARY
+  qualification_state: DEEP_RESEARCH_REQUIRED
+  evidence_strength: 'WEAK-MODERATE (2006-2018: 4.51%, Sharpe 0.40, MDD -24.2%)'
+  evidence_direction: MIXED (lower return and Sharpe than PUT and S&P 500 in same period)
+  evidence_confidence: LOW-MEDIUM
+  rule_precision: COMPLETE except AM-roll ordering
+  implementation_ready: false
+  material_unknowns:
+  - 'AM-settlement roll: strike below SOQ vs premium at first bid after 9:30 ET (live ordering undefined)'
+  - strict vs inclusive "below"
+  - quote-event capture
+  required_existing_primitives:
+  - OPTION_CHAIN_V1
+  - TRADING_CALENDAR_V1
+  required_missing_primitives:
+  - X01
+  - P01
+  - X02a
+  - X04
+  - quote-event capture (not in taxonomy)
+  architecture_review_required: quote-event capture semantics
+  blocker_resolution: Cboe clarification of AM-day premium timestamp
+- strategy_id: ASA-QS-PW-A1-CBOE-PUTY
+  lane: 2-index-put-writing
+  primary_or_alternate: ALTERNATE
+  qualification_state: INSUFFICIENT_EVIDENCE
+  evidence_strength: NONE recovered for exact rule
+  evidence_direction: UNKNOWN
+  evidence_confidence: LOW
+  rule_precision: COMPLETE (equality case typed AMBIGUOUS)
+  implementation_ready: false
+  material_unknowns:
+  - exact-strategy performance
+  required_existing_primitives:
+  - OPTION_CHAIN_V1
+  - TRADING_CALENDAR_V1
+  required_missing_primitives:
+  - X01
+  - P01
+  - X02a
+  - X04
+  architecture_review_required: as PUT
+  blocker_resolution: recover PUTY performance evaluation
+- strategy_id: ASA-QS-SV-A1-BK-DELTA-HEDGED-INDEX-CALL
+  lane: 3-index-short-volatility
+  primary_or_alternate: ALTERNATE
+  qualification_state: DEEP_RESEARCH_REQUIRED
+  evidence_strength: STRONG phenomenon (negative volatility risk premium); no strategy
+  evidence_direction: FAVORABLE phenomenon; net for a short-vol trader about zero on reported numbers (INFERENCE)
+  evidence_confidence: MEDIUM (phenomenon)
+  rule_precision: MEASUREMENT ONLY
+  implementation_ready: false
+  material_unknowns:
+  - entry schedule
+  - sizing
+  - GARCH full-sample look-ahead
+  - historical-vol window
+  - net results
+  required_existing_primitives:
+  - OPTION_CHAIN_V1
+  required_missing_primitives:
+  - X01
+  - A14
+  - P10
+  architecture_review_required: none beyond A14 as classified
+  blocker_resolution: a source defining a tradable schedule
+- strategy_id: ASA-QS-CC-01-CBOE-BXM
+  lane: 4-covered-call
+  primary_or_alternate: PRIMARY
+  qualification_state: READY_WITH_EXPLICIT_UNKNOWNS
+  evidence_strength: 'MODERATE (1986-2018: 8.50%, SD 10.6%, Sharpe 0.51, MDD -35.8%; independent decomposition)'
+  evidence_direction: FAVORABLE gross (risk reduction); timing component uncompensated
+  evidence_confidence: MEDIUM
+  rule_precision: COMPLETE
+  implementation_ready: false
+  material_unknowns:
+  - option trade prints for VWAP entry
+  - SOQ
+  - index dividend points
+  - net-of-cost performance
+  required_existing_primitives:
+  - OPTION_CHAIN_V1
+  - REAL_TIME_QUOTE_V1
+  - TRADING_CALENDAR_V1
+  - verdict_classifier
+  required_missing_primitives:
+  - X01
+  - P09
+  - X02a
+  - GAP-OPTION-TRADE-PRINTS
+  architecture_review_required: P09 with a non-tradable index as the covered leg; tracking-price source
+  blocker_resolution: none for signal; provider questions and P09 index-leg semantics
+- strategy_id: ASA-QS-CC-02-CBOE-BXMD
+  lane: 4-covered-call
+  primary_or_alternate: PRIMARY
+  qualification_state: DEEP_RESEARCH_REQUIRED
+  evidence_strength: 'MODERATE (1986-2018: 10.22%, SD 12.8%, Sharpe 0.55, MDD -42.7%, beta 0.77)'
+  evidence_direction: FAVORABLE gross
+  evidence_confidence: LOW-MEDIUM
+  rule_precision: COMPLETE except Black-formula inputs
+  implementation_ready: false
+  material_unknowns:
+  - Black-formula volatility, rate and dividend inputs (signal-level)
+  - trade prints
+  - SOQ
+  - net
+  required_existing_primitives:
+  - OPTION_CHAIN_V1
+  - REAL_TIME_QUOTE_V1
+  - TRADING_CALENDAR_V1
+  required_missing_primitives:
+  - X01
+  - P09
+  - X02a
+  - X04 (if rate input used)
+  architecture_review_required: as BXM
+  blocker_resolution: Cboe BXMD delta-input specification
+- strategy_id: ASA-QS-CC-A1-CBOE-BXY
+  lane: 4-covered-call
+  primary_or_alternate: ALTERNATE
+  qualification_state: INSUFFICIENT_EVIDENCE
+  evidence_strength: NONE recovered for exact rule
+  evidence_direction: UNKNOWN
+  evidence_confidence: LOW
+  rule_precision: COMPLETE except untyped tie (typed AMBIGUOUS)
+  implementation_ready: false
+  material_unknowns:
+  - exact-strategy performance
+  - tie rule
+  required_existing_primitives:
+  - OPTION_CHAIN_V1
+  required_missing_primitives:
+  - X01
+  - P09
+  - X02a
+  architecture_review_required: as BXM
+  blocker_resolution: recover BXY evaluation
+- strategy_id: ASA-QS-OS-A1-MPP-SMIRK-DECILE
+  lane: 5-option-implied-information
+  primary_or_alternate: ALTERNATE
+  qualification_state: RESEARCH_REJECT
+  evidence_strength: STRONG gross (decile 10 -0.59%/month, t -4.5); INSIGNIFICANT net of borrow (-0.21%, t -1.6)
+  evidence_direction: UNFAVORABLE net
+  evidence_confidence: MEDIUM
+  rule_precision: HIGH (skew option choice within range UNKNOWN; source-internal put/call wording inconsistency)
+  implementation_ready: false
+  material_unknowns:
+  - option choice within moneyness range
+  - borrow-fee data (A10)
+  required_existing_primitives:
+  - OPTION_CHAIN_V1
+  - HISTORICAL_BARS_V1
+  required_missing_primitives:
+  - A10
+  - A06 (skew history)
+  - P12
+  architecture_review_required: none
+  blocker_resolution: n/a (rejected)
+- strategy_id: ASA-QS-XR-01-ZHAN-NEG-LNPRICE-DN-CALL
+  lane: 6-cross-sectional-option-returns
+  primary_or_alternate: PRIMARY
+  qualification_state: DEEP_RESEARCH_REQUIRED
+  evidence_strength: 'STRONG (Stock-VW 10-1: 4.67% gross; 1.01%/month t 5.48 at 100% quoted spread; 2.78% at actual
+    OPRA effective spread)'
+  evidence_direction: FAVORABLE net
+  evidence_confidence: MEDIUM
+  rule_precision: HIGH except universe/weighting items
+  implementation_ready: false
+  material_unknowns:
+  - ex-post dividend-during-life filter
+  - moneyness ratio definition
+  - market cap for Stock-VW weights
+  - long-book capital convention and stock borrow
+  - decile boundaries
+  - provider delta equivalence
+  - post-2016 persistence
+  - alpha spanned by two option factors
+  required_existing_primitives:
+  - HISTORICAL_BARS_V1
+  - OPTION_CHAIN_V1
+  - CORPORATE_ACTIONS_V1
+  - cross_sectional_ranking (partial)
+  required_missing_primitives:
+  - P10
+  - P12
+  - A15
+  - X04
+  - canonical security type
+  - canonical shares outstanding
+  architecture_review_required: P12 cross-sectional portfolio semantics
+  blocker_resolution: published appendix/replication package for dividend treatment and moneyness; post-2016 replication
+- strategy_id: ASA-QS-XR-02-HESTON-STRADDLE-MOMENTUM
+  lane: 6-cross-sectional-option-returns
+  primary_or_alternate: PRIMARY
+  qualification_state: DEEP_RESEARCH_REQUIRED
+  evidence_strength: 'STRONG gross (6.22%/month quintile, t 7.97); WEAK net (low-cost decile: effective 2.60% t
+    1.75; quoted 1.12% t 0.75)'
+  evidence_direction: FAVORABLE gross; INCONCLUSIVE net at non-algorithmic execution
+  evidence_confidence: MEDIUM gross / LOW net
+  rule_precision: HIGH except replacement ordering and spread aggregation
+  implementation_ready: false
+  material_unknowns:
+  - replacement candidate ordering
+  - weighted-spread aggregation
+  - 10% spread cut scope
+  - 12-month historical option panel
+  - decile boundaries
+  - provider delta equivalence
+  required_existing_primitives:
+  - OPTION_CHAIN_V1
+  - HISTORICAL_BARS_V1
+  - CORPORATE_ACTIONS_V1
+  - TRADING_CALENDAR_V1
+  required_missing_primitives:
+  - A08
+  - A17
+  - P03
+  - P12
+  - A15
+  - A12
+  architecture_review_required: P12 semantics; A08/A17 point-in-time panel
+  blocker_resolution: JF published text/internet appendix for replacement rule; net replication
+- strategy_id: ASA-QS-XR-A1-CAOHAN-IVOL-DH-CALL
+  lane: 6-cross-sectional-option-returns
+  primary_or_alternate: ALTERNATE
+  qualification_state: INSUFFICIENT_EVIDENCE
+  evidence_strength: STRONG gross (1.40%/month); quintile insignificant at 50% effective spread; decile insignificant
+    at 75%
+  evidence_direction: UNFAVORABLE-TO-MARGINAL net
+  evidence_confidence: MEDIUM
+  rule_precision: HIGH
+  implementation_ready: false
+  material_unknowns:
+  - Fama-French factor data (not a market capability)
+  - decile net level not tabulated
+  required_existing_primitives:
+  - OPTION_CHAIN_V1
+  - HISTORICAL_BARS_V1
+  required_missing_primitives:
+  - A14
+  - P10
+  - P12
+  - external factor data
+  architecture_review_required: none
+  blocker_resolution: n/a

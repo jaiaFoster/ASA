@@ -51,3 +51,18 @@ recoverability:
   external_identifier: 10.1017/s0022109018000285
   notes: Bibliographic identity verified via Crossref; abstract retrieved via OpenAlex, Semantic Scholar
     or RePEc IDEAS on 2026-09-26. Claims beyond the abstract are not asserted.
+
+# --- ASA-RES-STRATEGY-QUALIFICATION-002 verification (2026-09-27). Fields above are preserved unchanged; verification_depth_after supersedes verification_depth for this sprint only. ---
+qualification_002_verification:
+  reviewed_at: '2026-09-27'
+  sprint: ASA-RES-STRATEGY-QUALIFICATION-002
+  verification_depth_after: bibliographic_and_abstract (unchanged)
+  full_text_url: null
+  sample_period: UNKNOWN
+  claims:
+  - claim_id: GAO-XING-ZHANG-2018-Q2-C1
+    claim_class: UNKNOWN
+    reported_metric: published full text
+    value: publisher PDF not accessible (paywall) on 2026-09-27; methodology pinned to GAO-XING-ZHANG-2013-WP, whose
+      headline [-3,0] figure (3.00%) differs from this abstract (3.34%)
+    context: access attempt

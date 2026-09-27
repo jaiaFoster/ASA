@@ -1,0 +1,49 @@
+# ASA-RES-STRATEGY-QUALIFICATION-002 source record. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN.
+source_id: WILSHIRE-2019-CBOE
+source_class: EXTERNAL_SECONDARY
+title: 'Options-Based Benchmark Indexes: Performance, Risk and Premium Capture (June 1986 - Dec. 2018): An Update'
+authors:
+- Wilshire Analytics
+publication: Wilshire Associates study prepared for Cboe
+publication_date: '2019-03-01'
+source_type: institutional_quant_research
+canonical_url: https://cdn.cboe.com/resources/spx/wilshire-options-based-benchmark-indexes-2019.pdf
+doi: null
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: full_text_reviewed
+recovered_at: '2026-09-27'
+sprint: ASA-RES-STRATEGY-QUALIFICATION-002
+research_context:
+  sample_period: 1986-06-30 to 2018-12-31
+  universe: BXM, BXMD, PUT, CMBO, PPUT vs asset classes
+  market: US
+  methodology_context: index performance comparison
+  original_or_replication: followup
+  material_limitations:
+  - Prepared for the index owner
+  - Indexes do not take into account transaction costs and taxes
+preliminary_families:
+- FAM-VRP-INDEX-PUTWRITE
+- FAM-VRP-COVERED-CALL
+claims:
+- claim_id: WILSHIRE-2019-CBOE-C1
+  claim_class: REPORTED
+  reported_metric: Exhibit 8 annualized return / SD / Sharpe / max drawdown / beta
+  value: BXM 8.50% / 10.6% / 0.51 / -35.8% / 0.55; BXMD 10.22% / 12.8% / 0.55 / -42.7% / 0.77; PUT 9.54% / 9.9%
+    / 0.64 / -35.5% / 0.47; S&P 500 9.80% / 14.9% / 0.45 / -50.9% / 1.00
+  context: Exhibit 8
+- claim_id: WILSHIRE-2019-CBOE-C2
+  claim_class: REPORTED
+  reported_metric: skew / kurtosis
+  value: BXM -1.56 / 6.40; BXMD -1.11 / 3.91; PUT -2.10 / 9.72
+  context: Exhibit 8
+- claim_id: WILSHIRE-2019-CBOE-C3
+  claim_class: REPORTED
+  reported_metric: regime
+  value: option-writing Sharpe ratios exceeded the S&P 500 in all sub-periods except the 2010-Q3 2018 bull market
+  context: key highlights
+recoverability:
+  repository_copy: null
+  external_identifier: https://cdn.cboe.com/resources/spx/wilshire-options-based-benchmark-indexes-2019.pdf
+  notes: Full text retrieved from the Cboe CDN and reviewed 2026-09-27.

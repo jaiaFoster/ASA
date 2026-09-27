@@ -44,3 +44,23 @@ recoverability:
   external_identifier: 10.2469/faj.v71.n6.1
   notes: Bibliographic identity verified via Crossref; abstract retrieved via OpenAlex, Semantic Scholar
     or RePEc IDEAS on 2026-09-26. Claims beyond the abstract are not asserted.
+
+# --- ASA-RES-STRATEGY-QUALIFICATION-002 verification (2026-09-27). Fields above are preserved unchanged; verification_depth_after supersedes verification_depth for this sprint only. ---
+qualification_002_verification:
+  reviewed_at: '2026-09-27'
+  sprint: ASA-RES-STRATEGY-QUALIFICATION-002
+  verification_depth_after: full_text_reviewed
+  full_text_url: https://images.aqr.com/-/media/AQR/Documents/Insights/Journal-Article/Covered-Calls-Uncovered.pdf
+  sample_period: 1996-03-25 to 2014-12-31 (BXM-mimicking backtest)
+  claims:
+  - claim_id: ISRAELOV-NIELSEN-2015-FAJ-Q2-C1
+    claim_class: REPORTED
+    reported_metric: decomposition
+    value: short volatility Sharpe about 1.0 with under 10% of risk; equity timing about 25% of risk with little
+      return
+    context: abstract and Table 1
+  - claim_id: ISRAELOV-NIELSEN-2015-FAJ-Q2-C2
+    claim_class: REPORTED
+    reported_metric: risk-managed covered call
+    value: Sharpe 0.37 -> 0.52; volatility 11.4% -> 9.2%
+    context: introduction

@@ -1,0 +1,59 @@
+# ASA-RES-STRATEGY-QUALIFICATION-002 source record. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN.
+source_id: CBOE-PUTWRITE-METHODOLOGY-2024
+source_class: EXTERNAL_PRIMARY
+title: Cboe S&P 500 PutWrite Indices Methodology (PUT, PUTCAD, PWT)
+authors:
+- Cboe Global Indices
+publication: Cboe Global Indices index methodology
+publication_date: UNKNOWN (current version retrieved 2026-09-27)
+source_type: index_methodology
+canonical_url: https://cdn.cboe.com/api/global/us_indices/governance/Cboe_SP_500_PutWrite_Indices_Methodology.pdf
+doi: null
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: full_text_reviewed
+recovered_at: '2026-09-27'
+sprint: ASA-RES-STRATEGY-QUALIFICATION-002
+research_context:
+  sample_period: methodology (PUT base date June 1988 per index documentation; launch 2007)
+  universe: SPX puts + 1- and 3-month T-bills
+  market: US
+  methodology_context: index calculation rules
+  original_or_replication: original
+  material_limitations:
+  - Current version only; earlier methodology versions not recovered
+  - Index sponsor document
+preliminary_families:
+- FAM-VRP-INDEX-PUTWRITE
+claims:
+- claim_id: CBOE-PUTWRITE-METHODOLOGY-2024-C1
+  claim_class: REPORTED
+  reported_metric: strike rule
+  value: listed SPX put strike closest to but not greater than the last S&P 500 value reported before 11:00 a.m.
+    ET
+  context: Strike Selection table
+- claim_id: CBOE-PUTWRITE-METHODOLOGY-2024-C2
+  claim_class: REPORTED
+  reported_metric: roll date
+  value: third Friday of each month; preceding business day if an exchange holiday
+  context: Strike Selection table
+- claim_id: CBOE-PUTWRITE-METHODOLOGY-2024-C3
+  claim_class: REPORTED
+  reported_metric: sale price
+  value: VWAP of trades 11:30 a.m.-12:00 p.m. ET via OPRA excluding flagged trades; last bid before the end of the
+    window if no trades; PWT uses the time-weighted average bid
+  context: §2.2
+- claim_id: CBOE-PUTWRITE-METHODOLOGY-2024-C4
+  claim_class: REPORTED
+  reported_metric: settlement
+  value: max(0, K - SOQ); held to maturity
+  context: §2.2
+- claim_id: CBOE-PUTWRITE-METHODOLOGY-2024-C5
+  claim_class: REPORTED
+  reported_metric: collateral and sizing
+  value: Index = M - N_last·P; T-bill accrual eqs. (3)-(4) with n = 28 / 91; N_new eqs. (6) and (8)-(14)
+  context: §3
+recoverability:
+  repository_copy: null
+  external_identifier: https://cdn.cboe.com/api/global/us_indices/governance/Cboe_SP_500_PutWrite_Indices_Methodology.pdf
+  notes: Full text retrieved from the Cboe CDN and reviewed 2026-09-27.

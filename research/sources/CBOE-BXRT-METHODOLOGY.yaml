@@ -1,0 +1,43 @@
+# ASA-RES-STRATEGY-QUALIFICATION-002 source record. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN.
+source_id: CBOE-BXRT-METHODOLOGY
+source_class: EXTERNAL_PRIMARY
+title: Cboe Russell 2000 30-Delta BuyWrite V2 Index (BXRT) Methodology
+authors:
+- Cboe Global Indices
+publication: Cboe Global Indices index methodology
+publication_date: UNKNOWN (retrieved 2026-09-27)
+source_type: index_methodology
+canonical_url: https://cdn.cboe.com/api/global/us_indices/governance/BXRT_Methodology.pdf
+doi: null
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: full_text_reviewed
+recovered_at: '2026-09-27'
+sprint: ASA-RES-STRATEGY-QUALIFICATION-002
+research_context:
+  sample_period: methodology
+  universe: Russell 2000 30-delta buy-write
+  market: US
+  methodology_context: checked for Black-formula delta inputs
+  original_or_replication: original
+  material_limitations:
+  - Consulted only to resolve BXMD delta inputs
+preliminary_families:
+- FAM-VRP-COVERED-CALL
+claims:
+- claim_id: CBOE-BXRT-METHODOLOGY-C1
+  claim_class: REPORTED
+  reported_metric: delta inputs
+  value: repeats "inputs used in the delta calculation using the Black formula should be the last available values"
+    without defining volatility, rate or dividend inputs
+  context: strike selection table
+- claim_id: CBOE-BXRT-METHODOLOGY-C2
+  claim_class: INFERENCE
+  reported_metric: BXMD delta inputs
+  value: not resolvable from Cboe methodology documents recovered in this sprint
+  context: see CBOE-BUYWRITE-METHODOLOGY-2024
+recoverability:
+  repository_copy: null
+  external_identifier: https://cdn.cboe.com/api/global/us_indices/governance/BXRT_Methodology.pdf
+  notes: Full text retrieved 2026-09-27. BXMVM methodology also retrieved and checked; it defines no Black inputs
+    either.

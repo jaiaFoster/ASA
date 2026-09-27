@@ -1,0 +1,60 @@
+# ASA-RES-STRATEGY-QUALIFICATION-002 source record. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN.
+source_id: MURAVYEV-PEARSON-POLLET-2022-WP
+source_class: EXTERNAL_PRIMARY
+title: Why Does Options Market Information Predict Stock Returns? (conference version)
+authors:
+- Dmitriy Muravyev
+- Neil D. Pearson
+- Joshua M. Pollet
+publication: FMA Derivatives and Volatility conference 2022 working paper
+publication_date: '2022-05-13'
+source_type: working_paper
+canonical_url: https://fmai.memberclicks.net/assets/docs/Derivatives2022/MuravyevPearsonPollet.pdf
+doi: null
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: full_text_reviewed
+recovered_at: '2026-09-27'
+sprint: ASA-RES-STRATEGY-QUALIFICATION-002
+research_context:
+  sample_period: per paper (OptionMetrics x Markit overlap)
+  universe: CRSP common stocks with valid options data and Markit indicative borrow fee (3,477 stocks)
+  market: US
+  methodology_context: decile sorts on IV spread, IV skew and O/S; DGTW abnormal returns; borrow-fee adjustment
+  original_or_replication: followup
+  material_limitations:
+  - Conference version; final JFE 2025 version not accessed in full text
+  - Skew described as OTM put - ATM call in data section but "OTM call and ATM call" in §4.2
+preliminary_families:
+- FAM-OPTION-SIGNAL-EQUITY
+claims:
+- claim_id: MURAVYEV-PEARSON-POLLET-2022-WP-C1
+  claim_class: REPORTED
+  reported_metric: IV spread deciles
+  value: decile 10 abnormal -0.67%/month (t -5.5); net of borrow fee -0.19% (t -1.6); D1-D10 -0.73% -> -0.28%
+  context: Table 3
+- claim_id: MURAVYEV-PEARSON-POLLET-2022-WP-C2
+  claim_class: REPORTED
+  reported_metric: skew deciles
+  value: decile 10 -0.59% (t -4.5); net of fee -0.21% (t -1.6); D10-D1 -0.69%, fee-adjusted long-short -0.33%; low-fee
+    decile 10 -0.17% (t -1.4)
+  context: Table 4
+- claim_id: MURAVYEV-PEARSON-POLLET-2022-WP-C3
+  claim_class: REPORTED
+  reported_metric: O/S
+  value: net-of-fee decile 10 -6 bp per month
+  context: §1 summary
+- claim_id: MURAVYEV-PEARSON-POLLET-2022-WP-C4
+  claim_class: REPORTED
+  reported_metric: high-fee definition
+  value: Markit IndicativeFee > 1% per year; about 7% of observations
+  context: §2
+- claim_id: MURAVYEV-PEARSON-POLLET-2022-WP-C5
+  claim_class: REPORTED
+  reported_metric: holding convention
+  value: sort at close t; hold close t+1 to close t+22
+  context: §4
+recoverability:
+  repository_copy: null
+  external_identifier: https://fmai.memberclicks.net/assets/docs/Derivatives2022/MuravyevPearsonPollet.pdf
+  notes: Full text retrieved from the FMA conference site and reviewed 2026-09-27.

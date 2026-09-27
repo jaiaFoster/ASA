@@ -47,3 +47,17 @@ recoverability:
   external_identifier: 10.1016/j.jfineco.2025.104153
   notes: Bibliographic identity verified via Crossref; abstract retrieved via OpenAlex, Semantic Scholar
     or RePEc IDEAS on 2026-09-26. Claims beyond the abstract are not asserted.
+
+# --- ASA-RES-STRATEGY-QUALIFICATION-002 verification (2026-09-27). Fields above are preserved unchanged; verification_depth_after supersedes verification_depth for this sprint only. ---
+qualification_002_verification:
+  reviewed_at: '2026-09-27'
+  sprint: ASA-RES-STRATEGY-QUALIFICATION-002
+  verification_depth_after: bibliographic_and_abstract (unchanged)
+  full_text_url: null
+  sample_period: UNKNOWN
+  claims:
+  - claim_id: MURAVYEV-PEARSON-POLLET-2025-Q2-C1
+    claim_class: UNKNOWN
+    reported_metric: final full text
+    value: ScienceDirect returned 403 on 2026-09-27; full-text review performed on MURAVYEV-PEARSON-POLLET-2022-WP
+    context: access attempt
