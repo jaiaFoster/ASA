@@ -43,6 +43,7 @@ OPEN_INTEREST_QUALITY = "open_interest_quality"
 SMA_10M_COMPLETED_MONTHS = "sma_10m_completed_months"
 TRAILING_12M_TOTAL_RETURN = "trailing_12m_total_return"
 WINDOWED_OPTION_TRADE_VWAP = "windowed_option_trade_vwap"
+GXZ_PAIR_VOLUME = "gxz_pair_volume"
 
 
 class AdjustedCloseBarLike(Protocol):
@@ -393,6 +394,11 @@ DERIVED_FACT_DEFINITIONS = (
         "Size-weighted option trade price over an explicit event-time window "
         "and sale-condition policy.",
         MarketCapability.OPTION_TRADE_TAPE_V1,
+    ),
+    _definition(
+        GXZ_PAIR_VOLUME,
+        "Combined call and put volume for one exact GXZ option pair.",
+        MarketCapability.OPTION_CHAIN_V1,
     ),
     _definition(
         REALIZED_VOLATILITY,

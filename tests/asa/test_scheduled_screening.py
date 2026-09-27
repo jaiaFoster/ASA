@@ -177,15 +177,20 @@ def _tradier_refresh_responses(expiration: str) -> list[ReadOnlyHttpResponse]:
     ]
 
 
-def test_production_universe_covers_all_three_migrated_strategies() -> None:
+def test_production_universe_covers_all_migrated_cohort_strategies() -> None:
     # SPRINT-011/UNI-002: earnings_calendar joins forward_factor/skew_momentum
     # in the scheduled universe now that REL-001 (SPRINT-010) fixed its live
     # acquisition. Counts derive from the source tuples, not a hardcoded
     # literal, so this can't silently drift (PROD-005's own established
     # single-source-of-truth rationale).
     signal_ids = {signal_id for signal_id, _symbol in PRODUCTION_SCREENING_UNIVERSE}
-    assert signal_ids == {"forward_factor", "skew_momentum", "earnings_calendar"}
-    expected = 2 * len(APPROVED_LIVE_UNIVERSE) + len(EARNINGS_CALENDAR_UNIVERSE)
+    assert signal_ids == {
+        "forward_factor",
+        "skew_momentum",
+        "earnings_calendar",
+        "event_vol_gxz_preea_straddle_to_expiry",
+    }
+    expected = 2 * len(APPROVED_LIVE_UNIVERSE) + 2 * len(EARNINGS_CALENDAR_UNIVERSE)
     assert len(PRODUCTION_SCREENING_UNIVERSE) == expected
     assert len(set(PRODUCTION_SCREENING_UNIVERSE)) == expected  # no duplicate pairs
 
@@ -207,11 +212,12 @@ def test_scheduled_sp500_rollout_is_bounded_and_all_strategy() -> None:
     symbols = {symbol for _strategy_id, symbol in universe}
 
     assert len(symbols) == SP500_COHORT_MAXIMUM_SUBJECTS
-    assert len(universe) == 3 * SP500_COHORT_MAXIMUM_SUBJECTS
+    assert len(universe) == 4 * SP500_COHORT_MAXIMUM_SUBJECTS
     assert {strategy_id for strategy_id, _symbol in universe} == {
         "forward_factor",
         "skew_momentum",
         "earnings_calendar",
+        "event_vol_gxz_preea_straddle_to_expiry",
     }
 
 
@@ -1597,7 +1603,7 @@ def test_current_subject_refresh_persists_all_consumers_coherently(
 def test_production_universe_topology_has_no_universal_preparation_failure(
     monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """Mechanically identical 82-pair topology using deterministic providers."""
+    """Full production topology has no universal preparation exception."""
     import asa.scheduled_screening as scheduled_screening_module
 
     monkeypatch.setattr(
@@ -1618,9 +1624,18 @@ def test_production_universe_topology_has_no_universal_preparation_failure(
         historical_skew_repository=_RecordingHistoricalSkewRepository(),
     )
 
-    assert len(outcomes) == 82
+    assert len(outcomes) == len(PRODUCTION_SCREENING_UNIVERSE)
     assert all(item.error is None for item in outcomes)
-    assert all(item.outcome != "missing_data" for item in outcomes)
+    assert all(
+        item.outcome != "missing_data"
+        for item in outcomes
+        if item.signal_id != "event_vol_gxz_preea_straddle_to_expiry"
+    )
+    assert {
+        item.outcome
+        for item in outcomes
+        if item.signal_id == "event_vol_gxz_preea_straddle_to_expiry"
+    } == {"missing_data"}
     assert not any(
         record.message == "shadow_subject_preparation_failed" for record in caplog.records
     )

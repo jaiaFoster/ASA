@@ -196,7 +196,7 @@ def test_named_momentum_dimensions_are_replay_stable() -> None:
 
 
 def test_initial_registry_is_closed_versioned_and_complete() -> None:
-    assert len(DERIVED_FACT_REGISTRY.registered_ids()) == 25
+    assert len(DERIVED_FACT_REGISTRY.registered_ids()) == 26
     assert DERIVED_FACT_REGISTRY.get("forward_factor").feature_version == "1.0.0"
     assert DERIVED_FACT_REGISTRY.get("iv_term_structure_spread").feature_version == "1.0.0"
     assert DERIVED_FACT_REGISTRY.get("sma_10m_completed_months").feature_version == "1.0.0"

@@ -135,6 +135,10 @@ PRODUCTION_SCREENING_UNIVERSE: tuple[tuple[str, str], ...] = tuple(
     for signal_id in ("forward_factor", "skew_momentum")
     for symbol in APPROVED_LIVE_UNIVERSE
 ) + tuple(("earnings_calendar", symbol) for symbol in EARNINGS_CALENDAR_UNIVERSE)
+PRODUCTION_SCREENING_UNIVERSE += tuple(
+    ("event_vol_gxz_preea_straddle_to_expiry", symbol)
+    for symbol in EARNINGS_CALENDAR_UNIVERSE
+)
 
 # STOCK-RUNTIME-001 STK-03: B001/B002 are frozen, SPY-only, no-lifecycle
 # benchmarks (project/reports/STOCK-RUNTIME-001-STK-01.md) with their own
@@ -224,7 +228,12 @@ def scheduled_sp500_universe(slot: ScheduledRefreshSlot) -> tuple[tuple[str, str
     return tuple(
         (strategy_id, symbol)
         for symbol in cohort.symbols
-        for strategy_id in ("forward_factor", "skew_momentum", "earnings_calendar")
+        for strategy_id in (
+            "forward_factor",
+            "skew_momentum",
+            "earnings_calendar",
+            "event_vol_gxz_preea_straddle_to_expiry",
+        )
     )
 
 

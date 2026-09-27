@@ -20,6 +20,7 @@ from analytics.formulas import OPTION_STRATEGY_FORMULAS
 from analytics.option_facts import (
     calendar_days_to_expiration,
     delta_neutral_hedge_quantity,
+    gxz_pair_volume,
     moneyness_spot_over_strike,
     moneyness_strike_over_spot,
     option_effective_price,
@@ -44,7 +45,7 @@ D = Decimal
 
 def test_every_formula_has_id_version_unit_and_time_semantics() -> None:
     ids = OPTION_STRATEGY_FORMULAS.registered_ids()
-    assert len(ids) == 20
+    assert len(ids) == 21
     for formula_id in ids:
         definition = OPTION_STRATEGY_FORMULAS.get(formula_id)
         assert definition.formula_version and definition.unit and definition.time_semantics
@@ -61,6 +62,8 @@ def test_midpoint_and_spreads() -> None:
         "8.5"
     )
     assert option_weighted_spread(((D(1), D("1"), None),)) == UnknownReason("missing_bid_or_ask")
+    assert gxz_pair_volume(60, 40) == D("100")
+    assert gxz_pair_volume(None, 40) == UnknownReason("missing_pair_volume")
 
 
 def test_effective_price_matches_gxz_footnote_vector() -> None:

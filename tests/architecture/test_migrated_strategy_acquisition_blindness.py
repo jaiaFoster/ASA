@@ -43,6 +43,7 @@ def test_all_production_strategies_have_subject_first_bindings() -> None:
         "B001",
         "B002",
         "earnings_calendar",
+        "event_vol_gxz_preea_straddle_to_expiry",
         "forward_factor",
         "skew_momentum",
         "spy_put_credit_spread",
