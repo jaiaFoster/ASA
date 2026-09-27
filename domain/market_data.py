@@ -715,6 +715,12 @@ class MarketObservation:
         }.get(type(self.value))
         if expected_capability is not self.capability:
             raise DomainInvariantError("MarketObservation value does not match capability")
+        if isinstance(self.value, (IndexDividendPoints, SecurityMasterRecord)) and (
+            self.value.instrument != self.subject.canonical_instrument
+        ):
+            raise DomainInvariantError(
+                "MarketObservation value instrument does not match canonical subject"
+            )
         expected = market_observation_identity(
             self.provenance.provider_id,
             self.capability,

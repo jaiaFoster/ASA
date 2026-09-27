@@ -28,5 +28,5 @@ recording times.
 ## Verification
 
 - X07/security-master contract, invariant, identity, provenance, and replay tests: green.
-- Full repository suite on the merged SP-02B base: `3841 passed, 50 skipped`.
+- Corrective full repository suite on the merged SP-02B base: `3843 passed, 50 skipped`.
 - Static, architecture, and Lean validation are recorded on the PR.

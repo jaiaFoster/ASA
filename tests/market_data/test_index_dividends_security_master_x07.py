@@ -46,6 +46,18 @@ AAPL = Instrument(
     "AAPL",
     "USD",
 )
+NDX = Instrument(
+    CanonicalInstrumentIdentity("index_root", "NDX"),
+    InstrumentKind.INDEX,
+    "NDX",
+    "USD",
+)
+MSFT = Instrument(
+    CanonicalInstrumentIdentity("symbol", "MSFT"),
+    InstrumentKind.EQUITY,
+    "MSFT",
+    "USD",
+)
 
 
 def _subject(instrument: Instrument, capability: MarketCapability) -> MarketDataSubject:
@@ -145,3 +157,29 @@ def test_security_master_rejects_non_equity_and_nonpositive_shares() -> None:
         SecurityMasterRecord(
             AAPL, SecurityType.COMMON_STOCK, Decimal("0"), EFFECTIVE_DATE
         )
+
+
+@pytest.mark.parametrize(
+    ("value", "capability"),
+    [
+        (
+            IndexDividendPoints(NDX, Decimal("1"), EFFECTIVE_DATE),
+            MarketCapability.INDEX_DIVIDEND_POINTS_V1,
+        ),
+        (
+            SecurityMasterRecord(
+                MSFT,
+                SecurityType.COMMON_STOCK,
+                Decimal("7500000000"),
+                EFFECTIVE_DATE,
+            ),
+            MarketCapability.SECURITY_MASTER_V1,
+        ),
+    ],
+)
+def test_observation_rejects_value_for_another_canonical_instrument(
+    value: IndexDividendPoints | SecurityMasterRecord,
+    capability: MarketCapability,
+) -> None:
+    with pytest.raises(DomainInvariantError, match="does not match canonical subject"):
+        _observation(value, capability)
