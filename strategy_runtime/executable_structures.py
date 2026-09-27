@@ -31,7 +31,12 @@ def _aware(value: datetime, owner: str, field: str) -> None:
 
 # Structure kinds the exact-leg resolver can assess (P03 straddle added by SP-02A).
 RESOLVABLE_STRUCTURE_KINDS = frozenset(
-    {StructureKind.CALENDAR, StructureKind.VERTICAL, StructureKind.STRADDLE}
+    {
+        StructureKind.SINGLE_LEG,
+        StructureKind.CALENDAR,
+        StructureKind.VERTICAL,
+        StructureKind.STRADDLE,
+    }
 )
 
 

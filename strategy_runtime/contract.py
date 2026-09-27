@@ -146,6 +146,8 @@ class StrategyCapability(str, Enum):
 
 class StructureKind(str, Enum):
     NONE = "none"
+    # P01: one exact option leg, long or short, with any positive quantity.
+    SINGLE_LEG = "single_leg"
     VERTICAL = "vertical"
     CALENDAR = "calendar"
     # P03 (STRATEGY-PRODUCTION-001 SP-02A): one or more same-strike,

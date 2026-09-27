@@ -66,6 +66,9 @@ class OptionStructureIntent:
             # exact resolved contracts, never inferred from roles.
             if not self.legs or len(self.legs) % 2:
                 raise ValueError("OptionStructureIntent straddle requires call/put pairs")
+        elif self.intended_structure_kind is StructureKind.SINGLE_LEG:
+            if len(self.legs) != 1:
+                raise ValueError("OptionStructureIntent single leg requires exactly one leg")
         elif len(self.legs) != 2:
             raise ValueError("OptionStructureIntent v1 structures require exactly two legs")
         roles = tuple(item.role for item in self.legs)
@@ -164,6 +167,8 @@ def canonical_leg_order(legs: tuple[ResolvedOptionLeg, ...]) -> tuple[ResolvedOp
 
 
 def _shape(legs: tuple[ResolvedOptionLeg, ...]) -> StructureKind:
+    if len(legs) == 1:
+        return StructureKind.SINGLE_LEG
     if _is_straddle(legs):
         return StructureKind.STRADDLE
     if len(legs) != 2:
