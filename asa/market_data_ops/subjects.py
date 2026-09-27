@@ -34,6 +34,7 @@ _SUBJECT_TYPE_BY_CAPABILITY = {
     MarketCapability.REAL_TIME_QUOTE_V1: MarketDataSubjectType.INSTRUMENT,
     MarketCapability.HISTORICAL_BARS_V1: MarketDataSubjectType.INSTRUMENT,
     MarketCapability.OPTION_CHAIN_V1: MarketDataSubjectType.OPTION_UNDERLYING,
+    MarketCapability.OPTION_TRADE_TAPE_V1: MarketDataSubjectType.OPTION_UNDERLYING,
     MarketCapability.EARNINGS_CALENDAR_V1: MarketDataSubjectType.EARNINGS_SECURITY,
 }
 
@@ -59,6 +60,13 @@ _REQUIRED_FIELDS_BY_CAPABILITY = {
     MarketCapability.REAL_TIME_QUOTE_V1: ("last",),
     MarketCapability.HISTORICAL_BARS_V1: ("close",),
     MarketCapability.OPTION_CHAIN_V1: ("contracts",),
+    MarketCapability.OPTION_TRADE_TAPE_V1: (
+        "contract_identity",
+        "price",
+        "size",
+        "event_time",
+        "sale_condition_codes",
+    ),
     MarketCapability.EARNINGS_CALENDAR_V1: ("earnings_date",),
 }
 

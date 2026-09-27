@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 
 import pytest
@@ -26,6 +26,7 @@ from analytics.option_facts import (
     option_holding_return,
     option_mid,
     option_relative_spread,
+    option_trade_window_vwap,
     option_weighted_spread,
 )
 from analytics.option_returns import (
@@ -36,14 +37,14 @@ from analytics.option_returns import (
     zero_delta_straddle_weights,
 )
 from analytics.quantile_assignment import QuantilePolicy, assign_quantiles
-from domain import UnknownReason
+from domain import OptionTrade, OptionTradeTape, UnknownReason
 
 D = Decimal
 
 
 def test_every_formula_has_id_version_unit_and_time_semantics() -> None:
     ids = OPTION_STRATEGY_FORMULAS.registered_ids()
-    assert len(ids) == 19
+    assert len(ids) == 20
     for formula_id in ids:
         definition = OPTION_STRATEGY_FORMULAS.get(formula_id)
         assert definition.formula_version and definition.unit and definition.time_semantics
@@ -84,6 +85,42 @@ def test_moneyness_dte_holding_return_and_hedge() -> None:
     assert delta_neutral_hedge_quantity(None, D(1), D(100), long_option=True) == UnknownReason(
         "missing_delta"
     )
+
+
+def test_option_trade_vwap_uses_event_time_size_and_sale_conditions() -> None:
+    start = datetime(2026, 9, 18, 15, 30, tzinfo=UTC)
+    end = datetime(2026, 9, 18, 16, 0, tzinfo=UTC)
+    trades = (
+        OptionTrade("t3", "SPX-contract", D("14"), D("3"), end, end, ()),
+        OptionTrade("excluded", "SPX-contract", D("99"), D("100"), start, start, ("A",)),
+        OptionTrade("t1", "SPX-contract", D("10"), D("1"), start, start, ()),
+        OptionTrade(
+            "outside",
+            "SPX-contract",
+            D("1"),
+            D("100"),
+            start - timedelta(microseconds=1),
+            start,
+            (),
+        ),
+    )
+    tape = OptionTradeTape("SPX-contract", end, trades)
+
+    assert option_trade_window_vwap(
+        tape, start, end, excluded_sale_condition_codes=frozenset({"A"})
+    ) == D("13")
+    assert option_trade_window_vwap(
+        tape, start, end, excluded_sale_condition_codes=frozenset()
+    ) == D("95.69230769230769230769230769")
+    assert option_trade_window_vwap(
+        None, start, end, excluded_sale_condition_codes=frozenset()
+    ) == UnknownReason("option_trade_tape_unavailable")
+    assert option_trade_window_vwap(
+        tape,
+        start + timedelta(minutes=1),
+        end - timedelta(minutes=1),
+        excluded_sale_condition_codes=frozenset(),
+    ) == UnknownReason("no_eligible_option_trades_in_window")
 
 
 def test_zero_delta_straddle_weights_are_delta_neutral() -> None:
