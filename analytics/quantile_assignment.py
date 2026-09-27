@@ -59,6 +59,12 @@ def assign_quantiles(
 
     A subject whose sort value is UNKNOWN is excluded (never assigned a rank).
     """
+    for subject, value in values.items():
+        if isinstance(value, Decimal):
+            if not value.is_finite():
+                raise ValueError(f"sort value for {subject!r} must be finite")
+        elif not isinstance(value, UnknownReason):
+            raise TypeError(f"sort value for {subject!r} must be Decimal or UnknownReason")
     eligible = {subject: value for subject, value in values.items() if isinstance(value, Decimal)}
     excluded = tuple(
         sorted(

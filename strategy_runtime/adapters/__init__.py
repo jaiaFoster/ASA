@@ -27,6 +27,7 @@ from strategies.earnings_calendar_planning import earnings_calendar_resolved_fie
 from strategies.forward_factor_planning import (
     resolved_field_requirements as forward_factor_resolved_field_requirements,
 )
+from strategies.manifest_version_pins import version_pin_violations
 from strategies.put_credit_spread_manifest import SPY_PUT_CREDIT_SPREAD_MANIFEST
 from strategies.put_credit_spread_planning import (
     resolved_field_requirements as put_credit_spread_resolved_field_requirements,
@@ -102,6 +103,9 @@ def build_migrated_strategy_registry() -> StrategyRegistry[UniversalScreeningRes
     )
     for manifest, contract in pairs:
         validate_manifest_contract(manifest, contract)
+    violations = version_pin_violations(manifest for manifest, _ in pairs)
+    if violations:
+        raise ValueError("; ".join(violations))
     return StrategyRegistry(
         (
             (FORWARD_FACTOR_CONTRACT, _subject_first_only),

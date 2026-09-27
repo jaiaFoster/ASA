@@ -176,3 +176,22 @@ def test_quantile_assignment_ra_xs_01() -> None:
     assert assign_quantiles({}, QuantilePolicy(groups=10)) == UnknownReason("empty_eligible_set")
     with pytest.raises(ValueError):
         QuantilePolicy(groups=1)
+
+
+def test_single_formula_owners_and_input_guards() -> None:
+    from decimal import localcontext
+
+    from analytics.derived_facts import compute_bid_ask_spread_ratio
+
+    assert option_relative_spread(D("3"), D("4")) == compute_bid_ask_spread_ratio(D("3"), D("4"))
+    assert option_relative_spread(D("-1"), D("4")) == UnknownReason("invalid_bid_or_ask")
+    with pytest.raises(ValueError):
+        moneyness_spot_over_strike(D("0"), D("100"))
+    with pytest.raises(TypeError):
+        assign_quantiles({"A": None}, QuantilePolicy(groups=2))  # type: ignore[dict-item]
+    with pytest.raises(ValueError):
+        assign_quantiles({"A": D("NaN")}, QuantilePolicy(groups=2))
+    reference = cboe_tbill_daily_accrual(D("0.05"), 28, 1)
+    with localcontext() as context:
+        context.prec = 10
+        assert cboe_tbill_daily_accrual(D("0.05"), 28, 1) == reference

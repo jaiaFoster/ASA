@@ -19,7 +19,9 @@ _GATE_STATES: dict[object, bool | None] = {"PASS": True, "FAIL": False, "UNKNOWN
 def _gate_value(value: object) -> bool | None:
     if isinstance(value, bool) or value is None:
         return value
-    return _GATE_STATES.get(value)
+    if value not in _GATE_STATES:
+        raise ValueError(f"gate value must be Boolean or PASS/FAIL/UNKNOWN: {value!r}")
+    return _GATE_STATES[value]
 
 
 def _formula_version(formula_id: str) -> str:

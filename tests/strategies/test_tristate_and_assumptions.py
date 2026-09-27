@@ -170,3 +170,39 @@ def test_assumption_validation() -> None:
 def test_manifest_without_assumptions_keeps_identity() -> None:
     data = serialize_manifest(SPY_PUT_CREDIT_SPREAD_MANIFEST)
     assert b"assumptions" not in data
+
+
+def test_semantics_changing_assumption_requires_version_change() -> None:
+    from strategies.manifest_version_pins import version_pin_violations
+
+    base = _manifest(
+        parameters=(ParameterSpec("tie_policy", "Enum", "share_lowest_rank"),),
+        assumptions=(AssumptionReference("RA-XS-01", "research", ("tie_policy",)),),
+    )
+    pins = {("tristate_fixture", "1.0.0"): base.manifest_id}
+    assert version_pin_violations((base,), pins) == ()
+    assert version_pin_violations((base,), {}) == (
+        "tristate_fixture@1.0.0: assumption-bearing manifest has no version pin",
+    )
+    changed = replace(base, parameters=(ParameterSpec("tie_policy", "Enum", "other"),))
+    assert version_pin_violations((changed,), pins) == (
+        "tristate_fixture@1.0.0: semantics changed without a strategy_version change",
+    )
+    bumped = replace(changed, strategy_version="1.1.0")
+    assert (
+        version_pin_violations(
+            (bumped,), {**pins, ("tristate_fixture", "1.1.0"): bumped.manifest_id}
+        )
+        == ()
+    )
+    # Manifests without assumptions are not subject to pins.
+    assert version_pin_violations((SPY_PUT_CREDIT_SPREAD_MANIFEST,), {}) == ()
+
+
+def test_unrecognised_gate_value_is_rejected_not_reported_unknown() -> None:
+    from screening.explanations import _gate_value
+
+    assert _gate_value("UNKNOWN") is None
+    assert _gate_value("PASS") is True
+    with pytest.raises(ValueError):
+        _gate_value("WATCH")

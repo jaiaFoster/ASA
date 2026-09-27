@@ -169,7 +169,7 @@ OPTION_STRATEGY_FORMULAS = FormulaRegistry(
             DF_CBOE_TBILL_DAILY_ACCRUAL,
             "1.0.0",
             "simple return per day step",
-            "close to close, calendar days",
+            "close to close, calendar days; 28-digit decimal context",
             "UNKNOWN if the Treasury bank-discount rate is unavailable",
         ),
         FormulaDefinition(

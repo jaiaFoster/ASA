@@ -6,11 +6,14 @@ holds the reusable accrual formula they build on.
 
 from __future__ import annotations
 
-from decimal import Decimal
+from decimal import Context, Decimal, localcontext
 
 from domain import UnknownReason
 
 TBILL_TENOR_DAYS = frozenset({28, 91})
+# The fractional power is inexact; a fixed context keeps replay deterministic
+# regardless of the caller's ambient decimal context.
+ACCRUAL_PRECISION = 28
 
 
 def cboe_tbill_daily_accrual(
@@ -27,9 +30,10 @@ def cboe_tbill_daily_accrual(
         raise ValueError("elapsed_calendar_days must be non-negative")
     if bank_discount_rate is None:
         return UnknownReason("missing_treasury_bank_discount_rate")
-    n = Decimal(tenor_days)
-    price_ratio = Decimal(1) - n / Decimal(360) * bank_discount_rate
-    if price_ratio <= 0:
-        return UnknownReason("invalid_treasury_bank_discount_rate")
-    growth: Decimal = (Decimal(1) / price_ratio) ** (Decimal(elapsed_calendar_days) / n)
-    return growth - 1
+    with localcontext(Context(prec=ACCRUAL_PRECISION)):
+        n = Decimal(tenor_days)
+        price_ratio = Decimal(1) - n / Decimal(360) * bank_discount_rate
+        if price_ratio <= 0:
+            return UnknownReason("invalid_treasury_bank_discount_rate")
+        growth: Decimal = (Decimal(1) / price_ratio) ** (Decimal(elapsed_calendar_days) / n)
+        return growth - 1

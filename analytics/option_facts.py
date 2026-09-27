@@ -10,6 +10,8 @@ from collections.abc import Sequence
 from datetime import date
 from decimal import Decimal
 
+from analytics.derived_facts import compute_bid_ask_spread_ratio
+from analytics.forward_factor import compute_days_to_expiration
 from domain import UnknownReason
 
 TWO = Decimal(2)
@@ -25,14 +27,21 @@ def option_mid(bid: Decimal | None, ask: Decimal | None) -> Decimal | UnknownRea
 
 
 def option_relative_spread(bid: Decimal | None, ask: Decimal | None) -> Decimal | UnknownReason:
-    """DF-OPT-RELATIVE-SPREAD 1.0.0: (ask - bid) / mid."""
+    """DF-OPT-RELATIVE-SPREAD 1.0.0: (ask - bid) / mid.
+
+    One formula owner: delegates to the registered
+    `compute_bid_ask_spread_ratio` and types its precondition failures as
+    UNKNOWN instead of raising.
+    """
     mid = option_mid(bid, ask)
     if isinstance(mid, UnknownReason):
         return mid
-    if mid == 0:
+    if mid <= 0:
         return UnknownReason("zero_midpoint")
-    assert bid is not None and ask is not None
-    return (ask - bid) / mid
+    try:
+        return compute_bid_ask_spread_ratio(bid, ask)
+    except ValueError:
+        return UnknownReason("invalid_bid_or_ask")
 
 
 def option_weighted_spread(
@@ -73,8 +82,14 @@ def option_effective_price(
     return mid + half if buy else mid - half
 
 
+def _require_positive_strike(strike: Decimal) -> None:
+    if strike <= 0:
+        raise ValueError("strike must be positive")
+
+
 def moneyness_strike_over_spot(strike: Decimal, spot: Decimal | None) -> Decimal | UnknownReason:
     """DF-OPT-MONEYNESS-KS 1.0.0: K / S."""
+    _require_positive_strike(strike)
     if spot is None or spot <= 0:
         return UnknownReason("missing_underlying_price")
     return strike / spot
@@ -82,16 +97,23 @@ def moneyness_strike_over_spot(strike: Decimal, spot: Decimal | None) -> Decimal
 
 def moneyness_spot_over_strike(strike: Decimal, spot: Decimal | None) -> Decimal | UnknownReason:
     """DF-OPT-MONEYNESS-SK 1.0.0: S / K."""
+    _require_positive_strike(strike)
     if spot is None or spot <= 0:
         return UnknownReason("missing_underlying_price")
     return spot / strike
 
 
 def calendar_days_to_expiration(expiration: date, as_of: date) -> int | UnknownReason:
-    """DF-OPT-DTE-CALENDAR 1.0.0: expiration - as-of in whole calendar days."""
+    """DF-OPT-DTE-CALENDAR 1.0.0.
+
+    The research registry marks this EXISTING: it is the registered
+    `days_to_expiration` 1.0.0 feature (`analytics/forward_factor.py`). This
+    wrapper delegates to that single owner and types expiration < as-of as
+    UNKNOWN instead of raising.
+    """
     if expiration < as_of:
         return UnknownReason("expiration_before_as_of")
-    return (expiration - as_of).days
+    return int(compute_days_to_expiration({"expiration": expiration, "as_of": as_of}))
 
 
 def option_holding_return(

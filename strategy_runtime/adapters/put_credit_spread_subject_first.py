@@ -59,13 +59,13 @@ from strategy_runtime.option_structure_resolver import (
 )
 from strategy_runtime.registry import StrategyAdapter
 from strategy_runtime.result import (
-    EvaluationState,
     RowType,
     UniversalScreeningResult,
     compute_observation_id,
 )
 from strategy_runtime.subject_preparation import SubjectPreparationBinding
 from strategy_runtime.values import TypedValue as PersistedValue
+from strategy_runtime.verdict_projection import evaluation_state_for_verdict
 
 _STRATEGY_ID = SPY_PUT_CREDIT_SPREAD_CONTRACT.strategy_id
 _GRAPH = compile_strategy_graph(
@@ -265,9 +265,7 @@ def build_put_credit_spread_subject_first_adapter(
             opportunity_id=None,
             row_type=RowType.RESULT,
             verdict=verdict,
-            evaluation_state=(
-                EvaluationState.PASS if verdict in {"PASS", "WATCH"} else EvaluationState.NO_SIGNAL
-            ),
+            evaluation_state=evaluation_state_for_verdict(verdict),
             lifecycle_stage=None,
             recommendation_state=None,
             data_quality=None,

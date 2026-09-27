@@ -1,8 +1,9 @@
 """Generic graph-verdict to evaluation-state projection (SP-01E).
 
-The only place a graph verdict string becomes an `EvaluationState`. UNKNOWN
-projects to MISSING_DATA and is never folded into NO_SIGNAL or FAIL. The
-verdict string itself is carried unchanged on the result.
+The shared projection every graph-verdict adapter uses (the PCS and Skew
+Momentum adapters are migrated here; three-state adapters must use it).
+UNKNOWN projects to MISSING_DATA and is never folded into NO_SIGNAL or FAIL.
+The verdict string itself is carried unchanged on the result.
 """
 
 from __future__ import annotations
