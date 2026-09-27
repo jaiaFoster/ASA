@@ -36,6 +36,7 @@ from domain import (
 )
 from market_data import FulfillmentStatus
 from market_data.index_instruments import canonical_instrument_kind
+from market_data.rate_series import is_rate_series, rate_series_instrument
 from market_data.subject_plan import CapabilityFulfiller
 from screening.live_acquisition import acquire_capability
 from screening.results import ScreeningOutcomeStatus
@@ -157,6 +158,9 @@ def expirations_from_chain(chain: OptionChain, as_of: date) -> tuple[ExpirationC
 # provider this codebase knows how to construct uses the ticker symbol
 # directly as its own address value, so the same symbol is valid for all.
 KNOWN_PROVIDER_IDS = ("tradier", "finnhub", "alpha_vantage", "deterministic_fixture")
+# X04: a rate series is addressed only by its rate provider; equity and option
+# subjects keep exactly their existing provider projections (and identities).
+RATE_PROVIDER_IDS = ("us_treasury",)
 
 
 def build_capability_subject(
@@ -210,7 +214,7 @@ def build_capability_subject(
     window_start = min(semantic_start, as_of - timedelta(days=provider_symbol_window_days))
     projections = tuple(
         ProviderAddressProjection(provider_id, "v1", "symbol", symbol, window_start, None, evidence)
-        for provider_id in KNOWN_PROVIDER_IDS
+        for provider_id in (RATE_PROVIDER_IDS if is_rate_series(symbol) else KNOWN_PROVIDER_IDS)
     )
     if expiration is not None:
         projections += tuple(
@@ -226,17 +230,23 @@ def build_capability_subject(
             for provider_id in KNOWN_PROVIDER_IDS
         )
     # X01: a canonical index (e.g. SPX) is an INDEX subject, never EQUITY.
-    instrument = Instrument(
-        CanonicalInstrumentIdentity("symbol", symbol),
-        canonical_instrument_kind(symbol),
-        symbol,
-        "USD",
+    # X04: a canonical rate series is a RATE subject with its own identity.
+    instrument = (
+        rate_series_instrument(symbol)
+        if is_rate_series(symbol)
+        else Instrument(
+            CanonicalInstrumentIdentity("symbol", symbol),
+            canonical_instrument_kind(symbol),
+            symbol,
+            "USD",
+        )
     )
     if required_fields is None:
         required_fields = {
             MarketCapability.OPTION_CHAIN_V1: ("contracts",),
             MarketCapability.EARNINGS_CALENDAR_V1: ("earnings_date",),
             MarketCapability.REAL_TIME_QUOTE_V1: ("last",),
+            MarketCapability.RATE_OBSERVATION_V1: ("value",),
         }.get(capability, ("last",))
     return MarketDataSubject(
         instrument,

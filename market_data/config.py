@@ -98,6 +98,11 @@ class ValidationBudgetConfig:
             raise ConfigurationError("Validation provider concurrency must equal one")
 
 
+# Providers that need no credential: the offline fixture and public,
+# no-fee, read-only government feeds.
+CREDENTIAL_FREE_PROVIDERS = frozenset({"deterministic_fixture", "us_treasury"})
+
+
 @dataclass(frozen=True, slots=True)
 class ProviderConfig:
     provider_id: str
@@ -121,7 +126,11 @@ class ProviderConfig:
         _positive(self.timeout_seconds, "timeout_seconds")
         if self.timeout_seconds > 60:
             raise ConfigurationError("Provider timeout exceeds the configured safety ceiling")
-        if self.enabled and self.provider_id != "deterministic_fixture" and self.credential is None:
+        if (
+            self.enabled
+            and self.provider_id not in CREDENTIAL_FREE_PROVIDERS
+            and self.credential is None
+        ):
             raise ConfigurationError(
                 f"Enabled provider {self.provider_id!r} requires its configured credential"
             )
@@ -291,6 +300,9 @@ def load_market_data_config(values: Mapping[str, str]) -> MarketDataConfig:
             _provider(values, "tradier", tradier, endpoint_environment=tradier_environment),
             _provider(values, "finnhub", finnhub),
             _provider(values, "alpha_vantage", alpha),
+            # X04 (SP-01B): public Treasury bill rates; credential-free and
+            # opt-in like every live provider (ASA_US_TREASURY_ENABLED=true).
+            _provider(values, "us_treasury", None),
         ),
         tuple(diagnostics),
     )

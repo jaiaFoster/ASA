@@ -55,6 +55,7 @@ from market_data.finnhub import finnhub_rolling_window_policy
 from market_data.resolution import ResolutionPolicy
 from market_data.rolling_window import ProviderRollingWindowTracker, RollingWindowPolicy
 from market_data.tradier import tradier_rolling_window_policy
+from market_data.us_treasury import us_treasury_provider_registration
 from strategy_runtime.clock import Clock
 
 PRIORITY_POLICY_VERSION = "strategy-runtime-shared-plan-v1"
@@ -68,6 +69,7 @@ def _provider_factory() -> ProviderFactory:
             finnhub_provider_registration(),
             alpha_vantage_provider_registration(),
             fixture_provider_registration(),
+            us_treasury_provider_registration(),
         )
     )
 

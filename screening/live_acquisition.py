@@ -49,6 +49,7 @@ from market_data import (
     tradier_provider_registration,
 )
 from market_data.subject_plan import CapabilityFulfiller
+from market_data.us_treasury import us_treasury_provider_registration
 from screening.clock import Clock
 
 PRIORITY_POLICY_VERSION = "screening-live-v1"
@@ -62,6 +63,7 @@ def _provider_factory() -> ProviderFactory:
             finnhub_provider_registration(),
             alpha_vantage_provider_registration(),
             fixture_provider_registration(),
+            us_treasury_provider_registration(),
         )
     )
 

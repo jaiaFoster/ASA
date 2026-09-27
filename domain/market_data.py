@@ -75,6 +75,9 @@ class MarketCapability(str, Enum):
     # X01 (SP-01A): exchange-published index settlement values (SOQ). A
     # canonical fact; never derived from quotes, futures or ETFs.
     INDEX_SETTLEMENT_VALUE_V1 = "index_settlement_value_v1"
+    # X04 (SP-01B): provider-neutral published rate observations (Treasury
+    # bill rates, risk-free and dividend-yield series).
+    RATE_OBSERVATION_V1 = "rate_observation_v1"
 
 
 class MarketDataSubjectType(str, Enum):
@@ -227,6 +230,7 @@ class MarketDataSubject:
             MarketCapability.OPTION_CHAIN_V1: MarketDataSubjectType.OPTION_UNDERLYING,
             MarketCapability.EARNINGS_CALENDAR_V1: MarketDataSubjectType.EARNINGS_SECURITY,
             MarketCapability.INDEX_SETTLEMENT_VALUE_V1: MarketDataSubjectType.INSTRUMENT,
+            MarketCapability.RATE_OBSERVATION_V1: MarketDataSubjectType.INSTRUMENT,
         }.get(self.requested_capability)
         if expected_type is not None and self.subject_type is not expected_type:
             raise DomainInvariantError("MarketDataSubject subject type does not match capability")
@@ -277,6 +281,49 @@ class Quote:
             _decimal(getattr(self, name), "Quote", name)
         if self.bid is not None and self.ask is not None and self.bid > self.ask:
             raise DomainInvariantError("Quote bid cannot exceed ask")
+
+
+class RateBasis(str, Enum):  # noqa: UP042 -- preserve sibling contract enum style
+    """X04: the quoting convention of a published rate. Bases are never mixed."""
+
+    BANK_DISCOUNT = "bank_discount"
+    COUPON_EQUIVALENT = "coupon_equivalent"
+    DIVIDEND_YIELD = "dividend_yield"
+
+
+@dataclass(frozen=True, slots=True)
+class RateObservation:
+    """X04 (SP-01B): one published value of a rate series.
+
+    ``value`` is a decimal fraction (3.69% -> 0.0369). ``effective_date`` is
+    the publication date the value applies to; ``tenor_days`` is the
+    instrument tenor the series quotes, when it has one.
+    """
+
+    instrument: Instrument
+    basis: RateBasis
+    tenor_days: int | None
+    value: Decimal
+    effective_date: date
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.instrument, Instrument):
+            raise DomainInvariantError("RateObservation.instrument must be an Instrument")
+        if self.instrument.kind is not InstrumentKind.RATE:
+            raise DomainInvariantError("RateObservation.instrument must be a RATE series")
+        if not isinstance(self.basis, RateBasis):
+            raise DomainInvariantError("RateObservation.basis must be a RateBasis")
+        if self.tenor_days is not None and (
+            type(self.tenor_days) is not int or self.tenor_days <= 0
+        ):
+            raise DomainInvariantError("RateObservation.tenor_days must be a positive integer")
+        if not isinstance(self.value, Decimal):
+            raise DomainInvariantError("RateObservation.value is required")
+        _decimal(self.value, "RateObservation", "value")
+        if abs(self.value) >= 1:
+            raise DomainInvariantError("RateObservation.value must be a decimal fraction")
+        if not isinstance(self.effective_date, date) or isinstance(self.effective_date, datetime):
+            raise DomainInvariantError("RateObservation.effective_date must be a date")
 
 
 @dataclass(frozen=True, slots=True)
@@ -500,6 +547,7 @@ MarketObservationValue: TypeAlias = (
     | TradingCalendarEvent
     | CorporateActionPlaceholder
     | IndexSettlementValue
+    | RateObservation
 )
 
 
@@ -537,6 +585,7 @@ class MarketObservation:
             TradingCalendarEvent: MarketCapability.TRADING_CALENDAR_V1,
             CorporateActionPlaceholder: MarketCapability.CORPORATE_ACTIONS_V1,
             IndexSettlementValue: MarketCapability.INDEX_SETTLEMENT_VALUE_V1,
+            RateObservation: MarketCapability.RATE_OBSERVATION_V1,
         }.get(type(self.value))
         if expected_capability is not self.capability:
             raise DomainInvariantError("MarketObservation value does not match capability")
@@ -554,6 +603,7 @@ class MarketObservation:
 
 MarketDataContract: TypeAlias = (
     Quote
+    | RateObservation
     | OHLCVBar
     | OHLCVSeries
     | TradingCalendarEvent
@@ -572,6 +622,7 @@ _MARKET_TYPES = {
     value.__name__: value
     for value in (
         Quote,
+        RateObservation,
         OHLCVBar,
         OHLCVSeries,
         TradingCalendarEvent,
@@ -591,6 +642,7 @@ _ENUM_TYPES = {
     for value in (
         MarketCapability,
         AdjustedCloseBasis,
+        RateBasis,
         FreshnessStatus,
         ProviderErrorKind,
         TradingCalendarEventType,
