@@ -45,7 +45,7 @@ D = Decimal
 
 def test_every_formula_has_id_version_unit_and_time_semantics() -> None:
     ids = OPTION_STRATEGY_FORMULAS.registered_ids()
-    assert len(ids) == 21
+    assert len(ids) == 22
     for formula_id in ids:
         definition = OPTION_STRATEGY_FORMULAS.get(formula_id)
         assert definition.formula_version and definition.unit and definition.time_semantics

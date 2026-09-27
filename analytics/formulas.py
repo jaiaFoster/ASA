@@ -76,6 +76,7 @@ DF_LAST_TRADING_DAY_OF_MONTH = "DF-LAST-TRADING-DAY-OF-MONTH"
 DF_MONTHLY_EXPIRATION_DAY = "DF-MONTHLY-EXPIRATION-DAY"
 DF_OPTION_TRADE_WINDOW_VWAP = "DF-OPTION-TRADE-WINDOW-VWAP"
 DF_GXZ_PAIR_VOLUME = "DF-GXZ-PAIR-VOLUME"
+DF_CASH_SECURED_PUT_COLLATERAL = "DF-CASH-SECURED-PUT-COLLATERAL"
 
 _SNAPSHOT = "one quote snapshot t"
 _CALENDAR = "exchange trading calendar, US/Eastern dates"
@@ -229,6 +230,13 @@ OPTION_STRATEGY_FORMULAS = FormulaRegistry(
             "contracts",
             "one exact call-put pair at the entry snapshot",
             "UNKNOWN if either leg volume is unavailable",
+        ),
+        FormulaDefinition(
+            DF_CASH_SECURED_PUT_COLLATERAL,
+            "1.0.0",
+            "USD collateral present value",
+            "formation snapshot through selected put expiration",
+            "UNKNOWN if the Treasury collateral return is unavailable or invalid",
         ),
     )
 )
