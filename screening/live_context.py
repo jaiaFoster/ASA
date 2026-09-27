@@ -25,7 +25,6 @@ from domain import (
     ExpirationCollection,
     ExpirationCycle,
     Instrument,
-    InstrumentKind,
     MarketCapability,
     MarketDataRequestContext,
     MarketDataSubject,
@@ -36,6 +35,7 @@ from domain import (
     ProviderAddressProjection,
 )
 from market_data import FulfillmentStatus
+from market_data.index_instruments import canonical_instrument_kind
 from market_data.subject_plan import CapabilityFulfiller
 from screening.live_acquisition import acquire_capability
 from screening.results import ScreeningOutcomeStatus
@@ -225,8 +225,12 @@ def build_capability_subject(
             )
             for provider_id in KNOWN_PROVIDER_IDS
         )
+    # X01: a canonical index (e.g. SPX) is an INDEX subject, never EQUITY.
     instrument = Instrument(
-        CanonicalInstrumentIdentity("symbol", symbol), InstrumentKind.EQUITY, symbol, "USD"
+        CanonicalInstrumentIdentity("symbol", symbol),
+        canonical_instrument_kind(symbol),
+        symbol,
+        "USD",
     )
     if required_fields is None:
         required_fields = {

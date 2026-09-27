@@ -15,6 +15,7 @@ from domain.financial import (
     ExpirationCollection,
     ExpirationCycle,
     FinancialContract,
+    IndexSettlementValue,
     OptionChain,
     OptionContract,
     deserialize_financial_contract,
@@ -71,6 +72,9 @@ class MarketCapability(str, Enum):
     EARNINGS_CALENDAR_V1 = "earnings_calendar_v1"
     TRADING_CALENDAR_V1 = "trading_calendar_v1"
     CORPORATE_ACTIONS_V1 = "corporate_actions_v1"
+    # X01 (SP-01A): exchange-published index settlement values (SOQ). A
+    # canonical fact; never derived from quotes, futures or ETFs.
+    INDEX_SETTLEMENT_VALUE_V1 = "index_settlement_value_v1"
 
 
 class MarketDataSubjectType(str, Enum):
@@ -222,6 +226,7 @@ class MarketDataSubject:
             MarketCapability.HISTORICAL_BARS_V1: MarketDataSubjectType.INSTRUMENT,
             MarketCapability.OPTION_CHAIN_V1: MarketDataSubjectType.OPTION_UNDERLYING,
             MarketCapability.EARNINGS_CALENDAR_V1: MarketDataSubjectType.EARNINGS_SECURITY,
+            MarketCapability.INDEX_SETTLEMENT_VALUE_V1: MarketDataSubjectType.INSTRUMENT,
         }.get(self.requested_capability)
         if expected_type is not None and self.subject_type is not expected_type:
             raise DomainInvariantError("MarketDataSubject subject type does not match capability")
@@ -494,6 +499,7 @@ MarketObservationValue: TypeAlias = (
     | EarningsEvent
     | TradingCalendarEvent
     | CorporateActionPlaceholder
+    | IndexSettlementValue
 )
 
 
@@ -530,6 +536,7 @@ class MarketObservation:
             EarningsEvent: MarketCapability.EARNINGS_CALENDAR_V1,
             TradingCalendarEvent: MarketCapability.TRADING_CALENDAR_V1,
             CorporateActionPlaceholder: MarketCapability.CORPORATE_ACTIONS_V1,
+            IndexSettlementValue: MarketCapability.INDEX_SETTLEMENT_VALUE_V1,
         }.get(type(self.value))
         if expected_capability is not self.capability:
             raise DomainInvariantError("MarketObservation value does not match capability")
@@ -641,7 +648,15 @@ def _wire(value: object) -> object:
     if isinstance(value, tuple):
         return [_wire(item) for item in value]
     if isinstance(
-        value, (OptionContract, OptionChain, ExpirationCycle, ExpirationCollection, EarningsEvent)
+        value,
+        (
+            OptionContract,
+            OptionChain,
+            ExpirationCycle,
+            ExpirationCollection,
+            EarningsEvent,
+            IndexSettlementValue,
+        ),
     ):
         return {"$financial_contract": financial_contract_to_data(cast(FinancialContract, value))}
     if type(value).__name__ in _MARKET_TYPES:
