@@ -1,2242 +1,118 @@
-# Capability-primitive comparison matrix. Architecture values as supplied by ROLE-ARCH; evidence derived from RES-001C; comparisons derived. No selection.
+# Capability-primitive comparison matrix v2 (governing method: ASA-ARCH-STRATEGY-SELECTION-RESOLUTION-001, Founder-adopted). Raw inputs beneath derived values.
 id: ASA-STRATEGY-CAPABILITY-SELECTION-001/primitive-comparison-matrix
-version: '1.0'
+version: '2.0'
 created: '2026-09-27'
 main_basis: 4e56c608b3cc828651f09dc4952cd836b8bdb727
-status: 'decision support. No primitive selected. Weighted values are ILLUSTRATIVE: official weights are Founder-owned
-  and not yet supplied.'
-inputs:
-  research: research/sprints/ASA-RES-SPRINT-001/ (RES-001B §3/§4.3, RES-001C dataset, RES-001D §3/§7)
-  founder: ASA-FOUNDER-STRATEGY-SELECTION-DIRECTIVES-001 (session-supplied; not on main)
-  architecture: ASA-ARCH-STRATEGY-SELECTION-THRESHOLDS-001 + clarifications (session-supplied; not on main)
-method:
-  phenomenon_strength: RES-001D §3 start level only; no inconsistency downgrade (Founder scrutiny_bias); no indirectness
-    downgrade for the phenomenon (Founder indirect_evidence); bibliographic_only replications not counted
-  direction: separate field; UNFAVORABLE families are not credible uses
-  credible_use: family with strength >= LOW and direction != UNFAVORABLE
-  evidence_confidence_PROPOSED: LOW if >=8 UNKNOWN fields or >=1/3 sources below abstract depth; LOW_MEDIUM if >=5
-    UNKNOWN fields or any such sources; else MEDIUM. Research proposal pending Founder approval (Architect clarification
-    8).
-  unknown: never zero; UNKNOWN evidence carried as interval [0,1]
-  pareto_axes:
-  - E1 best credible strength
-  - E2 its confidence
-  - reuse (canonical §3; X-capabilities use enabling_reuse_count)
-  - burden (standalone; incremental as sensitivity)
-  weighted_normalization: 'anchored ordinal: E1 NONE0/VL.25/L.5/M.75/H1; reuse class L.25/S.5/B.75/P1; burden B0
-    1..B4 0; confidence 0..1'
-  weighted_profiles_ILLUSTRATIVE:
-    equal: E1/3 R1/3 B1/3
-    evidence_led: .5/.25/.25
-    reuse_led: .25/.5/.25
-    burden_averse: .25/.25/.5
-    confidence_aware: .4E/.2Conf/.2R/.2B
-  sensitivity: 20,000 uniform weight vectors over (E,R,B) simplex; seed 20260927
-family_evidence_profiles:
-  PW:
-    family: PUTWRITE
-    research_status: TRIAGE
-    phenomenon_strength: HIGH
-    direction_for_return_seeking_use: QUALIFIED
-    direction_basis: premium supported; crisis-factor explanation; weak 2006-2018 post-launch
-    evidence_confidence: MEDIUM
-    verified_independent_replications: 1
-    net_of_cost: mixed
-    post_publication: negative
-    unknown_fields_lower_bound: 0
-    evidence_cluster: C_VRP_INDEX
-  CC:
-    family: COVERED-CALL
-    research_status: TRIAGE
-    phenomenon_strength: HIGH
-    direction_for_return_seeking_use: QUALIFIED
-    direction_basis: premium supported; return mostly equity beta; 2-month variant fails
-    evidence_confidence: MEDIUM
-    verified_independent_replications: 1
-    net_of_cost: mixed
-    post_publication: none_found
-    unknown_fields_lower_bound: 2
-    evidence_cluster: C_VRP_INDEX
-  SV:
-    family: SHORT-VOL
-    research_status: TRIAGE
-    phenomenon_strength: HIGH
-    direction_for_return_seeking_use: QUALIFIED
-    direction_basis: negative VRP supported; significance contested (BCJ-2009); severe tail
-    evidence_confidence: LOW_MEDIUM
-    verified_independent_replications: 1
-    net_of_cost: none
-    post_publication: mixed
-    unknown_fields_lower_bound: 1
-    evidence_cluster: C_VRP_INDEX
-  DR:
-    family: DEFINED-RISK
-    research_status: TRIAGE
-    phenomenon_strength: LOW
-    direction_for_return_seeking_use: UNRESOLVED
-    direction_basis: no return evidence for the structure; parent VRP supported; wing-cost direction contested
-    evidence_confidence: LOW_MEDIUM
-    verified_independent_replications: 0
-    net_of_cost: none
-    post_publication: none_found
-    unknown_fields_lower_bound: 6
-    evidence_cluster: C_VRP_INDEX
-  US:
-    family: ULTRA-SHORT
-    research_status: INSUFFICIENT_EVIDENCE
-    phenomenon_strength: LOW
-    direction_for_return_seeking_use: UNFAVORABLE
-    direction_basis: 'corrected study: no positive net Sharpe'
-    evidence_confidence: LOW
-    verified_independent_replications: 0
-    net_of_cost: negative
-    post_publication: negative
-    unknown_fields_lower_bound: 2
-    evidence_cluster: C_VRP_INDEX
-  TH:
-    family: TAIL-HEDGE
-    research_status: INSUFFICIENT_EVIDENCE
-    phenomenon_strength: HIGH
-    direction_for_return_seeking_use: UNFAVORABLE
-    direction_basis: buyer side of a documented premium; negative expected return
-    evidence_confidence: LOW_MEDIUM
-    verified_independent_replications: 1
-    net_of_cost: negative
-    post_publication: negative
-    unknown_fields_lower_bound: 1
-    evidence_cluster: C_VRP_INDEX
-  CL:
-    family: COLLAR
-    research_status: INSUFFICIENT_EVIDENCE
-    phenomenon_strength: MODERATE
-    direction_for_return_seeking_use: UNFAVORABLE
-    direction_basis: expected underperformance (ISRAELOV-KLEIN-2016)
-    evidence_confidence: LOW_MEDIUM
-    verified_independent_replications: 0
-    net_of_cost: none
-    post_publication: none_found
-    unknown_fields_lower_bound: 6
-    evidence_cluster: C_VRP_INDEX
-  VX:
-    family: VIX-CARRY
-    research_status: TRIAGE
-    phenomenon_strength: MODERATE
-    direction_for_return_seeking_use: QUALIFIED
-    direction_basis: slope predictability supported; catastrophic short-vehicle failure
-    evidence_confidence: MEDIUM
-    verified_independent_replications: 0
-    net_of_cost: mixed
-    post_publication: negative
-    unknown_fields_lower_bound: 2
-    evidence_cluster: C_VOL_TERM
-  TS:
-    family: TERM-STRUCTURE
-    research_status: TRIAGE
-    phenomenon_strength: MODERATE
-    direction_for_return_seeking_use: UNRESOLVED
-    direction_basis: mechanism supported by convergent lines; no contradiction or cost evidence recovered
-    evidence_confidence: LOW_MEDIUM
-    verified_independent_replications: 0
-    net_of_cost: none
-    post_publication: none_found
-    unknown_fields_lower_bound: 7
-    evidence_cluster: C_VOL_TERM
-  XR:
-    family: XS-OPTION-RETURNS
-    research_status: TRIAGE
-    phenomenon_strength: HIGH
-    direction_for_return_seeking_use: FAVORABLE_QUALIFIED
-    direction_basis: after-cost OOS positive; 50-75% of alpha spanned by factors
-    evidence_confidence: LOW_MEDIUM
-    verified_independent_replications: 1
-    net_of_cost: positive
-    post_publication: positive
-    unknown_fields_lower_bound: 5
-    evidence_cluster: C_XS_OPTION_FACTORS
-  XM:
-    family: XS-OPTION-MOMENTUM
-    research_status: TRIAGE
-    phenomenon_strength: MODERATE
-    direction_for_return_seeking_use: UNRESOLVED
-    direction_basis: single-team evidence; no cost/post-publication evidence
-    evidence_confidence: LOW
-    verified_independent_replications: 0
-    net_of_cost: none
-    post_publication: none_found
-    unknown_fields_lower_bound: 12
-    evidence_cluster: C_XS_OPTION_FACTORS
-  XL:
-    family: XS-LOTTERY
-    research_status: TRIAGE
-    phenomenon_strength: HIGH
-    direction_for_return_seeking_use: UNRESOLVED
-    direction_basis: consistent sign; gross only; cost evidence absent
-    evidence_confidence: LOW_MEDIUM
-    verified_independent_replications: 1
-    net_of_cost: none
-    post_publication: none_found
-    unknown_fields_lower_bound: 7
-    evidence_cluster: C_XS_OPTION_FACTORS
-  EV:
-    family: EVENT-VOL
-    research_status: TRIAGE
-    phenomenon_strength: MODERATE
-    direction_for_return_seeking_use: QUALIFIED
-    direction_basis: GXZ positive; opposite sign for bellwethers/retail; cost concentration
-    evidence_confidence: LOW_MEDIUM
-    verified_independent_replications: 0
-    net_of_cost: mixed
-    post_publication: none_found
-    unknown_fields_lower_bound: 5
-    evidence_cluster: C_EVENT
-  OS:
-    family: OPTION-SIGNAL
-    research_status: TRIAGE
-    phenomenon_strength: HIGH
-    direction_for_return_seeking_use: QUALIFIED
-    direction_basis: ~2/3 removed by borrow-fee adjustment; RNS sign conflict
-    evidence_confidence: LOW_MEDIUM
-    verified_independent_replications: 1
-    net_of_cost: none
-    post_publication: negative
-    unknown_fields_lower_bound: 5
-    evidence_cluster: C_OPTION_INFO
-  SK:
-    family: SKEW-PREMIUM
-    research_status: INSUFFICIENT_EVIDENCE
-    phenomenon_strength: MODERATE
-    direction_for_return_seeking_use: UNFAVORABLE
-    direction_basis: standalone skew premium insignificant (KNS-2013)
-    evidence_confidence: LOW
-    verified_independent_replications: 0
-    net_of_cost: none
-    post_publication: none_found
-    unknown_fields_lower_bound: 11
-    evidence_cluster: C_VRP_INDEX
-  DP:
-    family: DISPERSION
-    research_status: INSUFFICIENT_EVIDENCE
-    phenomenon_strength: MODERATE
-    direction_for_return_seeking_use: UNFAVORABLE
-    direction_basis: not exploitable with frictions (DMV-2009)
-    evidence_confidence: LOW
-    verified_independent_replications: 0
-    net_of_cost: negative
-    post_publication: none_found
-    unknown_fields_lower_bound: 8
-    evidence_cluster: C_CORRELATION
-  AR:
-    family: ARBITRAGE
-    research_status: DISCOVERED
-    phenomenon_strength: UNGRADED
-    direction_for_return_seeking_use: UNRESOLVED
-    direction_basis: unassessed
-    evidence_confidence: VERY_LOW
-    verified_independent_replications: 0
-    net_of_cost: none
-    post_publication: none_found
-    unknown_fields_lower_bound: 14
-    evidence_cluster: C_ARBITRAGE
-  CA:
-    family: CROSS-ASSET-VRP
-    research_status: TRIAGE
-    phenomenon_strength: HIGH
-    direction_for_return_seeking_use: UNRESOLVED
-    direction_basis: premium supported; costs/rules unrecovered; outside instrument universe
-    evidence_confidence: LOW
-    verified_independent_replications: 1
-    net_of_cost: none
-    post_publication: none_found
-    unknown_fields_lower_bound: 8
-    evidence_cluster: C_CROSS_ASSET
-  DX:
-    family: DIRECTIONAL
-    research_status: INSUFFICIENT_EVIDENCE
-    phenomenon_strength: HIGH
-    direction_for_return_seeking_use: UNFAVORABLE
-    direction_basis: option buyers lose on average
-    evidence_confidence: LOW
-    verified_independent_replications: 1
-    net_of_cost: negative
-    post_publication: negative
-    unknown_fields_lower_bound: 10
-    evidence_cluster: C_BUYER_SIDE
-primitives:
-- primitive_id: P01
-  name: single option leg
-  architecture:
-    source: ASA-ARCH-STRATEGY-SELECTION-THRESHOLDS-001 §6 + Architect clarifications (supplied in session; not on
-      main)
-    primitive_role: EXPRESSION
-    support_state: CONTRACT_CHANGE
-    researched_families:
-    - PW
-    - TH
-    - DX
-    - CA
-    reusable_family_count_RES001B_s3: 4
-    documented_dependency_reach_count: 5
-    reuse_class: BROAD
-    reuse_confidence: HIGH
-    implementation_burden_standalone: B3_CROSS_CUTTING
-    implementation_burden_intrinsic_once_HARD_deps_held: B3_CROSS_CUTTING
-    protected_contract_impact: ADDITIVE_PUBLIC
-    hard_dependencies: []
-    dependencies_as_stated: A01
-    architecture_unknowns: exact product economics for naked short legs
-    architecture_confidence: HIGH
-  evidence:
-    best_credible_phenomenon_strength: HIGH
-    confidence_of_strongest_credible_use: MEDIUM
-    strongest_credible_families:
-    - PW
-    - CA
-    credible_families:
-    - PW
-    - CA
-    credible_evidence_clusters:
-    - C_CROSS_ASSET
-    - C_VRP_INDEX
-    unfavorable_families:
-    - TH
-    - DX
-    unassessed_families: []
-    return_transfer: NONE (phenomenon evidence only; Founder no_return_transfer)
-  comparison_derived:
-    pareto_front_common_pool: 2
-    pareto_front_reach_sensitivity: 2
-    pareto_front_incremental_sensitivity: 2
-    pareto_front_in_role_lane: 1
-    weighted_ILLUSTRATIVE:
-      equal: 0.67
-      evidence_led: 0.75
-      reuse_led: 0.69
-      burden_averse: 0.56
-      confidence_aware: 0.8
-    top5_frequency_uniform_weights: 1.0
-    rank_band_5_95:
-    - 3
-    - 5
-- primitive_id: P02
-  name: vertical
-  architecture:
-    source: ASA-ARCH-STRATEGY-SELECTION-THRESHOLDS-001 §6 + Architect clarifications (supplied in session; not on
-      main)
-    primitive_role: EXPRESSION
-    support_state: NATIVE
-    researched_families:
-    - DR
-    - DX
-    reusable_family_count_RES001B_s3: 2
-    documented_dependency_reach_count: 2
-    reuse_class: SHARED
-    reuse_confidence: HIGH
-    implementation_burden_standalone: B0_NATIVE
-    implementation_burden_intrinsic_once_HARD_deps_held: B0_NATIVE
-    protected_contract_impact: NONE
-    hard_dependencies: []
-    dependencies_as_stated: A01;A02
-    architecture_unknowns: []
-    architecture_confidence: HIGH
-  evidence:
-    best_credible_phenomenon_strength: LOW
-    confidence_of_strongest_credible_use: LOW_MEDIUM
-    strongest_credible_families:
-    - DR
-    credible_families:
-    - DR
-    credible_evidence_clusters:
-    - C_VRP_INDEX
-    unfavorable_families:
-    - DX
-    unassessed_families: []
-    return_transfer: NONE (phenomenon evidence only; Founder no_return_transfer)
-  comparison_derived:
-    pareto_front_common_pool: baseline (NATIVE)
-    pareto_front_reach_sensitivity: baseline (NATIVE)
-    pareto_front_incremental_sensitivity: baseline (NATIVE)
-    pareto_front_in_role_lane: baseline (NATIVE)
-    weighted_ILLUSTRATIVE: baseline (NATIVE; not scored)
-    top5_frequency_uniform_weights: n/a
-    rank_band_5_95: n/a
-- primitive_id: P03
-  name: straddle
-  architecture:
-    source: ASA-ARCH-STRATEGY-SELECTION-THRESHOLDS-001 §6 + Architect clarifications (supplied in session; not on
-      main)
-    primitive_role: EXPRESSION
-    support_state: CONTRACT_CHANGE
-    researched_families:
-    - SV
-    - EV
-    - XM
-    - XR
-    reusable_family_count_RES001B_s3: 4
-    documented_dependency_reach_count: 7
-    reuse_class: BROAD
-    reuse_confidence: HIGH
-    implementation_burden_standalone: B3_CROSS_CUTTING
-    implementation_burden_intrinsic_once_HARD_deps_held: B3_CROSS_CUTTING
-    protected_contract_impact: ADDITIVE_PUBLIC
-    hard_dependencies: []
-    dependencies_as_stated: A01
-    architecture_unknowns: all-qualifying-pair semantics vary by source
-    architecture_confidence: HIGH
-  evidence:
-    best_credible_phenomenon_strength: HIGH
-    confidence_of_strongest_credible_use: LOW_MEDIUM
-    strongest_credible_families:
-    - SV
-    - XR
-    credible_families:
-    - SV
-    - EV
-    - XM
-    - XR
-    credible_evidence_clusters:
-    - C_EVENT
-    - C_VRP_INDEX
-    - C_XS_OPTION_FACTORS
-    unfavorable_families: []
-    unassessed_families: []
-    return_transfer: NONE (phenomenon evidence only; Founder no_return_transfer)
-  comparison_derived:
-    pareto_front_common_pool: 3
-    pareto_front_reach_sensitivity: 2
-    pareto_front_incremental_sensitivity: 3
-    pareto_front_in_role_lane: 2
-    weighted_ILLUSTRATIVE:
-      equal: 0.67
-      evidence_led: 0.75
-      reuse_led: 0.69
-      burden_averse: 0.56
-      confidence_aware: 0.73
-    top5_frequency_uniform_weights: 0.559
-    rank_band_5_95:
-    - 4
-    - 6
-- primitive_id: P04
-  name: strangle
-  architecture:
-    source: ASA-ARCH-STRATEGY-SELECTION-THRESHOLDS-001 §6 + Architect clarifications (supplied in session; not on
-      main)
-    primitive_role: EXPRESSION
-    support_state: CONTRACT_CHANGE
-    researched_families:
-    - SV
-    - US
-    reusable_family_count_RES001B_s3: 2
-    documented_dependency_reach_count: 2
-    reuse_class: SHARED
-    reuse_confidence: HIGH
-    implementation_burden_standalone: B3_CROSS_CUTTING
-    implementation_burden_intrinsic_once_HARD_deps_held: B3_CROSS_CUTTING
-    protected_contract_impact: ADDITIVE_PUBLIC
-    hard_dependencies: []
-    dependencies_as_stated: A01
-    architecture_unknowns: []
-    architecture_confidence: HIGH
-  evidence:
-    best_credible_phenomenon_strength: HIGH
-    confidence_of_strongest_credible_use: LOW_MEDIUM
-    strongest_credible_families:
-    - SV
-    credible_families:
-    - SV
-    credible_evidence_clusters:
-    - C_VRP_INDEX
-    unfavorable_families:
-    - US
-    unassessed_families: []
-    return_transfer: NONE (phenomenon evidence only; Founder no_return_transfer)
-  comparison_derived:
-    pareto_front_common_pool: 5
-    pareto_front_reach_sensitivity: 5
-    pareto_front_incremental_sensitivity: 5
-    pareto_front_in_role_lane: 4
-    weighted_ILLUSTRATIVE:
-      equal: 0.58
-      evidence_led: 0.69
-      reuse_led: 0.56
-      burden_averse: 0.5
-      confidence_aware: 0.68
-    top5_frequency_uniform_weights: 0.0
-    rank_band_5_95:
-    - 12
-    - 15
-- primitive_id: P05
-  name: four-leg wing combination
-  architecture:
-    source: ASA-ARCH-STRATEGY-SELECTION-THRESHOLDS-001 §6 + Architect clarifications (supplied in session; not on
-      main)
-    primitive_role: EXPRESSION
-    support_state: CONTRACT_CHANGE
-    researched_families:
-    - DR
-    - US
-    reusable_family_count_RES001B_s3: 2
-    documented_dependency_reach_count: 2
-    reuse_class: SHARED
-    reuse_confidence: HIGH
-    implementation_burden_standalone: B3_CROSS_CUTTING
-    implementation_burden_intrinsic_once_HARD_deps_held: B3_CROSS_CUTTING
-    protected_contract_impact: ADDITIVE_PUBLIC
-    hard_dependencies:
-    - P02
-    dependencies_as_stated: P02;A01;A02
-    architecture_unknowns: index-faithful variants may also require X01
-    architecture_confidence: HIGH
-  evidence:
-    best_credible_phenomenon_strength: LOW
-    confidence_of_strongest_credible_use: LOW_MEDIUM
-    strongest_credible_families:
-    - DR
-    credible_families:
-    - DR
-    credible_evidence_clusters:
-    - C_VRP_INDEX
-    unfavorable_families:
-    - US
-    unassessed_families: []
-    return_transfer: NONE (phenomenon evidence only; Founder no_return_transfer)
-  comparison_derived:
-    pareto_front_common_pool: 6
-    pareto_front_reach_sensitivity: 6
-    pareto_front_incremental_sensitivity: 6
-    pareto_front_in_role_lane: 5
-    weighted_ILLUSTRATIVE:
-      equal: 0.42
-      evidence_led: 0.44
-      reuse_led: 0.44
-      burden_averse: 0.38
-      confidence_aware: 0.48
-    top5_frequency_uniform_weights: 0.0
-    rank_band_5_95:
-    - 16
-    - 22
-- primitive_id: P06
-  name: calendar
-  architecture:
-    source: ASA-ARCH-STRATEGY-SELECTION-THRESHOLDS-001 §6 + Architect clarifications (supplied in session; not on
-      main)
-    primitive_role: EXPRESSION
-    support_state: NATIVE
-    researched_families:
-    - TS
-    - EV
-    reusable_family_count_RES001B_s3: 2
-    documented_dependency_reach_count: 2
-    reuse_class: SHARED
-    reuse_confidence: HIGH
-    implementation_burden_standalone: B0_NATIVE
-    implementation_burden_intrinsic_once_HARD_deps_held: B0_NATIVE
-    protected_contract_impact: NONE
-    hard_dependencies: []
-    dependencies_as_stated: A01;A05
-    architecture_unknowns: []
-    architecture_confidence: HIGH
-  evidence:
-    best_credible_phenomenon_strength: MODERATE
-    confidence_of_strongest_credible_use: LOW_MEDIUM
-    strongest_credible_families:
-    - TS
-    - EV
-    credible_families:
-    - TS
-    - EV
-    credible_evidence_clusters:
-    - C_EVENT
-    - C_VOL_TERM
-    unfavorable_families: []
-    unassessed_families: []
-    return_transfer: NONE (phenomenon evidence only; Founder no_return_transfer)
-  comparison_derived:
-    pareto_front_common_pool: baseline (NATIVE)
-    pareto_front_reach_sensitivity: baseline (NATIVE)
-    pareto_front_incremental_sensitivity: baseline (NATIVE)
-    pareto_front_in_role_lane: baseline (NATIVE)
-    weighted_ILLUSTRATIVE: baseline (NATIVE; not scored)
-    top5_frequency_uniform_weights: n/a
-    rank_band_5_95: n/a
-- primitive_id: P07
-  name: diagonal
-  architecture:
-    source: ASA-ARCH-STRATEGY-SELECTION-THRESHOLDS-001 §6 + Architect clarifications (supplied in session; not on
-      main)
-    primitive_role: EXPRESSION
-    support_state: CONTRACT_CHANGE
-    researched_families:
-    - TS
-    reusable_family_count_RES001B_s3: 1
-    documented_dependency_reach_count: 1
-    reuse_class: LOCAL
-    reuse_confidence: HIGH
-    implementation_burden_standalone: B3_CROSS_CUTTING
-    implementation_burden_intrinsic_once_HARD_deps_held: B3_CROSS_CUTTING
-    protected_contract_impact: ADDITIVE_PUBLIC
-    hard_dependencies:
-    - P06
-    dependencies_as_stated: P02;P06;A01
-    architecture_unknowns: exact payoff/model assumptions by strategy
-    architecture_confidence: HIGH
-  evidence:
-    best_credible_phenomenon_strength: MODERATE
-    confidence_of_strongest_credible_use: LOW_MEDIUM
-    strongest_credible_families:
-    - TS
-    credible_families:
-    - TS
-    credible_evidence_clusters:
-    - C_VOL_TERM
-    unfavorable_families: []
-    unassessed_families: []
-    return_transfer: NONE (phenomenon evidence only; Founder no_return_transfer)
-  comparison_derived:
-    pareto_front_common_pool: 6
-    pareto_front_reach_sensitivity: 6
-    pareto_front_incremental_sensitivity: 6
-    pareto_front_in_role_lane: 5
-    weighted_ILLUSTRATIVE:
-      equal: 0.42
-      evidence_led: 0.5
-      reuse_led: 0.38
-      burden_averse: 0.38
-      confidence_aware: 0.53
-    top5_frequency_uniform_weights: 0.0
-    rank_band_5_95:
-    - 16
-    - 21
-- primitive_id: P08
-  name: ratio / unequal quantity
-  architecture:
-    source: ASA-ARCH-STRATEGY-SELECTION-THRESHOLDS-001 §6 + Architect clarifications (supplied in session; not on
-      main)
-    primitive_role: EXPRESSION
-    support_state: CONTRACT_CHANGE
-    researched_families:
-    - US
-    - SK
-    reusable_family_count_RES001B_s3: 2
-    documented_dependency_reach_count: 2
-    reuse_class: SHARED
-    reuse_confidence: HIGH
-    implementation_burden_standalone: B3_CROSS_CUTTING
-    implementation_burden_intrinsic_once_HARD_deps_held: B3_CROSS_CUTTING
-    protected_contract_impact: ADDITIVE_PUBLIC
-    hard_dependencies: []
-    dependencies_as_stated: P01|P02
-    architecture_unknowns: margin/assignment behavior for short excess legs
-    architecture_confidence: HIGH
-  evidence:
-    best_credible_phenomenon_strength: NONE_CREDIBLE
-    confidence_of_strongest_credible_use: NONE
-    strongest_credible_families: []
-    credible_families: []
-    credible_evidence_clusters: []
-    unfavorable_families:
-    - US
-    - SK
-    unassessed_families: []
-    return_transfer: NONE (phenomenon evidence only; Founder no_return_transfer)
-  comparison_derived:
-    pareto_front_common_pool: 7
-    pareto_front_reach_sensitivity: 7
-    pareto_front_incremental_sensitivity: 7
-    pareto_front_in_role_lane: 6
-    weighted_ILLUSTRATIVE:
-      equal: 0.25
-      evidence_led: 0.19
-      reuse_led: 0.31
-      burden_averse: 0.25
-      confidence_aware: 0.15
-    top5_frequency_uniform_weights: 0.0
-    rank_band_5_95:
-    - 19
-    - 25
-- primitive_id: P09
-  name: stock + option overlay
-  architecture:
-    source: ASA-ARCH-STRATEGY-SELECTION-THRESHOLDS-001 §6 + Architect clarifications (supplied in session; not on
-      main)
-    primitive_role: EXPRESSION
-    support_state: CONTRACT_CHANGE
-    researched_families:
-    - CC
-    - TH
-    - CL
-    reusable_family_count_RES001B_s3: 3
-    documented_dependency_reach_count: 3
-    reuse_class: BROAD
-    reuse_confidence: HIGH
-    implementation_burden_standalone: B3_CROSS_CUTTING
-    implementation_burden_intrinsic_once_HARD_deps_held: B3_CROSS_CUTTING
-    protected_contract_impact: ADDITIVE_PUBLIC
-    hard_dependencies: []
-    dependencies_as_stated: P01;portfolio position model
-    architecture_unknowns: assignment/call-away semantics
-    architecture_confidence: HIGH
-    note: burden corrected B4->B3 (Architect clarification 3)
-  evidence:
-    best_credible_phenomenon_strength: HIGH
-    confidence_of_strongest_credible_use: MEDIUM
-    strongest_credible_families:
-    - CC
-    credible_families:
-    - CC
-    credible_evidence_clusters:
-    - C_VRP_INDEX
-    unfavorable_families:
-    - TH
-    - CL
-    unassessed_families: []
-    return_transfer: NONE (phenomenon evidence only; Founder no_return_transfer)
-  comparison_derived:
-    pareto_front_common_pool: 3
-    pareto_front_reach_sensitivity: 3
-    pareto_front_incremental_sensitivity: 3
-    pareto_front_in_role_lane: 2
-    weighted_ILLUSTRATIVE:
-      equal: 0.67
-      evidence_led: 0.75
-      reuse_led: 0.69
-      burden_averse: 0.56
-      confidence_aware: 0.8
-    top5_frequency_uniform_weights: 0.3371
-    rank_band_5_95:
-    - 5
-    - 7
-- primitive_id: P10
-  name: delta-hedged option
-  architecture:
-    source: ASA-ARCH-STRATEGY-SELECTION-THRESHOLDS-001 §6 + Architect clarifications (supplied in session; not on
-      main)
-    primitive_role: EXPRESSION
-    support_state: CONTRACT_CHANGE
-    researched_families:
-    - SV
-    - XR
-    - SK
-    - DP
-    reusable_family_count_RES001B_s3: 4
-    documented_dependency_reach_count: 4
-    reuse_class: BROAD
-    reuse_confidence: HIGH
-    implementation_burden_standalone: B4_FOUNDATIONAL
-    implementation_burden_intrinsic_once_HARD_deps_held: B3_CROSS_CUTTING
-    protected_contract_impact: ADDITIVE_PUBLIC
-    hard_dependencies:
-    - A14
-    dependencies_as_stated: A14;P01|P03;portfolio model
-    architecture_unknowns: rebalance trigger semantics are strategy-specific
-    architecture_confidence: MEDIUM
-  evidence:
-    best_credible_phenomenon_strength: HIGH
-    confidence_of_strongest_credible_use: LOW_MEDIUM
-    strongest_credible_families:
-    - SV
-    - XR
-    credible_families:
-    - SV
-    - XR
-    credible_evidence_clusters:
-    - C_VRP_INDEX
-    - C_XS_OPTION_FACTORS
-    unfavorable_families:
-    - SK
-    - DP
-    unassessed_families: []
-    return_transfer: NONE (phenomenon evidence only; Founder no_return_transfer)
-  comparison_derived:
-    pareto_front_common_pool: 4
-    pareto_front_reach_sensitivity: 4
-    pareto_front_incremental_sensitivity: 3
-    pareto_front_in_role_lane: 3
-    weighted_ILLUSTRATIVE:
-      equal: 0.58
-      evidence_led: 0.69
-      reuse_led: 0.62
-      burden_averse: 0.44
-      confidence_aware: 0.68
-    top5_frequency_uniform_weights: 0.0
-    rank_band_5_95:
-    - 11
-    - 24
-- primitive_id: P11
-  name: option-strip replication
-  architecture:
-    source: ASA-ARCH-STRATEGY-SELECTION-THRESHOLDS-001 §6 + Architect clarifications (supplied in session; not on
-      main)
-    primitive_role: EXPRESSION
-    support_state: CONTRACT_CHANGE
-    researched_families:
-    - SV
-    - SK
-    - TS
-    reusable_family_count_RES001B_s3: 3
-    documented_dependency_reach_count: 3
-    reuse_class: BROAD
-    reuse_confidence: HIGH
-    implementation_burden_standalone: B3_CROSS_CUTTING
-    implementation_burden_intrinsic_once_HARD_deps_held: B3_CROSS_CUTTING
-    protected_contract_impact: ADDITIVE_PUBLIC
-    hard_dependencies: []
-    dependencies_as_stated: A01;A07?
-    architecture_unknowns: strike-continuum completeness
-    architecture_confidence: HIGH
-  evidence:
-    best_credible_phenomenon_strength: HIGH
-    confidence_of_strongest_credible_use: LOW_MEDIUM
-    strongest_credible_families:
-    - SV
-    credible_families:
-    - SV
-    - TS
-    credible_evidence_clusters:
-    - C_VOL_TERM
-    - C_VRP_INDEX
-    unfavorable_families:
-    - SK
-    unassessed_families: []
-    return_transfer: NONE (phenomenon evidence only; Founder no_return_transfer)
-  comparison_derived:
-    pareto_front_common_pool: 4
-    pareto_front_reach_sensitivity: 4
-    pareto_front_incremental_sensitivity: 4
-    pareto_front_in_role_lane: 3
-    weighted_ILLUSTRATIVE:
-      equal: 0.67
-      evidence_led: 0.75
-      reuse_led: 0.69
-      burden_averse: 0.56
-      confidence_aware: 0.73
-    top5_frequency_uniform_weights: 0.0
-    rank_band_5_95:
-    - 6
-    - 8
-- primitive_id: P12
-  name: cross-sectional structure portfolio
-  architecture:
-    source: ASA-ARCH-STRATEGY-SELECTION-THRESHOLDS-001 §6 + Architect clarifications (supplied in session; not on
-      main)
-    primitive_role: EXPRESSION
-    support_state: NEW_CAPABILITY
-    researched_families:
-    - XR
-    - XM
-    - XL
-    reusable_family_count_RES001B_s3: 3
-    documented_dependency_reach_count: 3
-    reuse_class: BROAD
-    reuse_confidence: HIGH
-    implementation_burden_standalone: B3_CROSS_CUTTING
-    implementation_burden_intrinsic_once_HARD_deps_held: B3_CROSS_CUTTING
-    protected_contract_impact: NONE (not proven)
-    hard_dependencies: []
-    dependencies_as_stated: A13;A08?
-    architecture_unknowns: interaction with open cross-Opportunity guardrails
-    architecture_confidence: HIGH
-  evidence:
-    best_credible_phenomenon_strength: HIGH
-    confidence_of_strongest_credible_use: LOW_MEDIUM
-    strongest_credible_families:
-    - XR
-    - XL
-    credible_families:
-    - XR
-    - XM
-    - XL
-    credible_evidence_clusters:
-    - C_XS_OPTION_FACTORS
-    unfavorable_families: []
-    unassessed_families: []
-    return_transfer: NONE (phenomenon evidence only; Founder no_return_transfer)
-  comparison_derived:
-    pareto_front_common_pool: 4
-    pareto_front_reach_sensitivity: 4
-    pareto_front_incremental_sensitivity: 4
-    pareto_front_in_role_lane: 3
-    weighted_ILLUSTRATIVE:
-      equal: 0.67
-      evidence_led: 0.75
-      reuse_led: 0.69
-      burden_averse: 0.56
-      confidence_aware: 0.73
-    top5_frequency_uniform_weights: 0.0
-    rank_band_5_95:
-    - 7
-    - 9
-- primitive_id: P13
-  name: multi-underlying linked position
-  architecture:
-    source: ASA-ARCH-STRATEGY-SELECTION-THRESHOLDS-001 §6 + Architect clarifications (supplied in session; not on
-      main)
-    primitive_role: EXPRESSION
-    support_state: CONTRACT_CHANGE
-    researched_families:
-    - DP
-    reusable_family_count_RES001B_s3: 1
-    documented_dependency_reach_count: 1
-    reuse_class: LOCAL
-    reuse_confidence: HIGH
-    implementation_burden_standalone: B4_FOUNDATIONAL
-    implementation_burden_intrinsic_once_HARD_deps_held: B4_FOUNDATIONAL
-    protected_contract_impact: ADDITIVE_PUBLIC (likely)
-    hard_dependencies:
-    - A16
-    - X01
-    - P10
-    dependencies_as_stated: P10;A16;X01
-    architecture_unknowns: exact canonical linked-position contract
-    architecture_confidence: HIGH
-  evidence:
-    best_credible_phenomenon_strength: NONE_CREDIBLE
-    confidence_of_strongest_credible_use: NONE
-    strongest_credible_families: []
-    credible_families: []
-    credible_evidence_clusters: []
-    unfavorable_families:
-    - DP
-    unassessed_families: []
-    return_transfer: NONE (phenomenon evidence only; Founder no_return_transfer)
-  comparison_derived:
-    pareto_front_common_pool: 9
-    pareto_front_reach_sensitivity: 9
-    pareto_front_incremental_sensitivity: 9
-    pareto_front_in_role_lane: 7
-    weighted_ILLUSTRATIVE:
-      equal: 0.08
-      evidence_led: 0.06
-      reuse_led: 0.12
-      burden_averse: 0.06
-      confidence_aware: 0.05
-    top5_frequency_uniform_weights: 0.0
-    rank_band_5_95:
-    - 28
-    - 28
-- primitive_id: P14
-  name: volatility futures position
-  architecture:
-    source: ASA-ARCH-STRATEGY-SELECTION-THRESHOLDS-001 §6 + Architect clarifications (supplied in session; not on
-      main)
-    primitive_role: EXPRESSION
-    support_state: CONTRACT_CHANGE
-    researched_families:
-    - VX
-    reusable_family_count_RES001B_s3: 1
-    documented_dependency_reach_count: 1
-    reuse_class: LOCAL
-    reuse_confidence: HIGH
-    implementation_burden_standalone: B4_FOUNDATIONAL
-    implementation_burden_intrinsic_once_HARD_deps_held: B4_FOUNDATIONAL
-    protected_contract_impact: IDENTITY_BEARING
-    hard_dependencies: []
-    dependencies_as_stated: A05
-    architecture_unknowns: provider/entitlement/model
-    architecture_confidence: HIGH
-  evidence:
-    best_credible_phenomenon_strength: MODERATE
-    confidence_of_strongest_credible_use: MEDIUM
-    strongest_credible_families:
-    - VX
-    credible_families:
-    - VX
-    credible_evidence_clusters:
-    - C_VOL_TERM
-    unfavorable_families: []
-    unassessed_families: []
-    return_transfer: NONE (phenomenon evidence only; Founder no_return_transfer)
-  comparison_derived:
-    pareto_front_common_pool: 4
-    pareto_front_reach_sensitivity: 4
-    pareto_front_incremental_sensitivity: 4
-    pareto_front_in_role_lane: 3
-    weighted_ILLUSTRATIVE:
-      equal: 0.33
-      evidence_led: 0.44
-      reuse_led: 0.31
-      burden_averse: 0.25
-      confidence_aware: 0.55
-    top5_frequency_uniform_weights: 0.0
-    rank_band_5_95:
-    - 21
-    - 27
-- primitive_id: P15
-  name: box / synthetic
-  architecture:
-    source: ASA-ARCH-STRATEGY-SELECTION-THRESHOLDS-001 §6 + Architect clarifications (supplied in session; not on
-      main)
-    primitive_role: EXPRESSION
-    support_state: CONTRACT_CHANGE
-    researched_families:
-    - AR
-    reusable_family_count_RES001B_s3: 1
-    documented_dependency_reach_count: 1
-    reuse_class: LOCAL
-    reuse_confidence: HIGH
-    implementation_burden_standalone: B3_CROSS_CUTTING
-    implementation_burden_intrinsic_once_HARD_deps_held: B3_CROSS_CUTTING
-    protected_contract_impact: ADDITIVE_PUBLIC
-    hard_dependencies: []
-    dependencies_as_stated: A01;rates/dividends
-    architecture_unknowns: financing/early-exercise fidelity
-    architecture_confidence: HIGH
-  evidence:
-    best_credible_phenomenon_strength: UNKNOWN
-    confidence_of_strongest_credible_use: NONE
-    strongest_credible_families: []
-    credible_families: []
-    credible_evidence_clusters: []
-    unfavorable_families: []
-    unassessed_families:
-    - AR
-    return_transfer: NONE (phenomenon evidence only; Founder no_return_transfer)
-  comparison_derived:
-    pareto_front_common_pool: 6
-    pareto_front_reach_sensitivity: 6
-    pareto_front_incremental_sensitivity: 6
-    pareto_front_in_role_lane: 5
-    weighted_ILLUSTRATIVE:
-      equal: 0.17-0.5
-      evidence_led: 0.12-0.62
-      reuse_led: 0.19-0.44
-      burden_averse: 0.19-0.44
-      confidence_aware: 0.1-0.5
-    top5_frequency_uniform_weights: 0.0
-    rank_band_5_95:
-    - 19
-    - 24
-- primitive_id: A01
-  name: per-contract IV and greeks
-  architecture:
-    source: ASA-ARCH-STRATEGY-SELECTION-THRESHOLDS-001 §6 + Architect clarifications (supplied in session; not on
-      main)
-    primitive_role: DATA
-    support_state: NATIVE
-    researched_families:
-    - (all)
-    reusable_family_count_RES001B_s3: UNKNOWN (nearly all)
-    documented_dependency_reach_count: UNKNOWN
-    reuse_class: UNKNOWN
-    reuse_confidence: MEDIUM
-    implementation_burden_standalone: B0_NATIVE
-    implementation_burden_intrinsic_once_HARD_deps_held: B0_NATIVE
-    protected_contract_impact: NONE
-    hard_dependencies: []
-    dependencies_as_stated: OPTION_CHAIN_V1
-    architecture_unknowns: provider model differences
-    architecture_confidence: HIGH
-  evidence:
-    best_credible_phenomenon_strength: HIGH
-    confidence_of_strongest_credible_use: MEDIUM
-    strongest_credible_families:
-    - PW
-    - CC
-    - SV
-    - XR
-    - XL
-    - OS
-    - CA
-    credible_families:
-    - PW
-    - CC
-    - SV
-    - DR
-    - VX
-    - TS
-    - XR
-    - XM
-    - XL
-    - EV
-    - OS
-    - CA
-    credible_evidence_clusters:
-    - C_CROSS_ASSET
-    - C_EVENT
-    - C_OPTION_INFO
-    - C_VOL_TERM
-    - C_VRP_INDEX
-    - C_XS_OPTION_FACTORS
-    unfavorable_families:
-    - US
-    - TH
-    - CL
-    - SK
-    - DP
-    - DX
-    unassessed_families:
-    - AR
-    return_transfer: NONE (phenomenon evidence only; Founder no_return_transfer)
-  comparison_derived:
-    pareto_front_common_pool: baseline (NATIVE)
-    pareto_front_reach_sensitivity: baseline (NATIVE)
-    pareto_front_incremental_sensitivity: baseline (NATIVE)
-    pareto_front_in_role_lane: baseline (NATIVE)
-    weighted_ILLUSTRATIVE: baseline (NATIVE; not scored)
-    top5_frequency_uniform_weights: n/a
-    rank_band_5_95: n/a
-- primitive_id: A02
-  name: delta-targeted strike selection
-  architecture:
-    source: ASA-ARCH-STRATEGY-SELECTION-THRESHOLDS-001 §6 + Architect clarifications (supplied in session; not on
-      main)
-    primitive_role: ANALYTIC
-    support_state: NATIVE
-    researched_families:
-    - PW
-    - DR
-    - CC
-    reusable_family_count_RES001B_s3: 3
-    documented_dependency_reach_count: 3
-    reuse_class: BROAD
-    reuse_confidence: HIGH
-    implementation_burden_standalone: B0_NATIVE
-    implementation_burden_intrinsic_once_HARD_deps_held: B0_NATIVE
-    protected_contract_impact: NONE
-    hard_dependencies: []
-    dependencies_as_stated: A01
-    architecture_unknowns: provider-delta fidelity
-    architecture_confidence: HIGH
-  evidence:
-    best_credible_phenomenon_strength: HIGH
-    confidence_of_strongest_credible_use: MEDIUM
-    strongest_credible_families:
-    - PW
-    - CC
-    credible_families:
-    - PW
-    - DR
-    - CC
-    credible_evidence_clusters:
-    - C_VRP_INDEX
-    unfavorable_families: []
-    unassessed_families: []
-    return_transfer: NONE (phenomenon evidence only; Founder no_return_transfer)
-  comparison_derived:
-    pareto_front_common_pool: baseline (NATIVE)
-    pareto_front_reach_sensitivity: baseline (NATIVE)
-    pareto_front_incremental_sensitivity: baseline (NATIVE)
-    pareto_front_in_role_lane: baseline (NATIVE)
-    weighted_ILLUSTRATIVE: baseline (NATIVE; not scored)
-    top5_frequency_uniform_weights: n/a
-    rank_band_5_95: n/a
-- primitive_id: A03
-  name: realized volatility
-  architecture:
-    source: ASA-ARCH-STRATEGY-SELECTION-THRESHOLDS-001 §6 + Architect clarifications (supplied in session; not on
-      main)
-    primitive_role: ANALYTIC
-    support_state: NATIVE
-    researched_families:
-    - SV
-    - XR
-    - OS
-    reusable_family_count_RES001B_s3: 3
-    documented_dependency_reach_count: 3
-    reuse_class: BROAD
-    reuse_confidence: HIGH
-    implementation_burden_standalone: B0_NATIVE
-    implementation_burden_intrinsic_once_HARD_deps_held: B0_NATIVE
-    protected_contract_impact: NONE
-    hard_dependencies: []
-    dependencies_as_stated: HISTORICAL_BARS_V1
-    architecture_unknowns: adjusted/history entitlement at longer horizons
-    architecture_confidence: HIGH
-  evidence:
-    best_credible_phenomenon_strength: HIGH
-    confidence_of_strongest_credible_use: LOW_MEDIUM
-    strongest_credible_families:
-    - SV
-    - XR
-    - OS
-    credible_families:
-    - SV
-    - XR
-    - OS
-    credible_evidence_clusters:
-    - C_OPTION_INFO
-    - C_VRP_INDEX
-    - C_XS_OPTION_FACTORS
-    unfavorable_families: []
-    unassessed_families: []
-    return_transfer: NONE (phenomenon evidence only; Founder no_return_transfer)
-  comparison_derived:
-    pareto_front_common_pool: baseline (NATIVE)
-    pareto_front_reach_sensitivity: baseline (NATIVE)
-    pareto_front_incremental_sensitivity: baseline (NATIVE)
-    pareto_front_in_role_lane: baseline (NATIVE)
-    weighted_ILLUSTRATIVE: baseline (NATIVE; not scored)
-    top5_frequency_uniform_weights: n/a
-    rank_band_5_95: n/a
-- primitive_id: A04
-  name: IV-RV spread / VRP level
-  architecture:
-    source: ASA-ARCH-STRATEGY-SELECTION-THRESHOLDS-001 §6 + Architect clarifications (supplied in session; not on
-      main)
-    primitive_role: ANALYTIC
-    support_state: NATIVE
-    researched_families:
-    - XR
-    - SV
-    reusable_family_count_RES001B_s3: 2
-    documented_dependency_reach_count: 2
-    reuse_class: SHARED
-    reuse_confidence: HIGH
-    implementation_burden_standalone: B0_NATIVE
-    implementation_burden_intrinsic_once_HARD_deps_held: B0_NATIVE
-    protected_contract_impact: NONE
-    hard_dependencies: []
-    dependencies_as_stated: A01;A03
-    architecture_unknowns: historical replication availability
-    architecture_confidence: HIGH
-  evidence:
-    best_credible_phenomenon_strength: HIGH
-    confidence_of_strongest_credible_use: LOW_MEDIUM
-    strongest_credible_families:
-    - XR
-    - SV
-    credible_families:
-    - XR
-    - SV
-    credible_evidence_clusters:
-    - C_VRP_INDEX
-    - C_XS_OPTION_FACTORS
-    unfavorable_families: []
-    unassessed_families: []
-    return_transfer: NONE (phenomenon evidence only; Founder no_return_transfer)
-  comparison_derived:
-    pareto_front_common_pool: baseline (NATIVE)
-    pareto_front_reach_sensitivity: baseline (NATIVE)
-    pareto_front_incremental_sensitivity: baseline (NATIVE)
-    pareto_front_in_role_lane: baseline (NATIVE)
-    weighted_ILLUSTRATIVE: baseline (NATIVE; not scored)
-    top5_frequency_uniform_weights: n/a
-    rank_band_5_95: n/a
-- primitive_id: A05
-  name: term slope / implied forward vol
-  architecture:
-    source: ASA-ARCH-STRATEGY-SELECTION-THRESHOLDS-001 §6 + Architect clarifications (supplied in session; not on
-      main)
-    primitive_role: ANALYTIC
-    support_state: NATIVE
-    researched_families:
-    - TS
-    - VX
-    - EV
-    reusable_family_count_RES001B_s3: 3
-    documented_dependency_reach_count: 3
-    reuse_class: BROAD
-    reuse_confidence: HIGH
-    implementation_burden_standalone: B0_NATIVE
-    implementation_burden_intrinsic_once_HARD_deps_held: B0_NATIVE
-    protected_contract_impact: NONE
-    hard_dependencies: []
-    dependencies_as_stated: A01
-    architecture_unknowns: []
-    architecture_confidence: HIGH
-  evidence:
-    best_credible_phenomenon_strength: MODERATE
-    confidence_of_strongest_credible_use: MEDIUM
-    strongest_credible_families:
-    - TS
-    - VX
-    - EV
-    credible_families:
-    - TS
-    - VX
-    - EV
-    credible_evidence_clusters:
-    - C_EVENT
-    - C_VOL_TERM
-    unfavorable_families: []
-    unassessed_families: []
-    return_transfer: NONE (phenomenon evidence only; Founder no_return_transfer)
-  comparison_derived:
-    pareto_front_common_pool: baseline (NATIVE)
-    pareto_front_reach_sensitivity: baseline (NATIVE)
-    pareto_front_incremental_sensitivity: baseline (NATIVE)
-    pareto_front_in_role_lane: baseline (NATIVE)
-    weighted_ILLUSTRATIVE: baseline (NATIVE; not scored)
-    top5_frequency_uniform_weights: n/a
-    rank_band_5_95: n/a
-- primitive_id: A06
-  name: skew/smirk level and history
-  architecture:
-    source: ASA-ARCH-STRATEGY-SELECTION-THRESHOLDS-001 §6 + Architect clarifications (supplied in session; not on
-      main)
-    primitive_role: ANALYTIC
-    support_state: EXTENSION
-    researched_families:
-    - OS
-    - SK
-    reusable_family_count_RES001B_s3: 2
-    documented_dependency_reach_count: 2
-    reuse_class: SHARED
-    reuse_confidence: HIGH
-    implementation_burden_standalone: B1_BOUNDED
-    implementation_burden_intrinsic_once_HARD_deps_held: B1_BOUNDED
-    protected_contract_impact: NONE
-    hard_dependencies: []
-    dependencies_as_stated: A01
-    architecture_unknowns: no historical backfill source
-    architecture_confidence: HIGH
-  evidence:
-    best_credible_phenomenon_strength: HIGH
-    confidence_of_strongest_credible_use: LOW_MEDIUM
-    strongest_credible_families:
-    - OS
-    credible_families:
-    - OS
-    credible_evidence_clusters:
-    - C_OPTION_INFO
-    unfavorable_families:
-    - SK
-    unassessed_families: []
-    return_transfer: NONE (phenomenon evidence only; Founder no_return_transfer)
-  comparison_derived:
-    pareto_front_common_pool: 2
-    pareto_front_reach_sensitivity: 2
-    pareto_front_incremental_sensitivity: 2
-    pareto_front_in_role_lane: 1
-    weighted_ILLUSTRATIVE:
-      equal: 0.75
-      evidence_led: 0.81
-      reuse_led: 0.69
-      burden_averse: 0.75
-      confidence_aware: 0.78
-    top5_frequency_uniform_weights: 0.6629
-    rank_band_5_95:
-    - 2
-    - 13
-- primitive_id: A07
-  name: model-free risk-neutral moments
-  architecture:
-    source: ASA-ARCH-STRATEGY-SELECTION-THRESHOLDS-001 §6 + Architect clarifications (supplied in session; not on
-      main)
-    primitive_role: ANALYTIC
-    support_state: NEW_CAPABILITY
-    researched_families:
-    - OS
-    - XL
-    - SK
-    - SV
-    reusable_family_count_RES001B_s3: 4
-    documented_dependency_reach_count: 4
-    reuse_class: BROAD
-    reuse_confidence: HIGH
-    implementation_burden_standalone: B2_MATERIAL
-    implementation_burden_intrinsic_once_HARD_deps_held: B2_MATERIAL
-    protected_contract_impact: NONE (unless rate capability)
-    hard_dependencies: []
-    dependencies_as_stated: A01
-    architecture_unknowns: exact forward/rate methodology
-    architecture_confidence: MEDIUM
-  evidence:
-    best_credible_phenomenon_strength: HIGH
-    confidence_of_strongest_credible_use: LOW_MEDIUM
-    strongest_credible_families:
-    - OS
-    - XL
-    - SV
-    credible_families:
-    - OS
-    - XL
-    - SV
-    credible_evidence_clusters:
-    - C_OPTION_INFO
-    - C_VRP_INDEX
-    - C_XS_OPTION_FACTORS
-    unfavorable_families:
-    - SK
-    unassessed_families: []
-    return_transfer: NONE (phenomenon evidence only; Founder no_return_transfer)
-  comparison_derived:
-    pareto_front_common_pool: 2
-    pareto_front_reach_sensitivity: 2
-    pareto_front_incremental_sensitivity: 2
-    pareto_front_in_role_lane: 1
-    weighted_ILLUSTRATIVE:
-      equal: 0.75
-      evidence_led: 0.81
-      reuse_led: 0.75
-      burden_averse: 0.69
-      confidence_aware: 0.78
-    top5_frequency_uniform_weights: 1.0
-    rank_band_5_95:
-    - 2
-    - 4
-- primitive_id: A08
-  name: historical option-price panel
-  architecture:
-    source: ASA-ARCH-STRATEGY-SELECTION-THRESHOLDS-001 §6 + Architect clarifications (supplied in session; not on
-      main)
-    primitive_role: DATA
-    support_state: CONTRACT_CHANGE
-    researched_families:
-    - XR
-    - XM
-    - XL
-    reusable_family_count_RES001B_s3: 3
-    documented_dependency_reach_count: 3
-    reuse_class: BROAD
-    reuse_confidence: HIGH
-    implementation_burden_standalone: B3_CROSS_CUTTING
-    implementation_burden_intrinsic_once_HARD_deps_held: B3_CROSS_CUTTING
-    protected_contract_impact: ADDITIVE_PUBLIC
-    hard_dependencies: []
-    dependencies_as_stated: canonical option identity;trading calendar
-    architecture_unknowns: provider, licensing, history depth, survivorship
-    architecture_confidence: HIGH
-  evidence:
-    best_credible_phenomenon_strength: HIGH
-    confidence_of_strongest_credible_use: LOW_MEDIUM
-    strongest_credible_families:
-    - XR
-    - XL
-    credible_families:
-    - XR
-    - XM
-    - XL
-    credible_evidence_clusters:
-    - C_XS_OPTION_FACTORS
-    unfavorable_families: []
-    unassessed_families: []
-    return_transfer: NONE (phenomenon evidence only; Founder no_return_transfer)
-  comparison_derived:
-    pareto_front_common_pool: 4
-    pareto_front_reach_sensitivity: 4
-    pareto_front_incremental_sensitivity: 4
-    pareto_front_in_role_lane: 1
-    weighted_ILLUSTRATIVE:
-      equal: 0.67
-      evidence_led: 0.75
-      reuse_led: 0.69
-      burden_averse: 0.56
-      confidence_aware: 0.73
-    top5_frequency_uniform_weights: 0.0
-    rank_band_5_95:
-    - 8
-    - 10
-- primitive_id: A09
-  name: event calendar + expected move
-  architecture:
-    source: ASA-ARCH-STRATEGY-SELECTION-THRESHOLDS-001 §6 + Architect clarifications (supplied in session; not on
-      main)
-    primitive_role: ANALYTIC
-    support_state: EXTENSION
-    researched_families:
-    - EV
-    - TS
-    reusable_family_count_RES001B_s3: 2
-    documented_dependency_reach_count: 2
-    reuse_class: SHARED
-    reuse_confidence: HIGH
-    implementation_burden_standalone: B1_BOUNDED
-    implementation_burden_intrinsic_once_HARD_deps_held: B1_BOUNDED
-    protected_contract_impact: NONE
-    hard_dependencies: []
-    dependencies_as_stated: EARNINGS_CALENDAR_V1;A01
-    architecture_unknowns: expected-move definition
-    architecture_confidence: HIGH
-  evidence:
-    best_credible_phenomenon_strength: MODERATE
-    confidence_of_strongest_credible_use: LOW_MEDIUM
-    strongest_credible_families:
-    - EV
-    - TS
-    credible_families:
-    - EV
-    - TS
-    credible_evidence_clusters:
-    - C_EVENT
-    - C_VOL_TERM
-    unfavorable_families: []
-    unassessed_families: []
-    return_transfer: NONE (phenomenon evidence only; Founder no_return_transfer)
-  comparison_derived:
-    pareto_front_common_pool: 3
-    pareto_front_reach_sensitivity: 3
-    pareto_front_incremental_sensitivity: 3
-    pareto_front_in_role_lane: 2
-    weighted_ILLUSTRATIVE:
-      equal: 0.67
-      evidence_led: 0.69
-      reuse_led: 0.62
-      burden_averse: 0.69
-      confidence_aware: 0.68
-    top5_frequency_uniform_weights: 0.441
-    rank_band_5_95:
-    - 3
-    - 18
-- primitive_id: A10
-  name: borrow fee / short-sale constraint
-  architecture:
-    source: ASA-ARCH-STRATEGY-SELECTION-THRESHOLDS-001 §6 + Architect clarifications (supplied in session; not on
-      main)
-    primitive_role: DATA
-    support_state: CONTRACT_CHANGE
-    researched_families:
-    - OS
-    - XR
-    reusable_family_count_RES001B_s3: 2
-    documented_dependency_reach_count: 2
-    reuse_class: SHARED
-    reuse_confidence: HIGH
-    implementation_burden_standalone: B3_CROSS_CUTTING
-    implementation_burden_intrinsic_once_HARD_deps_held: B3_CROSS_CUTTING
-    protected_contract_impact: ADDITIVE_PUBLIC
-    hard_dependencies: []
-    dependencies_as_stated: instrument identity
-    architecture_unknowns: provider availability/licensing
-    architecture_confidence: HIGH
-  evidence:
-    best_credible_phenomenon_strength: HIGH
-    confidence_of_strongest_credible_use: LOW_MEDIUM
-    strongest_credible_families:
-    - OS
-    - XR
-    credible_families:
-    - OS
-    - XR
-    credible_evidence_clusters:
-    - C_OPTION_INFO
-    - C_XS_OPTION_FACTORS
-    unfavorable_families: []
-    unassessed_families: []
-    return_transfer: NONE (phenomenon evidence only; Founder no_return_transfer)
-  comparison_derived:
-    pareto_front_common_pool: 5
-    pareto_front_reach_sensitivity: 5
-    pareto_front_incremental_sensitivity: 5
-    pareto_front_in_role_lane: 2
-    weighted_ILLUSTRATIVE:
-      equal: 0.58
-      evidence_led: 0.69
-      reuse_led: 0.56
-      burden_averse: 0.5
-      confidence_aware: 0.68
-    top5_frequency_uniform_weights: 0.0
-    rank_band_5_95:
-    - 13
-    - 16
-- primitive_id: A11
-  name: signed/open-close option volume
-  architecture:
-    source: ASA-ARCH-STRATEGY-SELECTION-THRESHOLDS-001 §6 + Architect clarifications (supplied in session; not on
-      main)
-    primitive_role: DATA
-    support_state: CONTRACT_CHANGE
-    researched_families:
-    - OS
-    - XR
-    reusable_family_count_RES001B_s3: 2
-    documented_dependency_reach_count: 2
-    reuse_class: SHARED
-    reuse_confidence: HIGH
-    implementation_burden_standalone: B3_CROSS_CUTTING
-    implementation_burden_intrinsic_once_HARD_deps_held: B3_CROSS_CUTTING
-    protected_contract_impact: ADDITIVE_PUBLIC
-    hard_dependencies: []
-    dependencies_as_stated: option identity
-    architecture_unknowns: provider classification methodology
-    architecture_confidence: HIGH
-  evidence:
-    best_credible_phenomenon_strength: HIGH
-    confidence_of_strongest_credible_use: LOW_MEDIUM
-    strongest_credible_families:
-    - OS
-    - XR
-    credible_families:
-    - OS
-    - XR
-    credible_evidence_clusters:
-    - C_OPTION_INFO
-    - C_XS_OPTION_FACTORS
-    unfavorable_families: []
-    unassessed_families: []
-    return_transfer: NONE (phenomenon evidence only; Founder no_return_transfer)
-  comparison_derived:
-    pareto_front_common_pool: 5
-    pareto_front_reach_sensitivity: 5
-    pareto_front_incremental_sensitivity: 5
-    pareto_front_in_role_lane: 2
-    weighted_ILLUSTRATIVE:
-      equal: 0.58
-      evidence_led: 0.69
-      reuse_led: 0.56
-      burden_averse: 0.5
-      confidence_aware: 0.68
-    top5_frequency_uniform_weights: 0.0
-    rank_band_5_95:
-    - 14
-    - 17
-- primitive_id: A12
-  name: liquidity/effective-spread measurement
-  architecture:
-    source: ASA-ARCH-STRATEGY-SELECTION-THRESHOLDS-001 §6 + Architect clarifications (supplied in session; not on
-      main)
-    primitive_role: QUALITY_INFRASTRUCTURE
-    support_state: EXTENSION
-    researched_families:
-    - (all)
-    reusable_family_count_RES001B_s3: 19
-    documented_dependency_reach_count: 19
-    reuse_class: PLATFORM
-    reuse_confidence: HIGH
-    implementation_burden_standalone: B1_BOUNDED
-    implementation_burden_intrinsic_once_HARD_deps_held: B1_BOUNDED
-    protected_contract_impact: NONE
-    hard_dependencies: []
-    dependencies_as_stated: bid/ask/OI/volume
-    architecture_unknowns: true effective spread may require trade data
-    architecture_confidence: HIGH
-  evidence:
-    best_credible_phenomenon_strength: HIGH
-    confidence_of_strongest_credible_use: MEDIUM
-    strongest_credible_families:
-    - PW
-    - CC
-    - SV
-    - XR
-    - XL
-    - OS
-    - CA
-    credible_families:
-    - PW
-    - CC
-    - SV
-    - DR
-    - VX
-    - TS
-    - XR
-    - XM
-    - XL
-    - EV
-    - OS
-    - CA
-    credible_evidence_clusters:
-    - C_CROSS_ASSET
-    - C_EVENT
-    - C_OPTION_INFO
-    - C_VOL_TERM
-    - C_VRP_INDEX
-    - C_XS_OPTION_FACTORS
-    unfavorable_families:
-    - US
-    - TH
-    - CL
-    - SK
-    - DP
-    - DX
-    unassessed_families:
-    - AR
-    return_transfer: NONE (phenomenon evidence only; Founder no_return_transfer)
-  comparison_derived:
-    pareto_front_common_pool: 1
-    pareto_front_reach_sensitivity: 1
-    pareto_front_incremental_sensitivity: 1
-    pareto_front_in_role_lane: 1
-    weighted_ILLUSTRATIVE:
-      equal: 0.92
-      evidence_led: 0.94
-      reuse_led: 0.94
-      burden_averse: 0.88
-      confidence_aware: 0.95
-    top5_frequency_uniform_weights: 1.0
-    rank_band_5_95:
-    - 1
-    - 1
-- primitive_id: A13
-  name: cross-sectional ranking
-  architecture:
-    source: ASA-ARCH-STRATEGY-SELECTION-THRESHOLDS-001 §6 + Architect clarifications (supplied in session; not on
-      main)
-    primitive_role: ANALYTIC
-    support_state: NATIVE
-    researched_families:
-    - XR
-    - XM
-    - XL
-    - OS
-    reusable_family_count_RES001B_s3: 4
-    documented_dependency_reach_count: 4
-    reuse_class: BROAD
-    reuse_confidence: HIGH
-    implementation_burden_standalone: B0_NATIVE
-    implementation_burden_intrinsic_once_HARD_deps_held: B0_NATIVE
-    protected_contract_impact: NONE
-    hard_dependencies: []
-    dependencies_as_stated: canonical universe
-    architecture_unknowns: []
-    architecture_confidence: HIGH
-  evidence:
-    best_credible_phenomenon_strength: HIGH
-    confidence_of_strongest_credible_use: LOW_MEDIUM
-    strongest_credible_families:
-    - XR
-    - XL
-    - OS
-    credible_families:
-    - XR
-    - XM
-    - XL
-    - OS
-    credible_evidence_clusters:
-    - C_OPTION_INFO
-    - C_XS_OPTION_FACTORS
-    unfavorable_families: []
-    unassessed_families: []
-    return_transfer: NONE (phenomenon evidence only; Founder no_return_transfer)
-  comparison_derived:
-    pareto_front_common_pool: baseline (NATIVE)
-    pareto_front_reach_sensitivity: baseline (NATIVE)
-    pareto_front_incremental_sensitivity: baseline (NATIVE)
-    pareto_front_in_role_lane: baseline (NATIVE)
-    weighted_ILLUSTRATIVE: baseline (NATIVE; not scored)
-    top5_frequency_uniform_weights: n/a
-    rank_band_5_95: n/a
-- primitive_id: A14
-  name: dynamic delta-hedge simulation
-  architecture:
-    source: ASA-ARCH-STRATEGY-SELECTION-THRESHOLDS-001 §6 + Architect clarifications (supplied in session; not on
-      main)
-    primitive_role: ANALYTIC
-    support_state: NEW_CAPABILITY
-    researched_families:
-    - SV
-    - XR
-    - SK
-    - DP
-    reusable_family_count_RES001B_s3: 4
-    documented_dependency_reach_count: 4
-    reuse_class: BROAD
-    reuse_confidence: HIGH
-    implementation_burden_standalone: B3_CROSS_CUTTING
-    implementation_burden_intrinsic_once_HARD_deps_held: B3_CROSS_CUTTING
-    protected_contract_impact: NONE (if analytical)
-    hard_dependencies: []
-    dependencies_as_stated: A01;historical/forward prices;trading calendar
-    architecture_unknowns: slippage/fill/hedge trigger assumptions
-    architecture_confidence: MEDIUM
-  evidence:
-    best_credible_phenomenon_strength: HIGH
-    confidence_of_strongest_credible_use: LOW_MEDIUM
-    strongest_credible_families:
-    - SV
-    - XR
-    credible_families:
-    - SV
-    - XR
-    credible_evidence_clusters:
-    - C_VRP_INDEX
-    - C_XS_OPTION_FACTORS
-    unfavorable_families:
-    - SK
-    - DP
-    unassessed_families: []
-    return_transfer: NONE (phenomenon evidence only; Founder no_return_transfer)
-  comparison_derived:
-    pareto_front_common_pool: 3
-    pareto_front_reach_sensitivity: 3
-    pareto_front_incremental_sensitivity: 3
-    pareto_front_in_role_lane: 2
-    weighted_ILLUSTRATIVE:
-      equal: 0.67
-      evidence_led: 0.75
-      reuse_led: 0.69
-      burden_averse: 0.56
-      confidence_aware: 0.73
-    top5_frequency_uniform_weights: 0.0
-    rank_band_5_95:
-    - 9
-    - 11
-- primitive_id: A15
-  name: generalized margin/capital model
-  architecture:
-    source: ASA-ARCH-STRATEGY-SELECTION-THRESHOLDS-001 §6 + Architect clarifications (supplied in session; not on
-      main)
-    primitive_role: ANALYTIC
-    support_state: NEW_CAPABILITY
-    researched_families:
-    - PW
-    - SV
-    - VX
-    reusable_family_count_RES001B_s3: 3
-    documented_dependency_reach_count: 3
-    reuse_class: BROAD
-    reuse_confidence: HIGH
-    implementation_burden_standalone: B3_CROSS_CUTTING
-    implementation_burden_intrinsic_once_HARD_deps_held: B3_CROSS_CUTTING
-    protected_contract_impact: UNKNOWN
-    hard_dependencies: []
-    dependencies_as_stated: payoff model;portfolio buying power
-    architecture_unknowns: broker-independent rule source; futures margin
-    architecture_confidence: HIGH
-  evidence:
-    best_credible_phenomenon_strength: HIGH
-    confidence_of_strongest_credible_use: MEDIUM
-    strongest_credible_families:
-    - PW
-    - SV
-    credible_families:
-    - PW
-    - SV
-    - VX
-    credible_evidence_clusters:
-    - C_VOL_TERM
-    - C_VRP_INDEX
-    unfavorable_families: []
-    unassessed_families: []
-    return_transfer: NONE (phenomenon evidence only; Founder no_return_transfer)
-  comparison_derived:
-    pareto_front_common_pool: 3
-    pareto_front_reach_sensitivity: 3
-    pareto_front_incremental_sensitivity: 3
-    pareto_front_in_role_lane: 1
-    weighted_ILLUSTRATIVE:
-      equal: 0.67
-      evidence_led: 0.75
-      reuse_led: 0.69
-      burden_averse: 0.56
-      confidence_aware: 0.8
-    top5_frequency_uniform_weights: 0.0
-    rank_band_5_95:
-    - 10
-    - 12
-- primitive_id: A16
-  name: index weights + implied correlation
-  architecture:
-    source: ASA-ARCH-STRATEGY-SELECTION-THRESHOLDS-001 §6 + Architect clarifications (supplied in session; not on
-      main)
-    primitive_role: DATA
-    support_state: CONTRACT_CHANGE
-    researched_families:
-    - DP
-    reusable_family_count_RES001B_s3: 1
-    documented_dependency_reach_count: 1
-    reuse_class: LOCAL
-    reuse_confidence: HIGH
-    implementation_burden_standalone: B3_CROSS_CUTTING
-    implementation_burden_intrinsic_once_HARD_deps_held: B3_CROSS_CUTTING
-    protected_contract_impact: ADDITIVE_PUBLIC
-    hard_dependencies:
-    - X01
-    dependencies_as_stated: X01;A01
-    architecture_unknowns: point-in-time weights/provider
-    architecture_confidence: HIGH
-    note: Architect raw standalone burden B3 retained verbatim although HARD dependency X01 is B4 (see report §9)
-  evidence:
-    best_credible_phenomenon_strength: NONE_CREDIBLE
-    confidence_of_strongest_credible_use: NONE
-    strongest_credible_families: []
-    credible_families: []
-    credible_evidence_clusters: []
-    unfavorable_families:
-    - DP
-    unassessed_families: []
-    return_transfer: NONE (phenomenon evidence only; Founder no_return_transfer)
-  comparison_derived:
-    pareto_front_common_pool: 8
-    pareto_front_reach_sensitivity: 8
-    pareto_front_incremental_sensitivity: 8
-    pareto_front_in_role_lane: 3
-    weighted_ILLUSTRATIVE:
-      equal: 0.17
-      evidence_led: 0.12
-      reuse_led: 0.19
-      burden_averse: 0.19
-      confidence_aware: 0.1
-    top5_frequency_uniform_weights: 0.0
-    rank_band_5_95:
-    - 22
-    - 26
-- primitive_id: A17
-  name: per-name option-return history
-  architecture:
-    source: ASA-ARCH-STRATEGY-SELECTION-THRESHOLDS-001 §6 + Architect clarifications (supplied in session; not on
-      main)
-    primitive_role: ANALYTIC
-    support_state: NEW_CAPABILITY
-    researched_families:
-    - XM
-    reusable_family_count_RES001B_s3: 1
-    documented_dependency_reach_count: 1
-    reuse_class: LOCAL
-    reuse_confidence: HIGH
-    implementation_burden_standalone: B3_CROSS_CUTTING
-    implementation_burden_intrinsic_once_HARD_deps_held: B2_MATERIAL
-    protected_contract_impact: NONE
-    hard_dependencies:
-    - A08
-    dependencies_as_stated: A08
-    architecture_unknowns: required 6-36 month depth
-    architecture_confidence: HIGH
-  evidence:
-    best_credible_phenomenon_strength: MODERATE
-    confidence_of_strongest_credible_use: LOW
-    strongest_credible_families:
-    - XM
-    credible_families:
-    - XM
-    credible_evidence_clusters:
-    - C_XS_OPTION_FACTORS
-    unfavorable_families: []
-    unassessed_families: []
-    return_transfer: NONE (phenomenon evidence only; Founder no_return_transfer)
-  comparison_derived:
-    pareto_front_common_pool: 7
-    pareto_front_reach_sensitivity: 7
-    pareto_front_incremental_sensitivity: 4
-    pareto_front_in_role_lane: 3
-    weighted_ILLUSTRATIVE:
-      equal: 0.42
-      evidence_led: 0.5
-      reuse_led: 0.38
-      burden_averse: 0.38
-      confidence_aware: 0.47
-    top5_frequency_uniform_weights: 0.0
-    rank_band_5_95:
-    - 17
-    - 22
-- primitive_id: X01
-  name: index-option identity/root/settlement
-  architecture:
-    source: ASA-ARCH-STRATEGY-SELECTION-THRESHOLDS-001 §6 + Architect clarifications (supplied in session; not on
-      main)
-    primitive_role: ENABLING_CONTRACT
-    support_state: CONTRACT_CHANGE
-    researched_families:
-    - PW
-    - DR
-    - US
-    - SK
-    reusable_family_count_RES001B_s3: n/a (not a §3 primitive)
-    enabling_reuse_count: 4
-    documented_dependency_reach_count: 6
-    reuse_class: BROAD
-    reuse_confidence: HIGH
-    implementation_burden_standalone: B4_FOUNDATIONAL
-    implementation_burden_intrinsic_once_HARD_deps_held: B4_FOUNDATIONAL
-    protected_contract_impact: IDENTITY_BEARING
-    hard_dependencies: []
-    dependencies_as_stated: OPTION_CHAIN_V1 provider support
-    architecture_unknowns: Tradier root/entitlement unverified
-    architecture_confidence: HIGH
-    note: enabling_reuse_count=4 is NOT a RES-001B §3 count (clarification 4)
-  evidence:
-    best_credible_phenomenon_strength: HIGH
-    confidence_of_strongest_credible_use: MEDIUM
-    strongest_credible_families:
-    - PW
-    credible_families:
-    - PW
-    - DR
-    credible_evidence_clusters:
-    - C_VRP_INDEX
-    unfavorable_families:
-    - US
-    - SK
-    unassessed_families: []
-    return_transfer: NONE (phenomenon evidence only; Founder no_return_transfer)
-  comparison_derived:
-    pareto_front_common_pool: 3
-    pareto_front_reach_sensitivity: 2
-    pareto_front_incremental_sensitivity: 3
-    pareto_front_in_role_lane: 1
-    weighted_ILLUSTRATIVE:
-      equal: 0.58
-      evidence_led: 0.69
-      reuse_led: 0.62
-      burden_averse: 0.44
-      confidence_aware: 0.75
-    top5_frequency_uniform_weights: 0.0
-    rank_band_5_95:
-    - 12
-    - 25
-- primitive_id: X02a
-  name: live intraday index-option chain (after X01)
-  architecture:
-    source: ASA-ARCH-STRATEGY-SELECTION-THRESHOLDS-001 §6 + Architect clarifications (supplied in session; not on
-      main)
-    primitive_role: ENABLING_CONTRACT
-    support_state: EXTENSION
-    researched_families:
-    - US
-    reusable_family_count_RES001B_s3: n/a (not a §3 primitive)
-    enabling_reuse_count: 1
-    documented_dependency_reach_count: 1
-    reuse_class: LOCAL
-    reuse_confidence: HIGH
-    implementation_burden_standalone: B4_FOUNDATIONAL
-    implementation_burden_intrinsic_once_HARD_deps_held: B1_BOUNDED
-    protected_contract_impact: NONE
-    hard_dependencies:
-    - X01
-    dependencies_as_stated: X01 (HARD)
-    architecture_unknowns: provider entitlement, roots, cadence, rate limits
-    architecture_confidence: MEDIUM
-    note: added by clarification 5; standalone burden derived as B4 (inherits unmet HARD X01); intrinsic B1 once
-      X01 held
-  evidence:
-    best_credible_phenomenon_strength: NONE_CREDIBLE
-    confidence_of_strongest_credible_use: NONE
-    strongest_credible_families: []
-    credible_families: []
-    credible_evidence_clusters: []
-    unfavorable_families:
-    - US
-    unassessed_families: []
-    return_transfer: NONE (phenomenon evidence only; Founder no_return_transfer)
-  comparison_derived:
-    pareto_front_common_pool: 9
-    pareto_front_reach_sensitivity: 9
-    pareto_front_incremental_sensitivity: 4
-    pareto_front_in_role_lane: 3
-    weighted_ILLUSTRATIVE:
-      equal: 0.08
-      evidence_led: 0.06
-      reuse_led: 0.12
-      burden_averse: 0.06
-      confidence_aware: 0.05
-    top5_frequency_uniform_weights: 0.0
-    rank_band_5_95:
-    - 29
-    - 29
-- primitive_id: X02b
-  name: historical intraday index-option panel
-  architecture:
-    source: ASA-ARCH-STRATEGY-SELECTION-THRESHOLDS-001 §6 + Architect clarifications (supplied in session; not on
-      main)
-    primitive_role: DATA
-    support_state: CONTRACT_CHANGE
-    researched_families:
-    - US
-    reusable_family_count_RES001B_s3: n/a (not a §3 primitive)
-    enabling_reuse_count: 1
-    documented_dependency_reach_count: 1
-    reuse_class: LOCAL
-    reuse_confidence: HIGH
-    implementation_burden_standalone: B3_CROSS_CUTTING
-    implementation_burden_intrinsic_once_HARD_deps_held: B3_CROSS_CUTTING
-    protected_contract_impact: ADDITIVE_PUBLIC
-    hard_dependencies:
-    - A08
-    dependencies_as_stated: A08 or generalized historical-option capability (HARD)
-    architecture_unknowns: provider/licensing
-    architecture_confidence: UNSTATED
-    note: added by clarification 5; replication/validation data, not live expression
-  evidence:
-    best_credible_phenomenon_strength: NONE_CREDIBLE
-    confidence_of_strongest_credible_use: NONE
-    strongest_credible_families: []
-    credible_families: []
-    credible_evidence_clusters: []
-    unfavorable_families:
-    - US
-    unassessed_families: []
-    return_transfer: NONE (phenomenon evidence only; Founder no_return_transfer)
-  comparison_derived:
-    pareto_front_common_pool: 8
-    pareto_front_reach_sensitivity: 8
-    pareto_front_incremental_sensitivity: 8
-    pareto_front_in_role_lane: 3
-    weighted_ILLUSTRATIVE:
-      equal: 0.17
-      evidence_led: 0.12
-      reuse_led: 0.19
-      burden_averse: 0.19
-      confidence_aware: 0.1
-    top5_frequency_uniform_weights: 0.0
-    rank_band_5_95:
-    - 23
-    - 27
-- primitive_id: X03
-  name: non-equity option market support
-  architecture:
-    source: ASA-ARCH-STRATEGY-SELECTION-THRESHOLDS-001 §6 + Architect clarifications (supplied in session; not on
-      main)
-    primitive_role: ENABLING_CONTRACT
-    support_state: CONTRACT_CHANGE
-    researched_families:
-    - CA
-    reusable_family_count_RES001B_s3: n/a (not a §3 primitive)
-    enabling_reuse_count: 1
-    documented_dependency_reach_count: 1
-    reuse_class: LOCAL
-    reuse_confidence: HIGH
-    implementation_burden_standalone: B4_FOUNDATIONAL
-    implementation_burden_intrinsic_once_HARD_deps_held: B4_FOUNDATIONAL
-    protected_contract_impact: IDENTITY_BEARING
-    hard_dependencies: []
-    dependencies_as_stated: —
-    architecture_unknowns: provider semantics; underlying identity
-    architecture_confidence: UNSTATED
-    note: added by clarification 5
-  evidence:
-    best_credible_phenomenon_strength: HIGH
-    confidence_of_strongest_credible_use: LOW
-    strongest_credible_families:
-    - CA
-    credible_families:
-    - CA
-    credible_evidence_clusters:
-    - C_CROSS_ASSET
-    unfavorable_families: []
-    unassessed_families: []
-    return_transfer: NONE (phenomenon evidence only; Founder no_return_transfer)
-  comparison_derived:
-    pareto_front_common_pool: 6
-    pareto_front_reach_sensitivity: 6
-    pareto_front_incremental_sensitivity: 6
-    pareto_front_in_role_lane: 2
-    weighted_ILLUSTRATIVE:
-      equal: 0.42
-      evidence_led: 0.56
-      reuse_led: 0.38
-      burden_averse: 0.31
-      confidence_aware: 0.52
-    top5_frequency_uniform_weights: 0.0
-    rank_band_5_95:
-    - 17
-    - 26
-- primitive_id: X04
-  name: risk-free rate / discount-curve fact
-  architecture:
-    source: ASA-ARCH-STRATEGY-SELECTION-THRESHOLDS-001 §6 + Architect clarifications (supplied in session; not on
-      main)
-    primitive_role: DATA
-    support_state: CONTRACT_CHANGE
-    researched_families:
-    - AR
-    reusable_family_count_RES001B_s3: n/a (not a §3 primitive)
-    enabling_reuse_count: 1
-    documented_dependency_reach_count: 1
-    reuse_class: LOCAL
-    reuse_confidence: HIGH
-    implementation_burden_standalone: B3_CROSS_CUTTING
-    implementation_burden_intrinsic_once_HARD_deps_held: B3_CROSS_CUTTING
-    protected_contract_impact: ADDITIVE_PUBLIC
-    hard_dependencies: []
-    dependencies_as_stated: '— (conditional consumer: A07, parity/box work)'
-    architecture_unknowns: whether parity-implied rates suffice per methodology
-    architecture_confidence: UNSTATED
-    note: added by clarification 5; conditional consumer A07, parity/box work
-  evidence:
-    best_credible_phenomenon_strength: UNKNOWN
-    confidence_of_strongest_credible_use: NONE
-    strongest_credible_families: []
-    credible_families: []
-    credible_evidence_clusters: []
-    unfavorable_families: []
-    unassessed_families:
-    - AR
-    return_transfer: NONE (phenomenon evidence only; Founder no_return_transfer)
-  comparison_derived:
-    pareto_front_common_pool: 6
-    pareto_front_reach_sensitivity: 6
-    pareto_front_incremental_sensitivity: 6
-    pareto_front_in_role_lane: 3
-    weighted_ILLUSTRATIVE:
-      equal: 0.17-0.5
-      evidence_led: 0.12-0.62
-      reuse_led: 0.19-0.44
-      burden_averse: 0.19-0.44
-      confidence_aware: 0.1-0.5
-    top5_frequency_uniform_weights: 0.0
-    rank_band_5_95:
-    - 20
-    - 25
-pareto_fronts:
-  common:
-  - - A12
-  - - P01
-    - A06
-    - A07
-  - - P03
-    - P09
-    - A09
-    - A14
-    - A15
-    - X01
-  - - P10
-    - P11
-    - P12
-    - P14
-    - A08
-  - - P04
-    - A10
-    - A11
-  - - P05
-    - P07
-    - P15
-    - X03
-    - X04
-  - - P08
-    - A17
-  - - A16
-    - X02b
-  - - P13
-    - X02a
-  common_reach:
-  - - A12
-  - - P01
-    - P03
-    - A06
-    - A07
-    - X01
-  - - P09
-    - A09
-    - A14
-    - A15
-  - - P10
-    - P11
-    - P12
-    - P14
-    - A08
-  - - P04
-    - A10
-    - A11
-  - - P05
-    - P07
-    - P15
-    - X03
-    - X04
-  - - P08
-    - A17
-  - - A16
-    - X02b
-  - - P13
-    - X02a
-  common_incremental:
-  - - A12
-  - - P01
-    - A06
-    - A07
-  - - P03
-    - P09
-    - P10
-    - A09
-    - A14
-    - A15
-    - X01
-  - - P11
-    - P12
-    - P14
-    - A08
-    - A17
-    - X02a
-  - - P04
-    - A10
-    - A11
-  - - P05
-    - P07
-    - P15
-    - X03
-    - X04
-  - - P08
-  - - A16
-    - X02b
-  - - P13
-  lane_EXPRESSION:
+governing_method: 'ASA-ARCH-STRATEGY-SELECTION-RESOLUTION-001, adopted by the Founder (session 2026-09-27): role-stratified
+  Pareto -> official weighted scoring -> dependency-aware bundles -> sensitivity classification'
+status: Founder consideration set produced. Not a recommendation to implement any capability. No implementation
+  authorized.
+official_weights:
+  direction_adjusted_evidence_utility: 0.35
+  independent_credible_cluster_breadth: 0.15
+  demonstrated_reuse: 0.25
+  implementation_burden: 0.25
+normalization:
+  strength:
+    HIGH: 1
+    MODERATE: 0.75
+    LOW: 0.5
+    VERY_LOW: 0.25
+    UNGRADED: interval
+  direction:
+    FAVORABLE_QUALIFIED: 1
+    QUALIFIED: 0.8
+    UNRESOLVED: 0.5
+    UNFAVORABLE: 0
+  evidence_completeness_confidence:
+    MEDIUM: 1
+    LOW_MEDIUM: 0.8
+    LOW: 0.6
+    VERY_LOW: 0.35
+  reuse_class:
+    LOCAL: 0.25
+    SHARED: 0.5
+    BROAD: 0.75
+    PLATFORM: 1
+  burden:
+    B0: 1
+    B1: 0.8
+    B2: 0.6
+    B3: 0.3
+    B4: 0
+  architecture_and_reuse_confidence_mod:
+    HIGH: 1
+    MEDIUM: 0.9
+    LOW: 0.75
+  breadth: min(distinct non-unfavorable credible evidence clusters / 4, 1)
+formula: score = .35*EU + .15*breadth + arch_conf*(.25*reuse*reuse_conf + .25*burden); EU = max over non-unfavorable
+  mapped families of strength*direction*completeness
+evidence_completeness_confidence: MEDIUM <=4 UNKNOWN fields and no sub-abstract source; LOW_MEDIUM 5-7 or some sub-abstract;
+  LOW >=8 or >=1/3 sub-abstract; VERY_LOW ungraded. Contradictions do not reduce completeness.
+advancement_rules:
+  substantive: lane front <=2 (governing lanes) AND official score >= 0.58 (interval lower bound)
+  enabling_contract: 'conditional: lane front 1 AND required by an advancing faithful bundle'
+  native: baseline
+  bundle: makes >=1 FAVORABLE_QUALIFIED or QUALIFIED family faithfully expressible; components lane front <=2 or
+    necessary; mean member official score >= 0.55; replication-only data excluded; shared dependencies charged once
+sensitivity_profiles:
+  moderate:
+    evidence_heavy_moderate:
+    - 0.4
+    - 0.2
+    - 0.2
+    - 0.2
+    architecture_leverage_moderate:
+    - 0.3
+    - 0.1
+    - 0.35
+    - 0.25
+    burden_averse_moderate:
+    - 0.3
+    - 0.1
+    - 0.2
+    - 0.4
+  strong:
+    evidence_heavy_strong:
+    - 0.5
+    - 0.2
+    - 0.15
+    - 0.15
+    architecture_leverage_strong:
+    - 0.25
+    - 0.1
+    - 0.4
+    - 0.25
+    burden_averse_strong:
+    - 0.25
+    - 0.1
+    - 0.15
+    - 0.5
+  classes: ROBUST = passes 0.58 under all strong profiles; ROBUST_TO_MODERATE_SHIFTS = passes all moderate but not
+    all strong; WEIGHT-SENSITIVE = fails at least one moderate profile
+consideration_set:
+  primitives:
+  - P01
+  - P03
+  - P09
+  - A06
+  - A07
+  - A08
+  - A12
+  - A14
+  - A15
+  conditional_enablers:
+  - X01
+  bundles:
+  - PW
+  - CC
+  - SV
+  - EV
+  - OS
+  - XR
+  shared_quality_layer: A12 (charged once platform-wide)
+governing_lane_fronts:
+  EXPRESSION:
   - - P01
   - - P03
     - P09
@@ -2250,357 +126,2291 @@ pareto_fronts:
     - P15
   - - P08
   - - P13
-  lane_ANALYTIC:
+  ANALYTIC:
   - - A06
     - A07
     - A15
   - - A09
     - A14
   - - A17
-  lane_DATA:
+  - - A16
+  DATA:
   - - A08
   - - A10
     - A11
-  - - A16
-    - X02b
+  - - X02b
     - X04
-  lane_ENABLING_CONTRACT:
+  - - X02a
+  QUALITY_INFRASTRUCTURE:
+  - - A12
+  ENABLING_CONTRACT:
   - - X01
   - - X03
-  - - X02a
-  lane_QUALITY_INFRASTRUCTURE:
-  - - A12
-bundles_marginal_cost:
-  K-MEASURE:
-    order:
-    - A12
-    marginal:
-    - primitive: A12
-      marginal_burden: B1
-    max_marginal: B1
-    contract_primitives: []
-    faithful: []
-    faithful_credible: []
-    replication_needs: {}
-  K-RN:
-    order:
+sensitivity_lane_fronts_score_component_axes:
+  EXPRESSION:
+  - - P03
+  - - P01
+  - - P09
+    - P10
+    - P11
+    - P12
+  - - P04
+  - - P05
+    - P07
+    - P14
+  - - P08
+    - P15
+  - - P13
+  ANALYTIC:
+  - - A06
     - A07
-    marginal:
-    - primitive: A07
-      marginal_burden: B2
-    max_marginal: B2
-    contract_primitives: []
-    faithful: []
-    faithful_credible: []
-    replication_needs: {}
-  K-OPTINFO:
-    order:
-    - A07
-    - A10
-    - A11
-    marginal:
-    - primitive: A07
-      marginal_burden: B2
-    - primitive: A10
-      marginal_burden: B3
-    - primitive: A11
-      marginal_burden: B3
-    max_marginal: B3
-    contract_primitives:
-    - A10
-    - A11
-    faithful:
-    - OS
-    faithful_credible:
-    - OS
-    replication_needs:
-      OS: A08
-  K-EVENT:
-    order:
-    - P03
     - A09
-    marginal:
-    - primitive: P03
-      marginal_burden: B3
-    - primitive: A09
-      marginal_burden: B1
-    max_marginal: B3
-    contract_primitives:
-    - P03
-    faithful:
-    - EV
-    faithful_credible:
-    - EV
-    replication_needs:
-      EV: A08
-  K-OVERLAY:
-    order:
-    - P09
-    marginal:
-    - primitive: P09
-      marginal_burden: B3
-    max_marginal: B3
-    contract_primitives:
-    - P09
-    faithful:
-    - CL
-    faithful_credible: []
-    replication_needs: {}
-  K-OVERLAY+LEG:
-    order:
-    - P01
-    - P09
-    marginal:
-    - primitive: P01
-      marginal_burden: B3
-    - primitive: P09
-      marginal_burden: B3
-    max_marginal: B3
-    contract_primitives:
-    - P01
-    - P09
-    faithful:
-    - CL
-    - DX
-    faithful_credible: []
-    replication_needs: {}
-  K-INDEX:
-    order:
-    - X01
-    - P01
-    - P05
-    marginal:
-    - primitive: X01
-      marginal_burden: B4
-    - primitive: P01
-      marginal_burden: B3
-    - primitive: P05
-      marginal_burden: B3
-    max_marginal: B4
-    contract_primitives:
-    - P01
-    - P05
-    - X01
-    faithful:
-    - DR
-    - DX
-    - PW
-    faithful_credible:
-    - DR
-    - PW
-    replication_needs:
-      DR: A08 or X01-history
-      PW: A08 or X01-history
-  K-INDEX+0DTE:
-    order:
-    - X01
-    - P01
-    - P05
-    - X02a
-    marginal:
-    - primitive: X01
-      marginal_burden: B4
-    - primitive: P01
-      marginal_burden: B3
-    - primitive: P05
-      marginal_burden: B3
-    - primitive: X02a
-      marginal_burden: B1
-    max_marginal: B4
-    contract_primitives:
-    - P01
-    - P05
-    - X01
-    faithful:
-    - DR
-    - DX
-    - PW
-    - US
-    faithful_credible:
-    - DR
-    - PW
-    replication_needs:
-      DR: A08 or X01-history
-      PW: A08 or X01-history
-      US: X02b
-  K-INDEX+OVERLAY:
-    order:
-    - X01
-    - P01
-    - P05
-    - P09
-    marginal:
-    - primitive: X01
-      marginal_burden: B4
-    - primitive: P01
-      marginal_burden: B3
-    - primitive: P05
-      marginal_burden: B3
-    - primitive: P09
-      marginal_burden: B3
-    max_marginal: B4
-    contract_primitives:
-    - P01
-    - P05
-    - P09
-    - X01
-    faithful:
-    - CC
-    - CL
-    - DR
-    - DX
+    - A14
+    - A15
+  - - A17
+  - - A16
+  DATA:
+  - - A08
+    - A10
+    - A11
+  - - X02b
+    - X04
+  - - X02a
+  QUALITY_INFRASTRUCTURE:
+  - - A12
+  ENABLING_CONTRACT:
+  - - X01
+  - - X03
+sensitivity_common_pool_fronts:
+- - A12
+  - X01
+- - A06
+  - A07
+  - A09
+  - P03
+- - A14
+  - A15
+  - P01
+- - A08
+  - A10
+  - A11
+  - P09
+  - P10
+  - P11
+  - P12
+- - P04
+- - P05
+  - P07
+  - P14
+- - A17
+  - P08
+  - X03
+- - P15
+  - X02b
+  - X04
+- - A16
+  - P13
+  - X02a
+family_evidence_profiles:
+  PW:
+    family: PUTWRITE
+    research_status: TRIAGE
+    phenomenon_strength: HIGH
+    direction: QUALIFIED
+    direction_basis: premium supported; crisis-factor explanation; weak 2006-2018 post-launch
+    evidence_completeness_confidence: MEDIUM
+    direction_adjusted_evidence_utility: 0.8
+    evidence_cluster: C_VRP_INDEX
+    net_of_cost: mixed
+    post_publication: negative
+    unknown_fields_lower_bound: 0
+  CC:
+    family: COVERED-CALL
+    research_status: TRIAGE
+    phenomenon_strength: HIGH
+    direction: QUALIFIED
+    direction_basis: premium supported; return mostly equity beta; 2-month variant fails
+    evidence_completeness_confidence: MEDIUM
+    direction_adjusted_evidence_utility: 0.8
+    evidence_cluster: C_VRP_INDEX
+    net_of_cost: mixed
+    post_publication: none_found
+    unknown_fields_lower_bound: 2
+  SV:
+    family: SHORT-VOL
+    research_status: TRIAGE
+    phenomenon_strength: HIGH
+    direction: QUALIFIED
+    direction_basis: negative VRP supported; significance contested (BCJ-2009); severe tail
+    evidence_completeness_confidence: LOW_MEDIUM
+    direction_adjusted_evidence_utility: 0.64
+    evidence_cluster: C_VRP_INDEX
+    net_of_cost: none
+    post_publication: mixed
+    unknown_fields_lower_bound: 1
+  DR:
+    family: DEFINED-RISK
+    research_status: TRIAGE
+    phenomenon_strength: LOW
+    direction: UNRESOLVED
+    direction_basis: no return evidence for the structure; parent VRP supported; wing-cost direction contested
+    evidence_completeness_confidence: LOW_MEDIUM
+    direction_adjusted_evidence_utility: 0.2
+    evidence_cluster: C_VRP_INDEX
+    net_of_cost: none
+    post_publication: none_found
+    unknown_fields_lower_bound: 6
+  US:
+    family: ULTRA-SHORT
+    research_status: INSUFFICIENT_EVIDENCE
+    phenomenon_strength: LOW
+    direction: UNFAVORABLE
+    direction_basis: 'corrected study: no positive net Sharpe'
+    evidence_completeness_confidence: LOW
+    direction_adjusted_evidence_utility: 0.0
+    evidence_cluster: C_VRP_INDEX
+    net_of_cost: negative
+    post_publication: negative
+    unknown_fields_lower_bound: 2
+  TH:
+    family: TAIL-HEDGE
+    research_status: INSUFFICIENT_EVIDENCE
+    phenomenon_strength: HIGH
+    direction: UNFAVORABLE
+    direction_basis: buyer side of a documented premium; negative expected return
+    evidence_completeness_confidence: LOW_MEDIUM
+    direction_adjusted_evidence_utility: 0.0
+    evidence_cluster: C_VRP_INDEX
+    net_of_cost: negative
+    post_publication: negative
+    unknown_fields_lower_bound: 1
+  CL:
+    family: COLLAR
+    research_status: INSUFFICIENT_EVIDENCE
+    phenomenon_strength: MODERATE
+    direction: UNFAVORABLE
+    direction_basis: expected underperformance (ISRAELOV-KLEIN-2016)
+    evidence_completeness_confidence: LOW_MEDIUM
+    direction_adjusted_evidence_utility: 0.0
+    evidence_cluster: C_VRP_INDEX
+    net_of_cost: none
+    post_publication: none_found
+    unknown_fields_lower_bound: 6
+  VX:
+    family: VIX-CARRY
+    research_status: TRIAGE
+    phenomenon_strength: MODERATE
+    direction: QUALIFIED
+    direction_basis: slope predictability supported; catastrophic short-vehicle failure
+    evidence_completeness_confidence: MEDIUM
+    direction_adjusted_evidence_utility: 0.6
+    evidence_cluster: C_VOL_TERM
+    net_of_cost: mixed
+    post_publication: negative
+    unknown_fields_lower_bound: 2
+  TS:
+    family: TERM-STRUCTURE
+    research_status: TRIAGE
+    phenomenon_strength: MODERATE
+    direction: UNRESOLVED
+    direction_basis: mechanism supported by convergent lines; no contradiction or cost evidence recovered
+    evidence_completeness_confidence: LOW_MEDIUM
+    direction_adjusted_evidence_utility: 0.3
+    evidence_cluster: C_VOL_TERM
+    net_of_cost: none
+    post_publication: none_found
+    unknown_fields_lower_bound: 7
+  XR:
+    family: XS-OPTION-RETURNS
+    research_status: TRIAGE
+    phenomenon_strength: HIGH
+    direction: FAVORABLE_QUALIFIED
+    direction_basis: after-cost OOS positive; 50-75% of alpha spanned by factors
+    evidence_completeness_confidence: LOW_MEDIUM
+    direction_adjusted_evidence_utility: 0.8
+    evidence_cluster: C_XS_OPTION_FACTORS
+    net_of_cost: positive
+    post_publication: positive
+    unknown_fields_lower_bound: 5
+  XM:
+    family: XS-OPTION-MOMENTUM
+    research_status: TRIAGE
+    phenomenon_strength: MODERATE
+    direction: UNRESOLVED
+    direction_basis: single-team evidence; no cost/post-publication evidence
+    evidence_completeness_confidence: LOW
+    direction_adjusted_evidence_utility: 0.225
+    evidence_cluster: C_XS_OPTION_FACTORS
+    net_of_cost: none
+    post_publication: none_found
+    unknown_fields_lower_bound: 12
+  XL:
+    family: XS-LOTTERY
+    research_status: TRIAGE
+    phenomenon_strength: HIGH
+    direction: UNRESOLVED
+    direction_basis: consistent sign; gross only; cost evidence absent
+    evidence_completeness_confidence: LOW_MEDIUM
+    direction_adjusted_evidence_utility: 0.4
+    evidence_cluster: C_XS_OPTION_FACTORS
+    net_of_cost: none
+    post_publication: none_found
+    unknown_fields_lower_bound: 7
+  EV:
+    family: EVENT-VOL
+    research_status: TRIAGE
+    phenomenon_strength: MODERATE
+    direction: QUALIFIED
+    direction_basis: GXZ positive; opposite sign for bellwethers/retail; cost concentration
+    evidence_completeness_confidence: LOW_MEDIUM
+    direction_adjusted_evidence_utility: 0.48
+    evidence_cluster: C_EVENT
+    net_of_cost: mixed
+    post_publication: none_found
+    unknown_fields_lower_bound: 5
+  OS:
+    family: OPTION-SIGNAL
+    research_status: TRIAGE
+    phenomenon_strength: HIGH
+    direction: QUALIFIED
+    direction_basis: ~2/3 removed by borrow-fee adjustment; RNS sign conflict
+    evidence_completeness_confidence: LOW_MEDIUM
+    direction_adjusted_evidence_utility: 0.64
+    evidence_cluster: C_OPTION_INFO
+    net_of_cost: none
+    post_publication: negative
+    unknown_fields_lower_bound: 5
+  SK:
+    family: SKEW-PREMIUM
+    research_status: INSUFFICIENT_EVIDENCE
+    phenomenon_strength: MODERATE
+    direction: UNFAVORABLE
+    direction_basis: standalone skew premium insignificant (KNS-2013)
+    evidence_completeness_confidence: LOW
+    direction_adjusted_evidence_utility: 0.0
+    evidence_cluster: C_VRP_INDEX
+    net_of_cost: none
+    post_publication: none_found
+    unknown_fields_lower_bound: 11
+  DP:
+    family: DISPERSION
+    research_status: INSUFFICIENT_EVIDENCE
+    phenomenon_strength: MODERATE
+    direction: UNFAVORABLE
+    direction_basis: not exploitable with frictions (DMV-2009)
+    evidence_completeness_confidence: LOW
+    direction_adjusted_evidence_utility: 0.0
+    evidence_cluster: C_CORRELATION
+    net_of_cost: negative
+    post_publication: none_found
+    unknown_fields_lower_bound: 8
+  AR:
+    family: ARBITRAGE
+    research_status: DISCOVERED
+    phenomenon_strength: UNGRADED
+    direction: UNRESOLVED
+    direction_basis: unassessed
+    evidence_completeness_confidence: VERY_LOW
+    direction_adjusted_evidence_utility: interval [0, 0.175] (UNGRADED)
+    evidence_cluster: C_ARBITRAGE
+    net_of_cost: none
+    post_publication: none_found
+    unknown_fields_lower_bound: 14
+  CA:
+    family: CROSS-ASSET-VRP
+    research_status: TRIAGE
+    phenomenon_strength: HIGH
+    direction: UNRESOLVED
+    direction_basis: premium supported; costs/rules unrecovered; outside instrument universe
+    evidence_completeness_confidence: LOW
+    direction_adjusted_evidence_utility: 0.3
+    evidence_cluster: C_CROSS_ASSET
+    net_of_cost: none
+    post_publication: none_found
+    unknown_fields_lower_bound: 8
+  DX:
+    family: DIRECTIONAL
+    research_status: INSUFFICIENT_EVIDENCE
+    phenomenon_strength: HIGH
+    direction: UNFAVORABLE
+    direction_basis: option buyers lose on average
+    evidence_completeness_confidence: LOW
+    direction_adjusted_evidence_utility: 0.0
+    evidence_cluster: C_BUYER_SIDE
+    net_of_cost: negative
+    post_publication: negative
+    unknown_fields_lower_bound: 10
+primitives:
+- primitive_id: P01
+  name: single option leg
+  architecture:
+    role: EXPRESSION
+    support_state: CONTRACT_CHANGE
+    researched_families:
     - PW
     - TH
-    faithful_credible:
-    - CC
-    - DR
+    - DX
+    - CA
+    reusable_family_count_RES001B_s3: 4
+    documented_dependency_reach_count_SENSITIVITY_ONLY: 5
+    reuse_confidence: HIGH
+    burden_effective_standalone: B3_CROSS_CUTTING
+    burden_intrinsic_once_HARD_deps_held: B3_CROSS_CUTTING
+    protected_contract_impact: ADDITIVE_PUBLIC
+    architecture_confidence: HIGH
+    architecture_unknowns: exact product economics for naked short legs
+  evidence:
+    legitimate_mapped_uses:
     - PW
-    replication_needs:
-      DR: A08 or X01-history
-      PW: A08 or X01-history
-  K-INDEX+VOL:
-    order:
+    - CA
+    unfavorable_mapped_uses:
+    - TH
+    - DX
+    return_transfer: NONE
+    evidence_utility_EU: 0.8
+    independent_credible_cluster_breadth: 0.5
+    credible_clusters:
+    - C_CROSS_ASSET
+    - C_VRP_INDEX
+  official_components:
+    EU: 0.8
+    breadth: 0.5
+    reuse_norm: 0.75
+    reuse_confidence_mod: 1
+    burden_utility: 0.3
+    architecture_confidence_mod: 1
+  selection:
+    official_score: 0.618
+    lane_front_GOVERNING: 1
+    lane_front_score_component_axes_SENSITIVITY: 2
+    advancement: ADVANCES
+    sensitivity_class: WEIGHT-SENSITIVE
+    profiles_moderate:
+      evidence_heavy_moderate: 0.63
+      architecture_leverage_moderate: 0.627
+      burden_averse_moderate: 0.56
+    profiles_strong:
+      evidence_heavy: 0.657
+      architecture_leverage: 0.625
+      burden_averse: 0.512
+    random_weight_pass_rate_SUPPLEMENTAL: 0.55
+- primitive_id: P02
+  name: vertical
+  architecture:
+    role: EXPRESSION
+    support_state: NATIVE
+    researched_families:
+    - DR
+    - DX
+    reusable_family_count_RES001B_s3: 2
+    documented_dependency_reach_count_SENSITIVITY_ONLY: 2
+    reuse_confidence: HIGH
+    burden_effective_standalone: B0_NATIVE
+    burden_intrinsic_once_HARD_deps_held: B0_NATIVE
+    protected_contract_impact: NONE
+    architecture_confidence: HIGH
+    architecture_unknowns: []
+  evidence:
+    legitimate_mapped_uses:
+    - DR
+    unfavorable_mapped_uses:
+    - DX
+    return_transfer: NONE
+  selection:
+    status: BASELINE (NATIVE; not a candidate)
+- primitive_id: P03
+  name: straddle
+  architecture:
+    role: EXPRESSION
+    support_state: CONTRACT_CHANGE
+    researched_families:
+    - SV
+    - EV
+    - XM
+    - XR
+    reusable_family_count_RES001B_s3: 4
+    documented_dependency_reach_count_SENSITIVITY_ONLY: 7
+    reuse_confidence: HIGH
+    burden_effective_standalone: B3_CROSS_CUTTING
+    burden_intrinsic_once_HARD_deps_held: B3_CROSS_CUTTING
+    protected_contract_impact: ADDITIVE_PUBLIC
+    architecture_confidence: HIGH
+    architecture_unknowns: all-qualifying-pair semantics vary by source
+  evidence:
+    legitimate_mapped_uses:
+    - SV
+    - EV
+    - XM
+    - XR
+    unfavorable_mapped_uses: []
+    return_transfer: NONE
+    evidence_utility_EU: 0.8
+    independent_credible_cluster_breadth: 0.75
+    credible_clusters:
+    - C_EVENT
+    - C_VRP_INDEX
+    - C_XS_OPTION_FACTORS
+  official_components:
+    EU: 0.8
+    breadth: 0.75
+    reuse_norm: 0.75
+    reuse_confidence_mod: 1
+    burden_utility: 0.3
+    architecture_confidence_mod: 1
+  selection:
+    official_score: 0.655
+    lane_front_GOVERNING: 2
+    lane_front_score_component_axes_SENSITIVITY: 1
+    advancement: ADVANCES
+    sensitivity_class: ROBUST_TO_MODERATE_SHIFTS
+    profiles_moderate:
+      evidence_heavy_moderate: 0.68
+      architecture_leverage_moderate: 0.652
+      burden_averse_moderate: 0.585
+    profiles_strong:
+      evidence_heavy: 0.708
+      architecture_leverage: 0.65
+      burden_averse: 0.537
+    random_weight_pass_rate_SUPPLEMENTAL: 0.78
+- primitive_id: P04
+  name: strangle
+  architecture:
+    role: EXPRESSION
+    support_state: CONTRACT_CHANGE
+    researched_families:
+    - SV
+    - US
+    reusable_family_count_RES001B_s3: 2
+    documented_dependency_reach_count_SENSITIVITY_ONLY: 2
+    reuse_confidence: HIGH
+    burden_effective_standalone: B3_CROSS_CUTTING
+    burden_intrinsic_once_HARD_deps_held: B3_CROSS_CUTTING
+    protected_contract_impact: ADDITIVE_PUBLIC
+    architecture_confidence: HIGH
+    architecture_unknowns: []
+  evidence:
+    legitimate_mapped_uses:
+    - SV
+    unfavorable_mapped_uses:
+    - US
+    return_transfer: NONE
+    evidence_utility_EU: 0.64
+    independent_credible_cluster_breadth: 0.25
+    credible_clusters:
+    - C_VRP_INDEX
+  official_components:
+    EU: 0.64
+    breadth: 0.25
+    reuse_norm: 0.5
+    reuse_confidence_mod: 1
+    burden_utility: 0.3
+    architecture_confidence_mod: 1
+  selection:
+    official_score: 0.462
+    lane_front_GOVERNING: 4
+    lane_front_score_component_axes_SENSITIVITY: 4
+    advancement: DOES_NOT_ADVANCE
+    sensitivity_class: n/a
+    profiles_moderate:
+      evidence_heavy_moderate: 0.466
+      architecture_leverage_moderate: 0.467
+      burden_averse_moderate: 0.437
+    profiles_strong:
+      evidence_heavy: 0.49
+      architecture_leverage: 0.46
+      burden_averse: 0.41
+    random_weight_pass_rate_SUPPLEMENTAL: 0.01
+- primitive_id: P05
+  name: four-leg wing combination
+  architecture:
+    role: EXPRESSION
+    support_state: CONTRACT_CHANGE
+    researched_families:
+    - DR
+    - US
+    reusable_family_count_RES001B_s3: 2
+    documented_dependency_reach_count_SENSITIVITY_ONLY: 2
+    reuse_confidence: HIGH
+    burden_effective_standalone: B3_CROSS_CUTTING
+    burden_intrinsic_once_HARD_deps_held: B3_CROSS_CUTTING
+    protected_contract_impact: ADDITIVE_PUBLIC
+    architecture_confidence: HIGH
+    architecture_unknowns: index-faithful variants may also require X01
+  evidence:
+    legitimate_mapped_uses:
+    - DR
+    unfavorable_mapped_uses:
+    - US
+    return_transfer: NONE
+    evidence_utility_EU: 0.2
+    independent_credible_cluster_breadth: 0.25
+    credible_clusters:
+    - C_VRP_INDEX
+  official_components:
+    EU: 0.2
+    breadth: 0.25
+    reuse_norm: 0.5
+    reuse_confidence_mod: 1
+    burden_utility: 0.3
+    architecture_confidence_mod: 1
+  selection:
+    official_score: 0.307
+    lane_front_GOVERNING: 5
+    lane_front_score_component_axes_SENSITIVITY: 5
+    advancement: DOES_NOT_ADVANCE
+    sensitivity_class: n/a
+    profiles_moderate:
+      evidence_heavy_moderate: 0.29
+      architecture_leverage_moderate: 0.335
+      burden_averse_moderate: 0.305
+    profiles_strong:
+      evidence_heavy: 0.27
+      architecture_leverage: 0.35
+      burden_averse: 0.3
+    random_weight_pass_rate_SUPPLEMENTAL: 0.0
+- primitive_id: P06
+  name: calendar
+  architecture:
+    role: EXPRESSION
+    support_state: NATIVE
+    researched_families:
+    - TS
+    - EV
+    reusable_family_count_RES001B_s3: 2
+    documented_dependency_reach_count_SENSITIVITY_ONLY: 2
+    reuse_confidence: HIGH
+    burden_effective_standalone: B0_NATIVE
+    burden_intrinsic_once_HARD_deps_held: B0_NATIVE
+    protected_contract_impact: NONE
+    architecture_confidence: HIGH
+    architecture_unknowns: []
+  evidence:
+    legitimate_mapped_uses:
+    - TS
+    - EV
+    unfavorable_mapped_uses: []
+    return_transfer: NONE
+  selection:
+    status: BASELINE (NATIVE; not a candidate)
+- primitive_id: P07
+  name: diagonal
+  architecture:
+    role: EXPRESSION
+    support_state: CONTRACT_CHANGE
+    researched_families:
+    - TS
+    reusable_family_count_RES001B_s3: 1
+    documented_dependency_reach_count_SENSITIVITY_ONLY: 1
+    reuse_confidence: HIGH
+    burden_effective_standalone: B3_CROSS_CUTTING
+    burden_intrinsic_once_HARD_deps_held: B3_CROSS_CUTTING
+    protected_contract_impact: ADDITIVE_PUBLIC
+    architecture_confidence: HIGH
+    architecture_unknowns: exact payoff/model assumptions by strategy
+  evidence:
+    legitimate_mapped_uses:
+    - TS
+    unfavorable_mapped_uses: []
+    return_transfer: NONE
+    evidence_utility_EU: 0.3
+    independent_credible_cluster_breadth: 0.25
+    credible_clusters:
+    - C_VOL_TERM
+  official_components:
+    EU: 0.3
+    breadth: 0.25
+    reuse_norm: 0.25
+    reuse_confidence_mod: 1
+    burden_utility: 0.3
+    architecture_confidence_mod: 1
+  selection:
+    official_score: 0.28
+    lane_front_GOVERNING: 5
+    lane_front_score_component_axes_SENSITIVITY: 5
+    advancement: DOES_NOT_ADVANCE
+    sensitivity_class: n/a
+    profiles_moderate:
+      evidence_heavy_moderate: 0.28
+      architecture_leverage_moderate: 0.277
+      burden_averse_moderate: 0.285
+    profiles_strong:
+      evidence_heavy: 0.282
+      architecture_leverage: 0.275
+      burden_averse: 0.287
+    random_weight_pass_rate_SUPPLEMENTAL: 0.0
+- primitive_id: P08
+  name: ratio / unequal quantity
+  architecture:
+    role: EXPRESSION
+    support_state: CONTRACT_CHANGE
+    researched_families:
+    - US
+    - SK
+    reusable_family_count_RES001B_s3: 2
+    documented_dependency_reach_count_SENSITIVITY_ONLY: 2
+    reuse_confidence: HIGH
+    burden_effective_standalone: B3_CROSS_CUTTING
+    burden_intrinsic_once_HARD_deps_held: B3_CROSS_CUTTING
+    protected_contract_impact: ADDITIVE_PUBLIC
+    architecture_confidence: HIGH
+    architecture_unknowns: margin/assignment behavior for short excess legs
+  evidence:
+    legitimate_mapped_uses: []
+    unfavorable_mapped_uses:
+    - US
+    - SK
+    return_transfer: NONE
+    evidence_utility_EU: 0.0
+    independent_credible_cluster_breadth: 0.0
+    credible_clusters: []
+  official_components:
+    EU: 0.0
+    breadth: 0.0
+    reuse_norm: 0.5
+    reuse_confidence_mod: 1
+    burden_utility: 0.3
+    architecture_confidence_mod: 1
+  selection:
+    official_score: 0.2
+    lane_front_GOVERNING: 6
+    lane_front_score_component_axes_SENSITIVITY: 6
+    advancement: DOES_NOT_ADVANCE
+    sensitivity_class: n/a
+    profiles_moderate:
+      evidence_heavy_moderate: 0.16
+      architecture_leverage_moderate: 0.25
+      burden_averse_moderate: 0.22
+    profiles_strong:
+      evidence_heavy: 0.12
+      architecture_leverage: 0.275
+      burden_averse: 0.225
+    random_weight_pass_rate_SUPPLEMENTAL: 0.0
+- primitive_id: P09
+  name: stock + option overlay
+  architecture:
+    role: EXPRESSION
+    support_state: CONTRACT_CHANGE
+    researched_families:
+    - CC
+    - TH
+    - CL
+    reusable_family_count_RES001B_s3: 3
+    documented_dependency_reach_count_SENSITIVITY_ONLY: 3
+    reuse_confidence: HIGH
+    burden_effective_standalone: B3_CROSS_CUTTING
+    burden_intrinsic_once_HARD_deps_held: B3_CROSS_CUTTING
+    protected_contract_impact: ADDITIVE_PUBLIC
+    architecture_confidence: HIGH
+    architecture_unknowns: assignment/call-away semantics
+  evidence:
+    legitimate_mapped_uses:
+    - CC
+    unfavorable_mapped_uses:
+    - TH
+    - CL
+    return_transfer: NONE
+    evidence_utility_EU: 0.8
+    independent_credible_cluster_breadth: 0.25
+    credible_clusters:
+    - C_VRP_INDEX
+  official_components:
+    EU: 0.8
+    breadth: 0.25
+    reuse_norm: 0.75
+    reuse_confidence_mod: 1
+    burden_utility: 0.3
+    architecture_confidence_mod: 1
+  selection:
+    official_score: 0.58
+    lane_front_GOVERNING: 2
+    lane_front_score_component_axes_SENSITIVITY: 3
+    advancement: ADVANCES
+    sensitivity_class: WEIGHT-SENSITIVE
+    profiles_moderate:
+      evidence_heavy_moderate: 0.58
+      architecture_leverage_moderate: 0.603
+      burden_averse_moderate: 0.535
+    profiles_strong:
+      evidence_heavy: 0.608
+      architecture_leverage: 0.6
+      burden_averse: 0.487
+    random_weight_pass_rate_SUPPLEMENTAL: 0.34
+- primitive_id: P10
+  name: delta-hedged option
+  architecture:
+    role: EXPRESSION
+    support_state: CONTRACT_CHANGE
+    researched_families:
+    - SV
+    - XR
+    - SK
+    - DP
+    reusable_family_count_RES001B_s3: 4
+    documented_dependency_reach_count_SENSITIVITY_ONLY: 4
+    reuse_confidence: HIGH
+    burden_effective_standalone: B4_FOUNDATIONAL
+    burden_intrinsic_once_HARD_deps_held: B3_CROSS_CUTTING
+    protected_contract_impact: ADDITIVE_PUBLIC
+    architecture_confidence: MEDIUM
+    architecture_unknowns: rebalance trigger semantics are strategy-specific
+  evidence:
+    legitimate_mapped_uses:
+    - SV
+    - XR
+    unfavorable_mapped_uses:
+    - SK
+    - DP
+    return_transfer: NONE
+    evidence_utility_EU: 0.8
+    independent_credible_cluster_breadth: 0.5
+    credible_clusters:
+    - C_VRP_INDEX
+    - C_XS_OPTION_FACTORS
+  official_components:
+    EU: 0.8
+    breadth: 0.5
+    reuse_norm: 0.75
+    reuse_confidence_mod: 1
+    burden_utility: 0
+    architecture_confidence_mod: 0.9
+  selection:
+    official_score: 0.524
+    lane_front_GOVERNING: 3
+    lane_front_score_component_axes_SENSITIVITY: 3
+    advancement: DOES_NOT_ADVANCE
+    sensitivity_class: n/a
+    profiles_moderate:
+      evidence_heavy_moderate: 0.555
+      architecture_leverage_moderate: 0.526
+      burden_averse_moderate: 0.425
+    profiles_strong:
+      evidence_heavy: 0.601
+      architecture_leverage: 0.52
+      burden_averse: 0.351
+    random_weight_pass_rate_SUPPLEMENTAL: 0.3
+- primitive_id: P11
+  name: option-strip replication
+  architecture:
+    role: EXPRESSION
+    support_state: CONTRACT_CHANGE
+    researched_families:
+    - SV
+    - SK
+    - TS
+    reusable_family_count_RES001B_s3: 3
+    documented_dependency_reach_count_SENSITIVITY_ONLY: 3
+    reuse_confidence: HIGH
+    burden_effective_standalone: B3_CROSS_CUTTING
+    burden_intrinsic_once_HARD_deps_held: B3_CROSS_CUTTING
+    protected_contract_impact: ADDITIVE_PUBLIC
+    architecture_confidence: HIGH
+    architecture_unknowns: strike-continuum completeness
+  evidence:
+    legitimate_mapped_uses:
+    - SV
+    - TS
+    unfavorable_mapped_uses:
+    - SK
+    return_transfer: NONE
+    evidence_utility_EU: 0.64
+    independent_credible_cluster_breadth: 0.5
+    credible_clusters:
+    - C_VOL_TERM
+    - C_VRP_INDEX
+  official_components:
+    EU: 0.64
+    breadth: 0.5
+    reuse_norm: 0.75
+    reuse_confidence_mod: 1
+    burden_utility: 0.3
+    architecture_confidence_mod: 1
+  selection:
+    official_score: 0.561
+    lane_front_GOVERNING: 3
+    lane_front_score_component_axes_SENSITIVITY: 3
+    advancement: DOES_NOT_ADVANCE
+    sensitivity_class: n/a
+    profiles_moderate:
+      evidence_heavy_moderate: 0.566
+      architecture_leverage_moderate: 0.579
+      burden_averse_moderate: 0.512
+    profiles_strong:
+      evidence_heavy: 0.578
+      architecture_leverage: 0.585
+      burden_averse: 0.472
+    random_weight_pass_rate_SUPPLEMENTAL: 0.36
+- primitive_id: P12
+  name: cross-sectional structure portfolio
+  architecture:
+    role: EXPRESSION
+    support_state: NEW_CAPABILITY
+    researched_families:
+    - XR
+    - XM
+    - XL
+    reusable_family_count_RES001B_s3: 3
+    documented_dependency_reach_count_SENSITIVITY_ONLY: 3
+    reuse_confidence: HIGH
+    burden_effective_standalone: B3_CROSS_CUTTING
+    burden_intrinsic_once_HARD_deps_held: B3_CROSS_CUTTING
+    protected_contract_impact: NONE (not proven)
+    architecture_confidence: HIGH
+    architecture_unknowns: interaction with open cross-Opportunity guardrails
+  evidence:
+    legitimate_mapped_uses:
+    - XR
+    - XM
+    - XL
+    unfavorable_mapped_uses: []
+    return_transfer: NONE
+    evidence_utility_EU: 0.8
+    independent_credible_cluster_breadth: 0.25
+    credible_clusters:
+    - C_XS_OPTION_FACTORS
+  official_components:
+    EU: 0.8
+    breadth: 0.25
+    reuse_norm: 0.75
+    reuse_confidence_mod: 1
+    burden_utility: 0.3
+    architecture_confidence_mod: 1
+  selection:
+    official_score: 0.58
+    lane_front_GOVERNING: 3
+    lane_front_score_component_axes_SENSITIVITY: 3
+    advancement: DOES_NOT_ADVANCE
+    sensitivity_class: n/a
+    profiles_moderate:
+      evidence_heavy_moderate: 0.58
+      architecture_leverage_moderate: 0.603
+      burden_averse_moderate: 0.535
+    profiles_strong:
+      evidence_heavy: 0.608
+      architecture_leverage: 0.6
+      burden_averse: 0.487
+    random_weight_pass_rate_SUPPLEMENTAL: 0.34
+- primitive_id: P13
+  name: multi-underlying linked position
+  architecture:
+    role: EXPRESSION
+    support_state: CONTRACT_CHANGE
+    researched_families:
+    - DP
+    reusable_family_count_RES001B_s3: 1
+    documented_dependency_reach_count_SENSITIVITY_ONLY: 1
+    reuse_confidence: HIGH
+    burden_effective_standalone: B4_FOUNDATIONAL
+    burden_intrinsic_once_HARD_deps_held: B4_FOUNDATIONAL
+    protected_contract_impact: ADDITIVE_PUBLIC (likely)
+    architecture_confidence: HIGH
+    architecture_unknowns: exact canonical linked-position contract
+  evidence:
+    legitimate_mapped_uses: []
+    unfavorable_mapped_uses:
+    - DP
+    return_transfer: NONE
+    evidence_utility_EU: 0.0
+    independent_credible_cluster_breadth: 0.0
+    credible_clusters: []
+  official_components:
+    EU: 0.0
+    breadth: 0.0
+    reuse_norm: 0.25
+    reuse_confidence_mod: 1
+    burden_utility: 0
+    architecture_confidence_mod: 1
+  selection:
+    official_score: 0.062
+    lane_front_GOVERNING: 7
+    lane_front_score_component_axes_SENSITIVITY: 7
+    advancement: DOES_NOT_ADVANCE
+    sensitivity_class: n/a
+    profiles_moderate:
+      evidence_heavy_moderate: 0.05
+      architecture_leverage_moderate: 0.087
+      burden_averse_moderate: 0.05
+    profiles_strong:
+      evidence_heavy: 0.037
+      architecture_leverage: 0.1
+      burden_averse: 0.037
+    random_weight_pass_rate_SUPPLEMENTAL: 0.0
+- primitive_id: P14
+  name: volatility futures position
+  architecture:
+    role: EXPRESSION
+    support_state: CONTRACT_CHANGE
+    researched_families:
+    - VX
+    reusable_family_count_RES001B_s3: 1
+    documented_dependency_reach_count_SENSITIVITY_ONLY: 1
+    reuse_confidence: HIGH
+    burden_effective_standalone: B4_FOUNDATIONAL
+    burden_intrinsic_once_HARD_deps_held: B4_FOUNDATIONAL
+    protected_contract_impact: IDENTITY_BEARING
+    architecture_confidence: HIGH
+    architecture_unknowns: provider/entitlement/model
+  evidence:
+    legitimate_mapped_uses:
+    - VX
+    unfavorable_mapped_uses: []
+    return_transfer: NONE
+    evidence_utility_EU: 0.6
+    independent_credible_cluster_breadth: 0.25
+    credible_clusters:
+    - C_VOL_TERM
+  official_components:
+    EU: 0.6
+    breadth: 0.25
+    reuse_norm: 0.25
+    reuse_confidence_mod: 1
+    burden_utility: 0
+    architecture_confidence_mod: 1
+  selection:
+    official_score: 0.31
+    lane_front_GOVERNING: 3
+    lane_front_score_component_axes_SENSITIVITY: 5
+    advancement: DOES_NOT_ADVANCE
+    sensitivity_class: n/a
+    profiles_moderate:
+      evidence_heavy_moderate: 0.34
+      architecture_leverage_moderate: 0.292
+      burden_averse_moderate: 0.255
+    profiles_strong:
+      evidence_heavy: 0.388
+      architecture_leverage: 0.275
+      burden_averse: 0.212
+    random_weight_pass_rate_SUPPLEMENTAL: 0.0
+- primitive_id: P15
+  name: box / synthetic
+  architecture:
+    role: EXPRESSION
+    support_state: CONTRACT_CHANGE
+    researched_families:
+    - AR
+    reusable_family_count_RES001B_s3: 1
+    documented_dependency_reach_count_SENSITIVITY_ONLY: 1
+    reuse_confidence: HIGH
+    burden_effective_standalone: B3_CROSS_CUTTING
+    burden_intrinsic_once_HARD_deps_held: B3_CROSS_CUTTING
+    protected_contract_impact: ADDITIVE_PUBLIC
+    architecture_confidence: HIGH
+    architecture_unknowns: financing/early-exercise fidelity
+  evidence:
+    legitimate_mapped_uses:
+    - AR
+    unfavorable_mapped_uses: []
+    return_transfer: NONE
+    evidence_utility_EU: 0.0-0.175
+    independent_credible_cluster_breadth: 0.0-0.25
+    credible_clusters:
+    - C_ARBITRAGE
+  official_components:
+    EU: 0.0-0.175
+    breadth: 0.0-0.25
+    reuse_norm: 0.25
+    reuse_confidence_mod: 1
+    burden_utility: 0.3
+    architecture_confidence_mod: 1
+  selection:
+    official_score: 0.138-0.236
+    lane_front_GOVERNING: 5
+    lane_front_score_component_axes_SENSITIVITY: 6
+    advancement: DOES_NOT_ADVANCE
+    sensitivity_class: n/a
+    profiles_moderate:
+      evidence_heavy_moderate: 0.11
+      architecture_leverage_moderate: 0.162
+      burden_averse_moderate: 0.17
+    profiles_strong:
+      evidence_heavy: 0.083
+      architecture_leverage: 0.175
+      burden_averse: 0.188
+    random_weight_pass_rate_SUPPLEMENTAL: 0.0
+- primitive_id: A01
+  name: per-contract IV and greeks
+  architecture:
+    role: DATA
+    support_state: NATIVE
+    researched_families:
+    - (all)
+    reusable_family_count_RES001B_s3: UNKNOWN (nearly all)
+    documented_dependency_reach_count_SENSITIVITY_ONLY: null
+    reuse_confidence: MEDIUM
+    burden_effective_standalone: B0_NATIVE
+    burden_intrinsic_once_HARD_deps_held: B0_NATIVE
+    protected_contract_impact: NONE
+    architecture_confidence: HIGH
+    architecture_unknowns: provider model differences
+  evidence:
+    legitimate_mapped_uses:
+    - PW
+    - CC
+    - SV
+    - DR
+    - VX
+    - TS
+    - XR
+    - XM
+    - XL
+    - EV
+    - OS
+    - AR
+    - CA
+    unfavorable_mapped_uses:
+    - US
+    - TH
+    - CL
+    - SK
+    - DP
+    - DX
+    return_transfer: NONE
+  selection:
+    status: BASELINE (NATIVE; not a candidate)
+- primitive_id: A02
+  name: delta-targeted strike selection
+  architecture:
+    role: ANALYTIC
+    support_state: NATIVE
+    researched_families:
+    - PW
+    - DR
+    - CC
+    reusable_family_count_RES001B_s3: 3
+    documented_dependency_reach_count_SENSITIVITY_ONLY: 3
+    reuse_confidence: HIGH
+    burden_effective_standalone: B0_NATIVE
+    burden_intrinsic_once_HARD_deps_held: B0_NATIVE
+    protected_contract_impact: NONE
+    architecture_confidence: HIGH
+    architecture_unknowns: provider-delta fidelity
+  evidence:
+    legitimate_mapped_uses:
+    - PW
+    - DR
+    - CC
+    unfavorable_mapped_uses: []
+    return_transfer: NONE
+  selection:
+    status: BASELINE (NATIVE; not a candidate)
+- primitive_id: A03
+  name: realized volatility
+  architecture:
+    role: ANALYTIC
+    support_state: NATIVE
+    researched_families:
+    - SV
+    - XR
+    - OS
+    reusable_family_count_RES001B_s3: 3
+    documented_dependency_reach_count_SENSITIVITY_ONLY: 3
+    reuse_confidence: HIGH
+    burden_effective_standalone: B0_NATIVE
+    burden_intrinsic_once_HARD_deps_held: B0_NATIVE
+    protected_contract_impact: NONE
+    architecture_confidence: HIGH
+    architecture_unknowns: adjusted/history entitlement at longer horizons
+  evidence:
+    legitimate_mapped_uses:
+    - SV
+    - XR
+    - OS
+    unfavorable_mapped_uses: []
+    return_transfer: NONE
+  selection:
+    status: BASELINE (NATIVE; not a candidate)
+- primitive_id: A04
+  name: IV-RV spread / VRP level
+  architecture:
+    role: ANALYTIC
+    support_state: NATIVE
+    researched_families:
+    - XR
+    - SV
+    reusable_family_count_RES001B_s3: 2
+    documented_dependency_reach_count_SENSITIVITY_ONLY: 2
+    reuse_confidence: HIGH
+    burden_effective_standalone: B0_NATIVE
+    burden_intrinsic_once_HARD_deps_held: B0_NATIVE
+    protected_contract_impact: NONE
+    architecture_confidence: HIGH
+    architecture_unknowns: historical replication availability
+  evidence:
+    legitimate_mapped_uses:
+    - XR
+    - SV
+    unfavorable_mapped_uses: []
+    return_transfer: NONE
+  selection:
+    status: BASELINE (NATIVE; not a candidate)
+- primitive_id: A05
+  name: term slope / implied forward vol
+  architecture:
+    role: ANALYTIC
+    support_state: NATIVE
+    researched_families:
+    - TS
+    - VX
+    - EV
+    reusable_family_count_RES001B_s3: 3
+    documented_dependency_reach_count_SENSITIVITY_ONLY: 3
+    reuse_confidence: HIGH
+    burden_effective_standalone: B0_NATIVE
+    burden_intrinsic_once_HARD_deps_held: B0_NATIVE
+    protected_contract_impact: NONE
+    architecture_confidence: HIGH
+    architecture_unknowns: []
+  evidence:
+    legitimate_mapped_uses:
+    - TS
+    - VX
+    - EV
+    unfavorable_mapped_uses: []
+    return_transfer: NONE
+  selection:
+    status: BASELINE (NATIVE; not a candidate)
+- primitive_id: A06
+  name: skew/smirk level and history
+  architecture:
+    role: ANALYTIC
+    support_state: EXTENSION
+    researched_families:
+    - OS
+    - SK
+    reusable_family_count_RES001B_s3: 2
+    documented_dependency_reach_count_SENSITIVITY_ONLY: 2
+    reuse_confidence: HIGH
+    burden_effective_standalone: B1_BOUNDED
+    burden_intrinsic_once_HARD_deps_held: B1_BOUNDED
+    protected_contract_impact: NONE
+    architecture_confidence: HIGH
+    architecture_unknowns: no historical backfill source
+  evidence:
+    legitimate_mapped_uses:
+    - OS
+    unfavorable_mapped_uses:
+    - SK
+    return_transfer: NONE
+    evidence_utility_EU: 0.64
+    independent_credible_cluster_breadth: 0.25
+    credible_clusters:
+    - C_OPTION_INFO
+  official_components:
+    EU: 0.64
+    breadth: 0.25
+    reuse_norm: 0.5
+    reuse_confidence_mod: 1
+    burden_utility: 0.8
+    architecture_confidence_mod: 1
+  selection:
+    official_score: 0.587
+    lane_front_GOVERNING: 1
+    lane_front_score_component_axes_SENSITIVITY: 1
+    advancement: ADVANCES
+    sensitivity_class: WEIGHT-SENSITIVE
+    profiles_moderate:
+      evidence_heavy_moderate: 0.566
+      architecture_leverage_moderate: 0.592
+      burden_averse_moderate: 0.637
+    profiles_strong:
+      evidence_heavy: 0.565
+      architecture_leverage: 0.585
+      burden_averse: 0.66
+    random_weight_pass_rate_SUPPLEMENTAL: 0.37
+- primitive_id: A07
+  name: model-free risk-neutral moments
+  architecture:
+    role: ANALYTIC
+    support_state: NEW_CAPABILITY
+    researched_families:
+    - OS
+    - XL
+    - SK
+    - SV
+    reusable_family_count_RES001B_s3: 4
+    documented_dependency_reach_count_SENSITIVITY_ONLY: 4
+    reuse_confidence: HIGH
+    burden_effective_standalone: B2_MATERIAL
+    burden_intrinsic_once_HARD_deps_held: B2_MATERIAL
+    protected_contract_impact: NONE (unless rate capability)
+    architecture_confidence: MEDIUM
+    architecture_unknowns: exact forward/rate methodology
+  evidence:
+    legitimate_mapped_uses:
+    - OS
+    - XL
+    - SV
+    unfavorable_mapped_uses:
+    - SK
+    return_transfer: NONE
+    evidence_utility_EU: 0.64
+    independent_credible_cluster_breadth: 0.75
+    credible_clusters:
+    - C_OPTION_INFO
+    - C_VRP_INDEX
+    - C_XS_OPTION_FACTORS
+  official_components:
+    EU: 0.64
+    breadth: 0.75
+    reuse_norm: 0.75
+    reuse_confidence_mod: 1
+    burden_utility: 0.6
+    architecture_confidence_mod: 0.9
+  selection:
+    official_score: 0.64
+    lane_front_GOVERNING: 1
+    lane_front_score_component_axes_SENSITIVITY: 1
+    advancement: ADVANCES
+    sensitivity_class: ROBUST
+    profiles_moderate:
+      evidence_heavy_moderate: 0.649
+      architecture_leverage_moderate: 0.638
+      burden_averse_moderate: 0.618
+    profiles_strong:
+      evidence_heavy: 0.652
+      architecture_leverage: 0.64
+      burden_averse: 0.606
+    random_weight_pass_rate_SUPPLEMENTAL: 0.98
+- primitive_id: A08
+  name: historical option-price panel
+  architecture:
+    role: DATA
+    support_state: CONTRACT_CHANGE
+    researched_families:
+    - XR
+    - XM
+    - XL
+    reusable_family_count_RES001B_s3: 3
+    documented_dependency_reach_count_SENSITIVITY_ONLY: 3
+    reuse_confidence: HIGH
+    burden_effective_standalone: B3_CROSS_CUTTING
+    burden_intrinsic_once_HARD_deps_held: B3_CROSS_CUTTING
+    protected_contract_impact: ADDITIVE_PUBLIC
+    architecture_confidence: HIGH
+    architecture_unknowns: provider, licensing, history depth, survivorship
+  evidence:
+    legitimate_mapped_uses:
+    - XR
+    - XM
+    - XL
+    unfavorable_mapped_uses: []
+    return_transfer: NONE
+    evidence_utility_EU: 0.8
+    independent_credible_cluster_breadth: 0.25
+    credible_clusters:
+    - C_XS_OPTION_FACTORS
+  official_components:
+    EU: 0.8
+    breadth: 0.25
+    reuse_norm: 0.75
+    reuse_confidence_mod: 1
+    burden_utility: 0.3
+    architecture_confidence_mod: 1
+  selection:
+    official_score: 0.58
+    lane_front_GOVERNING: 1
+    lane_front_score_component_axes_SENSITIVITY: 1
+    advancement: ADVANCES
+    sensitivity_class: WEIGHT-SENSITIVE
+    profiles_moderate:
+      evidence_heavy_moderate: 0.58
+      architecture_leverage_moderate: 0.603
+      burden_averse_moderate: 0.535
+    profiles_strong:
+      evidence_heavy: 0.608
+      architecture_leverage: 0.6
+      burden_averse: 0.487
+    random_weight_pass_rate_SUPPLEMENTAL: 0.34
+- primitive_id: A09
+  name: event calendar + expected move
+  architecture:
+    role: ANALYTIC
+    support_state: EXTENSION
+    researched_families:
+    - EV
+    - TS
+    reusable_family_count_RES001B_s3: 2
+    documented_dependency_reach_count_SENSITIVITY_ONLY: 2
+    reuse_confidence: HIGH
+    burden_effective_standalone: B1_BOUNDED
+    burden_intrinsic_once_HARD_deps_held: B1_BOUNDED
+    protected_contract_impact: NONE
+    architecture_confidence: HIGH
+    architecture_unknowns: expected-move definition
+  evidence:
+    legitimate_mapped_uses:
+    - EV
+    - TS
+    unfavorable_mapped_uses: []
+    return_transfer: NONE
+    evidence_utility_EU: 0.48
+    independent_credible_cluster_breadth: 0.5
+    credible_clusters:
+    - C_EVENT
+    - C_VOL_TERM
+  official_components:
+    EU: 0.48
+    breadth: 0.5
+    reuse_norm: 0.5
+    reuse_confidence_mod: 1
+    burden_utility: 0.8
+    architecture_confidence_mod: 1
+  selection:
+    official_score: 0.568
+    lane_front_GOVERNING: 2
+    lane_front_score_component_axes_SENSITIVITY: 1
+    advancement: DOES_NOT_ADVANCE
+    sensitivity_class: n/a
+    profiles_moderate:
+      evidence_heavy_moderate: 0.552
+      architecture_leverage_moderate: 0.569
+      burden_averse_moderate: 0.614
+    profiles_strong:
+      evidence_heavy: 0.535
+      architecture_leverage: 0.57
+      burden_averse: 0.645
+    random_weight_pass_rate_SUPPLEMENTAL: 0.37
+- primitive_id: A10
+  name: borrow fee / short-sale constraint
+  architecture:
+    role: DATA
+    support_state: CONTRACT_CHANGE
+    researched_families:
+    - OS
+    - XR
+    reusable_family_count_RES001B_s3: 2
+    documented_dependency_reach_count_SENSITIVITY_ONLY: 2
+    reuse_confidence: HIGH
+    burden_effective_standalone: B3_CROSS_CUTTING
+    burden_intrinsic_once_HARD_deps_held: B3_CROSS_CUTTING
+    protected_contract_impact: ADDITIVE_PUBLIC
+    architecture_confidence: HIGH
+    architecture_unknowns: provider availability/licensing
+  evidence:
+    legitimate_mapped_uses:
+    - OS
+    - XR
+    unfavorable_mapped_uses: []
+    return_transfer: NONE
+    evidence_utility_EU: 0.8
+    independent_credible_cluster_breadth: 0.5
+    credible_clusters:
+    - C_OPTION_INFO
+    - C_XS_OPTION_FACTORS
+  official_components:
+    EU: 0.8
+    breadth: 0.5
+    reuse_norm: 0.5
+    reuse_confidence_mod: 1
+    burden_utility: 0.3
+    architecture_confidence_mod: 1
+  selection:
+    official_score: 0.555
+    lane_front_GOVERNING: 2
+    lane_front_score_component_axes_SENSITIVITY: 1
+    advancement: DOES_NOT_ADVANCE
+    sensitivity_class: n/a
+    profiles_moderate:
+      evidence_heavy_moderate: 0.58
+      architecture_leverage_moderate: 0.54
+      burden_averse_moderate: 0.51
+    profiles_strong:
+      evidence_heavy: 0.62
+      architecture_leverage: 0.525
+      burden_averse: 0.475
+    random_weight_pass_rate_SUPPLEMENTAL: 0.24
+- primitive_id: A11
+  name: signed/open-close option volume
+  architecture:
+    role: DATA
+    support_state: CONTRACT_CHANGE
+    researched_families:
+    - OS
+    - XR
+    reusable_family_count_RES001B_s3: 2
+    documented_dependency_reach_count_SENSITIVITY_ONLY: 2
+    reuse_confidence: HIGH
+    burden_effective_standalone: B3_CROSS_CUTTING
+    burden_intrinsic_once_HARD_deps_held: B3_CROSS_CUTTING
+    protected_contract_impact: ADDITIVE_PUBLIC
+    architecture_confidence: HIGH
+    architecture_unknowns: provider classification methodology
+  evidence:
+    legitimate_mapped_uses:
+    - OS
+    - XR
+    unfavorable_mapped_uses: []
+    return_transfer: NONE
+    evidence_utility_EU: 0.8
+    independent_credible_cluster_breadth: 0.5
+    credible_clusters:
+    - C_OPTION_INFO
+    - C_XS_OPTION_FACTORS
+  official_components:
+    EU: 0.8
+    breadth: 0.5
+    reuse_norm: 0.5
+    reuse_confidence_mod: 1
+    burden_utility: 0.3
+    architecture_confidence_mod: 1
+  selection:
+    official_score: 0.555
+    lane_front_GOVERNING: 2
+    lane_front_score_component_axes_SENSITIVITY: 1
+    advancement: DOES_NOT_ADVANCE
+    sensitivity_class: n/a
+    profiles_moderate:
+      evidence_heavy_moderate: 0.58
+      architecture_leverage_moderate: 0.54
+      burden_averse_moderate: 0.51
+    profiles_strong:
+      evidence_heavy: 0.62
+      architecture_leverage: 0.525
+      burden_averse: 0.475
+    random_weight_pass_rate_SUPPLEMENTAL: 0.24
+- primitive_id: A12
+  name: liquidity/effective-spread measurement
+  architecture:
+    role: QUALITY_INFRASTRUCTURE
+    support_state: EXTENSION
+    researched_families:
+    - (all)
+    reusable_family_count_RES001B_s3: 19
+    documented_dependency_reach_count_SENSITIVITY_ONLY: 19
+    reuse_confidence: MEDIUM
+    burden_effective_standalone: B1_BOUNDED
+    burden_intrinsic_once_HARD_deps_held: B1_BOUNDED
+    protected_contract_impact: NONE
+    architecture_confidence: HIGH
+    architecture_unknowns: true effective spread may require trade data
+  evidence:
+    legitimate_mapped_uses:
+    - PW
+    - CC
+    - SV
+    - DR
+    - VX
+    - TS
+    - XR
+    - XM
+    - XL
+    - EV
+    - OS
+    - AR
+    - CA
+    unfavorable_mapped_uses:
+    - US
+    - TH
+    - CL
+    - SK
+    - DP
+    - DX
+    return_transfer: NONE
+    evidence_utility_EU: 0.8
+    independent_credible_cluster_breadth: 1
+    credible_clusters:
+    - C_ARBITRAGE
+    - C_CROSS_ASSET
+    - C_EVENT
+    - C_OPTION_INFO
+    - C_VOL_TERM
+    - C_VRP_INDEX
+    - C_XS_OPTION_FACTORS
+  official_components:
+    EU: 0.8
+    breadth: 1
+    reuse_norm: 1
+    reuse_confidence_mod: 0.9
+    burden_utility: 0.8
+    architecture_confidence_mod: 1
+  selection:
+    official_score: 0.855
+    lane_front_GOVERNING: 1
+    lane_front_score_component_axes_SENSITIVITY: 1
+    advancement: ADVANCES
+    sensitivity_class: ROBUST
+    profiles_moderate:
+      evidence_heavy_moderate: 0.86
+      architecture_leverage_moderate: 0.855
+      burden_averse_moderate: 0.84
+    profiles_strong:
+      evidence_heavy: 0.855
+      architecture_leverage: 0.86
+      burden_averse: 0.835
+    random_weight_pass_rate_SUPPLEMENTAL: 1.0
+- primitive_id: A13
+  name: cross-sectional ranking
+  architecture:
+    role: ANALYTIC
+    support_state: NATIVE
+    researched_families:
+    - XR
+    - XM
+    - XL
+    - OS
+    reusable_family_count_RES001B_s3: 4
+    documented_dependency_reach_count_SENSITIVITY_ONLY: 4
+    reuse_confidence: HIGH
+    burden_effective_standalone: B0_NATIVE
+    burden_intrinsic_once_HARD_deps_held: B0_NATIVE
+    protected_contract_impact: NONE
+    architecture_confidence: HIGH
+    architecture_unknowns: []
+  evidence:
+    legitimate_mapped_uses:
+    - XR
+    - XM
+    - XL
+    - OS
+    unfavorable_mapped_uses: []
+    return_transfer: NONE
+  selection:
+    status: BASELINE (NATIVE; not a candidate)
+- primitive_id: A14
+  name: dynamic delta-hedge simulation
+  architecture:
+    role: ANALYTIC
+    support_state: NEW_CAPABILITY
+    researched_families:
+    - SV
+    - XR
+    - SK
+    - DP
+    reusable_family_count_RES001B_s3: 4
+    documented_dependency_reach_count_SENSITIVITY_ONLY: 4
+    reuse_confidence: HIGH
+    burden_effective_standalone: B3_CROSS_CUTTING
+    burden_intrinsic_once_HARD_deps_held: B3_CROSS_CUTTING
+    protected_contract_impact: NONE (if analytical)
+    architecture_confidence: MEDIUM
+    architecture_unknowns: slippage/fill/hedge trigger assumptions
+  evidence:
+    legitimate_mapped_uses:
+    - SV
+    - XR
+    unfavorable_mapped_uses:
+    - SK
+    - DP
+    return_transfer: NONE
+    evidence_utility_EU: 0.8
+    independent_credible_cluster_breadth: 0.5
+    credible_clusters:
+    - C_VRP_INDEX
+    - C_XS_OPTION_FACTORS
+  official_components:
+    EU: 0.8
+    breadth: 0.5
+    reuse_norm: 0.75
+    reuse_confidence_mod: 1
+    burden_utility: 0.3
+    architecture_confidence_mod: 0.9
+  selection:
+    official_score: 0.591
+    lane_front_GOVERNING: 2
+    lane_front_score_component_axes_SENSITIVITY: 1
+    advancement: ADVANCES
+    sensitivity_class: WEIGHT-SENSITIVE
+    profiles_moderate:
+      evidence_heavy_moderate: 0.609
+      architecture_leverage_moderate: 0.594
+      burden_averse_moderate: 0.533
+    profiles_strong:
+      evidence_heavy: 0.642
+      architecture_leverage: 0.588
+      burden_averse: 0.486
+    random_weight_pass_rate_SUPPLEMENTAL: 0.44
+- primitive_id: A15
+  name: generalized margin/capital model
+  architecture:
+    role: ANALYTIC
+    support_state: NEW_CAPABILITY
+    researched_families:
+    - PW
+    - SV
+    - VX
+    reusable_family_count_RES001B_s3: 3
+    documented_dependency_reach_count_SENSITIVITY_ONLY: 3
+    reuse_confidence: HIGH
+    burden_effective_standalone: B3_CROSS_CUTTING
+    burden_intrinsic_once_HARD_deps_held: B3_CROSS_CUTTING
+    protected_contract_impact: UNKNOWN
+    architecture_confidence: HIGH
+    architecture_unknowns: broker-independent rule source; futures margin
+  evidence:
+    legitimate_mapped_uses:
+    - PW
+    - SV
+    - VX
+    unfavorable_mapped_uses: []
+    return_transfer: NONE
+    evidence_utility_EU: 0.8
+    independent_credible_cluster_breadth: 0.5
+    credible_clusters:
+    - C_VOL_TERM
+    - C_VRP_INDEX
+  official_components:
+    EU: 0.8
+    breadth: 0.5
+    reuse_norm: 0.75
+    reuse_confidence_mod: 1
+    burden_utility: 0.3
+    architecture_confidence_mod: 1
+  selection:
+    official_score: 0.618
+    lane_front_GOVERNING: 1
+    lane_front_score_component_axes_SENSITIVITY: 1
+    advancement: ADVANCES
+    sensitivity_class: WEIGHT-SENSITIVE
+    profiles_moderate:
+      evidence_heavy_moderate: 0.63
+      architecture_leverage_moderate: 0.627
+      burden_averse_moderate: 0.56
+    profiles_strong:
+      evidence_heavy: 0.657
+      architecture_leverage: 0.625
+      burden_averse: 0.512
+    random_weight_pass_rate_SUPPLEMENTAL: 0.55
+- primitive_id: A16
+  name: index weights + implied correlation
+  architecture:
+    role: ANALYTIC
+    support_state: CONTRACT_CHANGE
+    researched_families:
+    - DP
+    reusable_family_count_RES001B_s3: 1
+    documented_dependency_reach_count_SENSITIVITY_ONLY: 1
+    reuse_confidence: HIGH
+    burden_effective_standalone: B4_FOUNDATIONAL
+    burden_intrinsic_once_HARD_deps_held: B3_CROSS_CUTTING
+    protected_contract_impact: ADDITIVE_PUBLIC
+    architecture_confidence: HIGH
+    architecture_unknowns: point-in-time weights/provider
+  evidence:
+    legitimate_mapped_uses: []
+    unfavorable_mapped_uses:
+    - DP
+    return_transfer: NONE
+    evidence_utility_EU: 0.0
+    independent_credible_cluster_breadth: 0.0
+    credible_clusters: []
+  official_components:
+    EU: 0.0
+    breadth: 0.0
+    reuse_norm: 0.25
+    reuse_confidence_mod: 1
+    burden_utility: 0
+    architecture_confidence_mod: 1
+  selection:
+    official_score: 0.062
+    lane_front_GOVERNING: 4
+    lane_front_score_component_axes_SENSITIVITY: 3
+    advancement: DOES_NOT_ADVANCE
+    sensitivity_class: n/a
+    profiles_moderate:
+      evidence_heavy_moderate: 0.05
+      architecture_leverage_moderate: 0.087
+      burden_averse_moderate: 0.05
+    profiles_strong:
+      evidence_heavy: 0.037
+      architecture_leverage: 0.1
+      burden_averse: 0.037
+    random_weight_pass_rate_SUPPLEMENTAL: 0.0
+- primitive_id: A17
+  name: per-name option-return history
+  architecture:
+    role: ANALYTIC
+    support_state: NEW_CAPABILITY
+    researched_families:
+    - XM
+    reusable_family_count_RES001B_s3: 1
+    documented_dependency_reach_count_SENSITIVITY_ONLY: 1
+    reuse_confidence: HIGH
+    burden_effective_standalone: B3_CROSS_CUTTING
+    burden_intrinsic_once_HARD_deps_held: B2_MATERIAL
+    protected_contract_impact: NONE
+    architecture_confidence: HIGH
+    architecture_unknowns: required 6-36 month depth
+  evidence:
+    legitimate_mapped_uses:
+    - XM
+    unfavorable_mapped_uses: []
+    return_transfer: NONE
+    evidence_utility_EU: 0.225
+    independent_credible_cluster_breadth: 0.25
+    credible_clusters:
+    - C_XS_OPTION_FACTORS
+  official_components:
+    EU: 0.225
+    breadth: 0.25
+    reuse_norm: 0.25
+    reuse_confidence_mod: 1
+    burden_utility: 0.3
+    architecture_confidence_mod: 1
+  selection:
+    official_score: 0.254
+    lane_front_GOVERNING: 3
+    lane_front_score_component_axes_SENSITIVITY: 2
+    advancement: DOES_NOT_ADVANCE
+    sensitivity_class: n/a
+    profiles_moderate:
+      evidence_heavy_moderate: 0.25
+      architecture_leverage_moderate: 0.255
+      burden_averse_moderate: 0.262
+    profiles_strong:
+      evidence_heavy: 0.245
+      architecture_leverage: 0.256
+      burden_averse: 0.269
+    random_weight_pass_rate_SUPPLEMENTAL: 0.0
+- primitive_id: X01
+  name: index-option identity/root/settlement
+  architecture:
+    role: ENABLING_CONTRACT
+    support_state: CONTRACT_CHANGE
+    researched_families:
+    - PW
+    - CC
+    - SV
+    - DR
+    - US
+    - SK
+    - DP
+    reusable_family_count_RES001B_s3: n/a
+    enabling_reuse_count: 7
+    x01_hard_for:
+    - PW
+    - CC
+    - SV
+    - US
+    - SK
+    - DP
+    x01_conditional_for:
+    - DR
+    documented_dependency_reach_count_SENSITIVITY_ONLY: 6
+    reuse_confidence: HIGH
+    burden_effective_standalone: B4_FOUNDATIONAL
+    burden_intrinsic_once_HARD_deps_held: B4_FOUNDATIONAL
+    protected_contract_impact: IDENTITY_BEARING
+    architecture_confidence: HIGH
+    architecture_unknowns: Tradier root/entitlement unverified
+  evidence:
+    legitimate_mapped_uses:
+    - PW
+    - CC
+    - SV
+    - DR
+    unfavorable_mapped_uses:
+    - US
+    - SK
+    - DP
+    return_transfer: NONE
+    evidence_utility_EU: 0.8
+    independent_credible_cluster_breadth: 0.25
+    credible_clusters:
+    - C_VRP_INDEX
+  official_components:
+    EU: 0.8
+    breadth: 0.25
+    reuse_norm: 1
+    reuse_confidence_mod: 1
+    burden_utility: 0
+    architecture_confidence_mod: 1
+  selection:
+    official_score: 0.568
+    lane_front_GOVERNING: 1
+    lane_front_score_component_axes_SENSITIVITY: 1
+    advancement: ADVANCES_CONDITIONALLY
+    sensitivity_class: CONDITIONAL_ENABLER (burden-sensitive)
+    profiles_moderate:
+      evidence_heavy_moderate: 0.57
+      architecture_leverage_moderate: 0.615
+      burden_averse_moderate: 0.465
+    profiles_strong:
+      evidence_heavy: 0.6
+      architecture_leverage: 0.625
+      burden_averse: 0.375
+    random_weight_pass_rate_SUPPLEMENTAL: 0.37
+- primitive_id: X02a
+  name: live intraday index-option chain (after X01)
+  architecture:
+    role: DATA
+    support_state: EXTENSION
+    researched_families:
+    - US
+    reusable_family_count_RES001B_s3: n/a
+    enabling_reuse_count: 1
+    documented_dependency_reach_count_SENSITIVITY_ONLY: 1
+    reuse_confidence: HIGH
+    burden_effective_standalone: B4_FOUNDATIONAL
+    burden_intrinsic_once_HARD_deps_held: B1_BOUNDED
+    protected_contract_impact: NONE
+    architecture_confidence: MEDIUM
+    architecture_unknowns: provider entitlement, roots, cadence, rate limits
+  evidence:
+    legitimate_mapped_uses: []
+    unfavorable_mapped_uses:
+    - US
+    return_transfer: NONE
+    evidence_utility_EU: 0.0
+    independent_credible_cluster_breadth: 0.0
+    credible_clusters: []
+  official_components:
+    EU: 0.0
+    breadth: 0.0
+    reuse_norm: 0.25
+    reuse_confidence_mod: 1
+    burden_utility: 0
+    architecture_confidence_mod: 0.9
+  selection:
+    official_score: 0.056
+    lane_front_GOVERNING: 4
+    lane_front_score_component_axes_SENSITIVITY: 3
+    advancement: DOES_NOT_ADVANCE
+    sensitivity_class: n/a
+    profiles_moderate:
+      evidence_heavy_moderate: 0.045
+      architecture_leverage_moderate: 0.079
+      burden_averse_moderate: 0.045
+    profiles_strong:
+      evidence_heavy: 0.034
+      architecture_leverage: 0.09
+      burden_averse: 0.034
+    random_weight_pass_rate_SUPPLEMENTAL: 0.0
+- primitive_id: X02b
+  name: historical intraday index-option panel
+  architecture:
+    role: DATA
+    support_state: CONTRACT_CHANGE
+    researched_families:
+    - US
+    reusable_family_count_RES001B_s3: n/a
+    enabling_reuse_count: 1
+    documented_dependency_reach_count_SENSITIVITY_ONLY: 1
+    reuse_confidence: HIGH
+    burden_effective_standalone: B3_CROSS_CUTTING
+    burden_intrinsic_once_HARD_deps_held: B3_CROSS_CUTTING
+    protected_contract_impact: ADDITIVE_PUBLIC
+    architecture_confidence: HIGH
+    architecture_unknowns: provider/licensing
+  evidence:
+    legitimate_mapped_uses: []
+    unfavorable_mapped_uses:
+    - US
+    return_transfer: NONE
+    evidence_utility_EU: 0.0
+    independent_credible_cluster_breadth: 0.0
+    credible_clusters: []
+  official_components:
+    EU: 0.0
+    breadth: 0.0
+    reuse_norm: 0.25
+    reuse_confidence_mod: 1
+    burden_utility: 0.3
+    architecture_confidence_mod: 1
+  selection:
+    official_score: 0.138
+    lane_front_GOVERNING: 3
+    lane_front_score_component_axes_SENSITIVITY: 2
+    advancement: DOES_NOT_ADVANCE
+    sensitivity_class: n/a
+    profiles_moderate:
+      evidence_heavy_moderate: 0.11
+      architecture_leverage_moderate: 0.162
+      burden_averse_moderate: 0.17
+    profiles_strong:
+      evidence_heavy: 0.083
+      architecture_leverage: 0.175
+      burden_averse: 0.188
+    random_weight_pass_rate_SUPPLEMENTAL: 0.0
+- primitive_id: X03
+  name: non-equity option market support
+  architecture:
+    role: ENABLING_CONTRACT
+    support_state: CONTRACT_CHANGE
+    researched_families:
+    - CA
+    reusable_family_count_RES001B_s3: n/a
+    enabling_reuse_count: 1
+    documented_dependency_reach_count_SENSITIVITY_ONLY: 1
+    reuse_confidence: HIGH
+    burden_effective_standalone: B4_FOUNDATIONAL
+    burden_intrinsic_once_HARD_deps_held: B4_FOUNDATIONAL
+    protected_contract_impact: IDENTITY_BEARING
+    architecture_confidence: HIGH
+    architecture_unknowns: provider semantics; underlying identity
+  evidence:
+    legitimate_mapped_uses:
+    - CA
+    unfavorable_mapped_uses: []
+    return_transfer: NONE
+    evidence_utility_EU: 0.3
+    independent_credible_cluster_breadth: 0.25
+    credible_clusters:
+    - C_CROSS_ASSET
+  official_components:
+    EU: 0.3
+    breadth: 0.25
+    reuse_norm: 0.25
+    reuse_confidence_mod: 1
+    burden_utility: 0
+    architecture_confidence_mod: 1
+  selection:
+    official_score: 0.205
+    lane_front_GOVERNING: 2
+    lane_front_score_component_axes_SENSITIVITY: 2
+    advancement: DOES_NOT_ADVANCE
+    sensitivity_class: n/a
+    profiles_moderate:
+      evidence_heavy_moderate: 0.22
+      architecture_leverage_moderate: 0.202
+      burden_averse_moderate: 0.165
+    profiles_strong:
+      evidence_heavy: 0.237
+      architecture_leverage: 0.2
+      burden_averse: 0.138
+    random_weight_pass_rate_SUPPLEMENTAL: 0.0
+- primitive_id: X04
+  name: risk-free rate / discount-curve fact
+  architecture:
+    role: DATA
+    support_state: CONTRACT_CHANGE
+    researched_families:
+    - AR
+    reusable_family_count_RES001B_s3: n/a
+    enabling_reuse_count: 1
+    documented_dependency_reach_count_SENSITIVITY_ONLY: 1
+    reuse_confidence: HIGH
+    burden_effective_standalone: B3_CROSS_CUTTING
+    burden_intrinsic_once_HARD_deps_held: B3_CROSS_CUTTING
+    protected_contract_impact: ADDITIVE_PUBLIC
+    architecture_confidence: MEDIUM
+    architecture_unknowns: whether parity-implied rates suffice per methodology
+  evidence:
+    legitimate_mapped_uses:
+    - AR
+    unfavorable_mapped_uses: []
+    return_transfer: NONE
+    evidence_utility_EU: 0.0-0.175
+    independent_credible_cluster_breadth: 0.0-0.25
+    credible_clusters:
+    - C_ARBITRAGE
+  official_components:
+    EU: 0.0-0.175
+    breadth: 0.0-0.25
+    reuse_norm: 0.25
+    reuse_confidence_mod: 1
+    burden_utility: 0.3
+    architecture_confidence_mod: 0.9
+  selection:
+    official_score: 0.124-0.223
+    lane_front_GOVERNING: 3
+    lane_front_score_component_axes_SENSITIVITY: 2
+    advancement: DOES_NOT_ADVANCE
+    sensitivity_class: n/a
+    profiles_moderate:
+      evidence_heavy_moderate: 0.099
+      architecture_leverage_moderate: 0.146
+      burden_averse_moderate: 0.153
+    profiles_strong:
+      evidence_heavy: 0.074
+      architecture_leverage: 0.158
+      burden_averse: 0.169
+    random_weight_pass_rate_SUPPLEMENTAL: 0.0
+bundles:
+  PW:
+    family: PUTWRITE
+    family_direction: QUALIFIED
+    members:
     - X01
-    - P03
-    marginal:
+    - P01
+    marginal_burden:
     - primitive: X01
-      marginal_burden: B4
-    - primitive: P03
-      marginal_burden: B3
-    max_marginal: B4
-    contract_primitives:
-    - P03
+      burden: B4_FOUNDATIONAL
+    - primitive: P01
+      burden: B3_CROSS_CUTTING
+    mean_member_official_score: 0.593
+    advances: true
+    reason: advances
+  CC:
+    family: COVERED-CALL
+    family_direction: QUALIFIED
+    members:
     - X01
-    faithful:
-    - SV
-    faithful_credible:
-    - SV
-    replication_needs: {}
-  K-XS-STRUCT:
-    order:
+    - P09
+    marginal_burden:
+    - primitive: X01
+      burden: B4_FOUNDATIONAL
+    - primitive: P09
+      burden: B3_CROSS_CUTTING
+    mean_member_official_score: 0.574
+    advances: true
+    reason: advances
+  SV:
+    family: SHORT-VOL
+    family_direction: QUALIFIED
+    members:
+    - X01
     - P03
-    - P12
-    marginal:
+    marginal_burden:
+    - primitive: X01
+      burden: B4_FOUNDATIONAL
     - primitive: P03
-      marginal_burden: B3
-    - primitive: P12
-      marginal_burden: B3
-    max_marginal: B3
-    contract_primitives:
+      burden: B3_CROSS_CUTTING
+    mean_member_official_score: 0.611
+    advances: true
+    reason: advances
+  EV:
+    family: EVENT-VOL
+    family_direction: QUALIFIED
+    members:
     - P03
-    faithful:
-    - TS
-    faithful_credible:
-    - TS
-    replication_needs:
-      TS: A08
-  K-XS-STRUCT+RN:
-    order:
-    - P03
-    - P12
+    - A09
+    marginal_burden:
+    - primitive: P03
+      burden: B3_CROSS_CUTTING
+    - primitive: A09
+      burden: B1_BOUNDED
+    mean_member_official_score: 0.612
+    advances: true
+    reason: advances
+  OS:
+    family: OPTION-SIGNAL
+    family_direction: QUALIFIED
+    members:
     - A07
-    marginal:
-    - primitive: P03
-      marginal_burden: B3
-    - primitive: P12
-      marginal_burden: B3
+    - A10
+    - A11
+    marginal_burden:
     - primitive: A07
-      marginal_burden: B2
-    max_marginal: B3
-    contract_primitives:
-    - P03
-    faithful:
-    - TS
-    - XL
-    faithful_credible:
-    - TS
-    - XL
-    replication_needs:
-      TS: A08
-      XL: A08
-  K-XS-HIST:
-    order:
-    - P03
-    - P12
+      burden: B2_MATERIAL
+    - primitive: A10
+      burden: B3_CROSS_CUTTING
+    - primitive: A11
+      burden: B3_CROSS_CUTTING
+    mean_member_official_score: 0.583
+    advances: true
+    reason: advances
+  XR:
+    family: XS-OPTION-RETURNS
+    family_direction: FAVORABLE_QUALIFIED
+    members:
     - A08
-    - A17
-    marginal:
-    - primitive: P03
-      marginal_burden: B3
-    - primitive: P12
-      marginal_burden: B3
+    - P12
+    - A14
+    - P10
+    marginal_burden:
     - primitive: A08
-      marginal_burden: B3
-    - primitive: A17
-      marginal_burden: B2
-    max_marginal: B3
-    contract_primitives:
-    - A08
-    - P03
-    faithful:
-    - TS
-    - XM
-    faithful_credible:
-    - TS
-    - XM
-    replication_needs:
-      TS: A08
-  K-HEDGE:
-    order:
-    - A14
-    - P10
-    marginal:
+      burden: B3_CROSS_CUTTING
+    - primitive: P12
+      burden: B3_CROSS_CUTTING
     - primitive: A14
-      marginal_burden: B3
+      burden: B3_CROSS_CUTTING
     - primitive: P10
-      marginal_burden: B3
-    max_marginal: B3
-    contract_primitives:
-    - P10
-    faithful: []
-    faithful_credible: []
-    replication_needs: {}
-  K-XS+HEDGE:
-    order:
+      burden: B3_CROSS_CUTTING
+    mean_member_official_score: 0.569
+    advances: true
+    reason: advances
+  VX:
+    family: VIX-CARRY
+    family_direction: QUALIFIED
+    members:
+    - P14
+    marginal_burden:
+    - primitive: P14
+      burden: B4_FOUNDATIONAL
+    mean_member_official_score: 0.31
+    advances: false
+    reason: mean member score < 0.55
+  DR:
+    family: DEFINED-RISK
+    family_direction: UNRESOLVED
+    members:
+    - X01
+    - P05
+    marginal_burden:
+    - primitive: X01
+      burden: B4_FOUNDATIONAL
+    - primitive: P05
+      burden: B3_CROSS_CUTTING
+    mean_member_official_score: 0.438
+    advances: false
+    reason: family direction not FAVORABLE_QUALIFIED/QUALIFIED
+  TS:
+    family: TERM-STRUCTURE
+    family_direction: UNRESOLVED
+    members:
     - P03
     - P12
-    - A14
-    - P10
-    marginal:
+    marginal_burden:
     - primitive: P03
-      marginal_burden: B3
+      burden: B3_CROSS_CUTTING
     - primitive: P12
-      marginal_burden: B3
-    - primitive: A14
-      marginal_burden: B3
-    - primitive: P10
-      marginal_burden: B3
-    max_marginal: B3
-    contract_primitives:
+      burden: B3_CROSS_CUTTING
+    mean_member_official_score: 0.618
+    advances: false
+    reason: family direction not FAVORABLE_QUALIFIED/QUALIFIED
+  XL:
+    family: XS-LOTTERY
+    family_direction: UNRESOLVED
+    members:
+    - A08
+    - P12
     - P03
-    - P10
-    faithful:
-    - TS
-    - XR
-    faithful_credible:
-    - TS
-    - XR
-    replication_needs:
-      TS: A08
-      XR: A08
-  K-VOLSTRUCT:
-    order:
-    - P03
-    - P04
-    marginal:
+    - A07
+    marginal_burden:
+    - primitive: A08
+      burden: B3_CROSS_CUTTING
+    - primitive: P12
+      burden: B3_CROSS_CUTTING
     - primitive: P03
-      marginal_burden: B3
-    - primitive: P04
-      marginal_burden: B3
-    max_marginal: B3
-    contract_primitives:
+      burden: B3_CROSS_CUTTING
+    - primitive: A07
+      burden: B2_MATERIAL
+    mean_member_official_score: 0.614
+    advances: false
+    reason: family direction not FAVORABLE_QUALIFIED/QUALIFIED
+  XM:
+    family: XS-OPTION-MOMENTUM
+    family_direction: UNRESOLVED
+    members:
+    - A08
+    - P12
     - P03
-    - P04
-    faithful: []
-    faithful_credible: []
-    replication_needs: {}
+    - A17
+    marginal_burden:
+    - primitive: A08
+      burden: B3_CROSS_CUTTING
+    - primitive: P12
+      burden: B3_CROSS_CUTTING
+    - primitive: P03
+      burden: B3_CROSS_CUTTING
+    - primitive: A17
+      burden: B2_MATERIAL
+    mean_member_official_score: 0.517
+    advances: false
+    reason: family direction not FAVORABLE_QUALIFIED/QUALIFIED
+  CL:
+    family: COLLAR
+    family_direction: UNFAVORABLE
+    members:
+    - P09
+    marginal_burden:
+    - primitive: P09
+      burden: B3_CROSS_CUTTING
+    mean_member_official_score: 0.58
+    advances: false
+    reason: family direction not FAVORABLE_QUALIFIED/QUALIFIED
+  TH:
+    family: TAIL-HEDGE
+    family_direction: UNFAVORABLE
+    members:
+    - X01
+    - P09
+    marginal_burden:
+    - primitive: X01
+      burden: B4_FOUNDATIONAL
+    - primitive: P09
+      burden: B3_CROSS_CUTTING
+    mean_member_official_score: 0.574
+    advances: false
+    reason: family direction not FAVORABLE_QUALIFIED/QUALIFIED
+  US:
+    family: ULTRA-SHORT
+    family_direction: UNFAVORABLE
+    members:
+    - X01
+    - P05
+    - X02a
+    marginal_burden:
+    - primitive: X01
+      burden: B4_FOUNDATIONAL
+    - primitive: P05
+      burden: B3_CROSS_CUTTING
+    - primitive: X02a
+      burden: B1_BOUNDED
+    mean_member_official_score: 0.31
+    advances: false
+    reason: family direction not FAVORABLE_QUALIFIED/QUALIFIED
+  SK:
+    family: SKEW-PREMIUM
+    family_direction: UNFAVORABLE
+    members:
+    - X01
+    - P10
+    - A14
+    - P11
+    - A07
+    marginal_burden:
+    - primitive: X01
+      burden: B4_FOUNDATIONAL
+    - primitive: P10
+      burden: B4_FOUNDATIONAL
+    - primitive: A14
+      burden: B3_CROSS_CUTTING
+    - primitive: P11
+      burden: B3_CROSS_CUTTING
+    - primitive: A07
+      burden: B2_MATERIAL
+    mean_member_official_score: 0.577
+    advances: false
+    reason: family direction not FAVORABLE_QUALIFIED/QUALIFIED
+  DP:
+    family: DISPERSION
+    family_direction: UNFAVORABLE
+    members:
+    - X01
+    - P13
+    - P10
+    - A14
+    - A16
+    marginal_burden:
+    - primitive: X01
+      burden: B4_FOUNDATIONAL
+    - primitive: P13
+      burden: B4_FOUNDATIONAL
+    - primitive: P10
+      burden: B4_FOUNDATIONAL
+    - primitive: A14
+      burden: B3_CROSS_CUTTING
+    - primitive: A16
+      burden: B3_CROSS_CUTTING
+    mean_member_official_score: 0.361
+    advances: false
+    reason: family direction not FAVORABLE_QUALIFIED/QUALIFIED
+  AR:
+    family: ARBITRAGE
+    family_direction: UNRESOLVED
+    members:
+    - P15
+    - X04
+    marginal_burden:
+    - primitive: P15
+      burden: B3_CROSS_CUTTING
+    - primitive: X04
+      burden: B3_CROSS_CUTTING
+    mean_member_official_score: 0.131
+    advances: false
+    reason: family direction not FAVORABLE_QUALIFIED/QUALIFIED
+  CA:
+    family: CROSS-ASSET-VRP
+    family_direction: UNRESOLVED
+    members:
+    - X03
+    - P01
+    marginal_burden:
+    - primitive: X03
+      burden: B4_FOUNDATIONAL
+    - primitive: P01
+      burden: B3_CROSS_CUTTING
+    mean_member_official_score: 0.411
+    advances: false
+    reason: family direction not FAVORABLE_QUALIFIED/QUALIFIED
+  DX:
+    family: DIRECTIONAL
+    family_direction: UNFAVORABLE
+    members:
+    - P01
+    marginal_burden:
+    - primitive: P01
+      burden: B3_CROSS_CUTTING
+    mean_member_official_score: 0.618
+    advances: false
+    reason: family direction not FAVORABLE_QUALIFIED/QUALIFIED
