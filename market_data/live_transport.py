@@ -40,13 +40,18 @@ _TRADIER_BASE_URLS = {
 }
 _FINNHUB_BASE_URL = "https://finnhub.io"
 _ALPHA_VANTAGE_BASE_URL = "https://www.alphavantage.co"
+_US_TREASURY_BASE_URL = "https://home.treasury.gov"
+# Non-JSON (XML) public feeds are carried as bounded text for the adapter to
+# parse; the transport never interprets them.
+_MAX_TEXT_BODY_BYTES = 4_000_000
 
 
 class UrllibReadOnlyHttpTransport:
     """One instance per provider; the base URL is fixed at construction time."""
 
-    def __init__(self, base_urls: dict[str, str]) -> None:
+    def __init__(self, base_urls: dict[str, str], *, text_body: bool = False) -> None:
         self._base_urls = dict(base_urls)
+        self._text_body = text_body
 
     def get(self, request: ReadOnlyHttpRequest) -> ReadOnlyHttpResponse:
         base_url = self._base_urls.get(request.endpoint_environment)
@@ -74,6 +79,16 @@ class UrllibReadOnlyHttpTransport:
         except urllib.error.URLError as exc:
             raise ReadOnlyTransportError("Provider transport failed") from exc
         latency_milliseconds = int((time.monotonic() - started) * 1000)
+        if self._text_body:
+            if len(body_bytes) > _MAX_TEXT_BODY_BYTES:
+                raise ReadOnlyTransportError("Provider response exceeded the text size bound")
+            return ReadOnlyHttpResponse(
+                status_code,
+                {"text": body_bytes.decode("utf-8", errors="replace")},
+                response_headers,
+                latency_milliseconds,
+                f"live-request-{started:.6f}",
+            )
         try:
             json_body = json.loads(body_bytes) if body_bytes else {}
         except json.JSONDecodeError as exc:
@@ -96,4 +111,6 @@ def build_live_transport(provider_id: str) -> UrllibReadOnlyHttpTransport:
         return UrllibReadOnlyHttpTransport({"production": _FINNHUB_BASE_URL})
     if provider_id == "alpha_vantage":
         return UrllibReadOnlyHttpTransport({"production": _ALPHA_VANTAGE_BASE_URL})
+    if provider_id == "us_treasury":
+        return UrllibReadOnlyHttpTransport({"production": _US_TREASURY_BASE_URL}, text_body=True)
     raise ValueError(f"No live transport configured for provider {provider_id!r}")

@@ -7,7 +7,12 @@ from datetime import datetime
 from typing import Callable, Protocol, runtime_checkable
 
 from domain import MarketCapability
-from market_data.config import ConfigurationError, MarketDataConfig, ProviderConfig
+from market_data.config import (
+    CREDENTIAL_FREE_PROVIDERS,
+    ConfigurationError,
+    MarketDataConfig,
+    ProviderConfig,
+)
 from market_data.providers import MarketDataProvider, RequestBudgetAuthorization
 
 
@@ -79,7 +84,7 @@ class ProviderFactory:
     ) -> MarketDataProvider:
         if not config.enabled:
             raise ProviderFactoryError(f"Provider {config.provider_id!r} is disabled")
-        if config.provider_id != "deterministic_fixture" and config.credential is None:
+        if config.provider_id not in CREDENTIAL_FREE_PROVIDERS and config.credential is None:
             raise ProviderFactoryError(
                 f"Provider {config.provider_id!r} requires configured credentials"
             )

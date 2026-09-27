@@ -11,6 +11,7 @@ from market_data.alpha_vantage import ALPHA_VANTAGE_CAPABILITIES
 from market_data.finnhub import FINNHUB_CAPABILITIES
 from market_data.fixture import FIXTURE_CAPABILITIES
 from market_data.tradier import TRADIER_CAPABILITIES
+from market_data.us_treasury import US_TREASURY_CAPABILITIES
 
 
 @dataclass(frozen=True, slots=True)
@@ -80,6 +81,19 @@ PROVIDER_DOCUMENTATION = (
             "Provider Note and Information payloads are diagnostics, not market data.",
         ),
         ALPHA_VANTAGE_CAPABILITIES,
+    ),
+    ProviderDocumentationSpec(
+        "us_treasury",
+        US_TREASURY_CAPABILITIES,
+        (),
+        ("production",),
+        ("no documented limit; bounded by configured request budgets",),
+        (
+            "Public U.S. Treasury Daily Treasury Bill Rates feed; no credential or fee.",
+            "Serves Treasury bill bank-discount and coupon-equivalent series only.",
+            "A value for date D is effective at the 16:00 ET close of D.",
+        ),
+        US_TREASURY_CAPABILITIES,
     ),
 )
 

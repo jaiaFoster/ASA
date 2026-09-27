@@ -41,6 +41,9 @@ class InstrumentKind(str, Enum):
     # X01 (STRATEGY-PRODUCTION-001 SP-01A): a non-tradable index such as the
     # S&P 500 is its own kind; it is never normalized to EQUITY.
     INDEX = "index"
+    # X04 (SP-01B): a published rate series (e.g. a Treasury bill rate) is a
+    # reference observation subject, not a tradable instrument.
+    RATE = "rate"
 
 
 class PositionDirection(str, Enum):
