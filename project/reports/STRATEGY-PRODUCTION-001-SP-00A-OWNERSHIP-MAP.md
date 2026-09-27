@@ -39,6 +39,7 @@ All deltas are additive. None redefines an existing identity for data that lacks
 | Canonical index symbols and root → settlement table | `market_data/index_instruments.py`. This is the single extension point: a new index (XSP, NDX, RUT, VIX) adds rows here, never a second path (per SP-01A-IR-001). | SPX only | index strategies | SP-01A |
 | SOQ settlement value | `market_data/`: `INDEX_SETTLEMENT_VALUE_V1` | new | PUT, PUTY, SCS, BXM (outcomes) | SP-01A |
 | Treasury 4w/13w bank-discount; risk-free; dividend yield | `market_data/`: `RATE_OBSERVATION_V1`, a provider-neutral `RateObservation` (series id, tenor, basis, effective date) | new | PUT, PUTY, SCS, Zhan | SP-01B |
+| Risk-free rate designation | Chosen by each consuming strategy spec as a named `RATE_SERIES` id in its manifest parameters. It is never defaulted: an unnamed or unsourced rf is UNKNOWN (per SP-01B-IR-001). | rule | SCS, Zhan | SP-04B, SP-05C |
 | Option trade tape; Cboe VWAP input | `market_data/`: `OPTION_TRADE_TAPE_V1` (`OptionTrade`: identity, price, size, event and observed time, sale condition). VWAP formula owned by `analytics/`. | new | PUT, PUTY, BXM | SP-01C |
 | S&P 500 dividend points | `market_data/`: `INDEX_DIVIDEND_POINTS_V1` (not `CORPORATE_ACTIONS_V1`) | new | BXM | SP-01D |
 | security_type, shares_outstanding | `market_data/`: `SECURITY_MASTER_V1` (point-in-time `SecurityMasterRecord`) | new | Zhan, Heston | SP-01D |

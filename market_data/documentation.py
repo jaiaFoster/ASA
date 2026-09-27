@@ -91,7 +91,8 @@ PROVIDER_DOCUMENTATION = (
         (
             "Public U.S. Treasury Daily Treasury Bill Rates feed; no credential or fee.",
             "Serves Treasury bill bank-discount and coupon-equivalent series only.",
-            "A value for date D is effective at the 16:00 ET close of D.",
+            "IA-RATE-01: a day-D value is treated as available at 18:00 ET on D.",
+            "Test fixtures are synthetic and mirror the feed structure.",
         ),
         US_TREASURY_CAPABILITIES,
     ),

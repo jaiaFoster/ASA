@@ -6,9 +6,13 @@ rate Cboe's PutWrite methodology names. Only the series this feed
 publishes are served. Every other rate series is unsupported here and stays
 a typed UNKNOWN for its consumer.
 
-Point-in-time rule: a value for date D is effective at the 16:00 ET close of
-D. It is returned only if that instant is no later than the request's
-effective end, so an evaluation never sees a rate published after it.
+Point-in-time rule (implementation assumption IA-RATE-01, not a Treasury
+statement): Treasury posts the day-D closing indicative rates after the
+close without a documented posting time, so ASA treats the day-D value as
+available at a conservative 18:00 ET on D (`AVAILABLE_AT_ET`). A value is
+returned only if that instant is no later than the request's effective end.
+The rate's own date (`RateObservation.effective_date`) stays distinct from
+the instant it became available (`MarketObservation.effective_time`).
 """
 
 from __future__ import annotations
@@ -67,6 +71,9 @@ PROVIDER_ID = "us_treasury"
 US_TREASURY_CAPABILITIES = (MarketCapability.RATE_OBSERVATION_V1,)
 FEED_PATH = "/resource-center/data-chart-center/interest-rates/pages/xml"
 MAX_FEED_CHARACTERS = 2_000_000
+# IA-RATE-01: conservative availability instant for a day-D publication.
+AVAILABILITY_ASSUMPTION_ID = "IA-RATE-01"
+AVAILABLE_AT_ET = time(18)
 _NEW_YORK = ZoneInfo("America/New_York")
 _ATOM = "{http://www.w3.org/2005/Atom}"
 _METADATA = "{http://schemas.microsoft.com/ado/2007/08/dataservices/metadata}"
@@ -92,8 +99,8 @@ class _FeedError(ValueError):
 
 
 def publication_effective_time(day: date) -> datetime:
-    """The 16:00 ET close of the publication date, in UTC."""
-    return datetime.combine(day, time(16), _NEW_YORK).astimezone(UTC)
+    """IA-RATE-01: the instant a day-D value is treated as available (18:00 ET), in UTC."""
+    return datetime.combine(day, AVAILABLE_AT_ET, _NEW_YORK).astimezone(UTC)
 
 
 def parse_bill_rate_feed(text: str) -> dict[date, dict[str, Decimal]]:
@@ -116,8 +123,14 @@ def parse_bill_rate_feed(text: str) -> dict[date, dict[str, Decimal]]:
         for element in properties:
             name = element.tag.removeprefix(_DATA)
             raw = (element.text or "").strip()
-            if name in FEED_FIELD_BY_SERIES.values() and raw:
-                values[name] = Decimal(raw)
+            if name not in FEED_FIELD_BY_SERIES.values() or not raw:
+                continue  # absent or m:null="true": no value, never zero
+            try:
+                number = Decimal(raw)
+            except InvalidOperation:
+                continue  # one malformed cell is no value for that cell only
+            if number.is_finite():
+                values[name] = number
         rows[day] = values
     return rows
 
@@ -229,13 +242,18 @@ class UsTreasuryProvider:
                 return self._failure(request, ProviderErrorCode.NO_DATA, None, tuple(attempts))
             day, percent, response = selected
             definition = RATE_SERIES[identity.value]
-            value = RateObservation(
-                subject.canonical_instrument,
-                definition.basis,
-                definition.tenor_days,
-                percent / Decimal(100),
-                day,
-            )
+            try:
+                value = RateObservation(
+                    subject.canonical_instrument,
+                    definition.basis,
+                    definition.tenor_days,
+                    percent / Decimal(100),
+                    day,
+                )
+            except DomainInvariantError:
+                return self._failure(
+                    request, ProviderErrorCode.SCHEMA_MISMATCH, response, tuple(attempts)
+                )
             observations.append(
                 self._observation(
                     request, subject, value, publication_effective_time(day), response

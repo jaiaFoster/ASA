@@ -157,13 +157,10 @@ def expirations_from_chain(chain: OptionChain, as_of: date) -> tuple[ExpirationC
 # that could possibly be selected, not a single placeholder -- every
 # provider this codebase knows how to construct uses the ticker symbol
 # directly as its own address value, so the same symbol is valid for all.
-KNOWN_PROVIDER_IDS = (
-    "tradier",
-    "finnhub",
-    "alpha_vantage",
-    "deterministic_fixture",
-    "us_treasury",
-)
+KNOWN_PROVIDER_IDS = ("tradier", "finnhub", "alpha_vantage", "deterministic_fixture")
+# X04: a rate series is addressed only by its rate provider; equity and option
+# subjects keep exactly their existing provider projections (and identities).
+RATE_PROVIDER_IDS = ("us_treasury",)
 
 
 def build_capability_subject(
@@ -217,7 +214,7 @@ def build_capability_subject(
     window_start = min(semantic_start, as_of - timedelta(days=provider_symbol_window_days))
     projections = tuple(
         ProviderAddressProjection(provider_id, "v1", "symbol", symbol, window_start, None, evidence)
-        for provider_id in KNOWN_PROVIDER_IDS
+        for provider_id in (RATE_PROVIDER_IDS if is_rate_series(symbol) else KNOWN_PROVIDER_IDS)
     )
     if expiration is not None:
         projections += tuple(

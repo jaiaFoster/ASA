@@ -207,3 +207,57 @@ def test_treasury_is_credential_free_opt_in_and_rate_subjects_are_rate_kind() ->
     )
     assert subject.canonical_instrument.kind is InstrumentKind.RATE
     assert subject.request_context.required_fields == ("value",)
+
+
+def test_other_tenors_null_cells_and_malformed_cells_are_per_cell() -> None:
+    rows = parse_bill_rate_feed(SEPTEMBER)
+    assert rows[date(2026, 9, 1)]["ROUND_B1_CLOSE_8WK_2"] == Decimal("3.74")
+    assert "ROUND_B1_CLOSE_26WK_2" not in rows[date(2026, 9, 2)]  # m:null="true"
+    assert "ROUND_B1_CLOSE_26WK_2" not in rows[date(2026, 9, 3)]  # malformed cell only
+    assert rows[date(2026, 9, 3)]["ROUND_B1_CLOSE_13WK_2"] == Decimal("3.80")
+    end = datetime(2026, 9, 2, 23, tzinfo=UTC)
+    result = _provider(Transport({"202609": SEPTEMBER}), end).fetch(
+        _request("US_TBILL_26WK_BANK_DISCOUNT", end - timedelta(days=3), end), _authorization()
+    )
+    value = result.observations[0].value
+    assert isinstance(value, RateObservation)
+    assert (value.effective_date, value.tenor_days) == (date(2026, 9, 1), 182)
+
+
+def test_out_of_contract_value_is_a_typed_schema_error_not_an_exception() -> None:
+    feed = SEPTEMBER.replace(
+        '<d:ROUND_B1_CLOSE_8WK_2 m:type="Edm.Double">3.75</d:ROUND_B1_CLOSE_8WK_2>',
+        '<d:ROUND_B1_CLOSE_8WK_2 m:type="Edm.Double">150</d:ROUND_B1_CLOSE_8WK_2>',
+    )
+    end = datetime(2026, 9, 2, 23, tzinfo=UTC)
+    result = _provider(Transport({"202609": feed}), end).fetch(
+        _request("US_TBILL_8WK_BANK_DISCOUNT", end - timedelta(days=1), end), _authorization()
+    )
+    assert result.error is not None
+    assert result.error.code is ProviderErrorCode.SCHEMA_MISMATCH
+
+
+def test_availability_is_the_labelled_conservative_assumption() -> None:
+    from market_data.us_treasury import AVAILABILITY_ASSUMPTION_ID
+
+    assert AVAILABILITY_ASSUMPTION_ID == "IA-RATE-01"
+    # 18:00 ET on 2026-09-02 (EDT) is 22:00 UTC; one minute earlier sees 09-01.
+    end = datetime(2026, 9, 2, 21, 59, tzinfo=UTC)
+    result = _provider(Transport({"202609": SEPTEMBER}), end).fetch(
+        _request("US_TBILL_4WK_BANK_DISCOUNT", end - timedelta(days=3), end), _authorization()
+    )
+    value = result.observations[0].value
+    assert isinstance(value, RateObservation) and value.effective_date == date(2026, 9, 1)
+
+
+def test_projections_keep_equity_subject_identity_and_scope_rate_subjects() -> None:
+    now = datetime(2026, 9, 2, 22, tzinfo=UTC)
+    equity = build_capability_subject("AAPL", MarketCapability.REAL_TIME_QUOTE_V1, now)
+    providers = {item.provider_id for item in equity.request_context.provider_address_projections}
+    assert "us_treasury" not in providers
+    rate = build_capability_subject(
+        "US_TBILL_4WK_BANK_DISCOUNT", MarketCapability.RATE_OBSERVATION_V1, now
+    )
+    assert {item.provider_id for item in rate.request_context.provider_address_projections} == {
+        "us_treasury"
+    }

@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<!-- SYNTHETIC TEST FIXTURE: mirrors the structure of the U.S. Treasury
+     "Daily Treasury Bill Rates" Atom/OData feed (namespaces, entry /
+     m:properties / d:INDEX_DATE / d:ROUND_B1_* Edm.Double cells, m:null cells).
+     Values are illustrative, not official Treasury publications. -->
 <feed xml:base="https://home.treasury.gov/resource-center/data-chart-center/interest-rates/pages/xml" xmlns:d="http://schemas.microsoft.com/ado/2007/08/dataservices" xmlns:m="http://schemas.microsoft.com/ado/2007/08/dataservices/metadata" xmlns="http://www.w3.org/2005/Atom">
 <title type="text">DailyTreasuryBillRateData</title>
 <entry>
@@ -12,8 +16,12 @@
 <d:INDEX_DATE m:type="Edm.DateTime">2026-08-31T00:00:00</d:INDEX_DATE>
 <d:ROUND_B1_CLOSE_4WK_2 m:type="Edm.Double">3.68</d:ROUND_B1_CLOSE_4WK_2>
 <d:ROUND_B1_YIELD_4WK_2 m:type="Edm.Double">3.75</d:ROUND_B1_YIELD_4WK_2>
+<d:ROUND_B1_CLOSE_8WK_2 m:type="Edm.Double">3.73</d:ROUND_B1_CLOSE_8WK_2>
+<d:ROUND_B1_YIELD_8WK_2 m:type="Edm.Double">3.82</d:ROUND_B1_YIELD_8WK_2>
 <d:ROUND_B1_CLOSE_13WK_2 m:type="Edm.Double">3.77</d:ROUND_B1_CLOSE_13WK_2>
 <d:ROUND_B1_YIELD_13WK_2 m:type="Edm.Double">3.87</d:ROUND_B1_YIELD_13WK_2>
+<d:ROUND_B1_CLOSE_26WK_2 m:type="Edm.Double">3.89</d:ROUND_B1_CLOSE_26WK_2>
+<d:ROUND_B1_YIELD_26WK_2 m:type="Edm.Double">4.03</d:ROUND_B1_YIELD_26WK_2>
 <d:BOND_MKT_UNAVAIL_REASON></d:BOND_MKT_UNAVAIL_REASON>
 </m:properties>
 </content>
