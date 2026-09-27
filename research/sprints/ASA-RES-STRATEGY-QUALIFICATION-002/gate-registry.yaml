@@ -1,0 +1,802 @@
+# ASA-RES-STRATEGY-QUALIFICATION-002 — gate registry (ROLE-RESEARCH). One entry per source-defined gate.
+# Generated from the specifications in strategy-specifications/; thresholds are quoted from the sources named in source_ids.
+schema: asa.research.gate_registry/v1
+sprint: ASA-RES-STRATEGY-QUALIFICATION-002
+recorded_at: '2026-09-27'
+semantics:
+  PASS: predicate evaluated true on complete, fresh, source-admissible inputs
+  FAIL: predicate evaluated false on complete inputs
+  UNKNOWN: predicate cannot be evaluated faithfully (missing, stale or source-undefined input). UNKNOWN is never
+    coerced to PASS or FAIL.
+  AMBIGUOUS_SELECTION: a structure-selection argmin/argmax has more than one solution and the source gives no tie
+    rule; treated as UNKNOWN at verdict level
+  RESEARCH_BLOCKER: the source rule itself is internally inconsistent or not live-implementable; the gate is UNKNOWN
+    until research resolves it
+gates:
+- gate_id: G-CBOE-MONTHLY-ROLL-DATE
+  strategy_ids:
+  - ASA-QS-PW-01-CBOE-PUT
+  - ASA-QS-PW-A1-CBOE-PUTY
+  - ASA-QS-CC-01-CBOE-BXM
+  - ASA-QS-CC-02-CBOE-BXMD
+  - ASA-QS-CC-A1-CBOE-BXY
+  description: Evaluation date is the monthly roll date
+  predicate: date_ET(t) == DF-THIRD-FRIDAY-ROLL-DATE(month(t))
+  inputs:
+  - TRADING_CALENDAR_V1
+  - DF-THIRD-FRIDAY-ROLL-DATE
+  threshold: third Friday; preceding business day if holiday
+  operator: ==
+  inclusive_or_exclusive: n/a
+  source_ids:
+  - CBOE-PUTWRITE-METHODOLOGY-2024
+  - CBOE-PUTWRITE-INDICES-METHODOLOGY-2024
+  - CBOE-BUYWRITE-METHODOLOGY-2024
+  failure_reason: 'not a roll date: no new position; existing position is held (lifecycle, not an error)'
+  unknown_semantics: exchange calendar unavailable for the month
+  effect_on_verdict: FAIL -> no roll action (hold); UNKNOWN -> verdict UNKNOWN
+- gate_id: G-CBOE-WEEKLY-ROLL-DATE
+  strategy_ids:
+  - ASA-QS-PW-02-CBOE-WPUT
+  description: Evaluation date is the weekly roll date
+  predicate: date_ET(t) == DF-WEEKLY-FRIDAY-ROLL-DATE(week(t))
+  inputs:
+  - TRADING_CALENDAR_V1
+  - DF-WEEKLY-FRIDAY-ROLL-DATE
+  threshold: every Friday; preceding business day if holiday
+  operator: ==
+  inclusive_or_exclusive: n/a
+  source_ids:
+  - CBOE-PUTWRITE-INDICES-METHODOLOGY-2024
+  failure_reason: 'not a roll date: hold'
+  unknown_semantics: calendar unavailable
+  effect_on_verdict: FAIL -> no roll action (hold); UNKNOWN -> verdict UNKNOWN
+- gate_id: G-CBOE-SPX-REF-BEFORE-1100
+  strategy_ids:
+  - ASA-QS-PW-01-CBOE-PUT
+  - ASA-QS-PW-A1-CBOE-PUTY
+  - ASA-QS-CC-01-CBOE-BXM
+  - ASA-QS-CC-02-CBOE-BXMD
+  - ASA-QS-CC-A1-CBOE-BXY
+  description: The last S&P 500 index value reported before 11:00 a.m. ET on the roll date is observed
+  predicate: exists S_ref = last disseminated SPX value with timestamp < 11:00:00 ET on roll date
+  inputs:
+  - SPX index value (REAL_TIME_QUOTE_V1 on the X01 index identity)
+  threshold: 11:00 a.m. ET
+  operator: timestamp strictly before 11:00 ET
+  inclusive_or_exclusive: exclusive of 11:00:00
+  source_ids:
+  - CBOE-PUTWRITE-METHODOLOGY-2024
+  - CBOE-PUTWRITE-INDICES-METHODOLOGY-2024
+  - CBOE-BUYWRITE-METHODOLOGY-2024
+  failure_reason: n/a (existence gate)
+  unknown_semantics: no index observation before 11:00 ET on the roll date, or the observation is after 11:00 ET
+    (stale/late evidence)
+  effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+- gate_id: G-PUT-STRIKE-EXISTS
+  strategy_ids:
+  - ASA-QS-PW-01-CBOE-PUT
+  description: A listed SPX put with the next-month standard expiration and strike <= S_ref exists
+  predicate: 'exists c: type=PUT, root=SPX monthly AM-settled (X01), expiration = next monthly expiration, K(c)
+    <= S_ref'
+  inputs:
+  - OPTION_CHAIN_V1 (X01)
+  - S_ref
+  threshold: S_ref
+  operator: <=
+  inclusive_or_exclusive: inclusive (closest to but not greater than)
+  source_ids:
+  - CBOE-PUTWRITE-METHODOLOGY-2024
+  failure_reason: none; the source defines no fallback — treated as UNKNOWN, not FAIL
+  unknown_semantics: chain unavailable or root/settlement identity unknown (X01)
+  effect_on_verdict: UNKNOWN -> verdict UNKNOWN (source has no no-strike rule)
+- gate_id: G-PUTY-STRIKE-EXISTS
+  strategy_ids:
+  - ASA-QS-PW-A1-CBOE-PUTY
+  description: A listed SPX put, next-month expiration, strike below 0.98*S_ref exists
+  predicate: 'exists c: type=PUT, next monthly expiration, K(c) < 0.98*S_ref'
+  inputs:
+  - OPTION_CHAIN_V1 (X01)
+  - S_ref
+  threshold: 0.98 * S_ref
+  operator: < (the source says "first available strike below"; the same document says "lower than or equal to" for
+    PTLT, which supports strict <; DERIVED)
+  inclusive_or_exclusive: exclusive; if a listed strike equals 0.98*S_ref exactly the strict/inclusive reading changes
+    the leg -> AMBIGUOUS_SELECTION
+  source_ids:
+  - CBOE-PUTWRITE-INDICES-METHODOLOGY-2024
+  failure_reason: none defined -> UNKNOWN
+  unknown_semantics: chain unavailable; or a listed strike equals 0.98*S_ref exactly (AMBIGUOUS_SELECTION)
+  effect_on_verdict: UNKNOWN -> verdict UNKNOWN
+- gate_id: G-WPUT-EXPIRING-SETTLEMENT-KNOWN
+  strategy_ids:
+  - ASA-QS-PW-02-CBOE-WPUT
+  description: The settlement style (AM vs PM) of the expiring put on this roll date is known
+  predicate: settlement_style(expiring put) in {AM, PM}
+  inputs:
+  - X01 settlement semantics
+  threshold: n/a
+  operator: membership
+  inclusive_or_exclusive: n/a
+  source_ids:
+  - CBOE-PUTWRITE-INDICES-METHODOLOGY-2024
+  failure_reason: n/a
+  unknown_semantics: settlement style unknown
+  effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+- gate_id: G-WPUT-AM-ROLL-TIMING-CONSISTENT
+  strategy_ids:
+  - ASA-QS-PW-02-CBOE-WPUT
+  description: On AM-settlement roll days the strike reference (SOQ) is available when the premium is taken (first
+    bid after 9:30 ET)
+  predicate: time(SOQ published) <= time(first bid after 09:30 ET)
+  inputs:
+  - SOQ timestamp
+  - quote timestamps
+  threshold: n/a
+  operator: <=
+  inclusive_or_exclusive: n/a
+  source_ids:
+  - CBOE-PUTWRITE-INDICES-METHODOLOGY-2024
+  failure_reason: n/a
+  unknown_semantics: 'ALWAYS UNKNOWN as specified: the methodology selects the strike "below the SOQ" but takes
+    the premium at the "first bid quote after 9:30 a.m. ET", while the SOQ is computed only after all constituents
+    open (usually before 11:00 a.m. ET). The live order of events is not implementable as written. RESEARCH BLOCKER.'
+  effect_on_verdict: UNKNOWN -> verdict UNKNOWN on every AM-settlement roll day; no fallback may be substituted
+- gate_id: G-WPUT-STRIKE-EXISTS
+  strategy_ids:
+  - ASA-QS-PW-02-CBOE-WPUT
+  description: A listed SPX put expiring on the next weekly roll date with strike below the reference exists
+  predicate: 'exists c: type=PUT, expiration = next weekly roll date, K(c) < ref; ref = SOQ_t (AM days) or last
+    SPX value before 4:00 p.m. ET (PM days)'
+  inputs:
+  - OPTION_CHAIN_V1 (X01)
+  - SOQ_t or SPX value
+  threshold: ref
+  operator: < ("first available strike below"; strictness DERIVED as for PUTY)
+  inclusive_or_exclusive: exclusive; equality -> AMBIGUOUS_SELECTION
+  source_ids:
+  - CBOE-PUTWRITE-INDICES-METHODOLOGY-2024
+  failure_reason: none defined -> UNKNOWN
+  unknown_semantics: chain/settlement identity unavailable; equality case
+  effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+- gate_id: G-BXM-STRIKE-EXISTS
+  strategy_ids:
+  - ASA-QS-CC-01-CBOE-BXM
+  description: A listed SPX call, next-month expiration, strike at or above S_ref exists
+  predicate: 'exists c: type=CALL, next monthly expiration, K(c) >= S_ref'
+  inputs:
+  - OPTION_CHAIN_V1 (X01)
+  - S_ref
+  threshold: S_ref
+  operator: '>='
+  inclusive_or_exclusive: inclusive ("closest strike price at or above")
+  source_ids:
+  - CBOE-BUYWRITE-METHODOLOGY-2024
+  failure_reason: none defined -> UNKNOWN
+  unknown_semantics: chain unavailable
+  effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+- gate_id: G-BXMD-DELTA-COMPUTABLE
+  strategy_ids:
+  - ASA-QS-CC-02-CBOE-BXMD
+  description: The Black-formula delta of every OTM next-month SPX call is computable from source-defined inputs
+  predicate: 'for all OTM c: DF-BLACK-CALL-DELTA-CBOE-BXMD(c) is defined'
+  inputs:
+  - DF-BLACK-CALL-DELTA-CBOE-BXMD
+  threshold: n/a
+  operator: definedness
+  inclusive_or_exclusive: n/a
+  source_ids:
+  - CBOE-BUYWRITE-METHODOLOGY-2024
+  failure_reason: n/a
+  unknown_semantics: ALWAYS UNKNOWN until the volatility, rate and dividend/forward inputs of the Black formula
+    are recovered from Cboe (not stated in the BuyWrite or BXRT methodologies). RESEARCH BLOCKER.
+  effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+- gate_id: G-BXY-STRIKE-UNIQUE
+  strategy_ids:
+  - ASA-QS-CC-A1-CBOE-BXY
+  description: A unique listed SPX call strike closest to 1.02*S_ref exists
+  predicate: argmin_c |K(c) - 1.02*S_ref| is unique
+  inputs:
+  - OPTION_CHAIN_V1 (X01)
+  - S_ref
+  threshold: 1.02*S_ref
+  operator: argmin
+  inclusive_or_exclusive: n/a
+  source_ids:
+  - CBOE-BUYWRITE-METHODOLOGY-2024
+  failure_reason: none
+  unknown_semantics: 'two strikes equidistant from 1.02*S_ref: the methodology gives no tie rule for BXY -> AMBIGUOUS_SELECTION'
+  effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+- gate_id: G-GXZ-EA-DATE-KNOWN
+  strategy_ids:
+  - ASA-QS-EV-01-GXZ-PREEA-STRADDLE-TO-EXPIRY
+  - ASA-QS-EV-A1-GXZ-DN-STRADDLE-M3-0
+  description: The scheduled earnings announcement date (day 0) is known
+  predicate: earnings_date(i) is confirmed
+  inputs:
+  - EARNINGS_CALENDAR_V1
+  - DF-EA-EFFECTIVE-DATE-GXZ
+  threshold: n/a
+  operator: definedness
+  inclusive_or_exclusive: n/a
+  source_ids:
+  - GAO-XING-ZHANG-2013-WP
+  failure_reason: 'no scheduled announcement: subject not eligible'
+  unknown_semantics: date unconfirmed/estimated
+  effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+- gate_id: G-GXZ-ENTRY-SESSION
+  strategy_ids:
+  - ASA-QS-EV-01-GXZ-PREEA-STRADDLE-TO-EXPIRY
+  - ASA-QS-EV-A1-GXZ-DN-STRADDLE-M3-0
+  description: Evaluation session is the third trading session before day 0
+  predicate: session(t) == DF-TRADING-SESSION-OFFSET(day0, -3)
+  inputs:
+  - TRADING_CALENDAR_V1
+  - day 0
+  threshold: -3 sessions
+  operator: ==
+  inclusive_or_exclusive: n/a
+  source_ids:
+  - GAO-XING-ZHANG-2013-WP
+  failure_reason: 'not the entry session: no entry'
+  unknown_semantics: calendar or day 0 unavailable
+  effect_on_verdict: FAIL -> no action; UNKNOWN -> verdict UNKNOWN
+- gate_id: G-GXZ-STOCK-PRICE-MIN
+  strategy_ids:
+  - ASA-QS-EV-01-GXZ-PREEA-STRADDLE-TO-EXPIRY
+  - ASA-QS-EV-A1-GXZ-DN-STRADDLE-M3-0
+  description: Stock price at least $5
+  predicate: S_i >= 5
+  inputs:
+  - underlying price
+  threshold: 5 USD
+  operator: '>='
+  inclusive_or_exclusive: 'inclusive (source: "stock price ≥ $5")'
+  source_ids:
+  - GAO-XING-ZHANG-2013-WP
+  failure_reason: price below $5
+  unknown_semantics: price missing; the observation date of this filter is not stated (formation-date reading is
+    an INFERENCE)
+  effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+- gate_id: G-GXZ-OPT-MID-MIN
+  strategy_ids:
+  - ASA-QS-EV-01-GXZ-PREEA-STRADDLE-TO-EXPIRY
+  - ASA-QS-EV-A1-GXZ-DN-STRADDLE-M3-0
+  description: Option midpoint at least $0.125
+  predicate: mid(c) >= 0.125
+  inputs:
+  - DF-OPT-MID
+  threshold: 0.125 USD
+  operator: '>='
+  inclusive_or_exclusive: inclusive
+  source_ids:
+  - GAO-XING-ZHANG-2013-WP
+  failure_reason: mid below $0.125
+  unknown_semantics: quote missing
+  effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+- gate_id: G-GXZ-QUOTE-VALID
+  strategy_ids:
+  - ASA-QS-EV-01-GXZ-PREEA-STRADDLE-TO-EXPIRY
+  - ASA-QS-EV-A1-GXZ-DN-STRADDLE-M3-0
+  description: Bid positive and below offer
+  predicate: bid(c) > 0 AND bid(c) < ask(c)
+  inputs:
+  - bid
+  - ask
+  threshold: '0'
+  operator: '> ; <'
+  inclusive_or_exclusive: exclusive
+  source_ids:
+  - GAO-XING-ZHANG-2013-WP
+  failure_reason: bid = 0 or bid >= ask
+  unknown_semantics: quote missing
+  effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+- gate_id: G-GXZ-ARBITRAGE-BOUNDS
+  strategy_ids:
+  - ASA-QS-EV-01-GXZ-PREEA-STRADDLE-TO-EXPIRY
+  - ASA-QS-EV-A1-GXZ-DN-STRADDLE-M3-0
+  description: Quotes satisfy the source arbitrage bounds
+  predicate: 'put: K >= bid AND ask >= max(0, K - S); call: S >= bid AND ask >= max(0, S - K)'
+  inputs:
+  - bid
+  - ask
+  - S
+  - K
+  threshold: n/a
+  operator: as written
+  inclusive_or_exclusive: inclusive
+  source_ids:
+  - GAO-XING-ZHANG-2013-WP
+  failure_reason: bound violated
+  unknown_semantics: inputs missing
+  effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+- gate_id: G-GXZ-ABS-DELTA-BAND
+  strategy_ids:
+  - ASA-QS-EV-01-GXZ-PREEA-STRADDLE-TO-EXPIRY
+  - ASA-QS-EV-A1-GXZ-DN-STRADDLE-M3-0
+  description: Absolute option delta within [0.375, 0.625]
+  predicate: 0.375 <= |Δ(c)| <= 0.625
+  inputs:
+  - option delta (OptionMetrics in source; ASA provider delta equivalence UNKNOWN)
+  threshold: '[0.375, 0.625]'
+  operator: between
+  inclusive_or_exclusive: inclusive (as extracted; boundary inclusivity not explicitly stated — UNKNOWN at exact
+    boundary values)
+  source_ids:
+  - GAO-XING-ZHANG-2013-WP
+  failure_reason: delta outside band
+  unknown_semantics: delta missing
+  effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+- gate_id: G-GXZ-OI-POSITIVE
+  strategy_ids:
+  - ASA-QS-EV-01-GXZ-PREEA-STRADDLE-TO-EXPIRY
+  - ASA-QS-EV-A1-GXZ-DN-STRADDLE-M3-0
+  description: Open interest positive
+  predicate: OI(c) > 0
+  inputs:
+  - open_interest
+  threshold: '0'
+  operator: '>'
+  inclusive_or_exclusive: exclusive
+  source_ids:
+  - GAO-XING-ZHANG-2013-WP
+  failure_reason: OI = 0
+  unknown_semantics: OI missing
+  effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+- gate_id: G-GXZ-MONEYNESS
+  strategy_ids:
+  - ASA-QS-EV-01-GXZ-PREEA-STRADDLE-TO-EXPIRY
+  - ASA-QS-EV-A1-GXZ-DN-STRADDLE-M3-0
+  description: Moneyness S/K within [0.95, 1.05]
+  predicate: 0.95 <= S/K <= 1.05
+  inputs:
+  - DF-OPT-MONEYNESS-SK
+  threshold: '[0.95, 1.05]'
+  operator: between
+  inclusive_or_exclusive: inclusive (as extracted)
+  source_ids:
+  - GAO-XING-ZHANG-2013-WP
+  failure_reason: outside band
+  unknown_semantics: S or K missing
+  effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+- gate_id: G-GXZ-MATURITY-SAMPLE-FILTER
+  strategy_ids:
+  - ASA-QS-EV-A1-GXZ-DN-STRADDLE-M3-0
+  description: Option maturity within the main-sample filter of 10 to 60 days
+  predicate: 10 <= DTE <= 60
+  inputs:
+  - DF-OPT-DTE-CALENDAR (calendar vs trading days UNKNOWN)
+  threshold: '[10, 60]'
+  operator: between
+  inclusive_or_exclusive: UNKNOWN
+  source_ids:
+  - GAO-XING-ZHANG-2013-WP
+  failure_reason: outside
+  unknown_semantics: day-count convention UNKNOWN
+  effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+- gate_id: G-GXZ-HOLD-TO-EXPIRY-DTE
+  strategy_ids:
+  - ASA-QS-EV-01-GXZ-PREEA-STRADDLE-TO-EXPIRY
+  description: Days to maturity measured from day -3 within [4, 10]
+  predicate: 4 <= days_to_T(c, day -3) <= 10
+  inputs:
+  - expiration
+  - entry date
+  threshold: '[4, 10]'
+  operator: between
+  inclusive_or_exclusive: inclusive as tabulated
+  source_ids:
+  - GAO-XING-ZHANG-2013-WP
+  failure_reason: outside group
+  unknown_semantics: 'ALWAYS UNKNOWN as a live gate until resolved: (a) calendar vs trading days not stated (the
+    text says options then expired on the third Saturday, which suggests calendar days — INFERENCE); (b) the [4,10]
+    group cannot coexist with the 10-60 day main-sample maturity filter, and the filter actually applied in Table
+    6 is not stated. RESEARCH BLOCKER.'
+  effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+- gate_id: G-GXZ-EXPIRES-AFTER-EA
+  strategy_ids:
+  - ASA-QS-EV-01-GXZ-PREEA-STRADDLE-TO-EXPIRY
+  description: The straddle expires after the earnings announcement
+  predicate: expiration(c) > day 0
+  inputs:
+  - expiration
+  - day 0
+  threshold: day 0
+  operator: '>'
+  inclusive_or_exclusive: 'exclusive (text: constructed before and expires after the announcement)'
+  source_ids:
+  - GAO-XING-ZHANG-2013-WP
+  failure_reason: expires on/before day 0
+  unknown_semantics: day 0 or expiration missing
+  effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+- gate_id: G-ALX-UNIVERSE-TOP100-VOLUME
+  strategy_ids:
+  - ASA-QS-EV-02-ALX-CONCAVE-EA-STRADDLE
+  description: Firm is one of the 100 firms with the highest option trading volume in the calendar year
+  predicate: rank_year(option volume_i) <= 100
+  inputs:
+  - annual option volume across all US optionable stocks
+  threshold: '100'
+  operator: <=
+  inclusive_or_exclusive: inclusive
+  source_ids:
+  - ALEXIOU-ET-AL-2025
+  failure_reason: not in top 100
+  unknown_semantics: 'ALWAYS UNKNOWN live: the source ranks on the same calendar year as the event (look-ahead);
+    a prior-year or trailing variant is not source-defined'
+  effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+- gate_id: G-ALX-COMMON-STOCK-PRICE
+  strategy_ids:
+  - ASA-QS-EV-02-ALX-CONCAVE-EA-STRADDLE
+  description: Common stock (CRSP share code 10 or 11) with share price above $5
+  predicate: sharecode in {10,11} AND price > 5
+  inputs:
+  - security type
+  - price
+  threshold: 5 USD
+  operator: '>'
+  inclusive_or_exclusive: exclusive
+  source_ids:
+  - ALEXIOU-ET-AL-2025
+  failure_reason: not common or price <= 5
+  unknown_semantics: security type not a canonical ASA fact (UNKNOWN availability)
+  effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+- gate_id: G-ALX-OPTION-FILTERS
+  strategy_ids:
+  - ASA-QS-EV-02-ALX-CONCAVE-EA-STRADDLE
+  description: Option passes all source filters
+  predicate: OI > 0 AND volume > 0 AND bid > 0 AND bid <= ask AND mid >= 0.125 AND standard settlement AND IV present
+    AND (ask - bid) <= 0.20 * mid
+  inputs:
+  - OI
+  - volume
+  - bid
+  - ask
+  - DF-OPT-MID
+  - settlement
+  - IV
+  threshold: as stated
+  operator: as stated
+  inclusive_or_exclusive: 'mid: inclusive (discard "less than $0.125"); spread: inclusive (discard "higher than
+    20 percent")'
+  source_ids:
+  - ALEXIOU-ET-AL-2025
+  failure_reason: any filter fails -> option discarded (not subject failure)
+  unknown_semantics: any input missing -> option discarded? The source does not say; UNKNOWN
+  effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+- gate_id: G-ALX-CURVE-EXPIRY
+  strategy_ids:
+  - ASA-QS-EV-02-ALX-CONCAVE-EA-STRADDLE
+  description: Curve expiry between 3 and 13 calendar days ahead
+  predicate: 3 <= DTE_cal <= 13
+  inputs:
+  - DF-OPT-DTE-CALENDAR
+  threshold: '[3, 13]'
+  operator: between
+  inclusive_or_exclusive: inclusive
+  source_ids:
+  - ALEXIOU-ET-AL-2025
+  failure_reason: no expiry in range -> no curve
+  unknown_semantics: expiration missing
+  effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+- gate_id: G-ALX-CURVE-POINTS
+  strategy_ids:
+  - ASA-QS-EV-02-ALX-CONCAVE-EA-STRADDLE
+  description: At least six blended IV points with at least two puts and two calls
+  predicate: n >= 6 AND n_put >= 2 AND n_call >= 2
+  inputs:
+  - DF-ALX-BLENDED-IV-POINTS
+  threshold: 6 / 2 / 2
+  operator: '>='
+  inclusive_or_exclusive: inclusive
+  source_ids:
+  - ALEXIOU-ET-AL-2025
+  failure_reason: too few points -> CONCAVE undefined
+  unknown_semantics: n/a
+  effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+- gate_id: G-ALX-CONCAVE
+  strategy_ids:
+  - ASA-QS-EV-02-ALX-CONCAVE-EA-STRADDLE
+  description: IV curve is concave per the source definition
+  predicate: DF-ALX-CONCAVE == 1
+  inputs:
+  - DF-ALX-CONCAVE
+  threshold: '1'
+  operator: ==
+  inclusive_or_exclusive: n/a
+  source_ids:
+  - ALEXIOU-ET-AL-2025
+  failure_reason: CONCAVE = 0
+  unknown_semantics: fit inadmissible at every tolerance; r unavailable
+  effect_on_verdict: 'DIRECTION-DETERMINING, not an eligibility gate: the source reports conditional long-straddle
+    returns for CONCAVE = 1 and = 0; which position (if any) to take under each state is not source-authored (see
+    spec)'
+- gate_id: G-ALX-STRADDLE-PAIR
+  strategy_ids:
+  - ASA-QS-EV-02-ALX-CONCAVE-EA-STRADDLE
+  description: A nearest-to-the-money call/put pair with K/S in [0.98, 1.02] exists in the shortest expiry with
+    4 to 13 days
+  predicate: 'exists pair: 0.98 <= K/S <= 1.02 AND 4 <= DTE <= 13 (shortest such expiry)'
+  inputs:
+  - chain
+  - DF-OPT-MONEYNESS-KS
+  - DF-OPT-DTE-CALENDAR
+  threshold: '[0.98,1.02]; [4,13]'
+  operator: between
+  inclusive_or_exclusive: inclusive
+  source_ids:
+  - ALEXIOU-ET-AL-2025
+  failure_reason: no pair
+  unknown_semantics: 'two strikes equidistant from S: tie rule not stated -> AMBIGUOUS_SELECTION'
+  effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+- gate_id: G-ZHAN-COMMON-STOCK
+  strategy_ids:
+  - ASA-QS-XR-01-ZHAN-NEG-LNPRICE-DN-CALL
+  description: Underlying is a common stock (CRSP share code 10 or 11)
+  predicate: sharecode_i in {10, 11}
+  inputs:
+  - security type
+  threshold: n/a
+  operator: membership
+  inclusive_or_exclusive: n/a
+  source_ids:
+  - ZHAN-ET-AL-2022
+  failure_reason: not common stock
+  unknown_semantics: security-type fact not available in ASA canonical data (UNKNOWN)
+  effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+- gate_id: G-ZHAN-PRICE-MIN
+  strategy_ids:
+  - ASA-QS-XR-01-ZHAN-NEG-LNPRICE-DN-CALL
+  description: Closing price at formation month end at least $5
+  predicate: P_i,t >= 5
+  inputs:
+  - close
+  threshold: 5 USD
+  operator: '>='
+  inclusive_or_exclusive: inclusive (source excludes prices "below five dollars")
+  source_ids:
+  - ZHAN-ET-AL-2022
+  failure_reason: price below $5
+  unknown_semantics: close missing
+  effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+- gate_id: G-ZHAN-NO-DIVIDEND-DURING-LIFE
+  strategy_ids:
+  - ASA-QS-XR-01-ZHAN-NEG-LNPRICE-DN-CALL
+  description: Underlying pays no dividend during the remaining life of the option
+  predicate: no ex-dividend date in (t, expiration(c)]
+  inputs:
+  - CORPORATE_ACTIONS_V1 dividends
+  threshold: n/a
+  operator: none-exists
+  inclusive_or_exclusive: n/a
+  source_ids:
+  - ZHAN-ET-AL-2022
+  failure_reason: dividend in option life
+  unknown_semantics: 'ALWAYS UNKNOWN live: the source applies the filter ex post (dividends actually paid); dividends
+    not yet declared at formation are unknowable. Footnote 8 reports robustness when dividend payers are included,
+    but that is a different specification. RESEARCH BLOCKER for exact-rule fidelity.'
+  effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+- gate_id: G-ZHAN-OPTION-QUOTE
+  strategy_ids:
+  - ASA-QS-XR-01-ZHAN-NEG-LNPRICE-DN-CALL
+  description: Volume and bid positive, bid below ask, midpoint at least $1/8
+  predicate: volume > 0 AND bid > 0 AND bid < ask AND mid >= 0.125
+  inputs:
+  - volume
+  - bid
+  - ask
+  - DF-OPT-MID
+  threshold: as stated
+  operator: as stated
+  inclusive_or_exclusive: mid inclusive
+  source_ids:
+  - ZHAN-ET-AL-2022
+  failure_reason: any fails
+  unknown_semantics: missing inputs
+  effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+- gate_id: G-ZHAN-NO-ARBITRAGE
+  strategy_ids:
+  - ASA-QS-XR-01-ZHAN-NEG-LNPRICE-DN-CALL
+  description: Call satisfies S >= C >= max(0, S - K e^{-rT})
+  predicate: S >= C AND C >= max(0, S - K*exp(-r*T))
+  inputs:
+  - S
+  - C
+  - K
+  - r
+  - T
+  threshold: n/a
+  operator: as stated
+  inclusive_or_exclusive: inclusive
+  source_ids:
+  - ZHAN-ET-AL-2022
+  failure_reason: violation
+  unknown_semantics: r unavailable (X04) or inputs missing; the footnote gives this as an example ("For example")
+    — the full set of conditions applied is UNKNOWN
+  effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+- gate_id: G-ZHAN-MONEYNESS
+  strategy_ids:
+  - ASA-QS-XR-01-ZHAN-NEG-LNPRICE-DN-CALL
+  description: Moneyness within [0.8, 1.2]
+  predicate: 0.8 <= m <= 1.2
+  inputs:
+  - 'moneyness (ratio definition UNKNOWN: K/S or S/K)'
+  threshold: '[0.8, 1.2]'
+  operator: between
+  inclusive_or_exclusive: inclusive (excluded if "lower than 0.8 or higher than 1.2")
+  source_ids:
+  - ZHAN-ET-AL-2022
+  failure_reason: outside
+  unknown_semantics: ratio definition UNKNOWN; inputs missing
+  effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+- gate_id: G-ZHAN-MODAL-MATURITY
+  strategy_ids:
+  - ASA-QS-XR-01-ZHAN-NEG-LNPRICE-DN-CALL
+  description: Option maturity equals the maturity of the majority of selected options that month
+  predicate: maturity(c_i) == mode_j maturity(c_j)
+  inputs:
+  - selected options across U_t
+  threshold: n/a
+  operator: ==
+  inclusive_or_exclusive: n/a
+  source_ids:
+  - ZHAN-ET-AL-2022
+  failure_reason: non-modal maturity
+  unknown_semantics: tie in the mode (not addressed by source) -> UNKNOWN
+  effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+- gate_id: G-ZHAN-CALL-AND-PUT
+  strategy_ids:
+  - ASA-QS-XR-01-ZHAN-NEG-LNPRICE-DN-CALL
+  description: Both the call and the put of the selected pair survive filtering
+  predicate: call survives AND put survives
+  inputs:
+  - filter results
+  threshold: n/a
+  operator: AND
+  inclusive_or_exclusive: n/a
+  source_ids:
+  - ZHAN-ET-AL-2022
+  failure_reason: either missing
+  unknown_semantics: n/a
+  effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+- gate_id: G-HES-FORMATION-DATE
+  strategy_ids:
+  - ASA-QS-XR-02-HESTON-STRADDLE-MOMENTUM
+  description: Evaluation date is a regular monthly expiration day
+  predicate: date(t) == monthly expiration date (pre-2015 Saturday expirations use the prior trading day)
+  inputs:
+  - TRADING_CALENDAR_V1
+  - expiration calendar
+  threshold: n/a
+  operator: ==
+  inclusive_or_exclusive: n/a
+  source_ids:
+  - HESTON-ET-AL-2023
+  failure_reason: 'not formation date: hold'
+  unknown_semantics: calendar unavailable
+  effect_on_verdict: FAIL -> hold; UNKNOWN -> verdict UNKNOWN
+- gate_id: G-HES-CALL-DELTA-BAND
+  strategy_ids:
+  - ASA-QS-XR-02-HESTON-STRADDLE-MOMENTUM
+  description: Selected pair call delta within [0.25, 0.75]
+  predicate: 0.25 <= Δc <= 0.75
+  inputs:
+  - call delta (OptionMetrics in source)
+  threshold: '[0.25, 0.75]'
+  operator: between
+  inclusive_or_exclusive: source says "discard if call delta < 0.25 or > 0.75" -> inclusive
+  source_ids:
+  - HESTON-ET-AL-2023
+  failure_reason: 'outside band: no straddle for that stock-month'
+  unknown_semantics: delta missing
+  effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+- gate_id: G-HES-SPREAD-MAX
+  strategy_ids:
+  - ASA-QS-XR-02-HESTON-STRADDLE-MOMENTUM
+  description: Weighted bid/ask spread of the zero-delta straddle at most 50% of midpoint
+  predicate: DF-OPT-WEIGHTED-SPREAD <= 0.50
+  inputs:
+  - DF-OPT-WEIGHTED-SPREAD
+  threshold: '0.50'
+  operator: <=
+  inclusive_or_exclusive: inclusive ("no greater than 50%")
+  source_ids:
+  - HESTON-ET-AL-2023
+  failure_reason: spread too wide -> replace with a straddle further from the money within the delta band (see spec)
+  unknown_semantics: aggregation rule of the weighted spread UNKNOWN
+  effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+- gate_id: G-HES-OI-HOLDING
+  strategy_ids:
+  - ASA-QS-XR-02-HESTON-STRADDLE-MOMENTUM
+  description: Open interest positive for both legs at the start of the holding period
+  predicate: OI(call) > 0 AND OI(put) > 0 at formation
+  inputs:
+  - open_interest
+  threshold: '0'
+  operator: '>'
+  inclusive_or_exclusive: exclusive
+  source_ids:
+  - HESTON-ET-AL-2023
+  failure_reason: zero OI
+  unknown_semantics: OI missing
+  effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+- gate_id: G-HES-FORMATION-COMPLETE
+  strategy_ids:
+  - ASA-QS-XR-02-HESTON-STRADDLE-MOMENTUM
+  description: All 11 formation lags (2..12) have a straddle return
+  predicate: count_{l=2..12} defined(R_straddle,i,t-l) == 11
+  inputs:
+  - DF-STRADDLE-MOMENTUM-FORMATION
+  threshold: '11'
+  operator: ==
+  inclusive_or_exclusive: n/a
+  source_ids:
+  - HESTON-ET-AL-2023
+  failure_reason: 'incomplete history: stock excluded'
+  unknown_semantics: history panel unavailable (A08)
+  effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+- gate_id: G-CH-SELECTION
+  strategy_ids:
+  - ASA-QS-XR-A1-CAOHAN-IVOL-DH-CALL
+  description: ATM call with about 50 days to maturity passes the Goyal-Saretto/Cao-Han standard filters
+  predicate: see spec (filters shared with G-ZHAN-OPTION-QUOTE, G-ZHAN-NO-ARBITRAGE, G-ZHAN-MONEYNESS, G-ZHAN-MODAL-MATURITY,
+    G-ZHAN-NO-DIVIDEND-DURING-LIFE per Zhan et al. footnote 10)
+  inputs:
+  - chain
+  threshold: as Zhan
+  operator: as Zhan
+  inclusive_or_exclusive: as Zhan
+  source_ids:
+  - CAO-HAN-2013
+  - ZHAN-ET-AL-2022
+  failure_reason: as Zhan
+  unknown_semantics: as Zhan
+  effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+- gate_id: G-MPP-VALID-PAIR
+  strategy_ids:
+  - ASA-QS-OS-A1-MPP-SMIRK-DECILE
+  description: At least one valid put-call pair exists (MPP 2021 filters)
+  predicate: 'exists pair: 0.01 <= |Δ| <= 0.99 AND 0.03 <= IV <= 2.00 AND bid > 0.1 AND bid < ask AND DTE >= 15'
+  inputs:
+  - chain
+  threshold: as stated
+  operator: as stated
+  inclusive_or_exclusive: as extracted; inclusivity at boundaries not verified (UNKNOWN)
+  source_ids:
+  - MURAVYEV-PEARSON-POLLET-2022-WP
+  failure_reason: 'no valid pair: stock not ranked'
+  unknown_semantics: inputs missing
+  effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+- gate_id: G-MPP-SKEW-COMPUTABLE
+  strategy_ids:
+  - ASA-QS-OS-A1-MPP-SMIRK-DECILE
+  description: A put with 0.8 < K/S < 0.95 and a call with 0.95 < K/S < 1.05 exist
+  predicate: exists put and call in the ranges
+  inputs:
+  - DF-XZZ-SMIRK-MPP
+  threshold: open intervals
+  operator: between
+  inclusive_or_exclusive: exclusive
+  source_ids:
+  - MURAVYEV-PEARSON-POLLET-2022-WP
+  failure_reason: no qualifying options
+  unknown_semantics: 'multiple qualifying options: selection within range UNKNOWN'
+  effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+- gate_id: G-BK-OPTION-FILTERS
+  strategy_ids:
+  - ASA-QS-SV-A1-BK-DELTA-HEDGED-INDEX-CALL
+  description: S&P 500 index option passes Bakshi-Kapadia filters
+  predicate: 14 <= DTE <= 60 AND |K/S - 1| <= 0.10 AND 0.01 <= IV <= 1.00 AND arbitrage bounds hold
+  inputs:
+  - chain
+  - IV
+  - S
+  threshold: as stated
+  operator: as stated
+  inclusive_or_exclusive: as extracted
+  source_ids:
+  - BAKSHI-KAPADIA-2003
+  failure_reason: filter fails
+  unknown_semantics: inputs missing; BK evaluate every option-day and define no entry schedule, so these filters
+    do not by themselves define a strategy
+  effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN

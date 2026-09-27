@@ -1,0 +1,61 @@
+# ASA-RES-STRATEGY-QUALIFICATION-002 source record. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN.
+source_id: CBOE-PUTWRITE-INDICES-METHODOLOGY-2024
+source_class: EXTERNAL_PRIMARY
+title: Cboe PutWrite Indices Methodology (PUTR, PUTY, PTLT, WPTR, WPUT)
+authors:
+- Cboe Global Indices
+publication: Cboe Global Indices index methodology
+publication_date: UNKNOWN (current version retrieved 2026-09-27)
+source_type: index_methodology
+canonical_url: https://cdn.cboe.com/api/global/us_indices/governance/Cboe_PutWrite_Indices_Methodology.pdf
+doi: null
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: full_text_reviewed
+recovered_at: '2026-09-27'
+sprint: ASA-RES-STRATEGY-QUALIFICATION-002
+research_context:
+  sample_period: methodology (PUTY base 1986-06-30, launch 2019-02-15; WPUT base 2006-01-31, launch 2015-08-03)
+  universe: SPX/RUT/TLT puts + 4-week T-bills
+  market: US
+  methodology_context: index calculation rules
+  original_or_replication: original
+  material_limitations:
+  - 'WPUT AM-settlement roll: strike below the SOQ while premium is the first bid after 9:30 a.m. ET (live ordering
+    undefined)'
+  - Index sponsor document
+preliminary_families:
+- FAM-VRP-INDEX-PUTWRITE
+claims:
+- claim_id: CBOE-PUTWRITE-INDICES-METHODOLOGY-2024-C1
+  claim_class: REPORTED
+  reported_metric: PUTY strike
+  value: first available strike below 98% of the last disseminated S&P 500 value before 11:00 a.m. ET
+  context: §2.2 table
+- claim_id: CBOE-PUTWRITE-INDICES-METHODOLOGY-2024-C2
+  claim_class: REPORTED
+  reported_metric: WPUT roll and strike
+  value: every Friday (preceding business day on holiday); first available SPX put strike below the SOQ (AM) or
+    below the last index value before 4:00 p.m. ET (PM)
+  context: §2.2 table and §2.2.3
+- claim_id: CBOE-PUTWRITE-INDICES-METHODOLOGY-2024-C3
+  claim_class: REPORTED
+  reported_metric: WPUT premium and buy-back
+  value: 'AM: first bid after 9:30 a.m. ET; PM: last bid before 4:00 p.m. ET; expiring PM put bought back at last
+    ask before 4:00 p.m. ET'
+  context: §2.2.3
+- claim_id: CBOE-PUTWRITE-INDICES-METHODOLOGY-2024-C4
+  claim_class: REPORTED
+  reported_metric: collateral
+  value: notional equal to K in a T-bill account accruing at the 4-week bank-discount rate; no accrual on roll day
+  context: §2.2.1, §3
+- claim_id: CBOE-PUTWRITE-INDICES-METHODOLOGY-2024-C5
+  claim_class: DERIVED
+  reported_metric: strictness of "below"
+  value: the same document uses "lower than or equal to" for PTLT, supporting a strict inequality for PUTY/WPUT
+  context: textual contrast
+recoverability:
+  repository_copy: null
+  external_identifier: https://cdn.cboe.com/api/global/us_indices/governance/Cboe_PutWrite_Indices_Methodology.pdf
+  notes: Full text retrieved from the Cboe CDN and reviewed 2026-09-27. The One-Week PutWrite methodology URL returned
+    access denied; this combined document was used.

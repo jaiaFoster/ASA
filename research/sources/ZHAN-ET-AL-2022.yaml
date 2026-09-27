@@ -43,3 +43,35 @@ recoverability:
   external_identifier: 10.1093/rfs/hhab067
   notes: Bibliographic identity verified via Crossref; abstract retrieved via OpenAlex, Semantic Scholar
     or RePEc IDEAS on 2026-09-26. Claims beyond the abstract are not asserted.
+
+# --- ASA-RES-STRATEGY-QUALIFICATION-002 verification (2026-09-27). Fields above are preserved unchanged; verification_depth_after supersedes verification_depth for this sprint only. ---
+qualification_002_verification:
+  reviewed_at: '2026-09-27'
+  sprint: ASA-RES-STRATEGY-QUALIFICATION-002
+  verification_depth_after: full_text_reviewed (author-accepted manuscript)
+  full_text_url: https://utoronto.scholaris.ca/bitstreams/5c530340-f282-4a35-a281-76336e3757b1/download
+  sample_period: 1996-01 to 2016-04
+  claims:
+  - claim_id: ZHAN-ET-AL-2022-Q2-C1
+    claim_class: REPORTED
+    reported_metric: -Ln(PRICE) Stock-VW 10-1 spread by effective/quoted spread
+    value: '0%: 4.67% (t 25.17); 25%: 3.72%; 50%: 2.80%; 75%: 1.90%; 100%: 1.01% (t 5.48); 50% + margin 2.68%; OPRA
+      subsample actual effective 2.78% (t 12.86), + margin 2.70%'
+    context: Table 6
+  - claim_id: ZHAN-ET-AL-2022-Q2-C2
+    claim_class: REPORTED
+    reported_metric: construction
+    value: month-end formation; ATM call/put with shortest maturity over one month (47-52 days); sell one call against
+      Black-Scholes delta shares; hold one month without rebalancing; deciles; Stock-VW, EW, Option-VW
+    context: §1-§2
+  - claim_id: ZHAN-ET-AL-2022-Q2-C3
+    claim_class: REPORTED
+    reported_metric: filters
+    value: price >= $5; exclude options with a dividend during remaining life; volume > 0, bid > 0, bid < ask, mid
+      >= $1/8; no-arbitrage; moneyness 0.8-1.2; modal maturity; both call and put available
+    context: §1.1
+  - claim_id: ZHAN-ET-AL-2022-Q2-C4
+    claim_class: REPORTED
+    reported_metric: margin
+    value: CBOE naked-option initial margin financed at maturity-matched LIBOR, eq. (2)
+    context: §2.4

@@ -1,0 +1,62 @@
+# ASA-RES-STRATEGY-QUALIFICATION-002 source record. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN.
+source_id: ALEXIOU-ET-AL-2025
+source_class: EXTERNAL_PRIMARY
+title: 'Pricing event risk: evidence from concave implied volatility curves'
+authors:
+- Lykourgos Alexiou
+- Amit Goyal
+- Alexandros Kostakis
+- Leonidas Rompolis
+publication: Review of Finance 29(4):963-1007
+publication_date: '2025-07-01'
+source_type: peer_reviewed
+canonical_url: https://doi.org/10.1093/rof/rfaf016
+doi: 10.1093/rof/rfaf016
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: full_text_reviewed
+recovered_at: '2026-09-27'
+sprint: ASA-RES-STRATEGY-QUALIFICATION-002
+research_context:
+  sample_period: 2013-2020
+  universe: each calendar year the 100 US common stocks (price > $5) with highest option trading volume (194 firms)
+  market: US equity options
+  methodology_context: IV-curve concavity before earnings announcements; delta-neutral EAD straddle returns
+  original_or_replication: original
+  material_limitations:
+  - Universe ranks on same-year option volume (look-ahead)
+  - Net-of-cost level returns not reported
+  - No source-authored trade direction
+preliminary_families:
+- FAM-EVENT-VOL
+claims:
+- claim_id: ALEXIOU-ET-AL-2025-C1
+  claim_class: REPORTED
+  reported_metric: CONCAVE and EAD straddle return
+  value: mean STRADDLE -0.86% (median -15.43%); CONCAVE=1 -3.74%, CONCAVE=0 +0.91%, difference -4.65% (t -2.16)
+  context: §5.2, Table 3
+- claim_id: ALEXIOU-ET-AL-2025-C2
+  claim_class: REPORTED
+  reported_metric: panel regression
+  value: CONCAVE coefficient -4.57% (t 2.40 as printed); -7.60% with firm controls
+  context: Table 5
+- claim_id: ALEXIOU-ET-AL-2025-C3
+  claim_class: REPORTED
+  reported_metric: costs
+  value: with ask/bid or 75%/50% effective spreads returns are substantially lower but the differential remains
+    intact and significant
+  context: footnote 17
+- claim_id: ALEXIOU-ET-AL-2025-C4
+  claim_class: REPORTED
+  reported_metric: JUMPSTRADDLE
+  value: CONCAVE=1 -10.69% vs 2.29%
+  context: §5.3.2
+- claim_id: ALEXIOU-ET-AL-2025-C5
+  claim_class: REPORTED
+  reported_metric: straddle weights
+  value: w = -(ΔP/P)/(ΔC/C - ΔP/P) on the call return; OptionMetrics deltas
+  context: eq. (5)
+recoverability:
+  repository_copy: https://www.pure.ed.ac.uk/ws/portalfiles/portal/531177695/AlexiouEtal2025RFPricingEventRisk.pdf
+  external_identifier: 10.1093/rof/rfaf016
+  notes: Publisher version of record retrieved from the Edinburgh Research Explorer and reviewed 2026-09-27.

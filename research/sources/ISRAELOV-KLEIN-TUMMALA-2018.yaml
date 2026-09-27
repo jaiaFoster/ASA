@@ -1,0 +1,39 @@
+# ASA-RES-STRATEGY-QUALIFICATION-002 source record. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN.
+source_id: ISRAELOV-KLEIN-TUMMALA-2018
+source_class: EXTERNAL_REPLICATION
+title: 'Covering the world: global evidence on covered calls'
+authors:
+- Roni Israelov
+- Matthew Klein
+- Harsha Tummala
+publication: Journal of Risk 21(1):61-89
+publication_date: '2018-10-01'
+source_type: peer_reviewed
+canonical_url: https://doi.org/10.21314/JOR.2018.394
+doi: 10.21314/JOR.2018.394
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: full_text_reviewed
+recovered_at: '2026-09-27'
+sprint: ASA-RES-STRATEGY-QUALIFICATION-002
+research_context:
+  sample_period: per index (see paper)
+  universe: covered calls on eleven global equity indexes
+  market: global
+  methodology_context: risk and performance attribution into equity, short volatility and equity timing
+  original_or_replication: followup
+  material_limitations:
+  - Authors affiliated with AQR
+preliminary_families:
+- FAM-VRP-COVERED-CALL
+claims:
+- claim_id: ISRAELOV-KLEIN-TUMMALA-2018-C1
+  claim_class: REPORTED
+  reported_metric: attribution
+  value: equity exposure drives most risk and return; short volatility has the highest Sharpe ratio; equity timing
+    returns statistically insignificant in all eleven indexes yet contribute relatively large risk
+  context: abstract and results
+recoverability:
+  repository_copy: https://images.aqr.com/-/media/AQR/Documents/Journal-Articles/Covering-the-world-global-evidence-on-covered-calls.pdf
+  external_identifier: 10.21314/JOR.2018.394
+  notes: Full text retrieved from AQR and reviewed 2026-09-27.

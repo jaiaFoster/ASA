@@ -43,3 +43,27 @@ recoverability:
   external_identifier: 10.1016/j.jfineco.2012.11.010
   notes: Bibliographic identity verified via Crossref; abstract retrieved via OpenAlex, Semantic Scholar
     or RePEc IDEAS on 2026-09-26. Claims beyond the abstract are not asserted.
+
+# --- ASA-RES-STRATEGY-QUALIFICATION-002 verification (2026-09-27). Fields above are preserved unchanged; verification_depth_after supersedes verification_depth for this sprint only. ---
+qualification_002_verification:
+  reviewed_at: '2026-09-27'
+  sprint: ASA-RES-STRATEGY-QUALIFICATION-002
+  verification_depth_after: full_text_reviewed
+  full_text_url: https://www-2.rotman.utoronto.ca/facbios/file/Han_JFE_published.pdf
+  sample_period: 1996-01 to 2009-10
+  claims:
+  - claim_id: CAO-HAN-2013-Q2-C1
+    claim_class: REPORTED
+    reported_metric: IVOL quintile strategy net of costs (EW)
+    value: mid 1.40%; 10% effective 1.16%; 25% 0.79%; 50% 0.17% not significant
+    context: Table 10 text
+  - claim_id: CAO-HAN-2013-Q2-C2
+    claim_class: REPORTED
+    reported_metric: decile variant
+    value: still significant at 50% effective spread; insignificant at 75%
+    context: footnote 18
+  - claim_id: CAO-HAN-2013-Q2-C3
+    claim_class: REPORTED
+    reported_metric: construction
+    value: ATM call about 50 days; delta hedge rebalanced daily; hold to next month end; quintiles on IVOL
+    context: §4

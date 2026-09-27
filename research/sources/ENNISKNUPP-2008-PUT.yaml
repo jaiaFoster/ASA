@@ -1,0 +1,42 @@
+# ASA-RES-STRATEGY-QUALIFICATION-002 source record. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN.
+source_id: ENNISKNUPP-2008-PUT
+source_class: EXTERNAL_SECONDARY
+title: Evaluating the Performance Characteristics of the CBOE S&P 500 PutWrite Index
+authors:
+- Ennis Knupp + Associates
+publication: Consultant study published by Cboe
+publication_date: '2008-12-01'
+source_type: institutional_quant_research
+canonical_url: https://cdn.cboe.com/resources/education/research_publications/PUTIndexEnnisKnupp.pdf
+doi: null
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: full_text_reviewed
+recovered_at: '2026-09-27'
+sprint: ASA-RES-STRATEGY-QUALIFICATION-002
+research_context:
+  sample_period: 1988-06 to 2008 (per study)
+  universe: Cboe PUT index
+  market: US
+  methodology_context: index performance evaluation
+  original_or_replication: followup
+  material_limitations:
+  - Published by the index owner
+  - Returns before fees; index excludes transaction costs
+preliminary_families:
+- FAM-VRP-INDEX-PUTWRITE
+claims:
+- claim_id: ENNISKNUPP-2008-PUT-C1
+  claim_class: REPORTED
+  reported_metric: PUT annualized return / SD
+  value: 10.32% / 9.91% vs S&P 500 8.77% / 15.39%, before fees
+  context: summary table
+- claim_id: ENNISKNUPP-2008-PUT-C2
+  claim_class: REPORTED
+  reported_metric: cost disclaimer
+  value: index performance does not reflect management fees, transaction costs or expenses
+  context: disclosure
+recoverability:
+  repository_copy: null
+  external_identifier: https://cdn.cboe.com/resources/education/research_publications/PUTIndexEnnisKnupp.pdf
+  notes: Full text retrieved from the Cboe CDN and reviewed 2026-09-27.

@@ -46,3 +46,30 @@ recoverability:
   external_identifier: 10.1111/jofi.13279
   notes: Bibliographic identity verified via Crossref; abstract retrieved via OpenAlex, Semantic Scholar
     or RePEc IDEAS on 2026-09-26. Claims beyond the abstract are not asserted.
+
+# --- ASA-RES-STRATEGY-QUALIFICATION-002 verification (2026-09-27). Fields above are preserved unchanged; verification_depth_after supersedes verification_depth for this sprint only. ---
+qualification_002_verification:
+  reviewed_at: '2026-09-27'
+  sprint: ASA-RES-STRATEGY-QUALIFICATION-002
+  verification_depth_after: full_text_reviewed (working paper, December 2021)
+  full_text_url: http://faculty.marshall.usc.edu/Christopher-Jones/pdf/opmom.pdf
+  sample_period: 1996-01 to 2019-06
+  claims:
+  - claim_id: HESTON-ET-AL-2023-Q2-C1
+    claim_class: REPORTED
+    reported_metric: momentum after costs (Table 13 Panel B, zero exercise costs)
+    value: main quintile gross 0.0622, algo 0.0362, adjusted -0.0040, effective -0.0356, quoted -0.0678; low-cost
+      decile 0.0723 / 0.0599 / 0.0408 / 0.0260 (t 1.75) / 0.0112 (t 0.75); margin-adjusted 0.0294 / 0.0347
+    context: Table 13
+  - claim_id: HESTON-ET-AL-2023-Q2-C2
+    claim_class: REPORTED
+    reported_metric: construction
+    value: pair with call delta closest to 0.5 expiring next month; discard call delta < 0.25 or > 0.75; weights
+      ∝ (-ΔP·C, ΔC·P); weighted spread <= 50% else replace further from ATM; OI > 0 only in holding period; mid
+      entry; hold to expiry; lags 2-12 with no missing formation months; quintiles, equal weight
+    context: §1-§2
+  - claim_id: HESTON-ET-AL-2023-Q2-C3
+    claim_class: REPORTED
+    reported_metric: margin
+    value: 'SPAN: ±15% price in 3% steps, ±10% IV, Black-Scholes; margin ratio slightly above 2'
+    context: §6

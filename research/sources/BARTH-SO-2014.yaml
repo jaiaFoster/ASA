@@ -41,3 +41,18 @@ recoverability:
   external_identifier: 10.2308/accr-50758
   notes: Bibliographic identity verified via Crossref; abstract retrieved via OpenAlex, Semantic Scholar
     or RePEc IDEAS on 2026-09-26. Claims beyond the abstract are not asserted.
+
+# --- ASA-RES-STRATEGY-QUALIFICATION-002 verification (2026-09-27). Fields above are preserved unchanged; verification_depth_after supersedes verification_depth for this sprint only. ---
+qualification_002_verification:
+  reviewed_at: '2026-09-27'
+  sprint: ASA-RES-STRATEGY-QUALIFICATION-002
+  verification_depth_after: full_text_reviewed (preprint)
+  full_text_url: https://www.hbs.edu/faculty/Shared%20Documents/events/14/Barth.Risk_Premiums_and_Non-Diversifiable_Earnings.pdf
+  sample_period: per preprint
+  claims:
+  - claim_id: BARTH-SO-2014-Q2-C1
+    claim_class: REPORTED
+    reported_metric: trading rule
+    value: no straddle trading rule is defined; the paper measures non-diversifiable volatility risk premiums at
+      announcements
+    context: full-text scan
