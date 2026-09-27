@@ -1,0 +1,813 @@
+---
+id: STRATEGY-PRODUCTION-001
+name: Seven-Strategy Capability-First Production Expansion
+version: 0.2-final-draft
+status: FINAL_DRAFT
+type: IMPLEMENTATION_SPRINT
+priority: P0
+
+draft_state:
+  founder_authorized: false
+  activation_effect: none
+  purpose: >
+    Final activation draft after critic review. This file grants no
+    implementation merge delegation and no deployment authority until a later
+    Founder action changes status to ACTIVE, sets founder_authorized true, and
+    personally merges that activation version to main.
+  critic_review:
+    pr: 503
+    review_id: 5331334230
+    findings_resolved:
+      - architecture_contracts_frozen_before_activation
+      - delegated_scope_split_into_child_tickets
+      - live_in_production_defined
+      - aggregate_capacity_gate_added
+      - implementation_assumption_provenance_mechanically_enforced
+  research_basis:
+    - PR_502
+    - research/sprints/ASA-RES-STRATEGY-QUALIFICATION-002/FINAL-SELECTION.md
+    - research/sprints/ASA-RES-STRATEGY-QUALIFICATION-002/final-selection.yaml
+    - research/sprints/ASA-RES-STRATEGY-QUALIFICATION-002/implementation-handoff.yaml
+    - research/sprints/ASA-RES-STRATEGY-QUALIFICATION-002/architecture-handoff.yaml
+
+activation:
+  id: AMD-013-STRATEGY-PRODUCTION-001-V1
+  governance_amendment: GOV-AMD-001-013
+  founder_authorized: false
+  founder_direction: >
+    Implement the complete seven-strategy research handoff in one sprint,
+    capability-first and without strategy-specific runtime paths. Do not stop
+    for routine Founder review between strategies. Continue through every
+    dependency-safe implementation, correction, integration, scheduling, and
+    production-readiness ticket. No selected strategy may be left as research,
+    test-only, registry-only, or otherwise shelved. Monday 2026-09-28 is the
+    first intended production-observation session, but schedule pressure never
+    weakens truth, evidence, risk, replay, or fail-closed gates.
+  effective_when: >
+    A subsequent activation edit sets status ACTIVE and founder_authorized true
+    and is personally merged by the Founder to the default branch.
+  delegate:
+    role: ROLE-WORKER
+    instance: implementation-worker
+  limited_to_sprint: STRATEGY-PRODUCTION-001
+  approved_tickets:
+    - SP-00A
+    - SP-00B
+    - SP-01A
+    - SP-01B
+    - SP-01C
+    - SP-01D
+    - SP-01E
+    - SP-02A
+    - SP-02B
+    - SP-03A
+    - SP-03B
+    - SP-03C
+    - SP-04A
+    - SP-04B
+    - SP-05A
+    - SP-05B
+    - SP-05C
+    - SP-05D
+    - SP-06A
+    - SP-06B
+    - SP-07A
+    - SP-07B
+    - SP-08A
+  expires:
+    - sprint_complete
+    - sprint_stopped
+    - Founder_revokes_delegation
+    - scope_or_authority_changes
+
+objective: >
+  Build the reusable data, analytics, structure, capital, and portfolio
+  capabilities required by the seven frozen research-selected strategies;
+  implement every strategy through ASA's manifest-first architecture; merge
+  qualifying child-ticket PRs continuously under Founder Sprint Delegation;
+  integrate every selected strategy into the real production registry,
+  scheduler, product, tracking, and outcomes paths; and obtain real production
+  observations without shelving any selected strategy.
+
+selected_strategies:
+  - event_vol_gxz_preea_straddle_to_expiry
+  - index_putwrite_cboe_put
+  - index_putwrite_cboe_puty
+  - index_short_vol_scs_near_atm_straddle
+  - xs_option_zhan_neg_lnprice_dn_call
+  - xs_option_heston_straddle_momentum_lowcost
+  - index_buywrite_cboe_bxm
+
+north_star:
+  production: >
+    All seven selected strategies are first-class production strategies. A due
+    strategy either evaluates truthfully or emits a typed blocker; it is never
+    silently dropped, proxied, or held outside production.
+  architecture: >
+    Shared behavior is built once at its canonical owner. A second strategy
+    consuming a primitive proves reuse rather than creating a parallel path.
+  evidence: >
+    Production measures constructibility, opportunity frequency, provider/data
+    adequacy, and forward outcomes. Production results never rewrite source
+    evidence or convert implementation assumptions into research facts.
+
+canonical_flow:
+  - market_data_owns_provider_neutral_canonical_facts_provenance_and_freshness
+  - analytics_owns_named_typed_versioned_reusable_derived_facts
+  - StrategyManifest_is_the_only_authored_strategy_authority
+  - strategy_graph_owns_parameters_gates_direction_structure_score_and_verdict
+  - screening_owns_generic_acquisition_planning_and_orchestration_only
+  - strategy_runtime_owns_generic_execution_persistence_projection_and_replay
+  - trade_proposal_uses_exact_selected_positions
+  - tracking_and_outcomes_reuse_existing_generic_lifecycle
+
+architecture_contract_freeze:
+  status: FROZEN_FOR_THIS_SPRINT
+  authority: ROLE-ARCH
+  rule: >
+    Workers implement these additive, reusable semantics. They do not choose a
+    different ownership model or redefine the financial meaning. Departure from
+    this freeze requires Architect correction; only a necessary protected
+    breaking contract or product-direction change escalates to the Founder.
+
+  three_state_semantics:
+    owner: shared_strategy_components_and_graph_runtime
+    values: [PASS, FAIL, UNKNOWN]
+    invariants:
+      - UNKNOWN_is_not_boolean_false
+      - boolean_AND_returns_FAIL_if_any_input_FAIL
+      - boolean_AND_returns_UNKNOWN_if_no_FAIL_and_any_input_UNKNOWN
+      - boolean_AND_returns_PASS_only_if_all_inputs_PASS
+      - verdict_projection_preserves_UNKNOWN_distinct_from_FAIL_PASS_and_WATCH
+      - adapters_screening_persistence_API_and_UI_must_not_reinterpret_UNKNOWN
+
+  X01_index_identity_and_settlement:
+    owner: domain_and_market_data
+    additive_contract:
+      - canonical_INDEX_instrument_kind_distinct_from_EQUITY
+      - index_option_identity_includes_underlying_index_root_and_contract_identity
+      - option_identity_carries_settlement_style_when_semantically_relevant
+      - AM_PM_settlement_distinction_is_typed
+      - SOQ_or_equivalent_settlement_value_is_a_canonical_observation
+      - provider_neutral_INDEX_quotes_use_the_shared_quote_contract
+    prohibitions:
+      - normalize_SPX_to_EQUITY
+      - infer_settlement_style_from_strategy_ID
+      - substitute_SPY_or_futures
+
+  P03_straddle:
+    owner: reusable_structure_component_and_exact_position_contract
+    additive_contract:
+      - one_or_more_call_put_pairs
+      - each_pair_same_strike_and_expiration
+      - long_or_short_direction
+      - decimal_quantity_per_leg
+      - unit_or_non_unit_ratio
+      - deterministic_exact_option_identity
+      - deterministic_pair_and_position_ordering
+      - multi_pair_collection_supported_without_strategy_specific_structure_type
+    identity: >
+      Position identity includes exact contracts, signed quantities, and any
+      assumption-controlled weighting inputs that change the position.
+
+  P09_underlying_exposure_overlay:
+    owner: reusable_portfolio_structure_contract
+    additive_contract:
+      - generic_underlying_exposure_leg_separate_from_option_legs
+      - exposure_leg_has_subject_identity_quantity_or_notional_and_exposure_kind
+      - exposure_kind_may_represent_non_tradable_index_total_return_exposure
+      - option_legs_preserve_exact_contract_identity
+      - overlay_economics_do_not_claim_broker_executability_for_non_tradable_exposure
+    BXM_rule: >
+      BXM uses S&P 500 index total-return exposure plus the exact SPX short call.
+      It is an analytical/index strategy representation, not a claim that ASA
+      can buy the index itself.
+    prohibitions:
+      - represent_SPX_index_as_owned_equity
+      - substitute_SPY
+      - substitute_ES_or_other_futures
+      - BXM_named_runtime_type
+
+  P10_delta_hedged_option:
+    owner: reusable_portfolio_structure_contract
+    additive_contract:
+      - exact_option_leg
+      - static_underlying_hedge_leg_for_selected_strategies
+      - signed_decimal_hedge_quantity_from_named_derived_fact
+      - long_or_short_option_direction
+      - deterministic_combined_position_identity
+    boundary: >
+      Dynamic re-hedging is not part of this sprint's P10 contract unless a
+      selected manifest explicitly requires it. Zhan uses a static formation hedge.
+
+  P12_cross_sectional_portfolio:
+    owner: generic_cross_subject_portfolio_composition
+    additive_contract:
+      - point_in_time_eligible_universe_identity
+      - deterministic_rank_and_quantile_assignment
+      - explicit_tie_policy
+      - exact_member_position_identity
+      - source_defined_equal_or_value_weighting
+      - long_short_or_single_side_book
+      - rebalance_effective_time
+    prohibition:
+      - strategy_ID_branch_in_cross_sectional_orchestration
+
+  A15_margin_and_capital:
+    owner: analytics
+    additive_models:
+      - cash_secured_short_put_collateral
+      - Treasury_collateral_accrual
+      - Cboe_naked_option_margin
+      - Cboe_straddle_combination_margin
+      - source_required_equity_option_margin
+      - Heston_SPAN_style_scenario_margin_or_explicit_UNKNOWN_if_exact_inputs_unavailable
+    invariants:
+      - formula_ID_and_version_required
+      - source_or_rule_provenance_required
+      - no_terminal_max_loss_substitution_for_margin
+      - missing_margin_input_returns_UNKNOWN
+
+  implementation_assumption_provenance:
+    owner: StrategyManifest_metadata_and_generic_explanation_projection
+    additive_contract:
+      - implementation_assumption_ids_are_manifest_identity_bearing_metadata
+      - assumption_values_that_change_financial_semantics_are_manifest_parameters
+      - replay_identity_includes_semantics_changing_assumption_values
+      - explanation_projection_discloses_material_assumption_IDs
+      - source_provenance_never_labels_an_RA_item_as_source_authored
+      - changing_semantics_changing_assumption_requires_strategy_semantic_version_change
+
+hard_architecture_rules:
+  - no_strategy_ID_branches_in_market_data_screening_runtime_API_or_UI
+  - no_provider_access_inside_strategies_or_analytics
+  - no_private_strategy_formula_when_semantically_reusable
+  - no_duplicate_formula_owner
+  - no_strategy_specific_runtime_structure_type
+  - no_OptionContract_mark_substitution_for_bid_ask_midpoint
+  - no_live_broker_mutation
+  - no_proxy_market_data_or_underlying_substitution_without_source_authority
+  - exact_source_rules_and_ASA_constructibility_policy_remain_separate
+
+research_assumptions:
+  IDs: [RA-EV-01, RA-EV-02, RA-SV-01, RA-XS-01, RA-XR-03]
+  enforcement:
+    - IDs_present_in_manifest_or_strategy_provenance
+    - semantics_changing_values_parameterized
+    - replay_identity_changes_when_semantics_change
+    - explanation_output_discloses_material_assumptions
+    - semantic_version_changes_when_semantics_changing_assumption_changes
+    - RA_XR_03_only_promoted_to_DERIVED_with_checked_explicit_proof
+
+live_in_production_contract:
+  definition: >
+    A selected strategy is LIVE_IN_PRODUCTION only when all six conditions are
+    true. PASS or an actionable trade is not required.
+  conditions:
+    - manifest_and_runtime_projection_are_merged_in_the_real_production_registry
+    - normal_scheduler_or_source_faithful_event_path_exists
+    - every_due_required_capability_is_really_attempted_or_generically_capacity_deferred
+    - graph_executes_to_truthful_verdict_or_typed_missing_data
+    - generic_API_UI_projection_exposes_the_result
+    - tracking_and_outcome_paths_accept_the_strategy_when_an_actionable_position_exists
+  Monday_states:
+    - LIVE_EVALUABLE
+    - LIVE_TYPED_DATA_BLOCKER
+    - NOT_DUE
+  prohibited_interpretation: >
+    "Live" never means fabricated history, guessed provider values, forced PASS,
+    proxy instruments, or bypassed validation.
+
+operating_model:
+  one_sprint: true
+  strategy_by_strategy_Founder_stops: prohibited
+  no_lull: >
+    When authorized dependency-safe work exists, continue. Provider waits,
+    observation windows, architecture corrections, and one strategy's blocker
+    do not idle unrelated tickets.
+  WIP:
+    implementation_or_correction_streams: 2
+    observation_streams: unbounded_within_sprint
+  root_cause_policy:
+    first_failure:
+      - reproduce_exact_failure
+      - identify_earliest_shared_owning_boundary
+      - fix_owner_not_downstream_symptom
+      - add_provider_or_production_shaped_regression
+      - rerun_same_proof
+    repeated_same_failure:
+      - stop_micro_patching
+      - restate_violated_acceptance
+      - challenge_the_assumption_or_contract
+      - raise_Architect_blocker_if_required
+  token_efficiency:
+    - inspect_current_owner_before_designing
+    - use_targeted_tests_during_iteration
+    - run_full_required_gate_once_before_merge
+    - one_concise_PR_evidence_packet
+    - no_duplicate_status_docs
+    - no_repetition_of_research_history_unless_needed_for_a_rule
+
+tickets:
+
+  SP-00A:
+    title: Exact-main rehydration and ownership map
+    objective: >
+      Rehydrate from exact main, verify PR #502 artifacts, map every required
+      fact/formula/structure to its existing or frozen owner, and identify
+      duplicates before implementation.
+    acceptance:
+      - every_selected_strategy_mapped
+      - every_gap_has_one_owner
+      - no_duplicate_owner_planned
+      - architecture_freeze_matches_current_code_or_specific_additive_delta_recorded
+
+  SP-00B:
+    title: Monday readiness and aggregate capacity baseline
+    depends_on: [SP-00A]
+    required_output:
+      per_strategy:
+        - LIVE_EVALUABLE
+        - LIVE_TYPED_DATA_BLOCKER
+        - NOT_DUE
+      measured_or_bounded_metrics:
+        - subjects_considered
+        - required_requests_by_capability
+        - option_chain_requests
+        - historical_option_panel_requests
+        - trade_tape_requests
+        - quote_requests
+        - rate_requests
+        - expected_due_strategy_subject_pairs
+        - current_cycle_duration
+        - current_provider_deferrals
+    acceptance:
+      - no_unproven_full_evaluability_claim
+      - capacity_risk_has_specific_owner
+      - current_shared_acquisition_reuse_opportunities_identified
+
+  SP-01A:
+    title: X01 INDEX identity, quotes, and settlement
+    depends_on: [SP-00A]
+    scope:
+      - INDEX_instrument_identity
+      - index_option_identity
+      - AM_PM_settlement
+      - SOQ_canonical_fact
+      - provider_neutral_INDEX_quote_path
+    acceptance:
+      - architecture_freeze_implemented_exactly
+      - index_equity_distinction_tested
+      - replay_identity_stable
+      - no_strategy_specific_index_path
+
+  SP-01B:
+    title: X04 reusable rate facts
+    depends_on: [SP-00A]
+    scope:
+      - Treasury_4_week
+      - Treasury_13_week
+      - risk_free_rate
+      - source_required_dividend_yield
+    acceptance:
+      - provider_neutral
+      - effective_time_and_provenance_preserved
+      - missing_rate_typed_UNKNOWN
+
+  SP-01C:
+    title: X05 option trade tape and Cboe VWAP inputs
+    depends_on: [SP-00A]
+    scope:
+      - option_trade_identity_price_size
+      - event_and_observed_timestamps
+      - sale_condition_eligibility
+      - reusable_windowed_VWAP_fact
+    acceptance:
+      - no_last_trade_or_midpoint_masquerading_as_Cboe_VWAP
+      - deterministic_event_time_windowing
+      - absent_tape_is_TYPED_UNKNOWN
+
+  SP-01D:
+    title: X07 index dividends and security-master facts
+    depends_on: [SP-00A]
+    scope:
+      - SP500_index_dividend_points
+      - security_type
+      - shares_outstanding
+    acceptance:
+      - effective_time_and_provenance
+      - no_security_corporate_action_substitution_for_index_dividend_points
+      - no_strategy_private_security_master
+
+  SP-01E:
+    title: Shared analytics, A12, assumption provenance, and three-state graph semantics
+    depends_on: [SP-00A]
+    scope:
+      - option_midpoint
+      - effective_and_relative_spread
+      - trading_calendar_facts
+      - calendar_DTE
+      - zero_delta_straddle_weights
+      - straddle_return
+      - zero_cost_option_return
+      - Cboe_T_bill_accrual
+      - quantile_assignment
+      - delta_neutral_hedge_quantity
+      - PASS_FAIL_UNKNOWN_composition
+      - implementation_assumption_metadata_and_projection
+    acceptance:
+      - stable_formula_ID_version_units_time_semantics
+      - UNKNOWN_propagation_truth_table_green
+      - semantics_changing_assumptions_affect_identity_and_version_tests
+      - A12_is_measurement_not_universal_gate
+
+  SP-02A:
+    title: P03 generic straddle
+    depends_on: [SP-01E]
+    scope:
+      - long_short
+      - unit_nonunit_ratios
+      - multi_pair_collections
+      - exact_contract_and_quantity_identity
+      - generic_trade_proposal_projection
+    acceptance:
+      - no_GXZ_specific_structure_type
+      - deterministic_order_and_identity
+      - second_consumer_fixture_proves_reuse
+
+  SP-02B:
+    title: GXZ event-volatility production strategy
+    depends_on: [SP-02A]
+    manifest_id: event_vol_gxz_preea_straddle_to_expiry
+    acceptance:
+      - all_research_gates_and_assumptions_explicit
+      - lookahead_safe_earnings_time
+      - exact_pairs_weights_and_trade_projection
+      - truth_table_and_replay_green
+      - real_registry_and_scheduler_path
+
+  SP-03A:
+    title: P01 and A15 cash-secured put collateral
+    depends_on: [SP-01A, SP-01B, SP-01E]
+    scope:
+      - exact_single_option_leg
+      - long_short_quantity
+      - cash_secured_short_put_collateral
+      - Treasury_collateral_accrual
+    acceptance:
+      - generic_P01
+      - margin_and_capital_formula_versioned
+      - no_vertical_max_loss_shortcut
+
+  SP-03B:
+    title: Cboe PUT production strategy
+    depends_on: [SP-03A]
+    manifest_id: index_putwrite_cboe_put
+    acceptance:
+      - source_roll_strike_and_collateral_exact
+      - SOQ_and_INDEX_identity_safe
+      - X05_VWAP_truthfully_unknown_when_unavailable
+      - registry_scheduler_tracking_outcomes_generic
+
+  SP-03C:
+    title: Cboe PUTY reuse strategy
+    depends_on: [SP-03B]
+    manifest_id: index_putwrite_cboe_puty
+    acceptance:
+      - reuses_PUT_stack
+      - economic_difference_is_manifest_policy
+      - no_new_runtime_branch
+
+  SP-04A:
+    title: A15 short-option and straddle margin
+    depends_on: [SP-01A, SP-01B, SP-02A]
+    scope:
+      - Cboe_naked_margin
+      - straddle_combination_margin
+      - proceeds_and_financing
+    acceptance:
+      - reusable_formula_models
+      - missing_margin_inputs_UNKNOWN
+      - no_terminal_payoff_substitution
+
+  SP-04B:
+    title: Santa-Clara/Saretto production strategy
+    depends_on: [SP-04A]
+    manifest_id: index_short_vol_scs_near_atm_straddle
+    acceptance:
+      - reuses_P03
+      - RA_SV_01_disclosed
+      - exact_monthly_entry_exit_and_45_day_selection
+      - allocation_not_invented
+      - replay_truth_table_registry_scheduler_green
+
+  SP-05A:
+    title: P10 and P12 generic portfolio structures
+    depends_on: [SP-01D, SP-01E]
+    scope:
+      - static_delta_hedged_option
+      - point_in_time_cross_sectional_portfolio
+      - deterministic_rank_quantile_and_ties
+      - exact_member_position_identity
+      - equal_and_source_defined_value_weights
+    acceptance:
+      - no_strategy_ID_branch
+      - RA_XS_01_remains_implementation_policy
+      - generic_reuse_fixtures_for_Zhan_and_Heston
+
+  SP-05B:
+    title: A08 historical option panel and A17 option-return history
+    depends_on: [SP-00B, SP-01E]
+    scope:
+      - point_in_time_option_observations
+      - no_lookahead
+      - monthly_zero_delta_straddle_history
+      - Heston_12_month_formation_window
+    acceptance:
+      - historical_panel_provenance_and_observation_time
+      - provider_free_replay
+      - missing_history_is_TYPED_UNKNOWN
+      - no_synthetic_backfill
+
+  SP-05C:
+    title: Zhan production strategy
+    depends_on: [SP-05A, SP-01B]
+    manifest_id: xs_option_zhan_neg_lnprice_dn_call
+    acceptance:
+      - dividend_inclusive_variant
+      - security_master_inputs_point_in_time
+      - exact_static_hedge
+      - generic_P12_portfolio
+      - replay_truth_table_registry_scheduler_green
+
+  SP-05D:
+    title: Heston production strategy
+    depends_on: [SP-05A, SP-05B, SP-02A]
+    manifest_id: xs_option_heston_straddle_momentum_lowcost
+    acceptance:
+      - low_cost_decile_variant
+      - RA_XR_03_proven_or_disclosed
+      - no_invented_replacement_order
+      - reuses_P03_and_P12
+      - insufficient_history_truthfully_UNKNOWN
+
+  SP-06A:
+    title: P09 generic underlying-exposure overlay
+    depends_on: [SP-01A, SP-01E]
+    scope:
+      - non_tradable_index_exposure_leg
+      - exact_option_overlay_legs
+      - analytical_economics_without_false_broker_executability
+    acceptance:
+      - architecture_freeze_implemented
+      - no_SPY_futures_proxy
+      - no_BXM_named_runtime_path
+      - generic_non_BXM_fixture_proves_reuse
+
+  SP-06B:
+    title: Cboe BXM production strategy
+    depends_on: [SP-06A, SP-01C, SP-01D]
+    manifest_id: index_buywrite_cboe_bxm
+    acceptance:
+      - exact_SPX_call_and_index_exposure
+      - X07_dividend_accounting
+      - Cboe_VWAP_or_TYPED_UNKNOWN
+      - registry_scheduler_product_tracking_paths_generic
+
+  SP-07A:
+    title: Seven-strategy production integration and anti-shelving proof
+    depends_on: [SP-02B, SP-03B, SP-03C, SP-04B, SP-05C, SP-05D, SP-06B]
+    required_work:
+      - register_all_seven
+      - schedule_all_seven_at_source_faithful_cadence_or_event_path
+      - generic_subject_and_universe_planning
+      - exact_trade_proposals
+      - Track_This_and_system_outcome_compatibility
+      - generic_API_UI_projection
+      - seven_strategy_replay_matrix
+    anti_shelving:
+      - manifest_only_is_not_complete
+      - tests_only_is_not_complete
+      - registry_only_is_not_complete
+      - every_selected_strategy_has_normal_production_path
+    acceptance:
+      - live_in_production_contract_satisfied_predeployment_except_real_attempt_condition
+      - no_strategy_specific_generic_branch
+      - exact_main_full_validation_green
+
+  SP-07B:
+    title: Aggregate acquisition, deduplication, and capacity release gate
+    depends_on: [SP-00B, SP-07A]
+    required_measurements:
+      - production_equivalent_requests_by_capability
+      - provider_requests_and_deferrals
+      - unique_fact_requests_vs_strategy_demands
+      - option_chain_requests
+      - historical_panel_requests
+      - cycle_duration
+      - due_strategy_subject_pairs
+      - attempted_completed_deferred_failed_pairs
+    required_behavior:
+      - identical_fact_demands_deduplicated_at_shared_acquisition_plan
+      - capacity_deferral_is_generic_and_typed
+      - no_strategy_specific_throttling
+      - no_hidden_strategy_drop
+      - sibling_failure_isolation
+    release_gate:
+      - measured_capacity_supports_configured_cohorts_or_generic_typed_deferral
+      - no_unexplained_ASA_caused_capacity_failure
+      - production_equivalent_cycle_completes
+      - every_due_pair_attempted_or_explicitly_capacity_deferred
+
+  SP-08A:
+    title: Founder deployment handoff and real-session proof
+    depends_on: [SP-07B]
+    target_first_observation_session: '2026-09-28 America/Phoenix'
+    founder_only_action: production_deployment
+    required_after_deployment:
+      - deployed_commit_equals_exact_main_release
+      - health_and_readiness_green
+      - all_seven_visible_in_production_registry
+      - Monday_readiness_matrix_refreshed_with_real_results
+      - every_due_required_capability_attempted_or_typed_deferred
+      - every_due_strategy_graph_executes_or_returns_typed_blocker
+      - zero_unexplained_strategy_exception
+      - API_UI_truthful
+      - tracking_outcomes_accept_actionable_new_opportunities
+    observation_rules:
+      - PASS_not_required
+      - actionable_trade_not_required
+      - event_strategy_may_be_NOT_DUE
+      - historical_strategy_may_be_LIVE_TYPED_DATA_BLOCKER
+      - no_fabricated_fallback
+      - failed_observation_reopens_owning_ticket_correction
+      - observation_wait_never_idles_other_work
+
+execution_order:
+  foundation:
+    - SP-00A
+    - SP-00B
+  shared_parallel:
+    - SP-01A
+    - SP-01B
+    - SP-01C
+    - SP-01D
+    - SP-01E
+  strategy_streams:
+    A: [SP-02A, SP-02B, SP-04A, SP-04B]
+    B: [SP-03A, SP-03B, SP-03C]
+    C: [SP-05A, SP-05B, SP-05C, SP-05D]
+    D: [SP-06A, SP-06B]
+  convergence: [SP-07A, SP-07B, SP-08A]
+  rule: >
+    Dependencies govern start, not package numbering. Continue any unblocked
+    child ticket while another waits on provider evidence, review, or observation.
+
+merge_policy:
+  final_activation_merge_authority: Founder_only
+  implementation_merge_authority_after_activation: active_Amendment_013_delegate
+  branch_protection_bypass: prohibited
+  auto_merge: enabled_for_qualifying_child_ticket_PRs
+  each_PR_must_name_exactly_one_primary_ticket: true
+  bounded_corrective_PR_may_reference_same_ticket: true
+  merge_when:
+    - enumerated_ticket
+    - dependencies_merged
+    - in_scope_only
+    - required_CI_green
+    - relevant_truth_tables_green
+    - architecture_validation_green
+    - deterministic_replay_green
+    - immutable_contract_and_identity_validation_green
+    - provider_free_replay_green
+    - focused_and_required_full_tests_green
+    - migration_upgrade_downgrade_green_when_applicable
+    - secret_scan_green
+    - self_review_complete
+    - no_unresolved_blocking_review
+    - no_true_Founder_blocker
+  deployment_authority: Founder_only
+
+validation:
+  per_PR:
+    - focused_behavior_tests
+    - strategy_truth_tables_when_applicable
+    - provider_shaped_normalization_tests_when_applicable
+    - deterministic_replay
+    - exact_position_identity
+    - architecture_boundary_tests
+    - Ruff_changed_scope
+    - mypy_changed_scope
+    - repository_required_CI
+    - frontend_tests_if_product_surface_changes
+    - migration_upgrade_downgrade_if_schema_changes
+    - lean_integrity_and_entrypoints
+    - concise_self_review
+  every_strategy:
+    - manifest_single_authored_authority
+    - all_market_capabilities_declared
+    - formula_IDs_and_versions
+    - PASS_FAIL_UNKNOWN_vectors
+    - deterministic_exact_position_selection
+    - exact_trade_proposal
+    - assumption_provenance
+    - no_hidden_adapter_financial_policy
+    - no_strategy_named_generic_branch
+    - provider_free_replay
+    - registry
+    - scheduler_or_event_path
+    - API_UI_projection
+    - tracking_outcome_compatibility
+  closure:
+    - every_child_ticket_merged
+    - full_suite_green
+    - architecture_suite_green
+    - seven_strategy_replay_matrix_green
+    - capacity_release_gate_green
+    - exact_main_release_identity
+    - Founder_deployment_completed
+    - one_real_post_release_session_observed
+    - all_seven_classified_LIVE_EVALUABLE_LIVE_TYPED_DATA_BLOCKER_or_NOT_DUE
+    - zero_unexplained_strategy_exception
+    - no_selected_strategy_shelved
+
+blocker_policy:
+  worker_continues_without_Founder_for:
+    - ordinary_test_failure
+    - implementation_defect
+    - in_scope_provider_adapter_bug
+    - typed_missing_data
+    - capacity_deferral
+    - Architect_correction_within_frozen_semantics
+    - reversible_migration_correction
+    - observation_wait
+  true_Founder_blockers:
+    - governance_change
+    - material_product_direction_change
+    - new_paid_vendor_or_money_commitment
+    - live_broker_authority_expansion
+    - destructive_or_irreversible_action
+    - required_protected_breaking_contract_outside_frozen_additive_semantics
+    - production_deployment
+    - material_scope_expansion
+    - irreconcilable_governance_conflict
+  required_packet:
+    - exact_blocked_action
+    - ticket_and_strategy
+    - root_cause
+    - evidence
+    - attempted_in_scope_resolution
+    - independent_work_that_continues
+    - narrowest_Founder_decision
+
+authority:
+  worker:
+    may:
+      - implement_enumerated_child_tickets
+      - perform_bounded_root_cause_corrections
+      - create_update_and_auto_merge_qualifying_PRs_after_activation
+      - add_reversible_migrations
+      - register_schedule_and_integrate_all_seven
+      - continue_to_next_dependency_safe_ticket
+    may_not:
+      - activate_sprint
+      - expand_selected_strategy_set
+      - change_source_financial_rules
+      - redefine_architecture_contract_freeze
+      - erase_assumption_provenance
+      - invent_market_data
+      - add_strategy_specific_generic_paths
+      - lower_risk_or_validation_floor
+      - add_paid_vendor_authority
+      - mutate_brokerage
+      - deploy
+      - change_governance
+  architect:
+    owns:
+      - conformance_to_architecture_contract_freeze
+      - R3_architecture_review
+      - in_scope_additive_interface_corrections_that_preserve_frozen_semantics
+    may_not:
+      - change_selected_strategy_financial_policy
+      - expand_sprint
+      - deploy
+  founder:
+    retains:
+      - final_product_authority
+      - activation
+      - material_scope_change
+      - protected_breaking_contract_acceptance
+      - money_vendor_license_commitment
+      - live_broker_authority
+      - production_deployment
+      - governance
+
+completion:
+  success: >
+    All seven research-selected strategies are first-class production strategies
+    using shared reusable capabilities; no selected strategy is shelved; shared
+    acquisition is measured and capacity-safe or truthfully deferred; replay,
+    identity, assumptions, and UNKNOWN semantics are deterministic; and at least
+    one real post-release production session proves truthful participation with
+    zero unexplained strategy exceptions.
+  delegation_expires_on_completion: true
