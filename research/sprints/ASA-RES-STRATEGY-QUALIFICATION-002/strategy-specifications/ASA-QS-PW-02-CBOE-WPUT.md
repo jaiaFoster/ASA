@@ -46,7 +46,7 @@ The underlying is the S&P 500 index. On third-Friday roll dates the expiring opt
 | Fact | Unit | Observation | ASA status | Missing |
 |---|---|---|---|---|
 | `soq(t)` (AM days) | index points | roll-day open auction | not available (X01) | UNKNOWN |
-| `spx_value(t)` last before 4:00 p.m. ET (PM days) | index points | < 16:00:00 ET | X01 + X02a | UNKNOWN |
+| `spx_value(t)` last before 4:00 p.m. ET (PM days) | index points | < 16:00:00 ET | X01 INDEX quote | UNKNOWN |
 | option chain, root, settlement style | — | roll day | OPTION_CHAIN_V1 + X01 | UNKNOWN |
 | first bid after 9:30 a.m. ET (AM days); last bid before 4:00 p.m. ET (PM days) | USD | exact quote events | OPTION_CHAIN_V1 snapshots cannot guarantee "first after 9:30" (quote-event capture) | UNKNOWN |
 | last ask of the expiring put before 4:00 p.m. ET (PM days) | USD | < 16:00 ET | OPTION_CHAIN_V1 | UNKNOWN |
@@ -195,7 +195,7 @@ No sourced gates. A12 is used for diagnostics only.
 | capital_model | cash-secured |
 | unknown_states | §18 |
 | current_ASA_reuse | chain, calendar, verdict classifier |
-| missing_reusable_primitives | X01 (HARD; AM/PM identity is signal-relevant here), P01, X02a, X04, quote-event capture ("first bid after 9:30"; not in taxonomy) |
+| missing_reusable_primitives | X01 (HARD; AM/PM identity is signal-relevant here), P01, X04, X06 QUOTE_EVENT_CAPTURE ("first bid after 9:30"; Architect classification) |
 | architecture_review_required | **yes, for quote-event capture semantics** (a timing primitive, not a strategy path) |
 
 ## 21. Manifest readiness
@@ -203,3 +203,7 @@ No sourced gates. A12 is used for diagnostics only.
 **Not ready.** On roughly one roll in four or five (AM-settlement days), the strike/premium ordering is undefined for live use. Resolving it requires Cboe clarification or a Cboe-published calculation example.
 
 Required research action: recover the Cboe WPUT calculation notes or data-vendor documentation specifying the AM-day premium timestamp relative to the SOQ.
+
+## Closeout disposition (2026-09-27)
+
+NOT SELECTED. The targeted pass re-checked the Cboe methodology (the dedicated One-Week PutWrite document is access-denied; the combined methodology and web sources repeat the same wording). The AM-roll strike/premium ordering remains undefined. State unchanged: DEEP_RESEARCH_REQUIRED. X06 QUOTE_EVENT_CAPTURE would still be needed if it is ever resolved.

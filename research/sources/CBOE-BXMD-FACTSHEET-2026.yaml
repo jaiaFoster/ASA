@@ -1,0 +1,42 @@
+# ASA-RES-STRATEGY-QUALIFICATION-002-CLOSEOUT source record. Claim classes: REPORTED / DERIVED / INFERENCE / UNKNOWN.
+source_id: CBOE-BXMD-FACTSHEET-2026
+source_class: EXTERNAL_SECONDARY
+title: Cboe S&P 500 30-Delta BuyWrite Index (BXMD) factsheet, as of August 2026
+authors:
+- Cboe Global Indices
+publication: Cboe Global Indices strategy-index factsheet
+publication_date: '2026-08-31'
+source_type: index_factsheet
+canonical_url: https://cdn.cboe.com/resources/indices/factsheet/CboeGlobalIndices_BXMD-Index.pdf
+doi: null
+working_paper_id: null
+provenance_status: verified_directly
+verification_depth: full_text_reviewed
+recovered_at: '2026-09-27'
+sprint: ASA-RES-STRATEGY-QUALIFICATION-002
+research_context:
+  sample_period: 1986-06-20 to 2026-08
+  universe: BXMD index
+  market: US
+  methodology_context: index statistics; checked for Black-delta inputs
+  original_or_replication: followup
+  material_limitations:
+  - Sponsor-published
+  - Does not define Black-formula inputs
+preliminary_families:
+- FAM-VRP-COVERED-CALL
+claims:
+- claim_id: CBOE-BXMD-FACTSHEET-2026-C1
+  claim_class: REPORTED
+  reported_metric: metrics since June 20, 1986
+  value: BXMD annualized return 10.7%, volatility 12.9%, max drawdown -42.7%, beta 0.8, Sharpe 0.61, Sortino 0.88
+  context: Metrics table
+- claim_id: CBOE-BXMD-FACTSHEET-2026-C2
+  claim_class: UNKNOWN
+  reported_metric: Black-formula inputs
+  value: the factsheet states only "a delta close to 0.30"; volatility, rate and dividend inputs remain undefined
+  context: Index Description
+recoverability:
+  repository_copy: null
+  external_identifier: https://cdn.cboe.com/resources/indices/factsheet/CboeGlobalIndices_BXMD-Index.pdf
+  notes: Full text retrieved from the Cboe CDN and reviewed 2026-09-27 (closeout targeted pass).

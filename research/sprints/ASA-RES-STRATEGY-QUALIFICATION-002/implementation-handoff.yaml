@@ -1,0 +1,2601 @@
+# ASA-RES-STRATEGY-QUALIFICATION-002 — implementation handoff (research translation, manifest-ready financial specifications).
+schema: asa.research.implementation_handoff/v1
+sprint: ASA-RES-STRATEGY-QUALIFICATION-002
+recorded_at: '2026-09-27'
+status: RESEARCH HANDOFF ONLY. Not a production manifest and not implementation authorization (retained by the Founder).
+  Node/component names are translation guidance against existing registries; new structure components come from
+  reusable primitives (architecture-handoff.yaml), never strategy-specific paths.
+rules:
+- Every financial eligibility rule is a graph gate listed here; none may live in an adapter, planning helper, screening
+  code or runtime projection.
+- UNKNOWN is never coerced to PASS or FAIL.
+- Research assumptions (RA-*) and implementation assumptions (IA-*) are listed separately from sourced rules.
+strategies:
+- frozen_specification:
+    final_strategy_id: index_putwrite_cboe_put
+    research_spec: ASA-QS-PW-01-CBOE-PUT
+    strategy_name: Cboe S&P 500 PutWrite (PUT) collateralized monthly ATM put writing
+    lane: 2-index-put-writing
+    primary_sources:
+    - CBOE-PUTWRITE-METHODOLOGY-2024
+    - BONDARENKO-2019-CBOE
+    - WILSHIRE-2019-CBOE
+    - ENNISKNUPP-2008-PUT
+    source_methodology_version: Cboe S&P 500 PutWrite Indices Methodology, retrieved 2026-09-27
+    evidence_direction: QUALIFIED (lower volatility and drawdown than S&P 500; no post-launch risk-adjusted edge
+      2006-2018)
+    evidence_strength: MODERATE
+    evidence_confidence: MEDIUM
+    universe: U_t = listed SPX puts (standard monthly, AM-settled at SOQ; identity via X01) with the next monthly
+      expiration, observable on roll date t; underlying = S&P 500 index (no SPY/futures substitution)
+    canonical_facts: &id005
+    - spx_value (INDEX quote, last disseminated before 11:00:00 ET on roll date; index points)
+    - 'SPX option chain: strike, expiration, root/settlement style (X01)'
+    - option bid/ask last before 16:00 ET (daily marks; USD per index unit)
+    - option trade tape 11:30-12:00 ET excl. sale-condition codes A-H, f-t (X05)
+    - SOQ on expiration date (X01)
+    - US Treasury 4-week and 13-week bank-discount rates (X04)
+    - Cboe Options exchange calendar
+    derived_facts: &id006
+    - DF-THIRD-FRIDAY-ROLL-DATE
+    - DF-OPT-MID
+    - DF-CBOE-TBILL-DAILY-ACCRUAL
+    - DF-CBOE-PUT-CONTRACT-COUNT
+    strategy_parameters: &id001
+      strike_reference_time_ET: 11:00:00 (strictly before)
+      vwap_window_ET: 11:30:00-12:00:00
+      vwap_excluded_sale_conditions: A-H, f-t
+      no_trade_fallback: last bid before 12:00:00 ET
+      tbill_tenors_days:
+      - 28
+      - 91
+      settlement: SOQ
+    gates:
+    - gate_id: G-CBOE-MONTHLY-ROLL-DATE
+      predicate: date_ET(t) == DF-THIRD-FRIDAY-ROLL-DATE(month(t))
+      operator: ==
+      threshold: third Friday; preceding business day if holiday
+      units: date (US/Eastern exchange calendar)
+      boundary: n/a
+      unknown_behavior: exchange calendar unavailable for the month
+      reason_codes: &id002
+        FAIL: G_CBOE_MONTHLY_ROLL_DATE_FAIL
+        UNKNOWN: G_CBOE_MONTHLY_ROLL_DATE_UNKNOWN
+    - gate_id: G-CBOE-SPX-REF-BEFORE-1100
+      predicate: exists S_ref = last disseminated SPX value with timestamp < 11:00:00 ET on roll date
+      operator: timestamp strictly before 11:00 ET
+      threshold: 11:00 a.m. ET
+      units: timestamp (America/New_York)
+      boundary: exclusive of 11:00:00
+      unknown_behavior: no index observation before 11:00 ET on the roll date, or the observation is after 11:00
+        ET (stale/late evidence)
+      reason_codes: &id003
+        FAIL: G_CBOE_SPX_REF_BEFORE_1100_FAIL
+        UNKNOWN: G_CBOE_SPX_REF_BEFORE_1100_UNKNOWN
+    - gate_id: G-PUT-STRIKE-EXISTS
+      predicate: 'exists c: type=PUT, root=SPX monthly AM-settled (X01), expiration = next monthly expiration, K(c)
+        <= S_ref'
+      operator: <=
+      threshold: S_ref
+      units: index points
+      boundary: inclusive (closest to but not greater than)
+      unknown_behavior: chain unavailable or root/settlement identity unknown (X01)
+      reason_codes: &id004
+        FAIL: G_PUT_STRIKE_EXISTS_FAIL
+        UNKNOWN: G_PUT_STRIKE_EXISTS_UNKNOWN
+    structure_primitive: P01 single short put
+    leg_selection: 'K* = max{K(c): c in U_t, K(c) <= S_ref}; expiration = next standard monthly SPX expiration;
+      one short put leg (unique by construction)'
+    entry_timing: roll date (DF-THIRD-FRIDAY-ROLL-DATE); strike fixed from S_ref before 11:00 ET; sold at trade
+      VWAP 11:30-12:00 ET (last bid before 12:00 if no trades)
+    exit_timing: hold to expiration; settle max(0, K_old - SOQ) on next roll date
+    roll_behavior: 'same roll date after settlement: write new put per leg rule'
+    sizing: 'fully collateralized: third roll dates N_new = (sum_i (1+r_i)M_i - N_last*max(0,K_old-SOQ)) / (K_new/(1+R3)
+      - P_price); other roll dates eq. (8)-(14) (DF-CBOE-PUT-CONTRACT-COUNT); account capital M is a Founder capital
+      decision'
+    capital_collateral: cash-secured in 1-month and 3-month T-bills; no leverage; ASA max-loss model must not replace
+      this collateral rule (A15 representation)
+    transaction_costs: entry at trade VWAP (source cost treatment); SOQ cash settlement; no commissions/taxes; net-of-cost
+      evidence UNKNOWN
+    lifecycle: roll -> short put held -> SOQ settlement -> roll (continuous monthly; one series at a time; no targets/stops)
+    verdict_truth_table:
+    - - ROLL=FAIL
+      - '*'
+      - '*'
+      - NO_ACTION
+    - - ROLL=UNKNOWN
+      - '*'
+      - '*'
+      - UNKNOWN
+    - - PASS
+      - REF=UNKNOWN
+      - '*'
+      - UNKNOWN
+    - - PASS
+      - PASS
+      - STRIKE=UNKNOWN
+      - UNKNOWN
+    - - PASS
+      - PASS
+      - PASS
+      - PASS (write)
+    required_existing_capabilities:
+    - OPTION_CHAIN_V1
+    - REAL_TIME_QUOTE_V1
+    - TRADING_CALENDAR_V1
+    - asa.stonk.shared verdict_classifier
+    - asa.core compare/boolean_and/constant
+    required_missing_reusable_capabilities:
+    - X01
+    - INDEX_QUOTE
+    - P01
+    - X04
+    - A15
+    - X05
+    architect_decisions_required:
+    - X05 contract
+    - A15 collateral representation
+    - INDEX quote path
+    implementation_assumptions_separated_from_sourced_rules:
+    - 'IA-PUT-01 contract rounding: implementation may round N to whole contracts only as a disclosed assumption;
+      the source index uses fractional N'
+    unresolved:
+      DATA:
+      - X05 option trade tape for VWAP entry price (outcome valuation)
+      - SOQ availability (X01)
+      - Treasury bank-discount rates (X04)
+      - INDEX quote before 11:00 ET (X01 INDEX quote path)
+      ARCHITECTURE:
+      - A15 representation of cash-secured T-bill collateral
+      - fractional N vs whole contracts (implementation assumption, disclosed; index definition is fractional)
+      RESEARCH:
+      - net-of-cost replication evidence (evidence, not rule)
+  manifest_translation:
+    strategy_id: index_putwrite_cboe_put
+    strategy_version: 1.0.0
+    required_market_capabilities:
+    - OPTION_CHAIN_V1
+    - REAL_TIME_QUOTE_V1
+    - TRADING_CALENDAR_V1
+    required_component_capabilities:
+    - X01 index-option identity/root/settlement (incl. SOQ)
+    - INDEX quote via X01 + provider-neutral quote path
+    - single option leg structure
+    - rate/discount facts
+    - margin/collateral model
+    - OPTION_TRADE_TAPE
+    - asa.stonk.shared verdict_classifier
+    - asa.core boolean_and / compare / expression_predicate / constant
+    parameters: *id001
+    nodes:
+    - node_id: df_third_friday_roll_date
+      component: analytics derived-fact input (formula_id DF-THIRD-FRIDAY-ROLL-DATE, formula_version 1.0.0)
+      role: derived_fact
+    - node_id: df_opt_mid
+      component: analytics derived-fact input (formula_id DF-OPT-MID, formula_version 1.0.0)
+      role: derived_fact
+    - node_id: df_cboe_tbill_daily_accrual
+      component: analytics derived-fact input (formula_id DF-CBOE-TBILL-DAILY-ACCRUAL, formula_version 1.0.0)
+      role: derived_fact
+    - node_id: df_cboe_put_contract_count
+      component: analytics derived-fact input (formula_id DF-CBOE-PUT-CONTRACT-COUNT, formula_version 1.0.0)
+      role: derived_fact
+    - node_id: gate_cboe_monthly_roll_date
+      component: asa.core expression_predicate / compare (three-state; threshold from parameters)
+      role: gate
+      gate_id: G-CBOE-MONTHLY-ROLL-DATE
+      predicate: date_ET(t) == DF-THIRD-FRIDAY-ROLL-DATE(month(t))
+      operator: ==
+      units: date (US/Eastern exchange calendar)
+      boundary: n/a
+      reason_codes: *id002
+    - node_id: gate_cboe_spx_ref_before_1100
+      component: asa.core expression_predicate / compare (three-state; threshold from parameters)
+      role: gate
+      gate_id: G-CBOE-SPX-REF-BEFORE-1100
+      predicate: exists S_ref = last disseminated SPX value with timestamp < 11:00:00 ET on roll date
+      operator: timestamp strictly before 11:00 ET
+      units: timestamp (America/New_York)
+      boundary: exclusive of 11:00:00
+      reason_codes: *id003
+    - node_id: gate_put_strike_exists
+      component: asa.core expression_predicate / compare (three-state; threshold from parameters)
+      role: gate
+      gate_id: G-PUT-STRIKE-EXISTS
+      predicate: 'exists c: type=PUT, root=SPX monthly AM-settled (X01), expiration = next monthly expiration, K(c)
+        <= S_ref'
+      operator: <=
+      units: index points
+      boundary: inclusive (closest to but not greater than)
+      reason_codes: *id004
+    - node_id: gates_all
+      component: asa.core boolean_and (must propagate UNKNOWN per truth table; never coerce UNKNOWN)
+      role: gate
+    - node_id: structure
+      component: asa.stonk.options single_leg_structure [P01; component to be provided by the reusable primitive,
+        not strategy-specific]
+      role: structure
+      selection: 'K* = max{K(c): c in U_t, K(c) <= S_ref}; expiration = next standard monthly SPX expiration; one
+        short put leg (unique by construction)'
+    - node_id: direction
+      component: asa.core constant (source-authored direction)
+      role: direction
+    - node_id: verdict
+      component: asa.stonk.shared verdict_classifier fed by gates_all (PASS/UNKNOWN/FAIL mapping per truth table)
+      role: verdict
+    edges:
+    - source: gate_cboe_monthly_roll_date
+      target: gates_all
+    - source: gate_cboe_spx_ref_before_1100
+      target: gates_all
+    - source: gate_put_strike_exists
+      target: gates_all
+    - source: gates_all
+      target: verdict
+    - source: structure
+      target: verdict
+    outputs:
+    - name: df_third_friday_roll_date
+      node: df_third_friday_roll_date
+      role: derived_fact
+      formula_id: DF-THIRD-FRIDAY-ROLL-DATE
+    - name: df_opt_mid
+      node: df_opt_mid
+      role: derived_fact
+      formula_id: DF-OPT-MID
+    - name: df_cboe_tbill_daily_accrual
+      node: df_cboe_tbill_daily_accrual
+      role: derived_fact
+      formula_id: DF-CBOE-TBILL-DAILY-ACCRUAL
+    - name: df_cboe_put_contract_count
+      node: df_cboe_put_contract_count
+      role: derived_fact
+      formula_id: DF-CBOE-PUT-CONTRACT-COUNT
+    - name: gate_cboe_monthly_roll_date
+      node: gate_cboe_monthly_roll_date
+      role: gate
+    - name: gate_cboe_spx_ref_before_1100
+      node: gate_cboe_spx_ref_before_1100
+      role: gate
+    - name: gate_put_strike_exists
+      node: gate_put_strike_exists
+      role: gate
+    - name: structure
+      node: structure
+      role: structure
+    - name: direction
+      node: direction
+      role: direction
+    - name: verdict
+      node: verdict
+      role: verdict
+    fact_outputs: *id005
+    derived_fact_outputs: *id006
+    gate_outputs:
+    - G-CBOE-MONTHLY-ROLL-DATE
+    - G-CBOE-SPX-REF-BEFORE-1100
+    - G-PUT-STRIKE-EXISTS
+    direction_output:
+      delta: positive
+      volatility: negative
+      theta: positive
+      skew: negative (short downside)
+      term: none
+      event: none
+    structure_output: 'K* = max{K(c): c in U_t, K(c) <= S_ref}; expiration = next standard monthly SPX expiration;
+      one short put leg (unique by construction)'
+    score_output: NONE (source defines no score)
+    verdict_output: three-state per verdict_truth_table
+    lifecycle: roll -> short put held -> SOQ settlement -> roll (continuous monthly; one series at a time; no targets/stops)
+    unknown_reason_codes:
+    - AMBIGUOUS_SELECTION
+    - G_CBOE_MONTHLY_ROLL_DATE_UNKNOWN
+    - G_CBOE_SPX_REF_BEFORE_1100_UNKNOWN
+    - G_PUT_STRIKE_EXISTS_UNKNOWN
+    - MISSING_CANONICAL_FACT
+    - STALE_EVIDENCE
+- frozen_specification:
+    final_strategy_id: index_putwrite_cboe_puty
+    research_spec: ASA-QS-PW-A1-CBOE-PUTY
+    strategy_name: Cboe S&P 500 2% OTM PutWrite (PUTY)
+    lane: 2-index-put-writing
+    primary_sources:
+    - CBOE-PUTWRITE-INDICES-METHODOLOGY-2024
+    - CBOE-PUTY-FACTSHEET-2026
+    source_methodology_version: Cboe PutWrite Indices Methodology, retrieved 2026-09-27
+    evidence_direction: QUALIFIED (6.9% ann., vol 8.7%, MDD -28.9%, beta 0.43 vs S&P TR 11.2%/15.2%/-50.9%)
+    evidence_strength: MODERATE
+    evidence_confidence: LOW-MEDIUM (sponsor factsheet)
+    universe: listed SPX puts with next monthly expiration on roll date (X01)
+    canonical_facts: &id009
+    - spx_value last before 11:00 ET (INDEX quote)
+    - SPX chain (X01)
+    - option trades 11:30-12:00 ET (X05)
+    - SOQ (X01)
+    - US Treasury 4-week bank-discount rate (X04)
+    - exchange calendar
+    derived_facts: &id010
+    - DF-THIRD-FRIDAY-ROLL-DATE
+    - DF-OPT-MID
+    - DF-CBOE-TBILL-DAILY-ACCRUAL
+    strategy_parameters: &id007
+      moneyness_factor: '0.98'
+      strike_reference_time_ET: '11:00:00'
+      vwap_window_ET: 11:30:00-12:00:00
+      no_trade_fallback: last bid before end of window
+      tbill_tenor_days: 28
+      no_accrual_on_roll_day: true
+    gates:
+    - gate_id: G-CBOE-MONTHLY-ROLL-DATE
+      predicate: date_ET(t) == DF-THIRD-FRIDAY-ROLL-DATE(month(t))
+      operator: ==
+      threshold: third Friday; preceding business day if holiday
+      units: date (US/Eastern exchange calendar)
+      boundary: n/a
+      unknown_behavior: exchange calendar unavailable for the month
+      reason_codes: *id002
+    - gate_id: G-CBOE-SPX-REF-BEFORE-1100
+      predicate: exists S_ref = last disseminated SPX value with timestamp < 11:00:00 ET on roll date
+      operator: timestamp strictly before 11:00 ET
+      threshold: 11:00 a.m. ET
+      units: timestamp (America/New_York)
+      boundary: exclusive of 11:00:00
+      unknown_behavior: no index observation before 11:00 ET on the roll date, or the observation is after 11:00
+        ET (stale/late evidence)
+      reason_codes: *id003
+    - gate_id: G-PUTY-STRIKE-EXISTS
+      predicate: 'exists c: type=PUT, next monthly expiration, K(c) < 0.98*S_ref'
+      operator: < (the source says "first available strike below"; the same document says "lower than or equal to"
+        for PTLT, which supports strict <; DERIVED)
+      threshold: 0.98 * S_ref
+      units: index points
+      boundary: exclusive; if a listed strike equals 0.98*S_ref exactly the strict/inclusive reading changes the
+        leg -> AMBIGUOUS_SELECTION
+      unknown_behavior: chain unavailable; or a listed strike equals 0.98*S_ref exactly (AMBIGUOUS_SELECTION)
+      reason_codes: &id008
+        FAIL: G_PUTY_STRIKE_EXISTS_FAIL
+        UNKNOWN: G_PUTY_STRIKE_EXISTS_UNKNOWN
+    structure_primitive: P01 single short put
+    leg_selection: 'K* = max{K(c): K(c) < 0.98*S_ref} (strict, DERIVED); a listed strike exactly equal to 0.98*S_ref
+      -> AMBIGUOUS_SELECTION -> UNKNOWN'
+    entry_timing: roll date; strike from S_ref before 11:00 ET; sold at VWAP 11:30-12:00 ET (last bid if no trades)
+    exit_timing: hold to expiry; settle max(0, K_old - SOQ)
+    roll_behavior: same day after settlement
+    sizing: 'notional equal to strike K per unit invested in 4-week T-bills (fully collateralized): N = M/K per
+      unit notional (DERIVED); account capital M is a Founder capital decision'
+    capital_collateral: cash-secured, 4-week T-bills, no interest accrual on roll day
+    transaction_costs: VWAP entry; no commissions; net UNKNOWN
+    lifecycle: monthly roll; one series at a time; no targets/stops
+    verdict_truth_table:
+    - - ROLL=FAIL
+      - '*'
+      - '*'
+      - NO_ACTION
+    - - ROLL=UNKNOWN
+      - '*'
+      - '*'
+      - UNKNOWN
+    - - PASS
+      - REF=UNKNOWN
+      - '*'
+      - UNKNOWN
+    - - PASS
+      - PASS
+      - STRIKE=UNKNOWN or AMBIGUOUS
+      - UNKNOWN
+    - - PASS
+      - PASS
+      - PASS
+      - PASS (write)
+    required_existing_capabilities:
+    - OPTION_CHAIN_V1
+    - REAL_TIME_QUOTE_V1
+    - TRADING_CALENDAR_V1
+    - verdict_classifier
+    required_missing_reusable_capabilities:
+    - X01
+    - INDEX_QUOTE
+    - P01
+    - X04
+    - A15
+    - X05
+    architect_decisions_required:
+    - as PUT (shared)
+    implementation_assumptions_separated_from_sourced_rules:
+    - IA-PUT-01 (shared contract rounding disclosure)
+    unresolved:
+      DATA:
+      - X05 trade tape
+      - SOQ (X01)
+      - 4-week rate (X04)
+      - INDEX quote
+      ARCHITECTURE:
+      - A15 collateral representation (shared with PUT)
+      RESEARCH:
+      - independent (non-sponsor) evaluation not recovered
+  manifest_translation:
+    strategy_id: index_putwrite_cboe_puty
+    strategy_version: 1.0.0
+    required_market_capabilities:
+    - OPTION_CHAIN_V1
+    - REAL_TIME_QUOTE_V1
+    - TRADING_CALENDAR_V1
+    required_component_capabilities:
+    - X01 index-option identity/root/settlement (incl. SOQ)
+    - INDEX quote via X01 + provider-neutral quote path
+    - single option leg structure
+    - rate/discount facts
+    - margin/collateral model
+    - OPTION_TRADE_TAPE
+    - asa.stonk.shared verdict_classifier
+    - asa.core boolean_and / compare / expression_predicate / constant
+    parameters: *id007
+    nodes:
+    - node_id: df_third_friday_roll_date
+      component: analytics derived-fact input (formula_id DF-THIRD-FRIDAY-ROLL-DATE, formula_version 1.0.0)
+      role: derived_fact
+    - node_id: df_opt_mid
+      component: analytics derived-fact input (formula_id DF-OPT-MID, formula_version 1.0.0)
+      role: derived_fact
+    - node_id: df_cboe_tbill_daily_accrual
+      component: analytics derived-fact input (formula_id DF-CBOE-TBILL-DAILY-ACCRUAL, formula_version 1.0.0)
+      role: derived_fact
+    - node_id: gate_cboe_monthly_roll_date
+      component: asa.core expression_predicate / compare (three-state; threshold from parameters)
+      role: gate
+      gate_id: G-CBOE-MONTHLY-ROLL-DATE
+      predicate: date_ET(t) == DF-THIRD-FRIDAY-ROLL-DATE(month(t))
+      operator: ==
+      units: date (US/Eastern exchange calendar)
+      boundary: n/a
+      reason_codes: *id002
+    - node_id: gate_cboe_spx_ref_before_1100
+      component: asa.core expression_predicate / compare (three-state; threshold from parameters)
+      role: gate
+      gate_id: G-CBOE-SPX-REF-BEFORE-1100
+      predicate: exists S_ref = last disseminated SPX value with timestamp < 11:00:00 ET on roll date
+      operator: timestamp strictly before 11:00 ET
+      units: timestamp (America/New_York)
+      boundary: exclusive of 11:00:00
+      reason_codes: *id003
+    - node_id: gate_puty_strike_exists
+      component: asa.core expression_predicate / compare (three-state; threshold from parameters)
+      role: gate
+      gate_id: G-PUTY-STRIKE-EXISTS
+      predicate: 'exists c: type=PUT, next monthly expiration, K(c) < 0.98*S_ref'
+      operator: < (the source says "first available strike below"; the same document says "lower than or equal to"
+        for PTLT, which supports strict <; DERIVED)
+      units: index points
+      boundary: exclusive; if a listed strike equals 0.98*S_ref exactly the strict/inclusive reading changes the
+        leg -> AMBIGUOUS_SELECTION
+      reason_codes: *id008
+    - node_id: gates_all
+      component: asa.core boolean_and (must propagate UNKNOWN per truth table; never coerce UNKNOWN)
+      role: gate
+    - node_id: structure
+      component: asa.stonk.options single_leg_structure [P01; component to be provided by the reusable primitive,
+        not strategy-specific]
+      role: structure
+      selection: 'K* = max{K(c): K(c) < 0.98*S_ref} (strict, DERIVED); a listed strike exactly equal to 0.98*S_ref
+        -> AMBIGUOUS_SELECTION -> UNKNOWN'
+    - node_id: direction
+      component: asa.core constant (source-authored direction)
+      role: direction
+    - node_id: verdict
+      component: asa.stonk.shared verdict_classifier fed by gates_all (PASS/UNKNOWN/FAIL mapping per truth table)
+      role: verdict
+    edges:
+    - source: gate_cboe_monthly_roll_date
+      target: gates_all
+    - source: gate_cboe_spx_ref_before_1100
+      target: gates_all
+    - source: gate_puty_strike_exists
+      target: gates_all
+    - source: gates_all
+      target: verdict
+    - source: structure
+      target: verdict
+    outputs:
+    - name: df_third_friday_roll_date
+      node: df_third_friday_roll_date
+      role: derived_fact
+      formula_id: DF-THIRD-FRIDAY-ROLL-DATE
+    - name: df_opt_mid
+      node: df_opt_mid
+      role: derived_fact
+      formula_id: DF-OPT-MID
+    - name: df_cboe_tbill_daily_accrual
+      node: df_cboe_tbill_daily_accrual
+      role: derived_fact
+      formula_id: DF-CBOE-TBILL-DAILY-ACCRUAL
+    - name: gate_cboe_monthly_roll_date
+      node: gate_cboe_monthly_roll_date
+      role: gate
+    - name: gate_cboe_spx_ref_before_1100
+      node: gate_cboe_spx_ref_before_1100
+      role: gate
+    - name: gate_puty_strike_exists
+      node: gate_puty_strike_exists
+      role: gate
+    - name: structure
+      node: structure
+      role: structure
+    - name: direction
+      node: direction
+      role: direction
+    - name: verdict
+      node: verdict
+      role: verdict
+    fact_outputs: *id009
+    derived_fact_outputs: *id010
+    gate_outputs:
+    - G-CBOE-MONTHLY-ROLL-DATE
+    - G-CBOE-SPX-REF-BEFORE-1100
+    - G-PUTY-STRIKE-EXISTS
+    direction_output:
+      delta: positive (smaller than PUT)
+      volatility: negative
+      theta: positive
+      skew: negative
+      term: none
+      event: none
+    structure_output: 'K* = max{K(c): K(c) < 0.98*S_ref} (strict, DERIVED); a listed strike exactly equal to 0.98*S_ref
+      -> AMBIGUOUS_SELECTION -> UNKNOWN'
+    score_output: NONE (source defines no score)
+    verdict_output: three-state per verdict_truth_table
+    lifecycle: monthly roll; one series at a time; no targets/stops
+    unknown_reason_codes:
+    - AMBIGUOUS_SELECTION
+    - G_CBOE_MONTHLY_ROLL_DATE_UNKNOWN
+    - G_CBOE_SPX_REF_BEFORE_1100_UNKNOWN
+    - G_PUTY_STRIKE_EXISTS_UNKNOWN
+    - MISSING_CANONICAL_FACT
+    - STALE_EVIDENCE
+- frozen_specification:
+    final_strategy_id: index_buywrite_cboe_bxm
+    research_spec: ASA-QS-CC-01-CBOE-BXM
+    strategy_name: Cboe S&P 500 BuyWrite (BXM)
+    lane: 4-covered-call
+    primary_sources:
+    - CBOE-BUYWRITE-METHODOLOGY-2024
+    - WILSHIRE-2019-CBOE
+    - ISRAELOV-NIELSEN-2015-FAJ
+    - ISRAELOV-KLEIN-TUMMALA-2018
+    source_methodology_version: Cboe BuyWrite Indices Methodology, retrieved 2026-09-27; VWAP window 11:30-13:30
+      ET since 2010-11-19
+    evidence_direction: QUALIFIED (8.50% vs 9.80%, vol 10.6% vs 14.9%, MDD -35.8% vs -50.9%, 1986-2018; timing component
+      uncompensated)
+    evidence_strength: MODERATE
+    evidence_confidence: MEDIUM
+    universe: S&P 500 index exposure (non-tradable index; no SPY/futures substitution) plus listed SPX calls with
+      next monthly expiration (X01)
+    canonical_facts: &id013
+    - spx_value before 11:00 ET and daily close (INDEX quote)
+    - SPX chain (X01)
+    - call bid/ask last before 16:00 ET
+    - call trade tape 11:30-13:30 ET (X05)
+    - S_VWAV volume-weighted index value over the same times/weights (X05 + INDEX quote)
+    - SOQ (X01)
+    - S&P 500 dividend points Div_t (X07)
+    - exchange calendar
+    derived_facts: &id014
+    - DF-THIRD-FRIDAY-ROLL-DATE
+    - DF-OPT-MID
+    - DF-CBOE-BUYWRITE-DAILY-RETURN
+    strategy_parameters: &id011
+      strike_reference_time_ET: '11:00:00'
+      vwap_window_ET: 11:30:00-13:30:00
+      no_trade_fallback: last bid before end of window
+      notional_ratio: '1 index unit : 1 short call'
+    gates:
+    - gate_id: G-CBOE-MONTHLY-ROLL-DATE
+      predicate: date_ET(t) == DF-THIRD-FRIDAY-ROLL-DATE(month(t))
+      operator: ==
+      threshold: third Friday; preceding business day if holiday
+      units: date (US/Eastern exchange calendar)
+      boundary: n/a
+      unknown_behavior: exchange calendar unavailable for the month
+      reason_codes: *id002
+    - gate_id: G-CBOE-SPX-REF-BEFORE-1100
+      predicate: exists S_ref = last disseminated SPX value with timestamp < 11:00:00 ET on roll date
+      operator: timestamp strictly before 11:00 ET
+      threshold: 11:00 a.m. ET
+      units: timestamp (America/New_York)
+      boundary: exclusive of 11:00:00
+      unknown_behavior: no index observation before 11:00 ET on the roll date, or the observation is after 11:00
+        ET (stale/late evidence)
+      reason_codes: *id003
+    - gate_id: G-BXM-STRIKE-EXISTS
+      predicate: 'exists c: type=CALL, next monthly expiration, K(c) >= S_ref'
+      operator: '>='
+      threshold: S_ref
+      units: index points
+      boundary: inclusive ("closest strike price at or above")
+      unknown_behavior: chain unavailable
+      reason_codes: &id012
+        FAIL: G_BXM_STRIKE_EXISTS_FAIL
+        UNKNOWN: G_BXM_STRIKE_EXISTS_UNKNOWN
+    structure_primitive: P09 overlay (index exposure + short call) -- semantics ARCHITECT_REVIEW_REQUIRED
+    leg_selection: 'K* = min{K(c): K(c) >= S_ref}; next monthly SPX call; 1 call per index unit (unique by construction)'
+    entry_timing: roll date; strike from S_ref before 11:00 ET; call sold at VWAP 11:30-13:30 ET
+    exit_timing: call held to expiry, settled max(0, SOQ - K_old)
+    roll_behavior: same day after settlement
+    sizing: equal notional (1 call per index unit); index units from account capital (Founder capital decision)
+    capital_collateral: short call covered by the index exposure; no additional margin in the index definition
+    transaction_costs: VWAP entry; SOQ settlement; no commissions/taxes; net UNKNOWN
+    lifecycle: monthly roll; continuous index exposure; no targets/stops; assignment not applicable (European cash-settled)
+    verdict_truth_table:
+    - - ROLL=FAIL
+      - '*'
+      - '*'
+      - NO_ACTION
+    - - ROLL=UNKNOWN
+      - '*'
+      - '*'
+      - UNKNOWN
+    - - PASS
+      - REF=UNKNOWN
+      - '*'
+      - UNKNOWN
+    - - PASS
+      - PASS
+      - STRIKE=UNKNOWN
+      - UNKNOWN
+    - - PASS
+      - PASS
+      - PASS
+      - PASS (sell call)
+    required_existing_capabilities:
+    - OPTION_CHAIN_V1
+    - REAL_TIME_QUOTE_V1
+    - TRADING_CALENDAR_V1
+    - verdict_classifier
+    required_missing_reusable_capabilities:
+    - X01
+    - INDEX_QUOTE
+    - P09
+    - X05
+    - X07
+    architect_decisions_required:
+    - P09 overlay semantics for index exposure (blocking for faithful expression)
+    - X05
+    - X07
+    implementation_assumptions_separated_from_sourced_rules: []
+    unresolved:
+      DATA:
+      - X05 trade tape and S_VWAV
+      - X07 index dividend points
+      - SOQ (X01)
+      - INDEX quote
+      ARCHITECTURE:
+      - P09 reusable semantics for a non-tradable index covered leg (generic underlying-exposure + option overlay
+        or another faithful generic representation)
+      RESEARCH:
+      - net-of-cost evidence
+  manifest_translation:
+    strategy_id: index_buywrite_cboe_bxm
+    strategy_version: 1.0.0
+    required_market_capabilities:
+    - OPTION_CHAIN_V1
+    - REAL_TIME_QUOTE_V1
+    - TRADING_CALENDAR_V1
+    required_component_capabilities:
+    - X01 index-option identity/root/settlement (incl. SOQ)
+    - INDEX quote via X01 + provider-neutral quote path
+    - underlying-exposure + option overlay (ARCHITECT_REVIEW_REQUIRED)
+    - OPTION_TRADE_TAPE
+    - INDEX_DIVIDEND_POINTS
+    - asa.stonk.shared verdict_classifier
+    - asa.core boolean_and / compare / expression_predicate / constant
+    parameters: *id011
+    nodes:
+    - node_id: df_third_friday_roll_date
+      component: analytics derived-fact input (formula_id DF-THIRD-FRIDAY-ROLL-DATE, formula_version 1.0.0)
+      role: derived_fact
+    - node_id: df_opt_mid
+      component: analytics derived-fact input (formula_id DF-OPT-MID, formula_version 1.0.0)
+      role: derived_fact
+    - node_id: df_cboe_buywrite_daily_return
+      component: analytics derived-fact input (formula_id DF-CBOE-BUYWRITE-DAILY-RETURN, formula_version 1.0.0)
+      role: derived_fact
+    - node_id: gate_cboe_monthly_roll_date
+      component: asa.core expression_predicate / compare (three-state; threshold from parameters)
+      role: gate
+      gate_id: G-CBOE-MONTHLY-ROLL-DATE
+      predicate: date_ET(t) == DF-THIRD-FRIDAY-ROLL-DATE(month(t))
+      operator: ==
+      units: date (US/Eastern exchange calendar)
+      boundary: n/a
+      reason_codes: *id002
+    - node_id: gate_cboe_spx_ref_before_1100
+      component: asa.core expression_predicate / compare (three-state; threshold from parameters)
+      role: gate
+      gate_id: G-CBOE-SPX-REF-BEFORE-1100
+      predicate: exists S_ref = last disseminated SPX value with timestamp < 11:00:00 ET on roll date
+      operator: timestamp strictly before 11:00 ET
+      units: timestamp (America/New_York)
+      boundary: exclusive of 11:00:00
+      reason_codes: *id003
+    - node_id: gate_bxm_strike_exists
+      component: asa.core expression_predicate / compare (three-state; threshold from parameters)
+      role: gate
+      gate_id: G-BXM-STRIKE-EXISTS
+      predicate: 'exists c: type=CALL, next monthly expiration, K(c) >= S_ref'
+      operator: '>='
+      units: index points
+      boundary: inclusive ("closest strike price at or above")
+      reason_codes: *id012
+    - node_id: gates_all
+      component: asa.core boolean_and (must propagate UNKNOWN per truth table; never coerce UNKNOWN)
+      role: gate
+    - node_id: structure
+      component: asa.stonk.options overlay_structure [P09; component to be provided by the reusable primitive, not
+        strategy-specific]
+      role: structure
+      selection: 'K* = min{K(c): K(c) >= S_ref}; next monthly SPX call; 1 call per index unit (unique by construction)'
+    - node_id: direction
+      component: asa.core constant (source-authored direction)
+      role: direction
+    - node_id: verdict
+      component: asa.stonk.shared verdict_classifier fed by gates_all (PASS/UNKNOWN/FAIL mapping per truth table)
+      role: verdict
+    edges:
+    - source: gate_cboe_monthly_roll_date
+      target: gates_all
+    - source: gate_cboe_spx_ref_before_1100
+      target: gates_all
+    - source: gate_bxm_strike_exists
+      target: gates_all
+    - source: gates_all
+      target: verdict
+    - source: structure
+      target: verdict
+    outputs:
+    - name: df_third_friday_roll_date
+      node: df_third_friday_roll_date
+      role: derived_fact
+      formula_id: DF-THIRD-FRIDAY-ROLL-DATE
+    - name: df_opt_mid
+      node: df_opt_mid
+      role: derived_fact
+      formula_id: DF-OPT-MID
+    - name: df_cboe_buywrite_daily_return
+      node: df_cboe_buywrite_daily_return
+      role: derived_fact
+      formula_id: DF-CBOE-BUYWRITE-DAILY-RETURN
+    - name: gate_cboe_monthly_roll_date
+      node: gate_cboe_monthly_roll_date
+      role: gate
+    - name: gate_cboe_spx_ref_before_1100
+      node: gate_cboe_spx_ref_before_1100
+      role: gate
+    - name: gate_bxm_strike_exists
+      node: gate_bxm_strike_exists
+      role: gate
+    - name: structure
+      node: structure
+      role: structure
+    - name: direction
+      node: direction
+      role: direction
+    - name: verdict
+      node: verdict
+      role: verdict
+    fact_outputs: *id013
+    derived_fact_outputs: *id014
+    gate_outputs:
+    - G-CBOE-MONTHLY-ROLL-DATE
+    - G-CBOE-SPX-REF-BEFORE-1100
+    - G-BXM-STRIKE-EXISTS
+    direction_output:
+      delta: positive (index 1.0 minus ATM call ~0.5)
+      volatility: negative
+      theta: positive
+      skew: short upside convexity
+      term: none
+      event: none
+    structure_output: 'K* = min{K(c): K(c) >= S_ref}; next monthly SPX call; 1 call per index unit (unique by construction)'
+    score_output: NONE (source defines no score)
+    verdict_output: three-state per verdict_truth_table
+    lifecycle: monthly roll; continuous index exposure; no targets/stops; assignment not applicable (European cash-settled)
+    unknown_reason_codes:
+    - AMBIGUOUS_SELECTION
+    - G_BXM_STRIKE_EXISTS_UNKNOWN
+    - G_CBOE_MONTHLY_ROLL_DATE_UNKNOWN
+    - G_CBOE_SPX_REF_BEFORE_1100_UNKNOWN
+    - MISSING_CANONICAL_FACT
+    - STALE_EVIDENCE
+- frozen_specification:
+    final_strategy_id: index_short_vol_scs_near_atm_straddle
+    research_spec: ASA-QS-SV-01-SCS-SHORT-NEAR-ATM-STRADDLE
+    strategy_name: Santa-Clara-Saretto monthly short near-maturity ATM S&P 500 straddle
+    lane: 3-index-short-volatility
+    primary_sources:
+    - SANTACLARA-SARETTO-2009
+    source_methodology_version: Journal of Financial Markets 12(3) 2009; working-paper full text (UCLA Anderson
+      copy)
+    evidence_direction: MIXED/QUALIFIED (bid-to-ask 10.3%/month, monthly Sharpe 0.351; levered margin-call portfolio
+      results weak)
+    evidence_strength: MODERATE
+    evidence_confidence: LOW-MEDIUM
+    universe: SPX standard monthly options (RA-SV-01) observable at the close of the first trading day of each month;
+      underlying S&P 500 index
+    canonical_facts: &id020
+    - spx close (INDEX quote)
+    - SPX chain bid/ask/IV/strike/expiration/settlement (X01)
+    - risk-free rate and dividend yield (X04)
+    - SOQ if expiry precedes exit (X01)
+    - exchange calendar
+    derived_facts: &id021
+    - DF-FIRST-TRADING-DAY-OF-MONTH
+    - DF-OPT-DTE-CALENDAR
+    - DF-OPT-MID
+    - DF-ZERO-COST-OPTION-RETURN
+    - DF-CBOE-NAKED-MARGIN
+    strategy_parameters: &id015
+      target_dte_calendar_days: 45
+      moneyness: ATM (strike closest to index close)
+      iv_bounds:
+      - '0.01'
+      - '1.00'
+      min_tick:
+        price_below_3: '0.05'
+        otherwise: '0.10'
+      margin_alpha: '0.15'
+      margin_beta: '0.10'
+    gates:
+    - gate_id: G-SCS-ENTRY-DATE
+      predicate: date(t) == DF-FIRST-TRADING-DAY-OF-MONTH(month(t))
+      operator: ==
+      threshold: first trading day
+      units: date
+      boundary: n/a
+      unknown_behavior: calendar unavailable
+      reason_codes: &id016
+        FAIL: G_SCS_ENTRY_DATE_FAIL
+        UNKNOWN: G_SCS_ENTRY_DATE_UNKNOWN
+    - gate_id: G-SCS-EXPIRY-UNIQUE
+      predicate: argmin_T |DTE_cal(T,t) - 45| over standard monthly SPX expirations is unique
+      operator: argmin
+      threshold: 45 calendar days
+      units: calendar days
+      boundary: n/a
+      unknown_behavior: two expirations equidistant from 45 days -> AMBIGUOUS_SELECTION; chain or X01 missing
+      reason_codes: &id017
+        FAIL: G_SCS_EXPIRY_UNIQUE_FAIL
+        UNKNOWN: G_SCS_EXPIRY_UNIQUE_UNKNOWN
+    - gate_id: G-SCS-STRIKE-UNIQUE
+      predicate: argmin_K |K - S_close(t)| over strikes with both a call and a put at T* is unique
+      operator: argmin
+      threshold: S_close
+      units: index points
+      boundary: n/a
+      unknown_behavior: two strikes equidistant from S_close -> AMBIGUOUS_SELECTION
+      reason_codes: &id018
+        FAIL: G_SCS_STRIKE_UNIQUE_FAIL
+        UNKNOWN: G_SCS_STRIKE_UNIQUE_UNKNOWN
+    - gate_id: G-SCS-QUOTE-FILTERS
+      predicate: 'per leg: bid > 0 AND ask >= bid AND (ask - bid) >= tick(price) AND arbitrage bound AND 0.01 <=
+        IV <= 1.00; tick = 0.05 if price < 3 else 0.10; call bound S*exp(-tau*d) - K*exp(-tau*r) < C < S*exp(-tau*d),
+        put bound by parity (DERIVED)'
+      operator: as stated
+      threshold: as stated
+      units: USD per option unit; IV decimal
+      boundary: IV inclusive (excluded if "bigger than 100% or lower than 1%"); arbitrage bound open interval as
+        printed
+      unknown_behavior: any input missing
+      reason_codes: &id019
+        FAIL: G_SCS_QUOTE_FILTERS_FAIL
+        UNKNOWN: G_SCS_QUOTE_FILTERS_UNKNOWN
+    structure_primitive: P03 short straddle (unit ratio)
+    leg_selection: T* = argmin_T |DTE_cal - 45| over standard monthly SPX expirations; K* = argmin_K |K - S_close|
+      over strikes with both call and put at T*; short 1 call + 1 put at (K*, T*); ties -> AMBIGUOUS_SELECTION
+    entry_timing: close of first trading day of month
+    exit_timing: close of first trading day of next month, or expiration (SOQ settlement) if earlier
+    roll_behavior: re-establish at the same close
+    sizing: sell straddle premium equal to the notional (N = notional/(C+P)), proceeds at risk-free rate (zero-cost
+      convention); notional as share of account = Founder capital decision (paper in-sample 7.5% weight NOT adopted)
+    capital_collateral: CBOE index-option margin per short option alpha 15%, beta 10% (DF-CBOE-NAKED-MARGIN 1.1.0);
+      straddle combination margin via A15
+    transaction_costs: gross mid-to-mid; net sell at bid / buy at ask (about 4.9%/month spread cost); commissions
+      not modelled
+    lifecycle: 'monthly: sell at month start, buy back at next month start, re-sell; one position at a time; no
+      targets/stops'
+    verdict_truth_table:
+    - - ENTRY=FAIL
+      - '*'
+      - '*'
+      - '*'
+      - NO_ACTION
+    - - ENTRY=UNKNOWN
+      - '*'
+      - '*'
+      - '*'
+      - UNKNOWN
+    - - PASS
+      - EXPIRY=UNKNOWN
+      - '*'
+      - '*'
+      - UNKNOWN
+    - - PASS
+      - PASS
+      - STRIKE=UNKNOWN
+      - '*'
+      - UNKNOWN
+    - - PASS
+      - PASS
+      - PASS
+      - FILTERS=FAIL/UNKNOWN
+      - UNKNOWN
+    - - PASS
+      - PASS
+      - PASS
+      - PASS
+      - PASS (sell straddle)
+    required_existing_capabilities:
+    - OPTION_CHAIN_V1
+    - REAL_TIME_QUOTE_V1
+    - TRADING_CALENDAR_V1
+    - verdict_classifier
+    required_missing_reusable_capabilities:
+    - X01
+    - INDEX_QUOTE
+    - P03
+    - X04
+    - A15
+    architect_decisions_required:
+    - A15 straddle margin combination
+    implementation_assumptions_separated_from_sourced_rules:
+    - RA-SV-01 standard monthly SPX expirations only (research assumption, recorded in spec)
+    unresolved:
+      DATA:
+      - X04 rates/dividend yield
+      - SOQ (X01)
+      - INDEX quote
+      ARCHITECTURE:
+      - A15 CBOE straddle-combination margin
+      - P03 short with proceeds accounting
+      RESEARCH:
+      - post-2002 persistence; weekly-era evidence transfer
+  manifest_translation:
+    strategy_id: index_short_vol_scs_near_atm_straddle
+    strategy_version: 1.0.0
+    required_market_capabilities:
+    - OPTION_CHAIN_V1
+    - REAL_TIME_QUOTE_V1
+    - TRADING_CALENDAR_V1
+    required_component_capabilities:
+    - X01 index-option identity/root/settlement (incl. SOQ)
+    - INDEX quote via X01 + provider-neutral quote path
+    - straddle structure (short/long, non-unit ratios, multi-pair)
+    - rate/discount facts
+    - margin/collateral model
+    - asa.stonk.shared verdict_classifier
+    - asa.core boolean_and / compare / expression_predicate / constant
+    parameters: *id015
+    nodes:
+    - node_id: df_first_trading_day_of_month
+      component: analytics derived-fact input (formula_id DF-FIRST-TRADING-DAY-OF-MONTH, formula_version 1.0.0)
+      role: derived_fact
+    - node_id: df_opt_dte_calendar
+      component: analytics derived-fact input (formula_id DF-OPT-DTE-CALENDAR, formula_version 1.0.0)
+      role: derived_fact
+    - node_id: df_opt_mid
+      component: analytics derived-fact input (formula_id DF-OPT-MID, formula_version 1.0.0)
+      role: derived_fact
+    - node_id: df_zero_cost_option_return
+      component: analytics derived-fact input (formula_id DF-ZERO-COST-OPTION-RETURN, formula_version 1.0.0)
+      role: derived_fact
+    - node_id: df_cboe_naked_margin
+      component: analytics derived-fact input (formula_id DF-CBOE-NAKED-MARGIN, formula_version 1.1.0)
+      role: derived_fact
+    - node_id: gate_scs_entry_date
+      component: asa.core expression_predicate / compare (three-state; threshold from parameters)
+      role: gate
+      gate_id: G-SCS-ENTRY-DATE
+      predicate: date(t) == DF-FIRST-TRADING-DAY-OF-MONTH(month(t))
+      operator: ==
+      units: date
+      boundary: n/a
+      reason_codes: *id016
+    - node_id: gate_scs_expiry_unique
+      component: asa.core expression_predicate / compare (three-state; threshold from parameters)
+      role: gate
+      gate_id: G-SCS-EXPIRY-UNIQUE
+      predicate: argmin_T |DTE_cal(T,t) - 45| over standard monthly SPX expirations is unique
+      operator: argmin
+      units: calendar days
+      boundary: n/a
+      reason_codes: *id017
+    - node_id: gate_scs_strike_unique
+      component: asa.core expression_predicate / compare (three-state; threshold from parameters)
+      role: gate
+      gate_id: G-SCS-STRIKE-UNIQUE
+      predicate: argmin_K |K - S_close(t)| over strikes with both a call and a put at T* is unique
+      operator: argmin
+      units: index points
+      boundary: n/a
+      reason_codes: *id018
+    - node_id: gate_scs_quote_filters
+      component: asa.core expression_predicate / compare (three-state; threshold from parameters)
+      role: gate
+      gate_id: G-SCS-QUOTE-FILTERS
+      predicate: 'per leg: bid > 0 AND ask >= bid AND (ask - bid) >= tick(price) AND arbitrage bound AND 0.01 <=
+        IV <= 1.00; tick = 0.05 if price < 3 else 0.10; call bound S*exp(-tau*d) - K*exp(-tau*r) < C < S*exp(-tau*d),
+        put bound by parity (DERIVED)'
+      operator: as stated
+      units: USD per option unit; IV decimal
+      boundary: IV inclusive (excluded if "bigger than 100% or lower than 1%"); arbitrage bound open interval as
+        printed
+      reason_codes: *id019
+    - node_id: gates_all
+      component: asa.core boolean_and (must propagate UNKNOWN per truth table; never coerce UNKNOWN)
+      role: gate
+    - node_id: structure
+      component: asa.stonk.options straddle_structure [P03; component to be provided by the reusable primitive,
+        not strategy-specific]
+      role: structure
+      selection: T* = argmin_T |DTE_cal - 45| over standard monthly SPX expirations; K* = argmin_K |K - S_close|
+        over strikes with both call and put at T*; short 1 call + 1 put at (K*, T*); ties -> AMBIGUOUS_SELECTION
+    - node_id: direction
+      component: asa.core constant (source-authored direction)
+      role: direction
+    - node_id: verdict
+      component: asa.stonk.shared verdict_classifier fed by gates_all (PASS/UNKNOWN/FAIL mapping per truth table)
+      role: verdict
+    edges:
+    - source: gate_scs_entry_date
+      target: gates_all
+    - source: gate_scs_expiry_unique
+      target: gates_all
+    - source: gate_scs_strike_unique
+      target: gates_all
+    - source: gate_scs_quote_filters
+      target: gates_all
+    - source: gates_all
+      target: verdict
+    - source: structure
+      target: verdict
+    outputs:
+    - name: df_first_trading_day_of_month
+      node: df_first_trading_day_of_month
+      role: derived_fact
+      formula_id: DF-FIRST-TRADING-DAY-OF-MONTH
+    - name: df_opt_dte_calendar
+      node: df_opt_dte_calendar
+      role: derived_fact
+      formula_id: DF-OPT-DTE-CALENDAR
+    - name: df_opt_mid
+      node: df_opt_mid
+      role: derived_fact
+      formula_id: DF-OPT-MID
+    - name: df_zero_cost_option_return
+      node: df_zero_cost_option_return
+      role: derived_fact
+      formula_id: DF-ZERO-COST-OPTION-RETURN
+    - name: df_cboe_naked_margin
+      node: df_cboe_naked_margin
+      role: derived_fact
+      formula_id: DF-CBOE-NAKED-MARGIN
+    - name: gate_scs_entry_date
+      node: gate_scs_entry_date
+      role: gate
+    - name: gate_scs_expiry_unique
+      node: gate_scs_expiry_unique
+      role: gate
+    - name: gate_scs_strike_unique
+      node: gate_scs_strike_unique
+      role: gate
+    - name: gate_scs_quote_filters
+      node: gate_scs_quote_filters
+      role: gate
+    - name: structure
+      node: structure
+      role: structure
+    - name: direction
+      node: direction
+      role: direction
+    - name: verdict
+      node: verdict
+      role: verdict
+    fact_outputs: *id020
+    derived_fact_outputs: *id021
+    gate_outputs:
+    - G-SCS-ENTRY-DATE
+    - G-SCS-EXPIRY-UNIQUE
+    - G-SCS-STRIKE-UNIQUE
+    - G-SCS-QUOTE-FILTERS
+    direction_output:
+      delta: neutral at entry (unhedged)
+      volatility: negative
+      theta: positive
+      skew: neutral
+      term: none
+      event: none
+    structure_output: T* = argmin_T |DTE_cal - 45| over standard monthly SPX expirations; K* = argmin_K |K - S_close|
+      over strikes with both call and put at T*; short 1 call + 1 put at (K*, T*); ties -> AMBIGUOUS_SELECTION
+    score_output: NONE (source defines no score)
+    verdict_output: three-state per verdict_truth_table
+    lifecycle: 'monthly: sell at month start, buy back at next month start, re-sell; one position at a time; no
+      targets/stops'
+    unknown_reason_codes:
+    - AMBIGUOUS_SELECTION
+    - G_SCS_ENTRY_DATE_UNKNOWN
+    - G_SCS_EXPIRY_UNIQUE_UNKNOWN
+    - G_SCS_QUOTE_FILTERS_UNKNOWN
+    - G_SCS_STRIKE_UNIQUE_UNKNOWN
+    - MISSING_CANONICAL_FACT
+    - STALE_EVIDENCE
+- frozen_specification:
+    final_strategy_id: event_vol_gxz_preea_straddle_to_expiry
+    research_spec: ASA-QS-EV-01-GXZ-PREEA-STRADDLE-TO-EXPIRY
+    strategy_name: Pre-earnings delta-neutral ATM straddle bought 3 sessions before announcement, held to expiry
+      (4-10 days)
+    lane: 1-event-volatility
+    primary_sources:
+    - GAO-XING-ZHANG-2013-WP
+    - GAO-XING-ZHANG-2018
+    source_methodology_version: Xing-Zhang SSRN 2204549 working paper 2013-01-14, §2-§5 and Table 6 (published JFQA
+      2018 text not accessible)
+    evidence_direction: QUALIFIED (1996-2010 positive net of full quoted spread for 4-10 day group; recent unconditional
+      EAD evidence negative in a different design)
+    evidence_strength: MODERATE
+    evidence_confidence: LOW-MEDIUM
+    universe: US common stocks with a scheduled earnings date day0 (EARNINGS_CALENDAR_V1) such that today = session(day0,-3),
+      price >= $5, with at least one same-strike call-put pair passing all option gates and expiring after day0
+      within [4,10] calendar days
+    canonical_facts: &id034
+    - earnings date (day 0 as dated; no time-of-day adjustment)
+    - stock close
+    - option bid/ask/delta/open interest/volume at day -3 close
+    - expiration date
+    - 'intrinsic settlement at expiry (equity options: physical delivery; source uses in-the-money amount)'
+    derived_facts: &id035
+    - DF-EA-EFFECTIVE-DATE-GXZ
+    - DF-TRADING-SESSION-OFFSET
+    - DF-OPT-MID
+    - DF-OPT-MONEYNESS-SK
+    - DF-OPT-DTE-CALENDAR
+    - DF-STRADDLE-ZERO-DELTA-WEIGHT
+    - DF-GXZ-PAIR-VOLUME
+    - DF-OPT-HOLDING-RETURN
+    - DF-STRADDLE-RETURN
+    - DF-OPT-EFFECTIVE-PRICE
+    strategy_parameters: &id022
+      entry_offset_sessions: -3
+      min_stock_price: '5'
+      min_mid: '0.125'
+      abs_delta_band:
+      - '0.375'
+      - '0.625'
+      moneyness_S_over_K:
+      - '0.95'
+      - '1.05'
+      dte_window_calendar_days:
+      - 4
+      - 10
+    gates:
+    - gate_id: G-GXZ-EA-DATE-KNOWN
+      predicate: earnings_date(i) is confirmed
+      operator: definedness
+      threshold: n/a
+      units: date
+      boundary: n/a
+      unknown_behavior: date unconfirmed/estimated
+      reason_codes: &id023
+        FAIL: G_GXZ_EA_DATE_KNOWN_FAIL
+        UNKNOWN: G_GXZ_EA_DATE_KNOWN_UNKNOWN
+    - gate_id: G-GXZ-ENTRY-SESSION
+      predicate: session(t) == DF-TRADING-SESSION-OFFSET(day0, -3)
+      operator: ==
+      threshold: -3 sessions
+      units: trading session
+      boundary: n/a
+      unknown_behavior: calendar or day 0 unavailable
+      reason_codes: &id024
+        FAIL: G_GXZ_ENTRY_SESSION_FAIL
+        UNKNOWN: G_GXZ_ENTRY_SESSION_UNKNOWN
+    - gate_id: G-GXZ-STOCK-PRICE-MIN
+      predicate: S_i >= 5
+      operator: '>='
+      threshold: 5 USD
+      units: USD per share
+      boundary: 'inclusive (source: "stock price ≥ $5")'
+      unknown_behavior: price missing; the observation date of this filter is not stated (formation-date reading
+        is an INFERENCE)
+      reason_codes: &id025
+        FAIL: G_GXZ_STOCK_PRICE_MIN_FAIL
+        UNKNOWN: G_GXZ_STOCK_PRICE_MIN_UNKNOWN
+    - gate_id: G-GXZ-OPT-MID-MIN
+      predicate: mid(c) >= 0.125
+      operator: '>='
+      threshold: 0.125 USD
+      units: USD per option unit
+      boundary: inclusive
+      unknown_behavior: quote missing
+      reason_codes: &id026
+        FAIL: G_GXZ_OPT_MID_MIN_FAIL
+        UNKNOWN: G_GXZ_OPT_MID_MIN_UNKNOWN
+    - gate_id: G-GXZ-QUOTE-VALID
+      predicate: bid(c) > 0 AND bid(c) < ask(c)
+      operator: '> ; <'
+      threshold: '0'
+      units: USD per option unit
+      boundary: exclusive
+      unknown_behavior: quote missing
+      reason_codes: &id027
+        FAIL: G_GXZ_QUOTE_VALID_FAIL
+        UNKNOWN: G_GXZ_QUOTE_VALID_UNKNOWN
+    - gate_id: G-GXZ-ARBITRAGE-BOUNDS
+      predicate: 'put: K >= bid AND ask >= max(0, K - S); call: S >= bid AND ask >= max(0, S - K)'
+      operator: as written
+      threshold: n/a
+      units: USD per option unit
+      boundary: inclusive
+      unknown_behavior: inputs missing
+      reason_codes: &id028
+        FAIL: G_GXZ_ARBITRAGE_BOUNDS_FAIL
+        UNKNOWN: G_GXZ_ARBITRAGE_BOUNDS_UNKNOWN
+    - gate_id: G-GXZ-ABS-DELTA-BAND
+      predicate: 0.375 <= |Δ(c)| <= 0.625
+      operator: between
+      threshold: '[0.375, 0.625]'
+      units: dimensionless delta
+      boundary: inclusive (as extracted; boundary inclusivity not explicitly stated — UNKNOWN at exact boundary
+        values)
+      unknown_behavior: delta missing
+      reason_codes: &id029
+        FAIL: G_GXZ_ABS_DELTA_BAND_FAIL
+        UNKNOWN: G_GXZ_ABS_DELTA_BAND_UNKNOWN
+    - gate_id: G-GXZ-OI-POSITIVE
+      predicate: OI(c) > 0
+      operator: '>'
+      threshold: '0'
+      units: contracts
+      boundary: exclusive
+      unknown_behavior: OI missing
+      reason_codes: &id030
+        FAIL: G_GXZ_OI_POSITIVE_FAIL
+        UNKNOWN: G_GXZ_OI_POSITIVE_UNKNOWN
+    - gate_id: G-GXZ-MONEYNESS
+      predicate: 0.95 <= S/K <= 1.05
+      operator: between
+      threshold: '[0.95, 1.05]'
+      units: dimensionless ratio S/K
+      boundary: inclusive (as extracted)
+      unknown_behavior: S or K missing
+      reason_codes: &id031
+        FAIL: G_GXZ_MONEYNESS_FAIL
+        UNKNOWN: G_GXZ_MONEYNESS_UNKNOWN
+    - gate_id: G-GXZ-EXPIRES-AFTER-EA
+      predicate: expiration(c) > day 0
+      operator: '>'
+      threshold: day 0
+      units: date
+      boundary: 'exclusive (text: constructed before and expires after the announcement)'
+      unknown_behavior: day 0 or expiration missing
+      reason_codes: &id032
+        FAIL: G_GXZ_EXPIRES_AFTER_EA_FAIL
+        UNKNOWN: G_GXZ_EXPIRES_AFTER_EA_UNKNOWN
+    - gate_id: G-GXZ-HOLD-TO-EXPIRY-DTE
+      predicate: 4 <= (expiration_date(c) - date(session(day0,-3))) <= 10
+      operator: between
+      threshold: '[4, 10] calendar days'
+      units: calendar days
+      boundary: inclusive as tabulated
+      unknown_behavior: 'expiration or entry date missing. Closeout resolution: the unit is calendar days (DERIVED:
+        the paper counts days to maturity against Saturday expirations, which cannot be a trading-day count), and
+        the 10-60 day main-sample filter does not apply to this rule (DERIVED: Table 6 reports 8,273 straddles with
+        4-10 days, which the 10-day floor would exclude).'
+      reason_codes: &id033
+        FAIL: G_GXZ_HOLD_TO_EXPIRY_DTE_FAIL
+        UNKNOWN: G_GXZ_HOLD_TO_EXPIRY_DTE_UNKNOWN
+    structure_primitive: P03 long zero-delta straddle (non-unit ratio), multi-pair within one event
+    leg_selection: 'all qualifying same-strike call-put pairs in the first expiry after day0 with DTE in [4,10];
+      within pair: call weight w_c = -Δp·C/(Δc·P - Δp·C), put 1-w_c (DF-STRADDLE-ZERO-DELTA-WEIGHT); across pairs:
+      ω_j = v_j/Σv (RA-EV-01, DF-GXZ-PAIR-VOLUME)'
+    entry_timing: close of session(day0, -3)
+    exit_timing: hold to expiration; payoff intrinsic value
+    roll_behavior: none; one position per announcement
+    sizing: return weights only (equal weight across straddles in the source); capital per event is a Founder capital
+      decision; contract counts per unit capital n_c = ω_j·w_c/C, n_p = ω_j·w_p/P
+    capital_collateral: long premium; maximum loss = premium paid; no margin
+    transaction_costs: entry at mid + k/2·spread (k = 0.5 or 1.0 in source; k=1 means closing ask); no exit cost
+      (intrinsic); commissions/exercise costs not modelled
+    lifecycle: event-driven entry at day -3 close; hold to first expiry after day0; no stops/targets
+    verdict_truth_table:
+    - - EA-DATE=FAIL
+      - '*'
+      - '*'
+      - '*'
+      - '*'
+      - FAIL
+    - - '*'
+      - ENTRY-SESSION=FAIL
+      - '*'
+      - '*'
+      - '*'
+      - NO_ACTION
+    - - EA-DATE=UNKNOWN
+      - '*'
+      - '*'
+      - '*'
+      - '*'
+      - UNKNOWN
+    - - PASS
+      - PASS
+      - stock/option gate FAIL
+      - '*'
+      - '*'
+      - FAIL
+    - - PASS
+      - PASS
+      - stock/option gate UNKNOWN
+      - '*'
+      - '*'
+      - UNKNOWN
+    - - PASS
+      - PASS
+      - PASS
+      - EXPIRES-AFTER-EA=FAIL
+      - '*'
+      - FAIL
+    - - PASS
+      - PASS
+      - PASS
+      - PASS
+      - DTE=FAIL
+      - FAIL
+    - - PASS
+      - PASS
+      - PASS
+      - PASS
+      - DTE=UNKNOWN
+      - UNKNOWN
+    - - PASS
+      - PASS
+      - PASS
+      - PASS
+      - PASS
+      - PASS (buy straddle)
+    required_existing_capabilities:
+    - EARNINGS_CALENDAR_V1
+    - OPTION_CHAIN_V1
+    - REAL_TIME_QUOTE_V1
+    - TRADING_CALENDAR_V1
+    - days_to_expiration
+    - verdict_classifier
+    required_missing_reusable_capabilities:
+    - P03
+    - A12 (diagnostic)
+    architect_decisions_required:
+    - P03 multi-pair semantics
+    implementation_assumptions_separated_from_sourced_rules:
+    - RA-EV-01 pair volume = call + put volume at day -3 close (research assumption)
+    - RA-EV-02 expiration dates used as listed; weeklies not excluded (research assumption)
+    unresolved:
+      DATA:
+      - provider delta vs OptionMetrics delta equivalence
+      - earnings-date confirmation quality
+      ARCHITECTURE:
+      - P03 multi-pair (volume-weighted) and non-unit ratio semantics
+      RESEARCH:
+      - published JFQA text unread
+      - post-2010 persistence; weekly-expiry era evidence transfer (RA-EV-02)
+  manifest_translation:
+    strategy_id: event_vol_gxz_preea_straddle_to_expiry
+    strategy_version: 1.0.0
+    required_market_capabilities:
+    - EARNINGS_CALENDAR_V1
+    - OPTION_CHAIN_V1
+    - REAL_TIME_QUOTE_V1
+    - TRADING_CALENDAR_V1
+    required_component_capabilities:
+    - straddle structure (short/long, non-unit ratios, multi-pair)
+    - liquidity diagnostics
+    - asa.stonk.shared verdict_classifier
+    - asa.core boolean_and / compare / expression_predicate / constant
+    parameters: *id022
+    nodes:
+    - node_id: df_ea_effective_date_gxz
+      component: analytics derived-fact input (formula_id DF-EA-EFFECTIVE-DATE-GXZ, formula_version 1.0.0)
+      role: derived_fact
+    - node_id: df_trading_session_offset
+      component: analytics derived-fact input (formula_id DF-TRADING-SESSION-OFFSET, formula_version 1.0.0)
+      role: derived_fact
+    - node_id: df_opt_mid
+      component: analytics derived-fact input (formula_id DF-OPT-MID, formula_version 1.0.0)
+      role: derived_fact
+    - node_id: df_opt_moneyness_sk
+      component: analytics derived-fact input (formula_id DF-OPT-MONEYNESS-SK, formula_version 1.0.0)
+      role: derived_fact
+    - node_id: df_opt_dte_calendar
+      component: analytics derived-fact input (formula_id DF-OPT-DTE-CALENDAR, formula_version 1.0.0)
+      role: derived_fact
+    - node_id: df_straddle_zero_delta_weight
+      component: analytics derived-fact input (formula_id DF-STRADDLE-ZERO-DELTA-WEIGHT, formula_version 1.0.0)
+      role: derived_fact
+    - node_id: df_gxz_pair_volume
+      component: analytics derived-fact input (formula_id DF-GXZ-PAIR-VOLUME, formula_version 1.0.0)
+      role: derived_fact
+    - node_id: df_opt_holding_return
+      component: analytics derived-fact input (formula_id DF-OPT-HOLDING-RETURN, formula_version 1.0.0)
+      role: derived_fact
+    - node_id: df_straddle_return
+      component: analytics derived-fact input (formula_id DF-STRADDLE-RETURN, formula_version 1.0.0)
+      role: derived_fact
+    - node_id: df_opt_effective_price
+      component: analytics derived-fact input (formula_id DF-OPT-EFFECTIVE-PRICE, formula_version 1.0.0)
+      role: derived_fact
+    - node_id: gate_gxz_ea_date_known
+      component: asa.core expression_predicate / compare (three-state; threshold from parameters)
+      role: gate
+      gate_id: G-GXZ-EA-DATE-KNOWN
+      predicate: earnings_date(i) is confirmed
+      operator: definedness
+      units: date
+      boundary: n/a
+      reason_codes: *id023
+    - node_id: gate_gxz_entry_session
+      component: asa.core expression_predicate / compare (three-state; threshold from parameters)
+      role: gate
+      gate_id: G-GXZ-ENTRY-SESSION
+      predicate: session(t) == DF-TRADING-SESSION-OFFSET(day0, -3)
+      operator: ==
+      units: trading session
+      boundary: n/a
+      reason_codes: *id024
+    - node_id: gate_gxz_stock_price_min
+      component: asa.core expression_predicate / compare (three-state; threshold from parameters)
+      role: gate
+      gate_id: G-GXZ-STOCK-PRICE-MIN
+      predicate: S_i >= 5
+      operator: '>='
+      units: USD per share
+      boundary: 'inclusive (source: "stock price ≥ $5")'
+      reason_codes: *id025
+    - node_id: gate_gxz_opt_mid_min
+      component: asa.core expression_predicate / compare (three-state; threshold from parameters)
+      role: gate
+      gate_id: G-GXZ-OPT-MID-MIN
+      predicate: mid(c) >= 0.125
+      operator: '>='
+      units: USD per option unit
+      boundary: inclusive
+      reason_codes: *id026
+    - node_id: gate_gxz_quote_valid
+      component: asa.core expression_predicate / compare (three-state; threshold from parameters)
+      role: gate
+      gate_id: G-GXZ-QUOTE-VALID
+      predicate: bid(c) > 0 AND bid(c) < ask(c)
+      operator: '> ; <'
+      units: USD per option unit
+      boundary: exclusive
+      reason_codes: *id027
+    - node_id: gate_gxz_arbitrage_bounds
+      component: asa.core expression_predicate / compare (three-state; threshold from parameters)
+      role: gate
+      gate_id: G-GXZ-ARBITRAGE-BOUNDS
+      predicate: 'put: K >= bid AND ask >= max(0, K - S); call: S >= bid AND ask >= max(0, S - K)'
+      operator: as written
+      units: USD per option unit
+      boundary: inclusive
+      reason_codes: *id028
+    - node_id: gate_gxz_abs_delta_band
+      component: asa.core expression_predicate / compare (three-state; threshold from parameters)
+      role: gate
+      gate_id: G-GXZ-ABS-DELTA-BAND
+      predicate: 0.375 <= |Δ(c)| <= 0.625
+      operator: between
+      units: dimensionless delta
+      boundary: inclusive (as extracted; boundary inclusivity not explicitly stated — UNKNOWN at exact boundary
+        values)
+      reason_codes: *id029
+    - node_id: gate_gxz_oi_positive
+      component: asa.core expression_predicate / compare (three-state; threshold from parameters)
+      role: gate
+      gate_id: G-GXZ-OI-POSITIVE
+      predicate: OI(c) > 0
+      operator: '>'
+      units: contracts
+      boundary: exclusive
+      reason_codes: *id030
+    - node_id: gate_gxz_moneyness
+      component: asa.core expression_predicate / compare (three-state; threshold from parameters)
+      role: gate
+      gate_id: G-GXZ-MONEYNESS
+      predicate: 0.95 <= S/K <= 1.05
+      operator: between
+      units: dimensionless ratio S/K
+      boundary: inclusive (as extracted)
+      reason_codes: *id031
+    - node_id: gate_gxz_expires_after_ea
+      component: asa.core expression_predicate / compare (three-state; threshold from parameters)
+      role: gate
+      gate_id: G-GXZ-EXPIRES-AFTER-EA
+      predicate: expiration(c) > day 0
+      operator: '>'
+      units: date
+      boundary: 'exclusive (text: constructed before and expires after the announcement)'
+      reason_codes: *id032
+    - node_id: gate_gxz_hold_to_expiry_dte
+      component: asa.core expression_predicate / compare (three-state; threshold from parameters)
+      role: gate
+      gate_id: G-GXZ-HOLD-TO-EXPIRY-DTE
+      predicate: 4 <= (expiration_date(c) - date(session(day0,-3))) <= 10
+      operator: between
+      units: calendar days
+      boundary: inclusive as tabulated
+      reason_codes: *id033
+    - node_id: gates_all
+      component: asa.core boolean_and (must propagate UNKNOWN per truth table; never coerce UNKNOWN)
+      role: gate
+    - node_id: structure
+      component: asa.stonk.options straddle_structure [P03; component to be provided by the reusable primitive,
+        not strategy-specific]
+      role: structure
+      selection: 'all qualifying same-strike call-put pairs in the first expiry after day0 with DTE in [4,10]; within
+        pair: call weight w_c = -Δp·C/(Δc·P - Δp·C), put 1-w_c (DF-STRADDLE-ZERO-DELTA-WEIGHT); across pairs: ω_j
+        = v_j/Σv (RA-EV-01, DF-GXZ-PAIR-VOLUME)'
+    - node_id: direction
+      component: asa.core constant (source-authored direction)
+      role: direction
+    - node_id: verdict
+      component: asa.stonk.shared verdict_classifier fed by gates_all (PASS/UNKNOWN/FAIL mapping per truth table)
+      role: verdict
+    edges:
+    - source: gate_gxz_ea_date_known
+      target: gates_all
+    - source: gate_gxz_entry_session
+      target: gates_all
+    - source: gate_gxz_stock_price_min
+      target: gates_all
+    - source: gate_gxz_opt_mid_min
+      target: gates_all
+    - source: gate_gxz_quote_valid
+      target: gates_all
+    - source: gate_gxz_arbitrage_bounds
+      target: gates_all
+    - source: gate_gxz_abs_delta_band
+      target: gates_all
+    - source: gate_gxz_oi_positive
+      target: gates_all
+    - source: gate_gxz_moneyness
+      target: gates_all
+    - source: gate_gxz_expires_after_ea
+      target: gates_all
+    - source: gate_gxz_hold_to_expiry_dte
+      target: gates_all
+    - source: gates_all
+      target: verdict
+    - source: structure
+      target: verdict
+    outputs:
+    - name: df_ea_effective_date_gxz
+      node: df_ea_effective_date_gxz
+      role: derived_fact
+      formula_id: DF-EA-EFFECTIVE-DATE-GXZ
+    - name: df_trading_session_offset
+      node: df_trading_session_offset
+      role: derived_fact
+      formula_id: DF-TRADING-SESSION-OFFSET
+    - name: df_opt_mid
+      node: df_opt_mid
+      role: derived_fact
+      formula_id: DF-OPT-MID
+    - name: df_opt_moneyness_sk
+      node: df_opt_moneyness_sk
+      role: derived_fact
+      formula_id: DF-OPT-MONEYNESS-SK
+    - name: df_opt_dte_calendar
+      node: df_opt_dte_calendar
+      role: derived_fact
+      formula_id: DF-OPT-DTE-CALENDAR
+    - name: df_straddle_zero_delta_weight
+      node: df_straddle_zero_delta_weight
+      role: derived_fact
+      formula_id: DF-STRADDLE-ZERO-DELTA-WEIGHT
+    - name: df_gxz_pair_volume
+      node: df_gxz_pair_volume
+      role: derived_fact
+      formula_id: DF-GXZ-PAIR-VOLUME
+    - name: df_opt_holding_return
+      node: df_opt_holding_return
+      role: derived_fact
+      formula_id: DF-OPT-HOLDING-RETURN
+    - name: df_straddle_return
+      node: df_straddle_return
+      role: derived_fact
+      formula_id: DF-STRADDLE-RETURN
+    - name: df_opt_effective_price
+      node: df_opt_effective_price
+      role: derived_fact
+      formula_id: DF-OPT-EFFECTIVE-PRICE
+    - name: gate_gxz_ea_date_known
+      node: gate_gxz_ea_date_known
+      role: gate
+    - name: gate_gxz_entry_session
+      node: gate_gxz_entry_session
+      role: gate
+    - name: gate_gxz_stock_price_min
+      node: gate_gxz_stock_price_min
+      role: gate
+    - name: gate_gxz_opt_mid_min
+      node: gate_gxz_opt_mid_min
+      role: gate
+    - name: gate_gxz_quote_valid
+      node: gate_gxz_quote_valid
+      role: gate
+    - name: gate_gxz_arbitrage_bounds
+      node: gate_gxz_arbitrage_bounds
+      role: gate
+    - name: gate_gxz_abs_delta_band
+      node: gate_gxz_abs_delta_band
+      role: gate
+    - name: gate_gxz_oi_positive
+      node: gate_gxz_oi_positive
+      role: gate
+    - name: gate_gxz_moneyness
+      node: gate_gxz_moneyness
+      role: gate
+    - name: gate_gxz_expires_after_ea
+      node: gate_gxz_expires_after_ea
+      role: gate
+    - name: gate_gxz_hold_to_expiry_dte
+      node: gate_gxz_hold_to_expiry_dte
+      role: gate
+    - name: structure
+      node: structure
+      role: structure
+    - name: direction
+      node: direction
+      role: direction
+    - name: verdict
+      node: verdict
+      role: verdict
+    fact_outputs: *id034
+    derived_fact_outputs: *id035
+    gate_outputs:
+    - G-GXZ-EA-DATE-KNOWN
+    - G-GXZ-ENTRY-SESSION
+    - G-GXZ-STOCK-PRICE-MIN
+    - G-GXZ-OPT-MID-MIN
+    - G-GXZ-QUOTE-VALID
+    - G-GXZ-ARBITRAGE-BOUNDS
+    - G-GXZ-ABS-DELTA-BAND
+    - G-GXZ-OI-POSITIVE
+    - G-GXZ-MONEYNESS
+    - G-GXZ-EXPIRES-AFTER-EA
+    - G-GXZ-HOLD-TO-EXPIRY-DTE
+    direction_output:
+      delta: neutral at entry (zero-delta weights)
+      volatility: positive
+      theta: negative
+      skew: neutral
+      term: none
+      event: long announcement move
+    structure_output: 'all qualifying same-strike call-put pairs in the first expiry after day0 with DTE in [4,10];
+      within pair: call weight w_c = -Δp·C/(Δc·P - Δp·C), put 1-w_c (DF-STRADDLE-ZERO-DELTA-WEIGHT); across pairs:
+      ω_j = v_j/Σv (RA-EV-01, DF-GXZ-PAIR-VOLUME)'
+    score_output: NONE (source defines no score)
+    verdict_output: three-state per verdict_truth_table
+    lifecycle: event-driven entry at day -3 close; hold to first expiry after day0; no stops/targets
+    unknown_reason_codes:
+    - AMBIGUOUS_SELECTION
+    - G_GXZ_ABS_DELTA_BAND_UNKNOWN
+    - G_GXZ_ARBITRAGE_BOUNDS_UNKNOWN
+    - G_GXZ_EA_DATE_KNOWN_UNKNOWN
+    - G_GXZ_ENTRY_SESSION_UNKNOWN
+    - G_GXZ_EXPIRES_AFTER_EA_UNKNOWN
+    - G_GXZ_HOLD_TO_EXPIRY_DTE_UNKNOWN
+    - G_GXZ_MONEYNESS_UNKNOWN
+    - G_GXZ_OI_POSITIVE_UNKNOWN
+    - G_GXZ_OPT_MID_MIN_UNKNOWN
+    - G_GXZ_QUOTE_VALID_UNKNOWN
+    - G_GXZ_STOCK_PRICE_MIN_UNKNOWN
+    - MISSING_CANONICAL_FACT
+    - STALE_EVIDENCE
+- frozen_specification:
+    final_strategy_id: xs_option_zhan_neg_lnprice_dn_call
+    research_spec: ASA-QS-XR-01-ZHAN-NEG-LNPRICE-DN-CALL
+    strategy_name: Delta-neutral call writing sorted on -ln(stock price), decile 10 minus decile 1 (dividend payers
+      included)
+    lane: 6-cross-sectional-option-returns
+    primary_sources:
+    - ZHAN-ET-AL-2022
+    source_methodology_version: RFS 35(3) 2022, author-accepted manuscript; footnote-8 dividend-inclusive variant
+    evidence_direction: FAVORABLE net (spanned by two option factors)
+    evidence_strength: STRONG
+    evidence_confidence: MEDIUM
+    universe: U_t = common stocks (security_master.security_type) with close >= $5 on the last trading day of month
+      t and a same-maturity ATM call-put pair passing option gates; dividend payers included (footnote 8)
+    canonical_facts: &id045
+    - stock close at month end
+    - security_type
+    - shares_outstanding (market cap = shares x close)
+    - 'option chain: bid/ask/volume/OI/strike/expiration/delta'
+    - risk-free/LIBOR rate for margin cost (X04)
+    derived_facts: &id046
+    - DF-LAST-TRADING-DAY-OF-MONTH
+    - DF-NEG-LN-PRICE
+    - DF-XS-QUANTILE-ASSIGNMENT
+    - DF-OPT-MID
+    - DF-OPT-DTE-CALENDAR
+    - DF-OPT-MONEYNESS-KS
+    - DF-OPT-MONEYNESS-SK
+    - DF-DELTA-NEUTRAL-HEDGE-QUANTITY
+    - DF-DN-CALL-WRITE-RETURN
+    - DF-CBOE-NAKED-MARGIN
+    - DF-OPT-EFFECTIVE-PRICE
+    strategy_parameters: &id036
+      min_price: '5'
+      min_mid: '0.125'
+      moneyness_band:
+      - '0.8'
+      - '1.2'
+      quantiles: 10
+      long_group: 1
+      short_group: 10
+      weighting: stock market-cap (Stock-VW)
+      holding: one month, no hedge rebalancing
+      margin_alpha_equity: '0.20'
+      margin_beta: '0.10'
+    gates:
+    - gate_id: G-ZHAN-FORMATION-DATE
+      predicate: date(t) == DF-LAST-TRADING-DAY-OF-MONTH(month(t))
+      operator: ==
+      threshold: month end
+      units: date
+      boundary: n/a
+      unknown_behavior: calendar unavailable
+      reason_codes: &id037
+        FAIL: G_ZHAN_FORMATION_DATE_FAIL
+        UNKNOWN: G_ZHAN_FORMATION_DATE_UNKNOWN
+    - gate_id: G-ZHAN-COMMON-STOCK
+      predicate: sharecode_i in {10, 11}
+      operator: membership
+      threshold: n/a
+      units: enum share code
+      boundary: n/a
+      unknown_behavior: security-type fact not available in ASA canonical data (UNKNOWN)
+      reason_codes: &id038
+        FAIL: G_ZHAN_COMMON_STOCK_FAIL
+        UNKNOWN: G_ZHAN_COMMON_STOCK_UNKNOWN
+    - gate_id: G-ZHAN-PRICE-MIN
+      predicate: P_i,t >= 5
+      operator: '>='
+      threshold: 5 USD
+      units: USD per share
+      boundary: inclusive (source excludes prices "below five dollars")
+      unknown_behavior: close missing
+      reason_codes: &id039
+        FAIL: G_ZHAN_PRICE_MIN_FAIL
+        UNKNOWN: G_ZHAN_PRICE_MIN_UNKNOWN
+    - gate_id: G-ZHAN-OPTION-QUOTE
+      predicate: volume > 0 AND bid > 0 AND bid < ask AND mid >= 0.125
+      operator: as stated
+      threshold: as stated
+      units: contracts; USD per option unit
+      boundary: mid inclusive
+      unknown_behavior: missing inputs
+      reason_codes: &id040
+        FAIL: G_ZHAN_OPTION_QUOTE_FAIL
+        UNKNOWN: G_ZHAN_OPTION_QUOTE_UNKNOWN
+    - gate_id: G-ZHAN-NO-ARBITRAGE
+      predicate: S >= C AND C >= max(0, S - K*exp(-r*T))
+      operator: as stated
+      threshold: n/a
+      units: USD per option unit
+      boundary: inclusive
+      unknown_behavior: r unavailable (X04) or inputs missing; the footnote gives this as an example ("For example")
+        — the full set of conditions applied is UNKNOWN
+      reason_codes: &id041
+        FAIL: G_ZHAN_NO_ARBITRAGE_FAIL
+        UNKNOWN: G_ZHAN_NO_ARBITRAGE_UNKNOWN
+    - gate_id: G-ZHAN-MONEYNESS
+      predicate: PASS if 0.8 <= K/S <= 1.2 AND 0.8 <= S/K <= 1.2; FAIL if both ratios fall outside [0.8, 1.2]; UNKNOWN
+        if the two definitions disagree
+      operator: between (both ratio definitions)
+      threshold: '[0.8, 1.2]'
+      units: dimensionless ratio
+      boundary: inclusive (excluded if "lower than 0.8 or higher than 1.2")
+      unknown_behavior: 'definitions disagree (possible only near the band edges), or inputs missing. Closeout:
+        this three-state form preserves the source ambiguity without choosing a ratio.'
+      reason_codes: &id042
+        FAIL: G_ZHAN_MONEYNESS_FAIL
+        UNKNOWN: G_ZHAN_MONEYNESS_UNKNOWN
+    - gate_id: G-ZHAN-MODAL-MATURITY
+      predicate: maturity(c_i) == mode_j maturity(c_j)
+      operator: ==
+      threshold: n/a
+      units: calendar days
+      boundary: n/a
+      unknown_behavior: tie in the mode (not addressed by source) -> UNKNOWN
+      reason_codes: &id043
+        FAIL: G_ZHAN_MODAL_MATURITY_FAIL
+        UNKNOWN: G_ZHAN_MODAL_MATURITY_UNKNOWN
+    - gate_id: G-ZHAN-CALL-AND-PUT
+      predicate: call survives AND put survives
+      operator: AND
+      threshold: n/a
+      units: boolean
+      boundary: n/a
+      unknown_behavior: n/a
+      reason_codes: &id044
+        FAIL: G_ZHAN_CALL_AND_PUT_FAIL
+        UNKNOWN: G_ZHAN_CALL_AND_PUT_UNKNOWN
+    structure_primitive: P10 delta-hedged call inside P12 cross-sectional long/short portfolio
+    leg_selection: 'per stock: call and put closest to ATM with the shortest maturity > one month, modal maturity
+      across stocks; decile 10 (lowest price): write 1 call per unit, long Δ shares; decile 1: long call, short
+      Δ shares (exact negative of the written position; DERIVED); equidistant strikes -> AMBIGUOUS_SELECTION'
+    entry_timing: close of last trading day of month t
+    exit_timing: close of last trading day of month t+1 (option and stock closed; not held to expiry)
+    roll_behavior: re-form monthly
+    sizing: within decile weights w_i = ME_i / Σ ME (Stock-VW); contracts n_i = w_i/H_i per unit capital with H_i
+      = Δ_i·S_i - C_i; decile-1 sign reversed; absolute capital = Founder capital decision
+    capital_collateral: CBOE naked-call margin on written calls (alpha 20%, beta 10%) without crediting the long
+      stock; margin financed at maturity-matched rate (eq. 2); short-stock borrow for decile 1 not modelled (cost
+      unknown)
+    transaction_costs: 'source: effective spread 25/50/75/100% of quoted and actual OPRA effective (~55%) on entry
+      and exit; stock trading and borrow costs not modelled'
+    lifecycle: monthly formation; one-month hold; no rehedge; no stops
+    verdict_truth_table:
+    - - FORMATION-DATE=FAIL
+      - '*'
+      - '*'
+      - '*'
+      - hold
+    - - stock gate FAIL
+      - '*'
+      - '*'
+      - '*'
+      - EXCLUDED
+    - - stock gate UNKNOWN
+      - '*'
+      - '*'
+      - '*'
+      - UNKNOWN
+    - - PASS
+      - option gate FAIL
+      - '*'
+      - '*'
+      - EXCLUDED
+    - - PASS
+      - option gate UNKNOWN (incl. moneyness disagreement)
+      - '*'
+      - '*'
+      - UNKNOWN
+    - - PASS
+      - PASS
+      - decile 10
+      - '*'
+      - SHORT delta-hedged call
+    - - PASS
+      - PASS
+      - decile 1
+      - '*'
+      - LONG delta-hedged call
+    - - PASS
+      - PASS
+      - decile 2-9
+      - '*'
+      - NO_POSITION
+    required_existing_capabilities:
+    - HISTORICAL_BARS_V1
+    - OPTION_CHAIN_V1
+    - CORPORATE_ACTIONS_V1
+    - TRADING_CALENDAR_V1
+    - cross_sectional_ranking (partial)
+    - days_to_expiration
+    required_missing_reusable_capabilities:
+    - P10
+    - P12
+    - A15
+    - X04
+    - security_master.security_type
+    - security_master.shares_outstanding
+    - A12 (diagnostic)
+    architect_decisions_required:
+    - P12 portfolio semantics
+    - P10
+    - security-master capability entry
+    implementation_assumptions_separated_from_sourced_rules:
+    - RA-XS-01 quantile assignment (DF-XS-QUANTILE-ASSIGNMENT 1.1.0)
+    - no-arbitrage gate implements only the source-stated call condition
+    unresolved:
+      DATA:
+      - security_type
+      - shares_outstanding
+      - provider delta equivalence (bounded by footnote 12)
+      - X04 rate for margin cost
+      ARCHITECTURE:
+      - P10 static hedge semantics
+      - P12 decile long/short book over ~700 names
+      - A15 CBOE equity margin
+      RESEARCH:
+      - post-2016 persistence
+      - stock borrow cost of decile-1 hedge
+  manifest_translation:
+    strategy_id: xs_option_zhan_neg_lnprice_dn_call
+    strategy_version: 1.0.0
+    required_market_capabilities:
+    - HISTORICAL_BARS_V1
+    - OPTION_CHAIN_V1
+    - CORPORATE_ACTIONS_V1
+    - TRADING_CALENDAR_V1
+    required_component_capabilities:
+    - delta-hedged option structure
+    - cross-sectional long/short portfolio
+    - margin/collateral model
+    - rate/discount facts
+    - security_master.security_type
+    - security_master.shares_outstanding
+    - liquidity diagnostics
+    - asa.stonk.shared verdict_classifier
+    - asa.core boolean_and / compare / expression_predicate / constant
+    parameters: *id036
+    nodes:
+    - node_id: df_last_trading_day_of_month
+      component: analytics derived-fact input (formula_id DF-LAST-TRADING-DAY-OF-MONTH, formula_version 1.0.0)
+      role: derived_fact
+    - node_id: df_neg_ln_price
+      component: analytics derived-fact input (formula_id DF-NEG-LN-PRICE, formula_version 1.0.0)
+      role: derived_fact
+    - node_id: df_xs_quantile_assignment
+      component: analytics derived-fact input (formula_id DF-XS-QUANTILE-ASSIGNMENT, formula_version 1.1.0)
+      role: derived_fact
+    - node_id: df_opt_mid
+      component: analytics derived-fact input (formula_id DF-OPT-MID, formula_version 1.0.0)
+      role: derived_fact
+    - node_id: df_opt_dte_calendar
+      component: analytics derived-fact input (formula_id DF-OPT-DTE-CALENDAR, formula_version 1.0.0)
+      role: derived_fact
+    - node_id: df_opt_moneyness_ks
+      component: analytics derived-fact input (formula_id DF-OPT-MONEYNESS-KS, formula_version 1.0.0)
+      role: derived_fact
+    - node_id: df_opt_moneyness_sk
+      component: analytics derived-fact input (formula_id DF-OPT-MONEYNESS-SK, formula_version 1.0.0)
+      role: derived_fact
+    - node_id: df_delta_neutral_hedge_quantity
+      component: analytics derived-fact input (formula_id DF-DELTA-NEUTRAL-HEDGE-QUANTITY, formula_version 1.0.0)
+      role: derived_fact
+    - node_id: df_dn_call_write_return
+      component: analytics derived-fact input (formula_id DF-DN-CALL-WRITE-RETURN, formula_version 1.0.0)
+      role: derived_fact
+    - node_id: df_cboe_naked_margin
+      component: analytics derived-fact input (formula_id DF-CBOE-NAKED-MARGIN, formula_version 1.1.0)
+      role: derived_fact
+    - node_id: df_opt_effective_price
+      component: analytics derived-fact input (formula_id DF-OPT-EFFECTIVE-PRICE, formula_version 1.0.0)
+      role: derived_fact
+    - node_id: gate_zhan_formation_date
+      component: asa.core expression_predicate / compare (three-state; threshold from parameters)
+      role: gate
+      gate_id: G-ZHAN-FORMATION-DATE
+      predicate: date(t) == DF-LAST-TRADING-DAY-OF-MONTH(month(t))
+      operator: ==
+      units: date
+      boundary: n/a
+      reason_codes: *id037
+    - node_id: gate_zhan_common_stock
+      component: asa.core expression_predicate / compare (three-state; threshold from parameters)
+      role: gate
+      gate_id: G-ZHAN-COMMON-STOCK
+      predicate: sharecode_i in {10, 11}
+      operator: membership
+      units: enum share code
+      boundary: n/a
+      reason_codes: *id038
+    - node_id: gate_zhan_price_min
+      component: asa.core expression_predicate / compare (three-state; threshold from parameters)
+      role: gate
+      gate_id: G-ZHAN-PRICE-MIN
+      predicate: P_i,t >= 5
+      operator: '>='
+      units: USD per share
+      boundary: inclusive (source excludes prices "below five dollars")
+      reason_codes: *id039
+    - node_id: gate_zhan_option_quote
+      component: asa.core expression_predicate / compare (three-state; threshold from parameters)
+      role: gate
+      gate_id: G-ZHAN-OPTION-QUOTE
+      predicate: volume > 0 AND bid > 0 AND bid < ask AND mid >= 0.125
+      operator: as stated
+      units: contracts; USD per option unit
+      boundary: mid inclusive
+      reason_codes: *id040
+    - node_id: gate_zhan_no_arbitrage
+      component: asa.core expression_predicate / compare (three-state; threshold from parameters)
+      role: gate
+      gate_id: G-ZHAN-NO-ARBITRAGE
+      predicate: S >= C AND C >= max(0, S - K*exp(-r*T))
+      operator: as stated
+      units: USD per option unit
+      boundary: inclusive
+      reason_codes: *id041
+    - node_id: gate_zhan_moneyness
+      component: asa.core expression_predicate / compare (three-state; threshold from parameters)
+      role: gate
+      gate_id: G-ZHAN-MONEYNESS
+      predicate: PASS if 0.8 <= K/S <= 1.2 AND 0.8 <= S/K <= 1.2; FAIL if both ratios fall outside [0.8, 1.2]; UNKNOWN
+        if the two definitions disagree
+      operator: between (both ratio definitions)
+      units: dimensionless ratio
+      boundary: inclusive (excluded if "lower than 0.8 or higher than 1.2")
+      reason_codes: *id042
+    - node_id: gate_zhan_modal_maturity
+      component: asa.core expression_predicate / compare (three-state; threshold from parameters)
+      role: gate
+      gate_id: G-ZHAN-MODAL-MATURITY
+      predicate: maturity(c_i) == mode_j maturity(c_j)
+      operator: ==
+      units: calendar days
+      boundary: n/a
+      reason_codes: *id043
+    - node_id: gate_zhan_call_and_put
+      component: asa.core expression_predicate / compare (three-state; threshold from parameters)
+      role: gate
+      gate_id: G-ZHAN-CALL-AND-PUT
+      predicate: call survives AND put survives
+      operator: AND
+      units: boolean
+      boundary: n/a
+      reason_codes: *id044
+    - node_id: gates_all
+      component: asa.core boolean_and (must propagate UNKNOWN per truth table; never coerce UNKNOWN)
+      role: gate
+    - node_id: structure
+      component: asa.stonk.options delta_hedged_option_structure [P10; component to be provided by the reusable
+        primitive, not strategy-specific]
+      role: structure
+      selection: 'per stock: call and put closest to ATM with the shortest maturity > one month, modal maturity
+        across stocks; decile 10 (lowest price): write 1 call per unit, long Δ shares; decile 1: long call, short
+        Δ shares (exact negative of the written position; DERIVED); equidistant strikes -> AMBIGUOUS_SELECTION'
+    - node_id: portfolio
+      component: cross_sectional_portfolio [P12] over asa.core rank / filter / portfolio_constraint
+      role: structure
+      selection: quantile assignment via DF-XS-QUANTILE-ASSIGNMENT; long/short groups and weights per parameters
+    - node_id: direction
+      component: asa.core constant (source-authored direction)
+      role: direction
+    - node_id: verdict
+      component: asa.stonk.shared verdict_classifier fed by gates_all (PASS/UNKNOWN/FAIL mapping per truth table)
+      role: verdict
+    edges:
+    - source: gate_zhan_formation_date
+      target: gates_all
+    - source: gate_zhan_common_stock
+      target: gates_all
+    - source: gate_zhan_price_min
+      target: gates_all
+    - source: gate_zhan_option_quote
+      target: gates_all
+    - source: gate_zhan_no_arbitrage
+      target: gates_all
+    - source: gate_zhan_moneyness
+      target: gates_all
+    - source: gate_zhan_modal_maturity
+      target: gates_all
+    - source: gate_zhan_call_and_put
+      target: gates_all
+    - source: structure
+      target: portfolio
+    - source: gates_all
+      target: verdict
+    - source: structure
+      target: verdict
+    outputs:
+    - name: df_last_trading_day_of_month
+      node: df_last_trading_day_of_month
+      role: derived_fact
+      formula_id: DF-LAST-TRADING-DAY-OF-MONTH
+    - name: df_neg_ln_price
+      node: df_neg_ln_price
+      role: derived_fact
+      formula_id: DF-NEG-LN-PRICE
+    - name: df_xs_quantile_assignment
+      node: df_xs_quantile_assignment
+      role: derived_fact
+      formula_id: DF-XS-QUANTILE-ASSIGNMENT
+    - name: df_opt_mid
+      node: df_opt_mid
+      role: derived_fact
+      formula_id: DF-OPT-MID
+    - name: df_opt_dte_calendar
+      node: df_opt_dte_calendar
+      role: derived_fact
+      formula_id: DF-OPT-DTE-CALENDAR
+    - name: df_opt_moneyness_ks
+      node: df_opt_moneyness_ks
+      role: derived_fact
+      formula_id: DF-OPT-MONEYNESS-KS
+    - name: df_opt_moneyness_sk
+      node: df_opt_moneyness_sk
+      role: derived_fact
+      formula_id: DF-OPT-MONEYNESS-SK
+    - name: df_delta_neutral_hedge_quantity
+      node: df_delta_neutral_hedge_quantity
+      role: derived_fact
+      formula_id: DF-DELTA-NEUTRAL-HEDGE-QUANTITY
+    - name: df_dn_call_write_return
+      node: df_dn_call_write_return
+      role: derived_fact
+      formula_id: DF-DN-CALL-WRITE-RETURN
+    - name: df_cboe_naked_margin
+      node: df_cboe_naked_margin
+      role: derived_fact
+      formula_id: DF-CBOE-NAKED-MARGIN
+    - name: df_opt_effective_price
+      node: df_opt_effective_price
+      role: derived_fact
+      formula_id: DF-OPT-EFFECTIVE-PRICE
+    - name: gate_zhan_formation_date
+      node: gate_zhan_formation_date
+      role: gate
+    - name: gate_zhan_common_stock
+      node: gate_zhan_common_stock
+      role: gate
+    - name: gate_zhan_price_min
+      node: gate_zhan_price_min
+      role: gate
+    - name: gate_zhan_option_quote
+      node: gate_zhan_option_quote
+      role: gate
+    - name: gate_zhan_no_arbitrage
+      node: gate_zhan_no_arbitrage
+      role: gate
+    - name: gate_zhan_moneyness
+      node: gate_zhan_moneyness
+      role: gate
+    - name: gate_zhan_modal_maturity
+      node: gate_zhan_modal_maturity
+      role: gate
+    - name: gate_zhan_call_and_put
+      node: gate_zhan_call_and_put
+      role: gate
+    - name: structure
+      node: structure
+      role: structure
+    - name: direction
+      node: direction
+      role: direction
+    - name: verdict
+      node: verdict
+      role: verdict
+    fact_outputs: *id045
+    derived_fact_outputs: *id046
+    gate_outputs:
+    - G-ZHAN-FORMATION-DATE
+    - G-ZHAN-COMMON-STOCK
+    - G-ZHAN-PRICE-MIN
+    - G-ZHAN-OPTION-QUOTE
+    - G-ZHAN-NO-ARBITRAGE
+    - G-ZHAN-MONEYNESS
+    - G-ZHAN-MODAL-MATURITY
+    - G-ZHAN-CALL-AND-PUT
+    direction_output:
+      delta: neutral at formation (static hedge)
+      volatility: relative-value (short low-price, long high-price)
+      theta: relative-value
+      skew: UNKNOWN
+      term: none
+      event: none
+    structure_output: 'per stock: call and put closest to ATM with the shortest maturity > one month, modal maturity
+      across stocks; decile 10 (lowest price): write 1 call per unit, long Δ shares; decile 1: long call, short
+      Δ shares (exact negative of the written position; DERIVED); equidistant strikes -> AMBIGUOUS_SELECTION'
+    score_output: NONE (source defines no score)
+    verdict_output: three-state per verdict_truth_table
+    lifecycle: monthly formation; one-month hold; no rehedge; no stops
+    unknown_reason_codes:
+    - AMBIGUOUS_SELECTION
+    - G_ZHAN_CALL_AND_PUT_UNKNOWN
+    - G_ZHAN_COMMON_STOCK_UNKNOWN
+    - G_ZHAN_FORMATION_DATE_UNKNOWN
+    - G_ZHAN_MODAL_MATURITY_UNKNOWN
+    - G_ZHAN_MONEYNESS_UNKNOWN
+    - G_ZHAN_NO_ARBITRAGE_UNKNOWN
+    - G_ZHAN_OPTION_QUOTE_UNKNOWN
+    - G_ZHAN_PRICE_MIN_UNKNOWN
+    - MISSING_CANONICAL_FACT
+    - STALE_EVIDENCE
+- frozen_specification:
+    final_strategy_id: xs_option_heston_straddle_momentum_lowcost
+    research_spec: ASA-QS-XR-02-HESTON-STRADDLE-MOMENTUM
+    strategy_name: Option (straddle) momentum, lags 2-12, low-cost decile variant
+    lane: 6-cross-sectional-option-returns
+    primary_sources:
+    - HESTON-ET-AL-2023
+    source_methodology_version: Option Momentum, JF 78(6) 2023; working paper December 2021 full text; Table 13
+      "Low-cost with deciles"
+    evidence_direction: 'QUALIFIED (low-cost decile: adjusted 4.08% t 2.74; effective 2.60% t 1.75; quoted 1.12%
+      t 0.75)'
+    evidence_strength: STRONG gross / WEAK-MODERATE net
+    evidence_confidence: MEDIUM gross / LOW net
+    universe: common equities with a zero-delta straddle formable on the monthly expiration day from the pair with
+      call delta closest to 0.5 in [0.25,0.75], both legs OI > 0, each leg spread <= 10% of mid, and 11 complete
+      monthly straddle returns over lags 2-12
+    canonical_facts: &id053
+    - option chain bid/ask/OI/delta on each monthly expiration day
+    - historical option prices 12 months (A08)
+    - split-adjusted stock price at expiration
+    - security_type
+    - expiration calendar
+    derived_facts: &id054
+    - DF-MONTHLY-EXPIRATION-DAY
+    - DF-OPT-MID
+    - DF-OPT-RELATIVE-SPREAD
+    - DF-STRADDLE-ZERO-DELTA-WEIGHT
+    - DF-OPT-HOLDING-RETURN
+    - DF-STRADDLE-RETURN
+    - DF-STRADDLE-MOMENTUM-FORMATION
+    - DF-XS-QUANTILE-ASSIGNMENT
+    - DF-HESTON-SPAN-MARGIN
+    strategy_parameters: &id047
+      call_delta_target: '0.5'
+      call_delta_band:
+      - '0.25'
+      - '0.75'
+      leg_spread_max: '0.10'
+      formation_lags:
+      - 2
+      - 12
+      formation_min_months: 11
+      quantiles: 10
+      weighting: equal
+    gates:
+    - gate_id: G-HES-FORMATION-DATE
+      predicate: date(t) == monthly expiration date (pre-2015 Saturday expirations use the prior trading day)
+      operator: ==
+      threshold: n/a
+      units: date
+      boundary: n/a
+      unknown_behavior: calendar unavailable
+      reason_codes: &id048
+        FAIL: G_HES_FORMATION_DATE_FAIL
+        UNKNOWN: G_HES_FORMATION_DATE_UNKNOWN
+    - gate_id: G-HES-CALL-DELTA-BAND
+      predicate: 0.25 <= Δc <= 0.75
+      operator: between
+      threshold: '[0.25, 0.75]'
+      units: dimensionless delta
+      boundary: source says "discard if call delta < 0.25 or > 0.75" -> inclusive
+      unknown_behavior: delta missing
+      reason_codes: &id049
+        FAIL: G_HES_CALL_DELTA_BAND_FAIL
+        UNKNOWN: G_HES_CALL_DELTA_BAND_UNKNOWN
+    - gate_id: G-HES-OI-HOLDING
+      predicate: OI(call) > 0 AND OI(put) > 0 at formation
+      operator: '>'
+      threshold: '0'
+      units: contracts
+      boundary: exclusive
+      unknown_behavior: OI missing
+      reason_codes: &id050
+        FAIL: G_HES_OI_HOLDING_FAIL
+        UNKNOWN: G_HES_OI_HOLDING_UNKNOWN
+    - gate_id: G-HES-LOWCOST-LEG-SPREAD
+      predicate: DF-OPT-RELATIVE-SPREAD(call) <= 0.10 AND DF-OPT-RELATIVE-SPREAD(put) <= 0.10
+      operator: <=
+      threshold: '0.10'
+      units: fraction of midpoint
+      boundary: inclusive (source avoids spreads "above 10%")
+      unknown_behavior: quote missing
+      reason_codes: &id051
+        FAIL: G_HES_LOWCOST_LEG_SPREAD_FAIL
+        UNKNOWN: G_HES_LOWCOST_LEG_SPREAD_UNKNOWN
+    - gate_id: G-HES-FORMATION-COMPLETE
+      predicate: count_{l=2..12} defined(R_straddle,i,t-l) == 11
+      operator: ==
+      threshold: '11'
+      units: count of months
+      boundary: n/a
+      unknown_behavior: history panel unavailable (A08)
+      reason_codes: &id052
+        FAIL: G_HES_FORMATION_COMPLETE_FAIL
+        UNKNOWN: G_HES_FORMATION_COMPLETE_UNKNOWN
+    structure_primitive: P03 zero-delta straddle (non-unit ratio) inside P12 cross-sectional long/short portfolio
+    leg_selection: pair expiring next month with call delta closest to 0.5 and both legs OI > 0; weights ∝ (-Δp·C,
+      Δc·P) at mid; no replacement (RA-XR-03); |Δc-0.5| tie -> AMBIGUOUS_SELECTION
+    entry_timing: monthly expiration day (prior trading day for historical Saturday expirations), at mid
+    exit_timing: hold to next monthly expiration; payoff on split-adjusted stock price at expiration
+    roll_behavior: re-form monthly
+    sizing: equal-weighted top-decile long, bottom-decile short (zero-cost spread); absolute capital = Founder capital
+      decision; SPAN margin for the short book
+    capital_collateral: SPAN-style margin (±15% price in 3% steps, ±10% IV, Black-Scholes); margin ratio ~2; return
+      x V0/M0 for margin-adjusted evaluation
+    transaction_costs: one-way cost = fraction of quoted half-spread (0, 20.3%, 51.6%, 75.8%, 100%); optional stock-liquidation
+      cost of half closing stock spread on exercise
+    lifecycle: monthly formation on expiration day; hold to expiry; no stops
+    verdict_truth_table:
+    - - FORMATION-DATE=FAIL
+      - '*'
+      - '*'
+      - '*'
+      - hold
+    - - PASS
+      - pair gate FAIL
+      - '*'
+      - '*'
+      - EXCLUDED
+    - - PASS
+      - pair gate UNKNOWN
+      - '*'
+      - '*'
+      - UNKNOWN
+    - - PASS
+      - PASS
+      - FORMATION-COMPLETE=FAIL
+      - '*'
+      - EXCLUDED
+    - - PASS
+      - PASS
+      - UNKNOWN (no A08)
+      - '*'
+      - UNKNOWN
+    - - PASS
+      - PASS
+      - PASS
+      - top decile
+      - LONG straddle
+    - - PASS
+      - PASS
+      - PASS
+      - bottom decile
+      - SHORT straddle
+    - - PASS
+      - PASS
+      - PASS
+      - other
+      - NO_POSITION
+    required_existing_capabilities:
+    - OPTION_CHAIN_V1
+    - HISTORICAL_BARS_V1
+    - CORPORATE_ACTIONS_V1
+    - TRADING_CALENDAR_V1
+    - cross_sectional_ranking (partial)
+    required_missing_reusable_capabilities:
+    - A08
+    - A17
+    - P03
+    - P12
+    - A15
+    - security_master.security_type
+    - A12 (diagnostic)
+    architect_decisions_required:
+    - A08/A17 panel semantics
+    - P12
+    - A15 SPAN
+    implementation_assumptions_separated_from_sourced_rules:
+    - RA-XR-03 no replacement in the low-cost variant
+    - G-HES-LOWCOST-LEG-SPREAD per-option reading (DERIVED literal)
+    - RA-XS-01 quantile assignment
+    unresolved:
+      DATA:
+      - A08 12-month historical option panel
+      - security_type
+      - provider delta equivalence
+      ARCHITECTURE:
+      - A08/A17 point-in-time panel semantics
+      - P12 semantics
+      - A15 SPAN margin
+      RESEARCH:
+      - net significance depends on execution quality
+      - post-2019 persistence
+  manifest_translation:
+    strategy_id: xs_option_heston_straddle_momentum_lowcost
+    strategy_version: 1.0.0
+    required_market_capabilities:
+    - OPTION_CHAIN_V1
+    - HISTORICAL_BARS_V1
+    - CORPORATE_ACTIONS_V1
+    - TRADING_CALENDAR_V1
+    required_component_capabilities:
+    - historical option-price panel
+    - option-return history
+    - straddle structure (short/long, non-unit ratios, multi-pair)
+    - cross-sectional long/short portfolio
+    - margin/collateral model
+    - security_master.security_type
+    - liquidity diagnostics
+    - asa.stonk.shared verdict_classifier
+    - asa.core boolean_and / compare / expression_predicate / constant
+    parameters: *id047
+    nodes:
+    - node_id: df_monthly_expiration_day
+      component: analytics derived-fact input (formula_id DF-MONTHLY-EXPIRATION-DAY, formula_version 1.0.0)
+      role: derived_fact
+    - node_id: df_opt_mid
+      component: analytics derived-fact input (formula_id DF-OPT-MID, formula_version 1.0.0)
+      role: derived_fact
+    - node_id: df_opt_relative_spread
+      component: analytics derived-fact input (formula_id DF-OPT-RELATIVE-SPREAD, formula_version 1.0.0)
+      role: derived_fact
+    - node_id: df_straddle_zero_delta_weight
+      component: analytics derived-fact input (formula_id DF-STRADDLE-ZERO-DELTA-WEIGHT, formula_version 1.0.0)
+      role: derived_fact
+    - node_id: df_opt_holding_return
+      component: analytics derived-fact input (formula_id DF-OPT-HOLDING-RETURN, formula_version 1.0.0)
+      role: derived_fact
+    - node_id: df_straddle_return
+      component: analytics derived-fact input (formula_id DF-STRADDLE-RETURN, formula_version 1.0.0)
+      role: derived_fact
+    - node_id: df_straddle_momentum_formation
+      component: analytics derived-fact input (formula_id DF-STRADDLE-MOMENTUM-FORMATION, formula_version 1.0.0)
+      role: derived_fact
+    - node_id: df_xs_quantile_assignment
+      component: analytics derived-fact input (formula_id DF-XS-QUANTILE-ASSIGNMENT, formula_version 1.1.0)
+      role: derived_fact
+    - node_id: df_heston_span_margin
+      component: analytics derived-fact input (formula_id DF-HESTON-SPAN-MARGIN, formula_version 1.0.0)
+      role: derived_fact
+    - node_id: gate_hes_formation_date
+      component: asa.core expression_predicate / compare (three-state; threshold from parameters)
+      role: gate
+      gate_id: G-HES-FORMATION-DATE
+      predicate: date(t) == monthly expiration date (pre-2015 Saturday expirations use the prior trading day)
+      operator: ==
+      units: date
+      boundary: n/a
+      reason_codes: *id048
+    - node_id: gate_hes_call_delta_band
+      component: asa.core expression_predicate / compare (three-state; threshold from parameters)
+      role: gate
+      gate_id: G-HES-CALL-DELTA-BAND
+      predicate: 0.25 <= Δc <= 0.75
+      operator: between
+      units: dimensionless delta
+      boundary: source says "discard if call delta < 0.25 or > 0.75" -> inclusive
+      reason_codes: *id049
+    - node_id: gate_hes_oi_holding
+      component: asa.core expression_predicate / compare (three-state; threshold from parameters)
+      role: gate
+      gate_id: G-HES-OI-HOLDING
+      predicate: OI(call) > 0 AND OI(put) > 0 at formation
+      operator: '>'
+      units: contracts
+      boundary: exclusive
+      reason_codes: *id050
+    - node_id: gate_hes_lowcost_leg_spread
+      component: asa.core expression_predicate / compare (three-state; threshold from parameters)
+      role: gate
+      gate_id: G-HES-LOWCOST-LEG-SPREAD
+      predicate: DF-OPT-RELATIVE-SPREAD(call) <= 0.10 AND DF-OPT-RELATIVE-SPREAD(put) <= 0.10
+      operator: <=
+      units: fraction of midpoint
+      boundary: inclusive (source avoids spreads "above 10%")
+      reason_codes: *id051
+    - node_id: gate_hes_formation_complete
+      component: asa.core expression_predicate / compare (three-state; threshold from parameters)
+      role: gate
+      gate_id: G-HES-FORMATION-COMPLETE
+      predicate: count_{l=2..12} defined(R_straddle,i,t-l) == 11
+      operator: ==
+      units: count of months
+      boundary: n/a
+      reason_codes: *id052
+    - node_id: gates_all
+      component: asa.core boolean_and (must propagate UNKNOWN per truth table; never coerce UNKNOWN)
+      role: gate
+    - node_id: structure
+      component: asa.stonk.options straddle_structure [P03; component to be provided by the reusable primitive,
+        not strategy-specific]
+      role: structure
+      selection: pair expiring next month with call delta closest to 0.5 and both legs OI > 0; weights ∝ (-Δp·C,
+        Δc·P) at mid; no replacement (RA-XR-03); |Δc-0.5| tie -> AMBIGUOUS_SELECTION
+    - node_id: portfolio
+      component: cross_sectional_portfolio [P12] over asa.core rank / filter / portfolio_constraint
+      role: structure
+      selection: quantile assignment via DF-XS-QUANTILE-ASSIGNMENT; long/short groups and weights per parameters
+    - node_id: direction
+      component: asa.core constant (source-authored direction)
+      role: direction
+    - node_id: verdict
+      component: asa.stonk.shared verdict_classifier fed by gates_all (PASS/UNKNOWN/FAIL mapping per truth table)
+      role: verdict
+    edges:
+    - source: gate_hes_formation_date
+      target: gates_all
+    - source: gate_hes_call_delta_band
+      target: gates_all
+    - source: gate_hes_oi_holding
+      target: gates_all
+    - source: gate_hes_lowcost_leg_spread
+      target: gates_all
+    - source: gate_hes_formation_complete
+      target: gates_all
+    - source: structure
+      target: portfolio
+    - source: gates_all
+      target: verdict
+    - source: structure
+      target: verdict
+    outputs:
+    - name: df_monthly_expiration_day
+      node: df_monthly_expiration_day
+      role: derived_fact
+      formula_id: DF-MONTHLY-EXPIRATION-DAY
+    - name: df_opt_mid
+      node: df_opt_mid
+      role: derived_fact
+      formula_id: DF-OPT-MID
+    - name: df_opt_relative_spread
+      node: df_opt_relative_spread
+      role: derived_fact
+      formula_id: DF-OPT-RELATIVE-SPREAD
+    - name: df_straddle_zero_delta_weight
+      node: df_straddle_zero_delta_weight
+      role: derived_fact
+      formula_id: DF-STRADDLE-ZERO-DELTA-WEIGHT
+    - name: df_opt_holding_return
+      node: df_opt_holding_return
+      role: derived_fact
+      formula_id: DF-OPT-HOLDING-RETURN
+    - name: df_straddle_return
+      node: df_straddle_return
+      role: derived_fact
+      formula_id: DF-STRADDLE-RETURN
+    - name: df_straddle_momentum_formation
+      node: df_straddle_momentum_formation
+      role: derived_fact
+      formula_id: DF-STRADDLE-MOMENTUM-FORMATION
+    - name: df_xs_quantile_assignment
+      node: df_xs_quantile_assignment
+      role: derived_fact
+      formula_id: DF-XS-QUANTILE-ASSIGNMENT
+    - name: df_heston_span_margin
+      node: df_heston_span_margin
+      role: derived_fact
+      formula_id: DF-HESTON-SPAN-MARGIN
+    - name: gate_hes_formation_date
+      node: gate_hes_formation_date
+      role: gate
+    - name: gate_hes_call_delta_band
+      node: gate_hes_call_delta_band
+      role: gate
+    - name: gate_hes_oi_holding
+      node: gate_hes_oi_holding
+      role: gate
+    - name: gate_hes_lowcost_leg_spread
+      node: gate_hes_lowcost_leg_spread
+      role: gate
+    - name: gate_hes_formation_complete
+      node: gate_hes_formation_complete
+      role: gate
+    - name: structure
+      node: structure
+      role: structure
+    - name: direction
+      node: direction
+      role: direction
+    - name: verdict
+      node: verdict
+      role: verdict
+    fact_outputs: *id053
+    derived_fact_outputs: *id054
+    gate_outputs:
+    - G-HES-FORMATION-DATE
+    - G-HES-CALL-DELTA-BAND
+    - G-HES-OI-HOLDING
+    - G-HES-LOWCOST-LEG-SPREAD
+    - G-HES-FORMATION-COMPLETE
+    direction_output:
+      delta: neutral at formation
+      volatility: relative-value (long winners, short losers)
+      theta: relative-value
+      skew: neutral
+      term: none
+      event: none
+    structure_output: pair expiring next month with call delta closest to 0.5 and both legs OI > 0; weights ∝ (-Δp·C,
+      Δc·P) at mid; no replacement (RA-XR-03); |Δc-0.5| tie -> AMBIGUOUS_SELECTION
+    score_output: NONE (source defines no score)
+    verdict_output: three-state per verdict_truth_table
+    lifecycle: monthly formation on expiration day; hold to expiry; no stops
+    unknown_reason_codes:
+    - AMBIGUOUS_SELECTION
+    - G_HES_CALL_DELTA_BAND_UNKNOWN
+    - G_HES_FORMATION_COMPLETE_UNKNOWN
+    - G_HES_FORMATION_DATE_UNKNOWN
+    - G_HES_LOWCOST_LEG_SPREAD_UNKNOWN
+    - G_HES_OI_HOLDING_UNKNOWN
+    - MISSING_CANONICAL_FACT
+    - STALE_EVIDENCE

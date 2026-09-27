@@ -228,3 +228,30 @@ The sourced gates are: bid > 0, bid < ask, mid ≥ $0.125, OI > 0, arbitrage bou
 Each of these affects which positions are proposed and in what ratio.
 
 Required research action: obtain the published JFQA 2018 text (Section 5 / hold-to-maturity table) and check whether it resolves these three points.
+
+## Closeout resolution (2026-09-27, ASA-RES-STRATEGY-QUALIFICATION-002-CLOSEOUT)
+
+The original qualification above is preserved.
+
+- **Targeted blocker pass.** The published JFQA 2018 text could not be recovered:
+  - the Cambridge PDF returns HTML;
+  - the Rice copy returns 404;
+  - SSRN delivery is blocked.
+
+  Per the stop rule, the preprint remains the pinned methodology.
+- **The preprint's own text resolves two of the three §21 gaps:**
+
+| Former gap | Resolution | Basis |
+|---|---|---|
+| Leg ratio | **Delta-neutral** (DF-STRADDLE-ZERO-DELTA-WEIGHT). The paper states "we choose to report only delta-neutral straddle results" (§3), and Table 6 is one of its reported results. It also states simple and delta-neutral results are "quantitatively very similar". | DERIVED |
+| DTE unit and filter | **Calendar days**, [4, 10] inclusive, measured from the day −3 entry date to the listed expiration date. Days to maturity are counted against Saturday expirations (not trading-day counts). Table 6 reports 8,273 straddles with 4–10 days, which shows the 10–60-day main-sample filter was not applied to this rule. | DERIVED (G-GXZ-HOLD-TO-EXPIRY-DTE revised) |
+| Multi-pair weighting | Table 6: "we adopt volume weighting". The volume definition is not stated. **Research assumption RA-EV-01:** pair volume = call + put contract volume at the day −3 close (DF-GXZ-PAIR-VOLUME), the only look-ahead-free volume. Materiality is bounded: the paper reports equal, volume and open-interest weighting as "very similar". | RESEARCH ASSUMPTION |
+
+- **Research assumption RA-EV-02 (instrument set):**
+  - Expiration dates are used as listed.
+  - The 1996–2010 sample contained Saturday-dated standard monthly expirations. Modern Friday dates shift calendar-day counts by one day relative to the sample. The literal rule is kept.
+  - Weekly expirations were scarce in the sample and are **not excluded** by the source filters, which require only the first expiry after day 0 within [4, 10] days. Today that first expiry will usually be a weekly.
+  - This is an **evidence-transfer uncertainty**, not a rule gap.
+- **Qualification after closeout:** READY_WITH_EXPLICIT_UNKNOWNS.
+  - Remaining unknowns: the published version is unread (RESEARCH); provider-delta equivalence (DATA); post-2010 persistence (evidence).
+- **Selected** for implementation handoff as the lane-1 target (FINAL-SELECTION.md).

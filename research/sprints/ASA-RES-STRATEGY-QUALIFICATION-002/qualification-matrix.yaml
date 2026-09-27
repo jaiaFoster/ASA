@@ -2,62 +2,70 @@
 schema: asa.research.qualification_matrix/v1
 sprint: ASA-RES-STRATEGY-QUALIFICATION-002
 recorded_at: '2026-09-27'
-note: implementation_ready is true only for IMPLEMENTATION_READY_RESEARCH. No candidate reached that state. Qualification
-  is a research-evidence status, not a build authorization or a ranking.
+note: Post-closeout states (history in qualification_history). implementation_ready is true only for IMPLEMENTATION_READY_RESEARCH.
+  No candidate reached that state. Qualification is a research-evidence status, not a build authorization or a ranking.
 summary:
-  candidates: 14
+  candidates: 15
   IMPLEMENTATION_READY_RESEARCH: 0
-  READY_WITH_EXPLICIT_UNKNOWNS: 2
-  DEEP_RESEARCH_REQUIRED: 7
-  INSUFFICIENT_EVIDENCE: 3
+  selected_for_implementation_handoff: 7
+  READY_WITH_EXPLICIT_UNKNOWNS: 7
+  DEEP_RESEARCH_REQUIRED: 4
+  INSUFFICIENT_EVIDENCE: 2
   RESEARCH_REJECT: 2
   ARCHITECT_REVIEW_REQUIRED: 0
 lanes:
   1-event-volatility:
-    primaries_ready_with_explicit_unknowns: 0
     primaries_specified: 2
     alternates: 1
-    reason: 'No event-volatility rule reached READY: GXZ hold-to-expiry has unresolved DTE, leg-ratio and multi-pair
-      semantics in the only accessible version; ALX has no live universe and no source-authored trade direction.
-      The headline GXZ [-3,0] round trip is rejected on the authors'' own cost calculation.'
+    selected:
+    - ASA-QS-EV-01-GXZ-PREEA-STRADDLE-TO-EXPIRY
+    pr501_reason: 'No event-volatility rule reached READY: GXZ hold-to-expiry has unresolved DTE, leg-ratio and
+      multi-pair semantics in the only accessible version; ALX has no live universe and no source-authored trade
+      direction. The headline GXZ [-3,0] round trip is rejected on the authors'' own cost calculation.'
   2-index-put-writing:
-    primaries_ready_with_explicit_unknowns: 1
     primaries_specified: 2
     alternates: 1
-    reason: 'PUT is fully specified (READY_WITH_EXPLICIT_UNKNOWNS: provider questions only). WPUT has an AM-roll
+    selected:
+    - ASA-QS-PW-01-CBOE-PUT
+    - ASA-QS-PW-A1-CBOE-PUTY
+    pr501_reason: 'PUT is fully specified (READY_WITH_EXPLICIT_UNKNOWNS: provider questions only). WPUT has an AM-roll
       timing inconsistency in the methodology. PUTY is complete but has no recovered performance evidence.'
   3-index-short-volatility:
-    primaries_ready_with_explicit_unknowns: 0
     primaries_specified: 0
     alternates: 1
-    reason: No recovered source defines a tradable index short-volatility rule (entry schedule, sizing, exit) with
-      evidence. Bakshi-Kapadia and Carr-Wu are measurement designs; Cboe iron condor / butterfly indexes require
+    selected:
+    - ASA-QS-SV-01-SCS-SHORT-NEAR-ATM-STRADDLE
+    pr501_reason: No recovered source defines a tradable index short-volatility rule (entry schedule, sizing, exit)
+      with evidence. Bakshi-Kapadia and Carr-Wu are measurement designs; Cboe iron condor / butterfly indexes require
       P05 (not in the advanced bundle) and were not deep-researched. 0DTE excluded by assignment.
   4-covered-call:
-    primaries_ready_with_explicit_unknowns: 1
     primaries_specified: 2
     alternates: 1
-    reason: BXM is fully specified. BXMD strike selection depends on undefined Black-formula inputs; the BXM/BXMD
+    selected:
+    - ASA-QS-CC-01-CBOE-BXM
+    pr501_reason: BXM is fully specified. BXMD strike selection depends on undefined Black-formula inputs; the BXM/BXMD
       pair is at the boundary of the diversity rule (distinct only in market-regime exposure). BXY lacks evidence.
   5-option-implied-information:
-    primaries_ready_with_explicit_unknowns: 0
     primaries_specified: 0
     alternates: 1
-    reason: The strongest full-text evidence (Muravyev-Pearson-Pollet) shows skew, IV-spread and O/S stock-return
+    selected: []
+    pr501_reason: The strongest full-text evidence (Muravyev-Pearson-Pollet) shows skew, IV-spread and O/S stock-return
       predictability is insignificant net of borrow fees, concentrated in hard-to-borrow stocks. No second signal
       family with net-positive evidence was recovered (risk-neutral-moment signals not recovered in full text).
   6-cross-sectional-option-returns:
-    primaries_ready_with_explicit_unknowns: 0
     primaries_specified: 2
     alternates: 1
-    reason: Zhan -Ln(PRICE) has the strongest net evidence in the sprint but an ex-post dividend filter, missing
+    selected:
+    - ASA-QS-XR-01-ZHAN-NEG-LNPRICE-DN-CALL
+    - ASA-QS-XR-02-HESTON-STRADDLE-MOMENTUM
+    pr501_reason: Zhan -Ln(PRICE) has the strongest net evidence in the sprint but an ex-post dividend filter, missing
       weighting inputs and an unspecified long-book capital convention. Option momentum is gross-strong but net-insignificant
       at non-algorithmic costs, with undefined replacement ordering and an A08 dependency.
 rows:
 - strategy_id: ASA-QS-EV-01-GXZ-PREEA-STRADDLE-TO-EXPIRY
   lane: 1-event-volatility
   primary_or_alternate: PRIMARY
-  qualification_state: DEEP_RESEARCH_REQUIRED
+  qualification_state: READY_WITH_EXPLICIT_UNKNOWNS
   evidence_strength: 'MODERATE (Table 6: 4-10 day group 0.61%/day at full quoted spread, t 2.08)'
   evidence_direction: FAVORABLE (1996-2010); recent unconditional EAD evidence contrary (ALX 2013-2020)
   evidence_confidence: LOW-MEDIUM
@@ -80,6 +88,14 @@ rows:
   - A12 (diagnostic)
   architecture_review_required: P03 multi-pair semantics
   blocker_resolution: obtain published JFQA 2018 text
+  selected_for_implementation_handoff: true
+  closeout_change: preprint text resolves DN ratio and calendar-day DTE; RA-EV-01 pair volume, RA-EV-02 instrument
+    set
+  architecture_status: no architecture-incompatibility
+  qualification_history:
+  - recorded_at: '2026-09-27'
+    record: 'PR #501 (merged)'
+    qualification_state: DEEP_RESEARCH_REQUIRED
 - strategy_id: ASA-QS-EV-02-ALX-CONCAVE-EA-STRADDLE
   lane: 1-event-volatility
   primary_or_alternate: PRIMARY
@@ -105,6 +121,12 @@ rows:
   - DF-ALX-CONCAVE analytic
   architecture_review_required: software-specific smoothing spline as pinned analytics fact
   blocker_resolution: authors or replication for a live universe and a tradable direction; net levels
+  selected_for_implementation_handoff: false
+  architecture_status: no architecture-incompatibility
+  qualification_history:
+  - recorded_at: '2026-09-27'
+    record: 'PR #501 (merged)'
+    qualification_state: DEEP_RESEARCH_REQUIRED
 - strategy_id: ASA-QS-EV-A1-GXZ-DN-STRADDLE-M3-0
   lane: 1-event-volatility
   primary_or_alternate: ALTERNATE
@@ -123,6 +145,12 @@ rows:
   - P03
   architecture_review_required: none
   blocker_resolution: n/a (rejected)
+  selected_for_implementation_handoff: false
+  architecture_status: no architecture-incompatibility
+  qualification_history:
+  - recorded_at: '2026-09-27'
+    record: 'PR #501 (merged)'
+    qualification_state: RESEARCH_REJECT
 - strategy_id: ASA-QS-PW-01-CBOE-PUT
   lane: 2-index-put-writing
   primary_or_alternate: PRIMARY
@@ -145,12 +173,18 @@ rows:
   required_missing_primitives:
   - X01
   - P01
-  - X02a
   - X04
   - A15 (collateral)
-  - GAP-OPTION-TRADE-PRINTS
+  - X05
   architecture_review_required: tracking-price source for VWAP entry only
   blocker_resolution: none for the strategy graph; provider questions only
+  selected_for_implementation_handoff: true
+  closeout_change: unchanged; Architect X02a/X05 corrections applied
+  architecture_status: no architecture-incompatibility
+  qualification_history:
+  - recorded_at: '2026-09-27'
+    record: 'PR #501 (merged)'
+    qualification_state: READY_WITH_EXPLICIT_UNKNOWNS
 - strategy_id: ASA-QS-PW-02-CBOE-WPUT
   lane: 2-index-put-writing
   primary_or_alternate: PRIMARY
@@ -170,32 +204,49 @@ rows:
   required_missing_primitives:
   - X01
   - P01
-  - X02a
   - X04
-  - quote-event capture (not in taxonomy)
+  - X06
   architecture_review_required: quote-event capture semantics
   blocker_resolution: Cboe clarification of AM-day premium timestamp
+  selected_for_implementation_handoff: false
+  architecture_status: no architecture-incompatibility
+  qualification_history:
+  - recorded_at: '2026-09-27'
+    record: 'PR #501 (merged)'
+    qualification_state: DEEP_RESEARCH_REQUIRED
 - strategy_id: ASA-QS-PW-A1-CBOE-PUTY
   lane: 2-index-put-writing
-  primary_or_alternate: ALTERNATE
-  qualification_state: INSUFFICIENT_EVIDENCE
-  evidence_strength: NONE recovered for exact rule
-  evidence_direction: UNKNOWN
-  evidence_confidence: LOW
+  primary_or_alternate: PRIMARY (promoted at closeout)
+  qualification_state: READY_WITH_EXPLICIT_UNKNOWNS
+  evidence_strength: 'MODERATE (PUTY 1986-2026: 6.9% ann., vol 8.7%, MDD -28.9%, Sharpe 0.53; post-launch 2019-2025
+    index returns)'
+  evidence_direction: QUALIFIED (risk reduction; below S&P 500 return)
+  evidence_confidence: LOW-MEDIUM (sponsor factsheet)
   rule_precision: COMPLETE (equality case typed AMBIGUOUS)
   implementation_ready: false
   material_unknowns:
-  - exact-strategy performance
+  - strike equality edge case (AMBIGUOUS_SELECTION)
+  - X05 trade prints for VWAP entry
+  - SOQ
+  - T-bill rates
+  - net-of-cost performance
   required_existing_primitives:
   - OPTION_CHAIN_V1
   - TRADING_CALENDAR_V1
   required_missing_primitives:
   - X01
   - P01
-  - X02a
   - X04
+  - X05
   architecture_review_required: as PUT
   blocker_resolution: recover PUTY performance evaluation
+  selected_for_implementation_handoff: true
+  closeout_change: exact-rule evidence recovered (CBOE-PUTY-FACTSHEET-2026)
+  architecture_status: no architecture-incompatibility
+  qualification_history:
+  - recorded_at: '2026-09-27'
+    record: 'PR #501 (merged)'
+    qualification_state: INSUFFICIENT_EVIDENCE
 - strategy_id: ASA-QS-SV-A1-BK-DELTA-HEDGED-INDEX-CALL
   lane: 3-index-short-volatility
   primary_or_alternate: ALTERNATE
@@ -219,6 +270,12 @@ rows:
   - P10
   architecture_review_required: none beyond A14 as classified
   blocker_resolution: a source defining a tradable schedule
+  selected_for_implementation_handoff: false
+  architecture_status: no architecture-incompatibility
+  qualification_history:
+  - recorded_at: '2026-09-27'
+    record: 'PR #501 (merged)'
+    qualification_state: DEEP_RESEARCH_REQUIRED
 - strategy_id: ASA-QS-CC-01-CBOE-BXM
   lane: 4-covered-call
   primary_or_alternate: PRIMARY
@@ -241,10 +298,17 @@ rows:
   required_missing_primitives:
   - X01
   - P09
-  - X02a
-  - GAP-OPTION-TRADE-PRINTS
+  - X05
+  - X07
   architecture_review_required: P09 with a non-tradable index as the covered leg; tracking-price source
   blocker_resolution: none for signal; provider questions and P09 index-leg semantics
+  selected_for_implementation_handoff: true
+  closeout_change: unchanged research state; architecture status ARCHITECT_REVIEW_REQUIRED (P09)
+  architecture_status: ARCHITECT_REVIEW_REQUIRED (P09 index-leg semantics)
+  qualification_history:
+  - recorded_at: '2026-09-27'
+    record: 'PR #501 (merged)'
+    qualification_state: READY_WITH_EXPLICIT_UNKNOWNS
 - strategy_id: ASA-QS-CC-02-CBOE-BXMD
   lane: 4-covered-call
   primary_or_alternate: PRIMARY
@@ -266,10 +330,16 @@ rows:
   required_missing_primitives:
   - X01
   - P09
-  - X02a
   - X04 (if rate input used)
+  - X07
   architecture_review_required: as BXM
   blocker_resolution: Cboe BXMD delta-input specification
+  selected_for_implementation_handoff: false
+  architecture_status: no architecture-incompatibility
+  qualification_history:
+  - recorded_at: '2026-09-27'
+    record: 'PR #501 (merged)'
+    qualification_state: DEEP_RESEARCH_REQUIRED
 - strategy_id: ASA-QS-CC-A1-CBOE-BXY
   lane: 4-covered-call
   primary_or_alternate: ALTERNATE
@@ -287,9 +357,16 @@ rows:
   required_missing_primitives:
   - X01
   - P09
-  - X02a
+  - X07
+  - X05
   architecture_review_required: as BXM
   blocker_resolution: recover BXY evaluation
+  selected_for_implementation_handoff: false
+  architecture_status: no architecture-incompatibility
+  qualification_history:
+  - recorded_at: '2026-09-27'
+    record: 'PR #501 (merged)'
+    qualification_state: INSUFFICIENT_EVIDENCE
 - strategy_id: ASA-QS-OS-A1-MPP-SMIRK-DECILE
   lane: 5-option-implied-information
   primary_or_alternate: ALTERNATE
@@ -311,10 +388,16 @@ rows:
   - P12
   architecture_review_required: none
   blocker_resolution: n/a (rejected)
+  selected_for_implementation_handoff: false
+  architecture_status: no architecture-incompatibility
+  qualification_history:
+  - recorded_at: '2026-09-27'
+    record: 'PR #501 (merged)'
+    qualification_state: RESEARCH_REJECT
 - strategy_id: ASA-QS-XR-01-ZHAN-NEG-LNPRICE-DN-CALL
   lane: 6-cross-sectional-option-returns
   primary_or_alternate: PRIMARY
-  qualification_state: DEEP_RESEARCH_REQUIRED
+  qualification_state: READY_WITH_EXPLICIT_UNKNOWNS
   evidence_strength: 'STRONG (Stock-VW 10-1: 4.67% gross; 1.01%/month t 5.48 at 100% quoted spread; 2.78% at actual
     OPRA effective spread)'
   evidence_direction: FAVORABLE net
@@ -340,14 +423,21 @@ rows:
   - P12
   - A15
   - X04
-  - canonical security type
-  - canonical shares outstanding
+  - security_master.security_type
+  - security_master.shares_outstanding
   architecture_review_required: P12 cross-sectional portfolio semantics
   blocker_resolution: published appendix/replication package for dividend treatment and moneyness; post-2016 replication
+  selected_for_implementation_handoff: true
+  closeout_change: footnote-8 variant (dividend payers included); three-state moneyness; RA-XS-01
+  architecture_status: no architecture-incompatibility
+  qualification_history:
+  - recorded_at: '2026-09-27'
+    record: 'PR #501 (merged)'
+    qualification_state: DEEP_RESEARCH_REQUIRED
 - strategy_id: ASA-QS-XR-02-HESTON-STRADDLE-MOMENTUM
   lane: 6-cross-sectional-option-returns
   primary_or_alternate: PRIMARY
-  qualification_state: DEEP_RESEARCH_REQUIRED
+  qualification_state: READY_WITH_EXPLICIT_UNKNOWNS
   evidence_strength: 'STRONG gross (6.22%/month quintile, t 7.97); WEAK net (low-cost decile: effective 2.60% t
     1.75; quoted 1.12% t 0.75)'
   evidence_direction: FAVORABLE gross; INCONCLUSIVE net at non-algorithmic execution
@@ -375,6 +465,13 @@ rows:
   - A12
   architecture_review_required: P12 semantics; A08/A17 point-in-time panel
   blocker_resolution: JF published text/internet appendix for replacement rule; net replication
+  selected_for_implementation_handoff: true
+  closeout_change: low-cost decile variant frozen; RA-XR-03 no replacement
+  architecture_status: no architecture-incompatibility
+  qualification_history:
+  - recorded_at: '2026-09-27'
+    record: 'PR #501 (merged)'
+    qualification_state: DEEP_RESEARCH_REQUIRED
 - strategy_id: ASA-QS-XR-A1-CAOHAN-IVOL-DH-CALL
   lane: 6-cross-sectional-option-returns
   primary_or_alternate: ALTERNATE
@@ -395,6 +492,43 @@ rows:
   - A14
   - P10
   - P12
-  - external factor data
+  - research-only factor data (no production capability; Architect item 6)
   architecture_review_required: none
   blocker_resolution: n/a
+  selected_for_implementation_handoff: false
+  architecture_status: no architecture-incompatibility
+  qualification_history:
+  - recorded_at: '2026-09-27'
+    record: 'PR #501 (merged)'
+    qualification_state: INSUFFICIENT_EVIDENCE
+- strategy_id: ASA-QS-SV-01-SCS-SHORT-NEAR-ATM-STRADDLE
+  lane: 3-index-short-volatility
+  primary_or_alternate: PRIMARY
+  qualification_state: READY_WITH_EXPLICIT_UNKNOWNS
+  evidence_strength: 'MODERATE (SPX 1996-2002 bid-to-ask: 10.3%/month, monthly Sharpe 0.351; futures options 1985-2001
+    gross 14%/month, Sharpe 0.273)'
+  evidence_direction: MIXED/QUALIFIED (positive net of spread; margin calls severely reduce levered-portfolio results)
+  evidence_confidence: LOW-MEDIUM
+  rule_precision: COMPLETE (ties typed AMBIGUOUS; RA-SV-01 standard-monthly restriction)
+  implementation_ready: false
+  material_unknowns:
+  - capital share of account (Founder capital decision)
+  - CBOE straddle-combination margin (A15)
+  - rates/dividend yield for arbitrage-bound filter (X04)
+  - SOQ when expiry precedes exit (X01)
+  required_existing_primitives:
+  - OPTION_CHAIN_V1
+  - TRADING_CALENDAR_V1
+  - verdict_classifier
+  required_missing_primitives:
+  - X01
+  - P03
+  - X04
+  - A15
+  - A12 (diagnostic)
+  architecture_review_required: none beyond shared X01/P03/A15
+  blocker_resolution: n/a (added in closeout targeted pass)
+  selected_for_implementation_handoff: true
+  closeout_change: added by closeout targeted pass
+  architecture_status: no architecture-incompatibility
+  qualification_history: []

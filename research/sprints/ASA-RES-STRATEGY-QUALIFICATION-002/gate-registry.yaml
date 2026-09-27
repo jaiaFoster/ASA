@@ -35,6 +35,17 @@ gates:
   failure_reason: 'not a roll date: no new position; existing position is held (lifecycle, not an error)'
   unknown_semantics: exchange calendar unavailable for the month
   effect_on_verdict: FAIL -> no roll action (hold); UNKNOWN -> verdict UNKNOWN
+  units: date (US/Eastern exchange calendar)
+  pass_behavior: gate contributes PASS to the verdict truth table of each strategy_id
+  fail_behavior: 'not a roll date: no new position; existing position is held (lifecycle, not an error)'
+  unknown_behavior: exchange calendar unavailable for the month
+  reason_codes:
+    FAIL: G_CBOE_MONTHLY_ROLL_DATE_FAIL
+    UNKNOWN: G_CBOE_MONTHLY_ROLL_DATE_UNKNOWN
+  used_by_final_selection:
+  - ASA-QS-CC-01-CBOE-BXM
+  - ASA-QS-PW-01-CBOE-PUT
+  - ASA-QS-PW-A1-CBOE-PUTY
 - gate_id: G-CBOE-WEEKLY-ROLL-DATE
   strategy_ids:
   - ASA-QS-PW-02-CBOE-WPUT
@@ -51,6 +62,14 @@ gates:
   failure_reason: 'not a roll date: hold'
   unknown_semantics: calendar unavailable
   effect_on_verdict: FAIL -> no roll action (hold); UNKNOWN -> verdict UNKNOWN
+  units: date
+  pass_behavior: gate contributes PASS to the verdict truth table of each strategy_id
+  fail_behavior: 'not a roll date: hold'
+  unknown_behavior: calendar unavailable
+  reason_codes:
+    FAIL: G_CBOE_WEEKLY_ROLL_DATE_FAIL
+    UNKNOWN: G_CBOE_WEEKLY_ROLL_DATE_UNKNOWN
+  used_by_final_selection: []
 - gate_id: G-CBOE-SPX-REF-BEFORE-1100
   strategy_ids:
   - ASA-QS-PW-01-CBOE-PUT
@@ -73,6 +92,18 @@ gates:
   unknown_semantics: no index observation before 11:00 ET on the roll date, or the observation is after 11:00 ET
     (stale/late evidence)
   effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+  units: timestamp (America/New_York)
+  pass_behavior: gate contributes PASS to the verdict truth table of each strategy_id
+  fail_behavior: n/a (existence gate)
+  unknown_behavior: no index observation before 11:00 ET on the roll date, or the observation is after 11:00 ET
+    (stale/late evidence)
+  reason_codes:
+    FAIL: G_CBOE_SPX_REF_BEFORE_1100_FAIL
+    UNKNOWN: G_CBOE_SPX_REF_BEFORE_1100_UNKNOWN
+  used_by_final_selection:
+  - ASA-QS-CC-01-CBOE-BXM
+  - ASA-QS-PW-01-CBOE-PUT
+  - ASA-QS-PW-A1-CBOE-PUTY
 - gate_id: G-PUT-STRIKE-EXISTS
   strategy_ids:
   - ASA-QS-PW-01-CBOE-PUT
@@ -90,6 +121,15 @@ gates:
   failure_reason: none; the source defines no fallback — treated as UNKNOWN, not FAIL
   unknown_semantics: chain unavailable or root/settlement identity unknown (X01)
   effect_on_verdict: UNKNOWN -> verdict UNKNOWN (source has no no-strike rule)
+  units: index points
+  pass_behavior: gate contributes PASS to the verdict truth table of each strategy_id
+  fail_behavior: none; the source defines no fallback — treated as UNKNOWN, not FAIL
+  unknown_behavior: chain unavailable or root/settlement identity unknown (X01)
+  reason_codes:
+    FAIL: G_PUT_STRIKE_EXISTS_FAIL
+    UNKNOWN: G_PUT_STRIKE_EXISTS_UNKNOWN
+  used_by_final_selection:
+  - ASA-QS-PW-01-CBOE-PUT
 - gate_id: G-PUTY-STRIKE-EXISTS
   strategy_ids:
   - ASA-QS-PW-A1-CBOE-PUTY
@@ -108,6 +148,15 @@ gates:
   failure_reason: none defined -> UNKNOWN
   unknown_semantics: chain unavailable; or a listed strike equals 0.98*S_ref exactly (AMBIGUOUS_SELECTION)
   effect_on_verdict: UNKNOWN -> verdict UNKNOWN
+  units: index points
+  pass_behavior: gate contributes PASS to the verdict truth table of each strategy_id
+  fail_behavior: none defined -> UNKNOWN
+  unknown_behavior: chain unavailable; or a listed strike equals 0.98*S_ref exactly (AMBIGUOUS_SELECTION)
+  reason_codes:
+    FAIL: G_PUTY_STRIKE_EXISTS_FAIL
+    UNKNOWN: G_PUTY_STRIKE_EXISTS_UNKNOWN
+  used_by_final_selection:
+  - ASA-QS-PW-A1-CBOE-PUTY
 - gate_id: G-WPUT-EXPIRING-SETTLEMENT-KNOWN
   strategy_ids:
   - ASA-QS-PW-02-CBOE-WPUT
@@ -123,6 +172,14 @@ gates:
   failure_reason: n/a
   unknown_semantics: settlement style unknown
   effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+  units: enum {AM, PM}
+  pass_behavior: gate contributes PASS to the verdict truth table of each strategy_id
+  fail_behavior: n/a
+  unknown_behavior: settlement style unknown
+  reason_codes:
+    FAIL: G_WPUT_EXPIRING_SETTLEMENT_KNOWN_FAIL
+    UNKNOWN: G_WPUT_EXPIRING_SETTLEMENT_KNOWN_UNKNOWN
+  used_by_final_selection: []
 - gate_id: G-WPUT-AM-ROLL-TIMING-CONSISTENT
   strategy_ids:
   - ASA-QS-PW-02-CBOE-WPUT
@@ -142,6 +199,16 @@ gates:
     the premium at the "first bid quote after 9:30 a.m. ET", while the SOQ is computed only after all constituents
     open (usually before 11:00 a.m. ET). The live order of events is not implementable as written. RESEARCH BLOCKER.'
   effect_on_verdict: UNKNOWN -> verdict UNKNOWN on every AM-settlement roll day; no fallback may be substituted
+  units: timestamp
+  pass_behavior: gate contributes PASS to the verdict truth table of each strategy_id
+  fail_behavior: n/a
+  unknown_behavior: 'ALWAYS UNKNOWN as specified: the methodology selects the strike "below the SOQ" but takes the
+    premium at the "first bid quote after 9:30 a.m. ET", while the SOQ is computed only after all constituents open
+    (usually before 11:00 a.m. ET). The live order of events is not implementable as written. RESEARCH BLOCKER.'
+  reason_codes:
+    FAIL: G_WPUT_AM_ROLL_TIMING_CONSISTENT_FAIL
+    UNKNOWN: G_WPUT_AM_ROLL_TIMING_CONSISTENT_UNKNOWN
+  used_by_final_selection: []
 - gate_id: G-WPUT-STRIKE-EXISTS
   strategy_ids:
   - ASA-QS-PW-02-CBOE-WPUT
@@ -159,6 +226,14 @@ gates:
   failure_reason: none defined -> UNKNOWN
   unknown_semantics: chain/settlement identity unavailable; equality case
   effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+  units: index points
+  pass_behavior: gate contributes PASS to the verdict truth table of each strategy_id
+  fail_behavior: none defined -> UNKNOWN
+  unknown_behavior: chain/settlement identity unavailable; equality case
+  reason_codes:
+    FAIL: G_WPUT_STRIKE_EXISTS_FAIL
+    UNKNOWN: G_WPUT_STRIKE_EXISTS_UNKNOWN
+  used_by_final_selection: []
 - gate_id: G-BXM-STRIKE-EXISTS
   strategy_ids:
   - ASA-QS-CC-01-CBOE-BXM
@@ -175,6 +250,15 @@ gates:
   failure_reason: none defined -> UNKNOWN
   unknown_semantics: chain unavailable
   effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+  units: index points
+  pass_behavior: gate contributes PASS to the verdict truth table of each strategy_id
+  fail_behavior: none defined -> UNKNOWN
+  unknown_behavior: chain unavailable
+  reason_codes:
+    FAIL: G_BXM_STRIKE_EXISTS_FAIL
+    UNKNOWN: G_BXM_STRIKE_EXISTS_UNKNOWN
+  used_by_final_selection:
+  - ASA-QS-CC-01-CBOE-BXM
 - gate_id: G-BXMD-DELTA-COMPUTABLE
   strategy_ids:
   - ASA-QS-CC-02-CBOE-BXMD
@@ -191,6 +275,15 @@ gates:
   unknown_semantics: ALWAYS UNKNOWN until the volatility, rate and dividend/forward inputs of the Black formula
     are recovered from Cboe (not stated in the BuyWrite or BXRT methodologies). RESEARCH BLOCKER.
   effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+  units: dimensionless delta
+  pass_behavior: gate contributes PASS to the verdict truth table of each strategy_id
+  fail_behavior: n/a
+  unknown_behavior: ALWAYS UNKNOWN until the volatility, rate and dividend/forward inputs of the Black formula are
+    recovered from Cboe (not stated in the BuyWrite or BXRT methodologies). RESEARCH BLOCKER.
+  reason_codes:
+    FAIL: G_BXMD_DELTA_COMPUTABLE_FAIL
+    UNKNOWN: G_BXMD_DELTA_COMPUTABLE_UNKNOWN
+  used_by_final_selection: []
 - gate_id: G-BXY-STRIKE-UNIQUE
   strategy_ids:
   - ASA-QS-CC-A1-CBOE-BXY
@@ -207,6 +300,14 @@ gates:
   failure_reason: none
   unknown_semantics: 'two strikes equidistant from 1.02*S_ref: the methodology gives no tie rule for BXY -> AMBIGUOUS_SELECTION'
   effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+  units: index points
+  pass_behavior: gate contributes PASS to the verdict truth table of each strategy_id
+  fail_behavior: none
+  unknown_behavior: 'two strikes equidistant from 1.02*S_ref: the methodology gives no tie rule for BXY -> AMBIGUOUS_SELECTION'
+  reason_codes:
+    FAIL: G_BXY_STRIKE_UNIQUE_FAIL
+    UNKNOWN: G_BXY_STRIKE_UNIQUE_UNKNOWN
+  used_by_final_selection: []
 - gate_id: G-GXZ-EA-DATE-KNOWN
   strategy_ids:
   - ASA-QS-EV-01-GXZ-PREEA-STRADDLE-TO-EXPIRY
@@ -224,6 +325,15 @@ gates:
   failure_reason: 'no scheduled announcement: subject not eligible'
   unknown_semantics: date unconfirmed/estimated
   effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+  units: date
+  pass_behavior: gate contributes PASS to the verdict truth table of each strategy_id
+  fail_behavior: 'no scheduled announcement: subject not eligible'
+  unknown_behavior: date unconfirmed/estimated
+  reason_codes:
+    FAIL: G_GXZ_EA_DATE_KNOWN_FAIL
+    UNKNOWN: G_GXZ_EA_DATE_KNOWN_UNKNOWN
+  used_by_final_selection:
+  - ASA-QS-EV-01-GXZ-PREEA-STRADDLE-TO-EXPIRY
 - gate_id: G-GXZ-ENTRY-SESSION
   strategy_ids:
   - ASA-QS-EV-01-GXZ-PREEA-STRADDLE-TO-EXPIRY
@@ -241,6 +351,15 @@ gates:
   failure_reason: 'not the entry session: no entry'
   unknown_semantics: calendar or day 0 unavailable
   effect_on_verdict: FAIL -> no action; UNKNOWN -> verdict UNKNOWN
+  units: trading session
+  pass_behavior: gate contributes PASS to the verdict truth table of each strategy_id
+  fail_behavior: 'not the entry session: no entry'
+  unknown_behavior: calendar or day 0 unavailable
+  reason_codes:
+    FAIL: G_GXZ_ENTRY_SESSION_FAIL
+    UNKNOWN: G_GXZ_ENTRY_SESSION_UNKNOWN
+  used_by_final_selection:
+  - ASA-QS-EV-01-GXZ-PREEA-STRADDLE-TO-EXPIRY
 - gate_id: G-GXZ-STOCK-PRICE-MIN
   strategy_ids:
   - ASA-QS-EV-01-GXZ-PREEA-STRADDLE-TO-EXPIRY
@@ -258,6 +377,16 @@ gates:
   unknown_semantics: price missing; the observation date of this filter is not stated (formation-date reading is
     an INFERENCE)
   effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+  units: USD per share
+  pass_behavior: gate contributes PASS to the verdict truth table of each strategy_id
+  fail_behavior: price below $5
+  unknown_behavior: price missing; the observation date of this filter is not stated (formation-date reading is
+    an INFERENCE)
+  reason_codes:
+    FAIL: G_GXZ_STOCK_PRICE_MIN_FAIL
+    UNKNOWN: G_GXZ_STOCK_PRICE_MIN_UNKNOWN
+  used_by_final_selection:
+  - ASA-QS-EV-01-GXZ-PREEA-STRADDLE-TO-EXPIRY
 - gate_id: G-GXZ-OPT-MID-MIN
   strategy_ids:
   - ASA-QS-EV-01-GXZ-PREEA-STRADDLE-TO-EXPIRY
@@ -274,6 +403,15 @@ gates:
   failure_reason: mid below $0.125
   unknown_semantics: quote missing
   effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+  units: USD per option unit
+  pass_behavior: gate contributes PASS to the verdict truth table of each strategy_id
+  fail_behavior: mid below $0.125
+  unknown_behavior: quote missing
+  reason_codes:
+    FAIL: G_GXZ_OPT_MID_MIN_FAIL
+    UNKNOWN: G_GXZ_OPT_MID_MIN_UNKNOWN
+  used_by_final_selection:
+  - ASA-QS-EV-01-GXZ-PREEA-STRADDLE-TO-EXPIRY
 - gate_id: G-GXZ-QUOTE-VALID
   strategy_ids:
   - ASA-QS-EV-01-GXZ-PREEA-STRADDLE-TO-EXPIRY
@@ -291,6 +429,15 @@ gates:
   failure_reason: bid = 0 or bid >= ask
   unknown_semantics: quote missing
   effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+  units: USD per option unit
+  pass_behavior: gate contributes PASS to the verdict truth table of each strategy_id
+  fail_behavior: bid = 0 or bid >= ask
+  unknown_behavior: quote missing
+  reason_codes:
+    FAIL: G_GXZ_QUOTE_VALID_FAIL
+    UNKNOWN: G_GXZ_QUOTE_VALID_UNKNOWN
+  used_by_final_selection:
+  - ASA-QS-EV-01-GXZ-PREEA-STRADDLE-TO-EXPIRY
 - gate_id: G-GXZ-ARBITRAGE-BOUNDS
   strategy_ids:
   - ASA-QS-EV-01-GXZ-PREEA-STRADDLE-TO-EXPIRY
@@ -310,6 +457,15 @@ gates:
   failure_reason: bound violated
   unknown_semantics: inputs missing
   effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+  units: USD per option unit
+  pass_behavior: gate contributes PASS to the verdict truth table of each strategy_id
+  fail_behavior: bound violated
+  unknown_behavior: inputs missing
+  reason_codes:
+    FAIL: G_GXZ_ARBITRAGE_BOUNDS_FAIL
+    UNKNOWN: G_GXZ_ARBITRAGE_BOUNDS_UNKNOWN
+  used_by_final_selection:
+  - ASA-QS-EV-01-GXZ-PREEA-STRADDLE-TO-EXPIRY
 - gate_id: G-GXZ-ABS-DELTA-BAND
   strategy_ids:
   - ASA-QS-EV-01-GXZ-PREEA-STRADDLE-TO-EXPIRY
@@ -327,6 +483,15 @@ gates:
   failure_reason: delta outside band
   unknown_semantics: delta missing
   effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+  units: dimensionless delta
+  pass_behavior: gate contributes PASS to the verdict truth table of each strategy_id
+  fail_behavior: delta outside band
+  unknown_behavior: delta missing
+  reason_codes:
+    FAIL: G_GXZ_ABS_DELTA_BAND_FAIL
+    UNKNOWN: G_GXZ_ABS_DELTA_BAND_UNKNOWN
+  used_by_final_selection:
+  - ASA-QS-EV-01-GXZ-PREEA-STRADDLE-TO-EXPIRY
 - gate_id: G-GXZ-OI-POSITIVE
   strategy_ids:
   - ASA-QS-EV-01-GXZ-PREEA-STRADDLE-TO-EXPIRY
@@ -343,6 +508,15 @@ gates:
   failure_reason: OI = 0
   unknown_semantics: OI missing
   effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+  units: contracts
+  pass_behavior: gate contributes PASS to the verdict truth table of each strategy_id
+  fail_behavior: OI = 0
+  unknown_behavior: OI missing
+  reason_codes:
+    FAIL: G_GXZ_OI_POSITIVE_FAIL
+    UNKNOWN: G_GXZ_OI_POSITIVE_UNKNOWN
+  used_by_final_selection:
+  - ASA-QS-EV-01-GXZ-PREEA-STRADDLE-TO-EXPIRY
 - gate_id: G-GXZ-MONEYNESS
   strategy_ids:
   - ASA-QS-EV-01-GXZ-PREEA-STRADDLE-TO-EXPIRY
@@ -359,6 +533,15 @@ gates:
   failure_reason: outside band
   unknown_semantics: S or K missing
   effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+  units: dimensionless ratio S/K
+  pass_behavior: gate contributes PASS to the verdict truth table of each strategy_id
+  fail_behavior: outside band
+  unknown_behavior: S or K missing
+  reason_codes:
+    FAIL: G_GXZ_MONEYNESS_FAIL
+    UNKNOWN: G_GXZ_MONEYNESS_UNKNOWN
+  used_by_final_selection:
+  - ASA-QS-EV-01-GXZ-PREEA-STRADDLE-TO-EXPIRY
 - gate_id: G-GXZ-MATURITY-SAMPLE-FILTER
   strategy_ids:
   - ASA-QS-EV-A1-GXZ-DN-STRADDLE-M3-0
@@ -374,25 +557,45 @@ gates:
   failure_reason: outside
   unknown_semantics: day-count convention UNKNOWN
   effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+  units: days (unit UNKNOWN)
+  pass_behavior: gate contributes PASS to the verdict truth table of each strategy_id
+  fail_behavior: outside
+  unknown_behavior: day-count convention UNKNOWN
+  reason_codes:
+    FAIL: G_GXZ_MATURITY_SAMPLE_FILTER_FAIL
+    UNKNOWN: G_GXZ_MATURITY_SAMPLE_FILTER_UNKNOWN
+  used_by_final_selection: []
 - gate_id: G-GXZ-HOLD-TO-EXPIRY-DTE
   strategy_ids:
   - ASA-QS-EV-01-GXZ-PREEA-STRADDLE-TO-EXPIRY
-  description: Days to maturity measured from day -3 within [4, 10]
-  predicate: 4 <= days_to_T(c, day -3) <= 10
+  description: Calendar days from the day -3 entry date to the option expiration date within [4, 10]
+  predicate: 4 <= (expiration_date(c) - date(session(day0,-3))) <= 10
   inputs:
   - expiration
   - entry date
-  threshold: '[4, 10]'
+  threshold: '[4, 10] calendar days'
   operator: between
   inclusive_or_exclusive: inclusive as tabulated
   source_ids:
   - GAO-XING-ZHANG-2013-WP
-  failure_reason: outside group
-  unknown_semantics: 'ALWAYS UNKNOWN as a live gate until resolved: (a) calendar vs trading days not stated (the
-    text says options then expired on the third Saturday, which suggests calendar days — INFERENCE); (b) the [4,10]
-    group cannot coexist with the 10-60 day main-sample maturity filter, and the filter actually applied in Table
-    6 is not stated. RESEARCH BLOCKER.'
+  failure_reason: 'outside group: no entry'
+  unknown_semantics: 'expiration or entry date missing. Closeout resolution: the unit is calendar days (DERIVED:
+    the paper counts days to maturity against Saturday expirations, which cannot be a trading-day count), and the
+    10-60 day main-sample filter does not apply to this rule (DERIVED: Table 6 reports 8,273 straddles with 4-10
+    days, which the 10-day floor would exclude).'
   effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+  units: calendar days
+  pass_behavior: gate contributes PASS to the verdict truth table of each strategy_id
+  fail_behavior: 'outside group: no entry'
+  unknown_behavior: 'expiration or entry date missing. Closeout resolution: the unit is calendar days (DERIVED:
+    the paper counts days to maturity against Saturday expirations, which cannot be a trading-day count), and the
+    10-60 day main-sample filter does not apply to this rule (DERIVED: Table 6 reports 8,273 straddles with 4-10
+    days, which the 10-day floor would exclude).'
+  reason_codes:
+    FAIL: G_GXZ_HOLD_TO_EXPIRY_DTE_FAIL
+    UNKNOWN: G_GXZ_HOLD_TO_EXPIRY_DTE_UNKNOWN
+  used_by_final_selection:
+  - ASA-QS-EV-01-GXZ-PREEA-STRADDLE-TO-EXPIRY
 - gate_id: G-GXZ-EXPIRES-AFTER-EA
   strategy_ids:
   - ASA-QS-EV-01-GXZ-PREEA-STRADDLE-TO-EXPIRY
@@ -409,6 +612,15 @@ gates:
   failure_reason: expires on/before day 0
   unknown_semantics: day 0 or expiration missing
   effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+  units: date
+  pass_behavior: gate contributes PASS to the verdict truth table of each strategy_id
+  fail_behavior: expires on/before day 0
+  unknown_behavior: day 0 or expiration missing
+  reason_codes:
+    FAIL: G_GXZ_EXPIRES_AFTER_EA_FAIL
+    UNKNOWN: G_GXZ_EXPIRES_AFTER_EA_UNKNOWN
+  used_by_final_selection:
+  - ASA-QS-EV-01-GXZ-PREEA-STRADDLE-TO-EXPIRY
 - gate_id: G-ALX-UNIVERSE-TOP100-VOLUME
   strategy_ids:
   - ASA-QS-EV-02-ALX-CONCAVE-EA-STRADDLE
@@ -425,6 +637,15 @@ gates:
   unknown_semantics: 'ALWAYS UNKNOWN live: the source ranks on the same calendar year as the event (look-ahead);
     a prior-year or trailing variant is not source-defined'
   effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+  units: rank (contracts per year)
+  pass_behavior: gate contributes PASS to the verdict truth table of each strategy_id
+  fail_behavior: not in top 100
+  unknown_behavior: 'ALWAYS UNKNOWN live: the source ranks on the same calendar year as the event (look-ahead);
+    a prior-year or trailing variant is not source-defined'
+  reason_codes:
+    FAIL: G_ALX_UNIVERSE_TOP100_VOLUME_FAIL
+    UNKNOWN: G_ALX_UNIVERSE_TOP100_VOLUME_UNKNOWN
+  used_by_final_selection: []
 - gate_id: G-ALX-COMMON-STOCK-PRICE
   strategy_ids:
   - ASA-QS-EV-02-ALX-CONCAVE-EA-STRADDLE
@@ -441,6 +662,14 @@ gates:
   failure_reason: not common or price <= 5
   unknown_semantics: security type not a canonical ASA fact (UNKNOWN availability)
   effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+  units: USD per share
+  pass_behavior: gate contributes PASS to the verdict truth table of each strategy_id
+  fail_behavior: not common or price <= 5
+  unknown_behavior: security type not a canonical ASA fact (UNKNOWN availability)
+  reason_codes:
+    FAIL: G_ALX_COMMON_STOCK_PRICE_FAIL
+    UNKNOWN: G_ALX_COMMON_STOCK_PRICE_UNKNOWN
+  used_by_final_selection: []
 - gate_id: G-ALX-OPTION-FILTERS
   strategy_ids:
   - ASA-QS-EV-02-ALX-CONCAVE-EA-STRADDLE
@@ -464,6 +693,14 @@ gates:
   failure_reason: any filter fails -> option discarded (not subject failure)
   unknown_semantics: any input missing -> option discarded? The source does not say; UNKNOWN
   effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+  units: mixed (contracts, USD, fraction of mid)
+  pass_behavior: gate contributes PASS to the verdict truth table of each strategy_id
+  fail_behavior: any filter fails -> option discarded (not subject failure)
+  unknown_behavior: any input missing -> option discarded? The source does not say; UNKNOWN
+  reason_codes:
+    FAIL: G_ALX_OPTION_FILTERS_FAIL
+    UNKNOWN: G_ALX_OPTION_FILTERS_UNKNOWN
+  used_by_final_selection: []
 - gate_id: G-ALX-CURVE-EXPIRY
   strategy_ids:
   - ASA-QS-EV-02-ALX-CONCAVE-EA-STRADDLE
@@ -479,6 +716,14 @@ gates:
   failure_reason: no expiry in range -> no curve
   unknown_semantics: expiration missing
   effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+  units: calendar days
+  pass_behavior: gate contributes PASS to the verdict truth table of each strategy_id
+  fail_behavior: no expiry in range -> no curve
+  unknown_behavior: expiration missing
+  reason_codes:
+    FAIL: G_ALX_CURVE_EXPIRY_FAIL
+    UNKNOWN: G_ALX_CURVE_EXPIRY_UNKNOWN
+  used_by_final_selection: []
 - gate_id: G-ALX-CURVE-POINTS
   strategy_ids:
   - ASA-QS-EV-02-ALX-CONCAVE-EA-STRADDLE
@@ -494,6 +739,14 @@ gates:
   failure_reason: too few points -> CONCAVE undefined
   unknown_semantics: n/a
   effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+  units: count
+  pass_behavior: gate contributes PASS to the verdict truth table of each strategy_id
+  fail_behavior: too few points -> CONCAVE undefined
+  unknown_behavior: n/a
+  reason_codes:
+    FAIL: G_ALX_CURVE_POINTS_FAIL
+    UNKNOWN: G_ALX_CURVE_POINTS_UNKNOWN
+  used_by_final_selection: []
 - gate_id: G-ALX-CONCAVE
   strategy_ids:
   - ASA-QS-EV-02-ALX-CONCAVE-EA-STRADDLE
@@ -511,6 +764,14 @@ gates:
   effect_on_verdict: 'DIRECTION-DETERMINING, not an eligibility gate: the source reports conditional long-straddle
     returns for CONCAVE = 1 and = 0; which position (if any) to take under each state is not source-authored (see
     spec)'
+  units: indicator
+  pass_behavior: gate contributes PASS to the verdict truth table of each strategy_id
+  fail_behavior: CONCAVE = 0
+  unknown_behavior: fit inadmissible at every tolerance; r unavailable
+  reason_codes:
+    FAIL: G_ALX_CONCAVE_FAIL
+    UNKNOWN: G_ALX_CONCAVE_UNKNOWN
+  used_by_final_selection: []
 - gate_id: G-ALX-STRADDLE-PAIR
   strategy_ids:
   - ASA-QS-EV-02-ALX-CONCAVE-EA-STRADDLE
@@ -529,6 +790,14 @@ gates:
   failure_reason: no pair
   unknown_semantics: 'two strikes equidistant from S: tie rule not stated -> AMBIGUOUS_SELECTION'
   effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+  units: ratio K/S; calendar days
+  pass_behavior: gate contributes PASS to the verdict truth table of each strategy_id
+  fail_behavior: no pair
+  unknown_behavior: 'two strikes equidistant from S: tie rule not stated -> AMBIGUOUS_SELECTION'
+  reason_codes:
+    FAIL: G_ALX_STRADDLE_PAIR_FAIL
+    UNKNOWN: G_ALX_STRADDLE_PAIR_UNKNOWN
+  used_by_final_selection: []
 - gate_id: G-ZHAN-COMMON-STOCK
   strategy_ids:
   - ASA-QS-XR-01-ZHAN-NEG-LNPRICE-DN-CALL
@@ -544,6 +813,15 @@ gates:
   failure_reason: not common stock
   unknown_semantics: security-type fact not available in ASA canonical data (UNKNOWN)
   effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+  units: enum share code
+  pass_behavior: gate contributes PASS to the verdict truth table of each strategy_id
+  fail_behavior: not common stock
+  unknown_behavior: security-type fact not available in ASA canonical data (UNKNOWN)
+  reason_codes:
+    FAIL: G_ZHAN_COMMON_STOCK_FAIL
+    UNKNOWN: G_ZHAN_COMMON_STOCK_UNKNOWN
+  used_by_final_selection:
+  - ASA-QS-XR-01-ZHAN-NEG-LNPRICE-DN-CALL
 - gate_id: G-ZHAN-PRICE-MIN
   strategy_ids:
   - ASA-QS-XR-01-ZHAN-NEG-LNPRICE-DN-CALL
@@ -559,6 +837,15 @@ gates:
   failure_reason: price below $5
   unknown_semantics: close missing
   effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+  units: USD per share
+  pass_behavior: gate contributes PASS to the verdict truth table of each strategy_id
+  fail_behavior: price below $5
+  unknown_behavior: close missing
+  reason_codes:
+    FAIL: G_ZHAN_PRICE_MIN_FAIL
+    UNKNOWN: G_ZHAN_PRICE_MIN_UNKNOWN
+  used_by_final_selection:
+  - ASA-QS-XR-01-ZHAN-NEG-LNPRICE-DN-CALL
 - gate_id: G-ZHAN-NO-DIVIDEND-DURING-LIFE
   strategy_ids:
   - ASA-QS-XR-01-ZHAN-NEG-LNPRICE-DN-CALL
@@ -572,10 +859,21 @@ gates:
   source_ids:
   - ZHAN-ET-AL-2022
   failure_reason: dividend in option life
-  unknown_semantics: 'ALWAYS UNKNOWN live: the source applies the filter ex post (dividends actually paid); dividends
-    not yet declared at formation are unknowable. Footnote 8 reports robustness when dividend payers are included,
-    but that is a different specification. RESEARCH BLOCKER for exact-rule fidelity.'
+  unknown_semantics: 'ALWAYS UNKNOWN live (ex-post filter). NOT USED by the final selection: the selected Zhan specification
+    is the footnote-8 variant that includes dividend payers ("Our results remain robust when we include options
+    on stocks that make dividend payments"), which is look-ahead free.'
   effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+  units: dates
+  pass_behavior: gate contributes PASS to the verdict truth table of each strategy_id
+  fail_behavior: dividend in option life
+  unknown_behavior: 'ALWAYS UNKNOWN live (ex-post filter). NOT USED by the final selection: the selected Zhan specification
+    is the footnote-8 variant that includes dividend payers ("Our results remain robust when we include options
+    on stocks that make dividend payments"), which is look-ahead free.'
+  reason_codes:
+    FAIL: G_ZHAN_NO_DIVIDEND_DURING_LIFE_FAIL
+    UNKNOWN: G_ZHAN_NO_DIVIDEND_DURING_LIFE_UNKNOWN
+  used_by_final_selection:
+  - ASA-QS-XR-01-ZHAN-NEG-LNPRICE-DN-CALL
 - gate_id: G-ZHAN-OPTION-QUOTE
   strategy_ids:
   - ASA-QS-XR-01-ZHAN-NEG-LNPRICE-DN-CALL
@@ -594,6 +892,15 @@ gates:
   failure_reason: any fails
   unknown_semantics: missing inputs
   effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+  units: contracts; USD per option unit
+  pass_behavior: gate contributes PASS to the verdict truth table of each strategy_id
+  fail_behavior: any fails
+  unknown_behavior: missing inputs
+  reason_codes:
+    FAIL: G_ZHAN_OPTION_QUOTE_FAIL
+    UNKNOWN: G_ZHAN_OPTION_QUOTE_UNKNOWN
+  used_by_final_selection:
+  - ASA-QS-XR-01-ZHAN-NEG-LNPRICE-DN-CALL
 - gate_id: G-ZHAN-NO-ARBITRAGE
   strategy_ids:
   - ASA-QS-XR-01-ZHAN-NEG-LNPRICE-DN-CALL
@@ -614,21 +921,44 @@ gates:
   unknown_semantics: r unavailable (X04) or inputs missing; the footnote gives this as an example ("For example")
     — the full set of conditions applied is UNKNOWN
   effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+  units: USD per option unit
+  pass_behavior: gate contributes PASS to the verdict truth table of each strategy_id
+  fail_behavior: violation
+  unknown_behavior: r unavailable (X04) or inputs missing; the footnote gives this as an example ("For example")
+    — the full set of conditions applied is UNKNOWN
+  reason_codes:
+    FAIL: G_ZHAN_NO_ARBITRAGE_FAIL
+    UNKNOWN: G_ZHAN_NO_ARBITRAGE_UNKNOWN
+  used_by_final_selection:
+  - ASA-QS-XR-01-ZHAN-NEG-LNPRICE-DN-CALL
 - gate_id: G-ZHAN-MONEYNESS
   strategy_ids:
   - ASA-QS-XR-01-ZHAN-NEG-LNPRICE-DN-CALL
-  description: Moneyness within [0.8, 1.2]
-  predicate: 0.8 <= m <= 1.2
+  description: Moneyness within [0.8, 1.2] under the unstated ratio definition
+  predicate: PASS if 0.8 <= K/S <= 1.2 AND 0.8 <= S/K <= 1.2; FAIL if both ratios fall outside [0.8, 1.2]; UNKNOWN
+    if the two definitions disagree
   inputs:
-  - 'moneyness (ratio definition UNKNOWN: K/S or S/K)'
+  - DF-OPT-MONEYNESS-KS
+  - DF-OPT-MONEYNESS-SK
   threshold: '[0.8, 1.2]'
-  operator: between
+  operator: between (both ratio definitions)
   inclusive_or_exclusive: inclusive (excluded if "lower than 0.8 or higher than 1.2")
   source_ids:
   - ZHAN-ET-AL-2022
-  failure_reason: outside
-  unknown_semantics: ratio definition UNKNOWN; inputs missing
+  failure_reason: outside under both definitions
+  unknown_semantics: 'definitions disagree (possible only near the band edges), or inputs missing. Closeout: this
+    three-state form preserves the source ambiguity without choosing a ratio.'
   effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+  units: dimensionless ratio
+  pass_behavior: gate contributes PASS to the verdict truth table of each strategy_id
+  fail_behavior: outside under both definitions
+  unknown_behavior: 'definitions disagree (possible only near the band edges), or inputs missing. Closeout: this
+    three-state form preserves the source ambiguity without choosing a ratio.'
+  reason_codes:
+    FAIL: G_ZHAN_MONEYNESS_FAIL
+    UNKNOWN: G_ZHAN_MONEYNESS_UNKNOWN
+  used_by_final_selection:
+  - ASA-QS-XR-01-ZHAN-NEG-LNPRICE-DN-CALL
 - gate_id: G-ZHAN-MODAL-MATURITY
   strategy_ids:
   - ASA-QS-XR-01-ZHAN-NEG-LNPRICE-DN-CALL
@@ -644,6 +974,15 @@ gates:
   failure_reason: non-modal maturity
   unknown_semantics: tie in the mode (not addressed by source) -> UNKNOWN
   effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+  units: calendar days
+  pass_behavior: gate contributes PASS to the verdict truth table of each strategy_id
+  fail_behavior: non-modal maturity
+  unknown_behavior: tie in the mode (not addressed by source) -> UNKNOWN
+  reason_codes:
+    FAIL: G_ZHAN_MODAL_MATURITY_FAIL
+    UNKNOWN: G_ZHAN_MODAL_MATURITY_UNKNOWN
+  used_by_final_selection:
+  - ASA-QS-XR-01-ZHAN-NEG-LNPRICE-DN-CALL
 - gate_id: G-ZHAN-CALL-AND-PUT
   strategy_ids:
   - ASA-QS-XR-01-ZHAN-NEG-LNPRICE-DN-CALL
@@ -659,6 +998,15 @@ gates:
   failure_reason: either missing
   unknown_semantics: n/a
   effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+  units: boolean
+  pass_behavior: gate contributes PASS to the verdict truth table of each strategy_id
+  fail_behavior: either missing
+  unknown_behavior: n/a
+  reason_codes:
+    FAIL: G_ZHAN_CALL_AND_PUT_FAIL
+    UNKNOWN: G_ZHAN_CALL_AND_PUT_UNKNOWN
+  used_by_final_selection:
+  - ASA-QS-XR-01-ZHAN-NEG-LNPRICE-DN-CALL
 - gate_id: G-HES-FORMATION-DATE
   strategy_ids:
   - ASA-QS-XR-02-HESTON-STRADDLE-MOMENTUM
@@ -675,6 +1023,15 @@ gates:
   failure_reason: 'not formation date: hold'
   unknown_semantics: calendar unavailable
   effect_on_verdict: FAIL -> hold; UNKNOWN -> verdict UNKNOWN
+  units: date
+  pass_behavior: gate contributes PASS to the verdict truth table of each strategy_id
+  fail_behavior: 'not formation date: hold'
+  unknown_behavior: calendar unavailable
+  reason_codes:
+    FAIL: G_HES_FORMATION_DATE_FAIL
+    UNKNOWN: G_HES_FORMATION_DATE_UNKNOWN
+  used_by_final_selection:
+  - ASA-QS-XR-02-HESTON-STRADDLE-MOMENTUM
 - gate_id: G-HES-CALL-DELTA-BAND
   strategy_ids:
   - ASA-QS-XR-02-HESTON-STRADDLE-MOMENTUM
@@ -690,6 +1047,15 @@ gates:
   failure_reason: 'outside band: no straddle for that stock-month'
   unknown_semantics: delta missing
   effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+  units: dimensionless delta
+  pass_behavior: gate contributes PASS to the verdict truth table of each strategy_id
+  fail_behavior: 'outside band: no straddle for that stock-month'
+  unknown_behavior: delta missing
+  reason_codes:
+    FAIL: G_HES_CALL_DELTA_BAND_FAIL
+    UNKNOWN: G_HES_CALL_DELTA_BAND_UNKNOWN
+  used_by_final_selection:
+  - ASA-QS-XR-02-HESTON-STRADDLE-MOMENTUM
 - gate_id: G-HES-SPREAD-MAX
   strategy_ids:
   - ASA-QS-XR-02-HESTON-STRADDLE-MOMENTUM
@@ -705,6 +1071,15 @@ gates:
   failure_reason: spread too wide -> replace with a straddle further from the money within the delta band (see spec)
   unknown_semantics: aggregation rule of the weighted spread UNKNOWN
   effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+  units: fraction of midpoint
+  pass_behavior: gate contributes PASS to the verdict truth table of each strategy_id
+  fail_behavior: spread too wide -> replace with a straddle further from the money within the delta band (see spec)
+  unknown_behavior: aggregation rule of the weighted spread UNKNOWN
+  reason_codes:
+    FAIL: G_HES_SPREAD_MAX_FAIL
+    UNKNOWN: G_HES_SPREAD_MAX_UNKNOWN
+  used_by_final_selection:
+  - ASA-QS-XR-02-HESTON-STRADDLE-MOMENTUM
 - gate_id: G-HES-OI-HOLDING
   strategy_ids:
   - ASA-QS-XR-02-HESTON-STRADDLE-MOMENTUM
@@ -720,6 +1095,15 @@ gates:
   failure_reason: zero OI
   unknown_semantics: OI missing
   effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+  units: contracts
+  pass_behavior: gate contributes PASS to the verdict truth table of each strategy_id
+  fail_behavior: zero OI
+  unknown_behavior: OI missing
+  reason_codes:
+    FAIL: G_HES_OI_HOLDING_FAIL
+    UNKNOWN: G_HES_OI_HOLDING_UNKNOWN
+  used_by_final_selection:
+  - ASA-QS-XR-02-HESTON-STRADDLE-MOMENTUM
 - gate_id: G-HES-FORMATION-COMPLETE
   strategy_ids:
   - ASA-QS-XR-02-HESTON-STRADDLE-MOMENTUM
@@ -735,6 +1119,15 @@ gates:
   failure_reason: 'incomplete history: stock excluded'
   unknown_semantics: history panel unavailable (A08)
   effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+  units: count of months
+  pass_behavior: gate contributes PASS to the verdict truth table of each strategy_id
+  fail_behavior: 'incomplete history: stock excluded'
+  unknown_behavior: history panel unavailable (A08)
+  reason_codes:
+    FAIL: G_HES_FORMATION_COMPLETE_FAIL
+    UNKNOWN: G_HES_FORMATION_COMPLETE_UNKNOWN
+  used_by_final_selection:
+  - ASA-QS-XR-02-HESTON-STRADDLE-MOMENTUM
 - gate_id: G-CH-SELECTION
   strategy_ids:
   - ASA-QS-XR-A1-CAOHAN-IVOL-DH-CALL
@@ -752,6 +1145,14 @@ gates:
   failure_reason: as Zhan
   unknown_semantics: as Zhan
   effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+  units: as Zhan
+  pass_behavior: gate contributes PASS to the verdict truth table of each strategy_id
+  fail_behavior: as Zhan
+  unknown_behavior: as Zhan
+  reason_codes:
+    FAIL: G_CH_SELECTION_FAIL
+    UNKNOWN: G_CH_SELECTION_UNKNOWN
+  used_by_final_selection: []
 - gate_id: G-MPP-VALID-PAIR
   strategy_ids:
   - ASA-QS-OS-A1-MPP-SMIRK-DECILE
@@ -767,6 +1168,14 @@ gates:
   failure_reason: 'no valid pair: stock not ranked'
   unknown_semantics: inputs missing
   effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+  units: mixed
+  pass_behavior: gate contributes PASS to the verdict truth table of each strategy_id
+  fail_behavior: 'no valid pair: stock not ranked'
+  unknown_behavior: inputs missing
+  reason_codes:
+    FAIL: G_MPP_VALID_PAIR_FAIL
+    UNKNOWN: G_MPP_VALID_PAIR_UNKNOWN
+  used_by_final_selection: []
 - gate_id: G-MPP-SKEW-COMPUTABLE
   strategy_ids:
   - ASA-QS-OS-A1-MPP-SMIRK-DECILE
@@ -782,6 +1191,14 @@ gates:
   failure_reason: no qualifying options
   unknown_semantics: 'multiple qualifying options: selection within range UNKNOWN'
   effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+  units: ratio K/S
+  pass_behavior: gate contributes PASS to the verdict truth table of each strategy_id
+  fail_behavior: no qualifying options
+  unknown_behavior: 'multiple qualifying options: selection within range UNKNOWN'
+  reason_codes:
+    FAIL: G_MPP_SKEW_COMPUTABLE_FAIL
+    UNKNOWN: G_MPP_SKEW_COMPUTABLE_UNKNOWN
+  used_by_final_selection: []
 - gate_id: G-BK-OPTION-FILTERS
   strategy_ids:
   - ASA-QS-SV-A1-BK-DELTA-HEDGED-INDEX-CALL
@@ -800,3 +1217,169 @@ gates:
   unknown_semantics: inputs missing; BK evaluate every option-day and define no entry schedule, so these filters
     do not by themselves define a strategy
   effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+  units: mixed
+  pass_behavior: gate contributes PASS to the verdict truth table of each strategy_id
+  fail_behavior: filter fails
+  unknown_behavior: inputs missing; BK evaluate every option-day and define no entry schedule, so these filters
+    do not by themselves define a strategy
+  reason_codes:
+    FAIL: G_BK_OPTION_FILTERS_FAIL
+    UNKNOWN: G_BK_OPTION_FILTERS_UNKNOWN
+  used_by_final_selection: []
+- gate_id: G-SCS-ENTRY-DATE
+  strategy_ids:
+  - ASA-QS-SV-01-SCS-SHORT-NEAR-ATM-STRADDLE
+  description: Evaluation date is the first trading day of the month
+  predicate: date(t) == DF-FIRST-TRADING-DAY-OF-MONTH(month(t))
+  inputs:
+  - TRADING_CALENDAR_V1
+  threshold: first trading day
+  operator: ==
+  inclusive_or_exclusive: n/a
+  source_ids:
+  - SANTACLARA-SARETTO-2009
+  failure_reason: 'not a roll date: hold until exit rule fires'
+  unknown_semantics: calendar unavailable
+  effect_on_verdict: FAIL -> no roll action (hold); UNKNOWN -> verdict UNKNOWN
+  units: date
+  pass_behavior: gate contributes PASS to the verdict truth table of each strategy_id
+  fail_behavior: 'not a roll date: hold until exit rule fires'
+  unknown_behavior: calendar unavailable
+  reason_codes:
+    FAIL: G_SCS_ENTRY_DATE_FAIL
+    UNKNOWN: G_SCS_ENTRY_DATE_UNKNOWN
+  used_by_final_selection:
+  - ASA-QS-SV-01-SCS-SHORT-NEAR-ATM-STRADDLE
+- gate_id: G-SCS-EXPIRY-UNIQUE
+  strategy_ids:
+  - ASA-QS-SV-01-SCS-SHORT-NEAR-ATM-STRADDLE
+  description: A unique standard monthly SPX expiration is closest to 45 calendar days
+  predicate: argmin_T |DTE_cal(T,t) - 45| over standard monthly SPX expirations is unique
+  inputs:
+  - OPTION_CHAIN_V1 (X01)
+  - DF-OPT-DTE-CALENDAR
+  threshold: 45 calendar days
+  operator: argmin
+  inclusive_or_exclusive: n/a
+  source_ids:
+  - SANTACLARA-SARETTO-2009
+  failure_reason: none (existence)
+  unknown_semantics: two expirations equidistant from 45 days -> AMBIGUOUS_SELECTION; chain or X01 missing
+  effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+  units: calendar days
+  pass_behavior: gate contributes PASS to the verdict truth table of each strategy_id
+  fail_behavior: none (existence)
+  unknown_behavior: two expirations equidistant from 45 days -> AMBIGUOUS_SELECTION; chain or X01 missing
+  reason_codes:
+    FAIL: G_SCS_EXPIRY_UNIQUE_FAIL
+    UNKNOWN: G_SCS_EXPIRY_UNIQUE_UNKNOWN
+  used_by_final_selection:
+  - ASA-QS-SV-01-SCS-SHORT-NEAR-ATM-STRADDLE
+- gate_id: G-SCS-STRIKE-UNIQUE
+  strategy_ids:
+  - ASA-QS-SV-01-SCS-SHORT-NEAR-ATM-STRADDLE
+  description: A unique strike listed for both call and put is closest to the index close
+  predicate: argmin_K |K - S_close(t)| over strikes with both a call and a put at T* is unique
+  inputs:
+  - OPTION_CHAIN_V1
+  - SPX close
+  threshold: S_close
+  operator: argmin
+  inclusive_or_exclusive: n/a
+  source_ids:
+  - SANTACLARA-SARETTO-2009
+  failure_reason: none (existence)
+  unknown_semantics: two strikes equidistant from S_close -> AMBIGUOUS_SELECTION
+  effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+  units: index points
+  pass_behavior: gate contributes PASS to the verdict truth table of each strategy_id
+  fail_behavior: none (existence)
+  unknown_behavior: two strikes equidistant from S_close -> AMBIGUOUS_SELECTION
+  reason_codes:
+    FAIL: G_SCS_STRIKE_UNIQUE_FAIL
+    UNKNOWN: G_SCS_STRIKE_UNIQUE_UNKNOWN
+  used_by_final_selection:
+  - ASA-QS-SV-01-SCS-SHORT-NEAR-ATM-STRADDLE
+- gate_id: G-SCS-QUOTE-FILTERS
+  strategy_ids:
+  - ASA-QS-SV-01-SCS-SHORT-NEAR-ATM-STRADDLE
+  description: Both legs pass the source data filters
+  predicate: 'per leg: bid > 0 AND ask >= bid AND (ask - bid) >= tick(price) AND arbitrage bound AND 0.01 <= IV
+    <= 1.00; tick = 0.05 if price < 3 else 0.10; call bound S*exp(-tau*d) - K*exp(-tau*r) < C < S*exp(-tau*d), put
+    bound by parity (DERIVED)'
+  inputs:
+  - bid
+  - ask
+  - IV
+  - S
+  - K
+  - r
+  - d
+  - tau
+  threshold: as stated
+  operator: as stated
+  inclusive_or_exclusive: IV inclusive (excluded if "bigger than 100% or lower than 1%"); arbitrage bound open interval
+    as printed
+  source_ids:
+  - SANTACLARA-SARETTO-2009
+  failure_reason: FAIL -> UNKNOWN verdict (source defines no alternative strike)
+  unknown_semantics: any input missing
+  effect_on_verdict: FAIL or UNKNOWN -> verdict UNKNOWN (no sourced fallback)
+  units: USD per option unit; IV decimal
+  pass_behavior: gate contributes PASS to the verdict truth table of each strategy_id
+  fail_behavior: FAIL -> UNKNOWN verdict (source defines no alternative strike)
+  unknown_behavior: any input missing
+  reason_codes:
+    FAIL: G_SCS_QUOTE_FILTERS_FAIL
+    UNKNOWN: G_SCS_QUOTE_FILTERS_UNKNOWN
+  used_by_final_selection:
+  - ASA-QS-SV-01-SCS-SHORT-NEAR-ATM-STRADDLE
+- gate_id: G-ZHAN-FORMATION-DATE
+  strategy_ids:
+  - ASA-QS-XR-01-ZHAN-NEG-LNPRICE-DN-CALL
+  description: Evaluation date is the last trading day of the month
+  predicate: date(t) == DF-LAST-TRADING-DAY-OF-MONTH(month(t))
+  inputs:
+  - TRADING_CALENDAR_V1
+  threshold: month end
+  operator: ==
+  inclusive_or_exclusive: n/a
+  source_ids:
+  - ZHAN-ET-AL-2022
+  failure_reason: 'not formation date: hold'
+  unknown_semantics: calendar unavailable
+  effect_on_verdict: FAIL -> hold; UNKNOWN -> verdict UNKNOWN
+  units: date
+  pass_behavior: gate contributes PASS to the verdict truth table of each strategy_id
+  fail_behavior: 'not formation date: hold'
+  unknown_behavior: calendar unavailable
+  reason_codes:
+    FAIL: G_ZHAN_FORMATION_DATE_FAIL
+    UNKNOWN: G_ZHAN_FORMATION_DATE_UNKNOWN
+  used_by_final_selection:
+  - ASA-QS-XR-01-ZHAN-NEG-LNPRICE-DN-CALL
+- gate_id: G-HES-LOWCOST-LEG-SPREAD
+  strategy_ids:
+  - ASA-QS-XR-02-HESTON-STRADDLE-MOMENTUM
+  description: 'Cost-optimized variant: each leg relative spread at most 10% of its midpoint'
+  predicate: DF-OPT-RELATIVE-SPREAD(call) <= 0.10 AND DF-OPT-RELATIVE-SPREAD(put) <= 0.10
+  inputs:
+  - DF-OPT-RELATIVE-SPREAD
+  threshold: '0.10'
+  operator: <=
+  inclusive_or_exclusive: inclusive (source avoids spreads "above 10%")
+  source_ids:
+  - HESTON-ET-AL-2023
+  failure_reason: 'leg too wide: stock excluded this month (no replacement in this variant; research assumption
+    RA-XR-03)'
+  unknown_semantics: quote missing
+  effect_on_verdict: FAIL -> strategy verdict FAIL for the subject/contract; UNKNOWN -> verdict UNKNOWN
+  units: fraction of midpoint
+  pass_behavior: gate contributes PASS to the verdict truth table of each strategy_id
+  fail_behavior: 'leg too wide: stock excluded this month (no replacement in this variant; research assumption RA-XR-03)'
+  unknown_behavior: quote missing
+  reason_codes:
+    FAIL: G_HES_LOWCOST_LEG_SPREAD_FAIL
+    UNKNOWN: G_HES_LOWCOST_LEG_SPREAD_UNKNOWN
+  used_by_final_selection:
+  - ASA-QS-XR-02-HESTON-STRADDLE-MOMENTUM

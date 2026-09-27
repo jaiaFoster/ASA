@@ -7,7 +7,8 @@
   - This assignment has no Founder-merged activation file under `docs/sprints/`, so there is no delegated merge. **Founder merge required.**
   - No `CLOSURE.md` is written.
   - ASA-RES-SPRINT-001 is not retroactively activated.
-- **Status:** complete. **No implementation is authorized by these files.** Qualification states describe research evidence and specification completeness only. They do not rank lanes or choose what to build.
+- **Status:** **closed 2026-09-27** by the closeout assignment ASA-RES-STRATEGY-QUALIFICATION-002-CLOSEOUT. The final selection is 7 strategies ([FINAL-SELECTION.md](FINAL-SELECTION.md), [CLOSURE.md](CLOSURE.md)). The PR #501 text below is preserved as the qualification record.
+- **Original status (PR #501):** complete. **No implementation is authorized by these files.** Qualification states describe research evidence and specification completeness only. They do not rank lanes or choose what to build.
 
 ## Result
 
@@ -44,6 +45,10 @@
 | [`capability-map.yaml`](capability-map.yaml) | per-candidate existing and missing capabilities; gaps outside the taxonomy |
 | [`qualification-matrix.yaml`](qualification-matrix.yaml) | one row per candidate with state, evidence, precision and unknowns |
 | [`SELF-REVIEW.md`](SELF-REVIEW.md) | research PR self-review (`roles/researcher/REVIEW_TEMPLATE.md`) |
+| [`FINAL-SELECTION.md`](FINAL-SELECTION.md), [`final-selection.yaml`](final-selection.yaml) | closeout: frozen selection of 7 strategies |
+| [`implementation-handoff.yaml`](implementation-handoff.yaml) | closeout: frozen specifications and manifest translations |
+| [`architecture-handoff.yaml`](architecture-handoff.yaml) | closeout: consolidated capability work with consumers |
+| [`CLOSURE.md`](CLOSURE.md) | closeout: closure requirements |
 
 The source records are in `research/sources/`:
 - 10 new records.
@@ -127,7 +132,7 @@ The questions are:
 - **D.** G-CBOE-MONTHLY-ROLL-DATE, G-CBOE-SPX-REF-BEFORE-1100, G-PUT-STRIKE-EXISTS. There are no liquidity or market-state gates.
 - **E.** One short put. Strike = max listed K ≤ S_ref, unique. Expiry = the next monthly AM-settled SPX.
 - **F.** Hold to expiry, SOQ settlement, roll the same day. No targets or stops.
-- **G.** X01, P01, X02a, X04 (HARD); A15 (collateral representation); GAP-OPTION-TRADE-PRINTS (outcome valuation only).
+- **G.** X01 (incl. INDEX quote, SOQ), P01, X04 (HARD); A15 (collateral representation); X05 OPTION_TRADE_TAPE (outcome valuation).
 - **H.**
   - Index-only, sponsor-published evidence.
   - Net of costs UNKNOWN.
@@ -160,7 +165,7 @@ The questions are:
 - **D.** G-CBOE-MONTHLY-ROLL-DATE, G-CBOE-SPX-REF-BEFORE-1100, G-BXM-STRIKE-EXISTS.
 - **E.** One short call per index unit, strike = min listed K ≥ S_ref (unique), next-month expiry.
 - **F.** Hold to expiry, SOQ settlement, roll the same day. No targets or stops. Assignment is not applicable (European, cash-settled).
-- **G.** X01, P09, X02a (HARD); GAP-OPTION-TRADE-PRINTS; GAP-INDEX-DIVIDEND-POINTS. Architect review: P09 with a non-tradable index as the covered leg.
+- **G.** X01, P09 (HARD); X05 OPTION_TRADE_TAPE; X07 INDEX_DIVIDEND_POINTS. Architecture status ARCHITECT_REVIEW_REQUIRED for the P09 expression (non-tradable index as the covered leg).
 - **H.**
   - Index-only, sponsor-commissioned evidence.
   - Net UNKNOWN.

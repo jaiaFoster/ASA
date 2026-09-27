@@ -54,3 +54,7 @@ The published JFQA 2018 text may resolve these, but it was not accessible.
 - **Era dependence.** GXZ (1996–2010) find positive pre-announcement straddle returns. ALX (2013–2020, liquid names) find a negative unconditional EAD mean of −0.86%, with a median of −15.43%.
 - **Persistence.** No post-2010 test of the GXZ hold-to-expiry rule was recovered.
 - **Costs.** Around announcements, relative spreads in the GXZ sample were about 14–16%.
+
+## Closeout disposition (2026-09-27)
+
+**Selected:** GXZ hold-to-expiry (EV-01). The preprint text resolves the delta-neutral leg ratio and the calendar-day DTE; multi-pair volume weighting is fixed by research assumption RA-EV-01. ALX and the [−3,0] round trip are not selected. See [FINAL-SELECTION.md](FINAL-SELECTION.md).

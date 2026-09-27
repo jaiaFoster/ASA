@@ -116,7 +116,7 @@ As BXM, with these differences:
 |---|---|
 | strategy_id_candidate | `index_buywrite_cboe_bxmd` |
 | derived_facts_new | adds DF-BLACK-CALL-DELTA-CBOE-BXMD (blocked) |
-| missing_reusable_primitives | X01, P09, X02a, possibly X04 (rate input, if Cboe uses one) |
+| missing_reusable_primitives | X01, P09, X05, X07, possibly X04 (rate input, if Cboe uses one) |
 | architecture_review_required | as BXM |
 
 ## 21. Manifest readiness
@@ -124,3 +124,7 @@ As BXM, with these differences:
 **Not ready.** An implementation worker would have to choose the Black-formula volatility, rate and dividend inputs. That is a financial decision the source does not make.
 
 Required research action: obtain the Cboe BXMD calculation specification for delta inputs (Cboe index-methodology contact or a licensed data-vendor methodology note).
+
+## Closeout disposition (2026-09-27)
+
+NOT SELECTED. The BXMD factsheet (as of 2026-08) and the BXRT/BXMVM methodologies give no Black-formula volatility, rate or dividend inputs. The volatility choice selects the strike, so this is a financial-rule gap, not an Architect-resolvable analytic question. State unchanged: DEEP_RESEARCH_REQUIRED.

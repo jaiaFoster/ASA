@@ -21,746 +21,893 @@ sprint: ASA-RES-STRATEGY-QUALIFICATION-002
 recorded_at: '2026-09-27'
 conventions:
   option_price_inputs: bid(c,t), ask(c,t) are canonical OptionContract.bid / .ask at observation t.
-  asa_mark_warning: >-
-    ASA OptionContract.mark is populated from the Tradier "last" field (market_data/tradier.py
-    _option), i.e. a last trade price, not the bid/ask midpoint. No specification in this
-    sprint may use OptionContract.mark where a source uses the quote midpoint; DF-OPT-MID is
-    required instead.
-  delta_provenance_warning: >-
-    ASA canonical option delta comes from the provider's greeks (Tradier; ORATS-sourced).
-    Every source in this sprint used OptionMetrics deltas (binomial for American equity
-    options) or a Black/Black-Scholes delta with stated or unstated inputs. Equivalence of the
-    ASA delta to the source delta is UNKNOWN in every case and is recorded per specification.
+  asa_mark_warning: ASA OptionContract.mark is populated from the Tradier "last" field (market_data/tradier.py _option),
+    i.e. a last trade price, not the bid/ask midpoint. No specification in this sprint may use OptionContract.mark
+    where a source uses the quote midpoint; DF-OPT-MID is required instead.
+  delta_provenance_warning: ASA canonical option delta comes from the provider's greeks (Tradier; ORATS-sourced).
+    Every source in this sprint used OptionMetrics deltas (binomial for American equity options) or a Black/Black-Scholes
+    delta with stated or unstated inputs. Equivalence of the ASA delta to the source delta is UNKNOWN in every case
+    and is recorded per specification.
 facts:
-
-# ---------------------------------------------------------------- option quote primitives
 - fact_id: DF-OPT-MID
   formula_version: 1.0.0
   formula: mid(c,t) = (bid(c,t) + ask(c,t)) / 2
   inputs:
-    - "bid(c,t)"
-    - "ask(c,t)"
+  - bid(c,t)
+  - ask(c,t)
   units: USD per option unit
   time_semantics: same observation t as both quote inputs; bid and ask must come from one quote snapshot
-  missing_behavior: UNKNOWN if either bid or ask is missing; INVALID if bid > ask (canonical domain already rejects bid > ask)
+  missing_behavior: UNKNOWN if either bid or ask is missing; INVALID if bid > ask (canonical domain already rejects
+    bid > ask)
   strategies_using:
-    - "ALL"
+  - ALL
+  - ASA-QS-SV-01-SCS-SHORT-NEAR-ATM-STRADDLE
   current_ASA_status: NEW (no registered midpoint fact; OptionContract.mark is last trade, see conventions)
   source_ids:
-    - "CBOE-PUTWRITE-METHODOLOGY-2024"
-    - "CBOE-BUYWRITE-METHODOLOGY-2024"
-    - "GAO-XING-ZHANG-2013-WP"
-    - "ALEXIOU-ET-AL-2025"
-    - "HESTON-ET-AL-2023"
-    - "ZHAN-ET-AL-2022"
-    - "CAO-HAN-2013"
-
+  - CBOE-PUTWRITE-METHODOLOGY-2024
+  - CBOE-BUYWRITE-METHODOLOGY-2024
+  - GAO-XING-ZHANG-2013-WP
+  - ALEXIOU-ET-AL-2025
+  - HESTON-ET-AL-2023
+  - ZHAN-ET-AL-2022
+  - CAO-HAN-2013
+  selected_strategies_using:
+  - ASA-QS-EV-01-GXZ-PREEA-STRADDLE-TO-EXPIRY
+  - ASA-QS-PW-01-CBOE-PUT
+  - ASA-QS-PW-A1-CBOE-PUTY
+  - ASA-QS-SV-01-SCS-SHORT-NEAR-ATM-STRADDLE
+  - ASA-QS-CC-01-CBOE-BXM
+  - ASA-QS-XR-01-ZHAN-NEG-LNPRICE-DN-CALL
+  - ASA-QS-XR-02-HESTON-STRADDLE-MOMENTUM
 - fact_id: DF-OPT-RELATIVE-SPREAD
   formula_version: 1.0.0
   formula: rs(c,t) = (ask(c,t) - bid(c,t)) / mid(c,t)
   inputs:
-    - "bid(c,t)"
-    - "ask(c,t)"
-    - "DF-OPT-MID"
+  - bid(c,t)
+  - ask(c,t)
+  - DF-OPT-MID
   units: dimensionless fraction of midpoint
   time_semantics: same snapshot as DF-OPT-MID
   missing_behavior: UNKNOWN if mid is missing; UNKNOWN if mid = 0 (division undefined)
   strategies_using:
-    - "ASA-QS-EV-02-ALX-CONCAVE-EA-STRADDLE"
-    - "ASA-QS-EV-01-GXZ-PREEA-STRADDLE-TO-EXPIRY"
-    - "ASA-QS-XR-02-HESTON-STRADDLE-MOMENTUM"
-  current_ASA_status: EXISTING_PARTIAL (a raw option-liquidity dimension is registered in analytics/derived_facts.py; semantic identity with this definition is unverified). A12 owner.
+  - ASA-QS-EV-02-ALX-CONCAVE-EA-STRADDLE
+  - ASA-QS-EV-01-GXZ-PREEA-STRADDLE-TO-EXPIRY
+  - ASA-QS-XR-02-HESTON-STRADDLE-MOMENTUM
+  current_ASA_status: EXISTING_PARTIAL (a raw option-liquidity dimension is registered in analytics/derived_facts.py;
+    semantic identity with this definition is unverified). A12 owner.
   source_ids:
-    - "ALEXIOU-ET-AL-2025"
-    - "GAO-XING-ZHANG-2013-WP"
-    - "HESTON-ET-AL-2023"
-
+  - ALEXIOU-ET-AL-2025
+  - GAO-XING-ZHANG-2013-WP
+  - HESTON-ET-AL-2023
+  selected_strategies_using:
+  - ASA-QS-XR-02-HESTON-STRADDLE-MOMENTUM
+  note: GXZ uses relative spread only in the non-selected past-spread split; all selected strategies may record
+    it as an A12 diagnostic, which is not a gate.
 - fact_id: DF-OPT-WEIGHTED-SPREAD
   formula_version: 1.0.0
-  formula: >-
-    wrs(P,t) = sum_j |q_j| * (ask(c_j,t) - bid(c_j,t)) / sum_j |q_j| * mid(c_j,t), for a
-    multi-leg position P with leg weights q_j. Heston et al. state the spread condition for the
-    zero-delta straddle as "the weighted average bid/ask spread ... expressed as a percentage of
-    bid-ask midpoints"; the exact aggregation (value weights vs contract weights) is UNKNOWN.
+  formula: wrs(P,t) = sum_j |q_j| * (ask(c_j,t) - bid(c_j,t)) / sum_j |q_j| * mid(c_j,t), for a multi-leg position
+    P with leg weights q_j. Heston et al. state the spread condition for the zero-delta straddle as "the weighted
+    average bid/ask spread ... expressed as a percentage of bid-ask midpoints"; the exact aggregation (value weights
+    vs contract weights) is UNKNOWN.
   inputs:
-    - "bid"
-    - "ask"
-    - "DF-OPT-MID"
-    - "leg weights"
+  - bid
+  - ask
+  - DF-OPT-MID
+  - leg weights
   units: dimensionless
   time_semantics: formation snapshot
   missing_behavior: UNKNOWN if any leg quote missing; the aggregation rule itself is UNKNOWN (see formula)
   strategies_using:
-    - "ASA-QS-XR-02-HESTON-STRADDLE-MOMENTUM"
+  - ASA-QS-XR-02-HESTON-STRADDLE-MOMENTUM
   current_ASA_status: NEW (A12 extension)
   source_ids:
-    - "HESTON-ET-AL-2023"
-
+  - HESTON-ET-AL-2023
+  selected_strategies_using:
+  - ASA-QS-XR-02-HESTON-STRADDLE-MOMENTUM
 - fact_id: DF-OPT-EFFECTIVE-PRICE
   formula_version: 1.0.0
-  formula: >-
-    buy_price(c,t,k) = mid(c,t) + k * (ask(c,t) - bid(c,t)) / 2 ;
-    sell_price(c,t,k) = mid(c,t) - k * (ask(c,t) - bid(c,t)) / 2 ;
-    k = effective spread / quoted spread (k = 0 midpoint, k = 1 full quoted spread: buy at ask, sell at bid)
+  formula: 'buy_price(c,t,k) = mid(c,t) + k * (ask(c,t) - bid(c,t)) / 2 ; sell_price(c,t,k) = mid(c,t) - k * (ask(c,t)
+    - bid(c,t)) / 2 ; k = effective spread / quoted spread (k = 0 midpoint, k = 1 full quoted spread: buy at ask,
+    sell at bid)'
   inputs:
-    - "bid"
-    - "ask"
-    - "DF-OPT-MID"
-    - "k"
+  - bid
+  - ask
+  - DF-OPT-MID
+  - k
   units: USD per option unit
   time_semantics: transaction snapshot
   missing_behavior: UNKNOWN if bid or ask missing
   strategies_using:
-    - "ASA-QS-EV-01-GXZ-PREEA-STRADDLE-TO-EXPIRY"
-    - "ASA-QS-EV-A1-GXZ-DN-STRADDLE-M3-0"
-    - "ASA-QS-EV-02-ALX-CONCAVE-EA-STRADDLE"
-    - "ASA-QS-XR-01-ZHAN-NEG-LNPRICE-DN-CALL"
-    - "ASA-QS-XR-A1-CAOHAN-IVOL-DH-CALL"
-  current_ASA_status: NEW (cost-model fact for outcome interpretation; k is an evaluation parameter, never a signal input)
+  - ASA-QS-EV-01-GXZ-PREEA-STRADDLE-TO-EXPIRY
+  - ASA-QS-EV-A1-GXZ-DN-STRADDLE-M3-0
+  - ASA-QS-EV-02-ALX-CONCAVE-EA-STRADDLE
+  - ASA-QS-XR-01-ZHAN-NEG-LNPRICE-DN-CALL
+  - ASA-QS-XR-A1-CAOHAN-IVOL-DH-CALL
+  current_ASA_status: NEW (cost-model fact for outcome interpretation; k is an evaluation parameter, never a signal
+    input)
   source_ids:
-    - "GAO-XING-ZHANG-2013-WP (footnote 16 worked example bid 3 / ask 4 / k 0.5 -> buy 3.75, sell 3.25)"
-    - "ZHAN-ET-AL-2022"
-    - "CAO-HAN-2013"
-    - "ALEXIOU-ET-AL-2025"
-
+  - GAO-XING-ZHANG-2013-WP (footnote 16 worked example bid 3 / ask 4 / k 0.5 -> buy 3.75, sell 3.25)
+  - ZHAN-ET-AL-2022
+  - CAO-HAN-2013
+  - ALEXIOU-ET-AL-2025
+  selected_strategies_using:
+  - ASA-QS-EV-01-GXZ-PREEA-STRADDLE-TO-EXPIRY
+  - ASA-QS-XR-01-ZHAN-NEG-LNPRICE-DN-CALL
 - fact_id: DF-OPT-MONEYNESS-KS
   formula_version: 1.0.0
   formula: m(c,t) = K(c) / S(t)
   inputs:
-    - "strike K(c)"
-    - "underlying price S(t)"
+  - strike K(c)
+  - underlying price S(t)
   units: dimensionless
-  time_semantics: S(t) observed at the same t as the option snapshot. GXZ define moneyness as S/K; see DF-OPT-MONEYNESS-SK. Zhan et al. do not state which ratio they use (UNKNOWN).
+  time_semantics: S(t) observed at the same t as the option snapshot. GXZ define moneyness as S/K; see DF-OPT-MONEYNESS-SK.
+    Zhan et al. do not state which ratio they use (UNKNOWN).
   missing_behavior: UNKNOWN if S(t) missing or stale relative to the option snapshot
   strategies_using:
-    - "ASA-QS-EV-02-ALX-CONCAVE-EA-STRADDLE"
-    - "ASA-QS-OS-A1-MPP-SMIRK-DECILE"
+  - ASA-QS-EV-02-ALX-CONCAVE-EA-STRADDLE
+  - ASA-QS-OS-A1-MPP-SMIRK-DECILE
+  - ASA-QS-XR-01-ZHAN-NEG-LNPRICE-DN-CALL
   current_ASA_status: NEW
   source_ids:
-    - "ALEXIOU-ET-AL-2025"
-    - "MURAVYEV-PEARSON-POLLET-2022-WP"
-
+  - ALEXIOU-ET-AL-2025
+  - MURAVYEV-PEARSON-POLLET-2022-WP
+  selected_strategies_using:
+  - ASA-QS-XR-01-ZHAN-NEG-LNPRICE-DN-CALL
 - fact_id: DF-OPT-MONEYNESS-SK
   formula_version: 1.0.0
   formula: m'(c,t) = S(t) / K(c)
   inputs:
-    - "S(t)"
-    - "K(c)"
+  - S(t)
+  - K(c)
   units: dimensionless
   time_semantics: as DF-OPT-MONEYNESS-KS
   missing_behavior: as DF-OPT-MONEYNESS-KS
   strategies_using:
-    - "ASA-QS-EV-01-GXZ-PREEA-STRADDLE-TO-EXPIRY"
-    - "ASA-QS-EV-A1-GXZ-DN-STRADDLE-M3-0"
+  - ASA-QS-EV-01-GXZ-PREEA-STRADDLE-TO-EXPIRY
+  - ASA-QS-EV-A1-GXZ-DN-STRADDLE-M3-0
+  - ASA-QS-XR-01-ZHAN-NEG-LNPRICE-DN-CALL
   current_ASA_status: NEW
   source_ids:
-    - "GAO-XING-ZHANG-2013-WP"
-
+  - GAO-XING-ZHANG-2013-WP
+  selected_strategies_using:
+  - ASA-QS-EV-01-GXZ-PREEA-STRADDLE-TO-EXPIRY
+  - ASA-QS-XR-01-ZHAN-NEG-LNPRICE-DN-CALL
 - fact_id: DF-OPT-DTE-CALENDAR
   formula_version: 1.0.0
   formula: DTE_cal(c,t) = expiration_date(c) - date_ET(t), in whole calendar days
   inputs:
-    - "expiration(c)"
-    - "observation date t in America/New_York"
+  - expiration(c)
+  - observation date t in America/New_York
   units: calendar days
   time_semantics: date of the evaluation session in US/Eastern
   missing_behavior: UNKNOWN if expiration missing
   strategies_using:
-    - "ASA-QS-EV-02-ALX-CONCAVE-EA-STRADDLE"
-    - "ASA-QS-EV-01-GXZ-PREEA-STRADDLE-TO-EXPIRY"
-    - "ASA-QS-XR-01-ZHAN-NEG-LNPRICE-DN-CALL"
-  current_ASA_status: EXISTING (analytics/forward_factor.py days_to_expiration 1.0.0, "Calendar days between as_of and a given expiration date")
+  - ASA-QS-EV-02-ALX-CONCAVE-EA-STRADDLE
+  - ASA-QS-EV-01-GXZ-PREEA-STRADDLE-TO-EXPIRY
+  - ASA-QS-XR-01-ZHAN-NEG-LNPRICE-DN-CALL
+  - ASA-QS-SV-01-SCS-SHORT-NEAR-ATM-STRADDLE
+  current_ASA_status: EXISTING (analytics/forward_factor.py days_to_expiration 1.0.0, "Calendar days between as_of
+    and a given expiration date")
   source_ids:
-    - "ALEXIOU-ET-AL-2025"
-
-# ---------------------------------------------------------------- option-return facts
+  - ALEXIOU-ET-AL-2025
+  selected_strategies_using:
+  - ASA-QS-EV-01-GXZ-PREEA-STRADDLE-TO-EXPIRY
+  - ASA-QS-SV-01-SCS-SHORT-NEAR-ATM-STRADDLE
+  - ASA-QS-XR-01-ZHAN-NEG-LNPRICE-DN-CALL
 - fact_id: DF-OPT-HOLDING-RETURN
   formula_version: 1.0.0
-  formula: >-
-    R(c; t0,t1) = V(c,t1) / V(c,t0) - 1, where V(c,t0) is the entry price and V(c,t1) is the exit
-    price. At expiration V = intrinsic value: call max(0, S_T - K), put max(0, K - S_T), with S_T
-    the source-defined settlement value. Price convention (mid, ask, bid, DF-OPT-EFFECTIVE-PRICE)
-    is a per-specification parameter.
+  formula: 'R(c; t0,t1) = V(c,t1) / V(c,t0) - 1, where V(c,t0) is the entry price and V(c,t1) is the exit price.
+    At expiration V = intrinsic value: call max(0, S_T - K), put max(0, K - S_T), with S_T the source-defined settlement
+    value. Price convention (mid, ask, bid, DF-OPT-EFFECTIVE-PRICE) is a per-specification parameter.'
   inputs:
-    - "entry price"
-    - "exit price or settlement S_T"
+  - entry price
+  - exit price or settlement S_T
   units: simple return (decimal)
   time_semantics: t0 entry snapshot, t1 exit snapshot or expiration settlement
   missing_behavior: UNKNOWN if either price missing; UNKNOWN if V(c,t0) <= 0
   strategies_using:
-    - "ASA-QS-EV-01-GXZ-PREEA-STRADDLE-TO-EXPIRY"
-    - "ASA-QS-EV-A1-GXZ-DN-STRADDLE-M3-0"
-    - "ASA-QS-EV-02-ALX-CONCAVE-EA-STRADDLE"
-    - "ASA-QS-XR-02-HESTON-STRADDLE-MOMENTUM"
+  - ASA-QS-EV-01-GXZ-PREEA-STRADDLE-TO-EXPIRY
+  - ASA-QS-EV-A1-GXZ-DN-STRADDLE-M3-0
+  - ASA-QS-EV-02-ALX-CONCAVE-EA-STRADDLE
+  - ASA-QS-XR-02-HESTON-STRADDLE-MOMENTUM
   current_ASA_status: NEW (outcome/tracking fact; A17 option-return history consumes it)
   source_ids:
-    - "GAO-XING-ZHANG-2013-WP"
-    - "ALEXIOU-ET-AL-2025"
-    - "HESTON-ET-AL-2023"
-
+  - GAO-XING-ZHANG-2013-WP
+  - ALEXIOU-ET-AL-2025
+  - HESTON-ET-AL-2023
+  selected_strategies_using:
+  - ASA-QS-EV-01-GXZ-PREEA-STRADDLE-TO-EXPIRY
+  - ASA-QS-XR-02-HESTON-STRADDLE-MOMENTUM
 - fact_id: DF-STRADDLE-ZERO-DELTA-WEIGHT
   formula_version: 1.0.0
-  formula: >-
-    Return weight on the call leg of a zero-delta call+put pair (same underlying, strike and
-    expiration): w_c = -(Δp/P) / (Δc/C - Δp/P) = -Δp·C / (Δc·P - Δp·C); w_p = 1 - w_c =
-    Δc·P / (Δc·P - Δp·C). Here C, P are formation prices and Δc > 0, Δp < 0 are formation
-    deltas. The two forms are algebraically identical (multiply numerator and denominator by
-    C·P). ALX eq. (5) states the first form; Heston et al. state weights proportional to
-    (-Δp·C, Δc·P) normalized to sum to one, which is the second form. Implied contract
-    quantities per unit capital: n_c = w_c / C, n_p = w_p / P, which satisfy n_c·Δc + n_p·Δp = 0.
+  formula: 'Return weight on the call leg of a zero-delta call+put pair (same underlying, strike and expiration):
+    w_c = -(Δp/P) / (Δc/C - Δp/P) = -Δp·C / (Δc·P - Δp·C); w_p = 1 - w_c = Δc·P / (Δc·P - Δp·C). Here C, P are formation
+    prices and Δc > 0, Δp < 0 are formation deltas. The two forms are algebraically identical (multiply numerator
+    and denominator by C·P). ALX eq. (5) states the first form; Heston et al. state weights proportional to (-Δp·C,
+    Δc·P) normalized to sum to one, which is the second form. Implied contract quantities per unit capital: n_c
+    = w_c / C, n_p = w_p / P, which satisfy n_c·Δc + n_p·Δp = 0.'
   inputs:
-    - "C"
-    - "P (formation price per the spec's convention)"
-    - "Δc"
-    - "Δp (formation deltas)"
+  - C
+  - P (formation price per the spec's convention)
+  - Δc
+  - Δp (formation deltas)
   units: dimensionless weights summing to 1
   time_semantics: fixed at formation; not rebalanced
   missing_behavior: UNKNOWN if any input missing; INVALID if Δc <= 0 or Δp >= 0 (denominator sign not guaranteed)
   strategies_using:
-    - "ASA-QS-EV-02-ALX-CONCAVE-EA-STRADDLE"
-    - "ASA-QS-EV-A1-GXZ-DN-STRADDLE-M3-0"
-    - "ASA-QS-XR-02-HESTON-STRADDLE-MOMENTUM"
-    - "ASA-QS-EV-01-GXZ-PREEA-STRADDLE-TO-EXPIRY (conditional, see that spec)"
+  - ASA-QS-EV-02-ALX-CONCAVE-EA-STRADDLE
+  - ASA-QS-EV-A1-GXZ-DN-STRADDLE-M3-0
+  - ASA-QS-XR-02-HESTON-STRADDLE-MOMENTUM
+  - ASA-QS-EV-01-GXZ-PREEA-STRADDLE-TO-EXPIRY (conditional, see that spec)
   current_ASA_status: NEW_REQUIRES_P03 (P03 straddle with non-unit leg ratios)
   source_ids:
-    - "ALEXIOU-ET-AL-2025"
-    - "HESTON-ET-AL-2023"
-    - "GAO-XING-ZHANG-2013-WP (\"weights adjusted to make straddle delta zero\"; formula not printed — DERIVED equivalence)"
-
+  - ALEXIOU-ET-AL-2025
+  - HESTON-ET-AL-2023
+  - GAO-XING-ZHANG-2013-WP ("weights adjusted to make straddle delta zero"; formula not printed — DERIVED equivalence)
+  selected_strategies_using:
+  - ASA-QS-EV-01-GXZ-PREEA-STRADDLE-TO-EXPIRY
+  - ASA-QS-XR-02-HESTON-STRADDLE-MOMENTUM
 - fact_id: DF-STRADDLE-RETURN
   formula_version: 1.0.0
-  formula: R_straddle = w_c · R(call; t0,t1) + w_p · R(put; t0,t1), with DF-OPT-HOLDING-RETURN legs and weights either DF-STRADDLE-ZERO-DELTA-WEIGHT or (for a simple straddle) value weights C/(C+P), P/(C+P)
+  formula: R_straddle = w_c · R(call; t0,t1) + w_p · R(put; t0,t1), with DF-OPT-HOLDING-RETURN legs and weights
+    either DF-STRADDLE-ZERO-DELTA-WEIGHT or (for a simple straddle) value weights C/(C+P), P/(C+P)
   inputs:
-    - "DF-OPT-HOLDING-RETURN (call and put)"
-    - "weights"
+  - DF-OPT-HOLDING-RETURN (call and put)
+  - weights
   units: simple return
   time_semantics: formation to exit
   missing_behavior: UNKNOWN if either leg return is UNKNOWN
   strategies_using:
-    - "ASA-QS-EV-01-GXZ-PREEA-STRADDLE-TO-EXPIRY"
-    - "ASA-QS-EV-A1-GXZ-DN-STRADDLE-M3-0"
-    - "ASA-QS-EV-02-ALX-CONCAVE-EA-STRADDLE"
-    - "ASA-QS-XR-02-HESTON-STRADDLE-MOMENTUM"
+  - ASA-QS-EV-01-GXZ-PREEA-STRADDLE-TO-EXPIRY
+  - ASA-QS-EV-A1-GXZ-DN-STRADDLE-M3-0
+  - ASA-QS-EV-02-ALX-CONCAVE-EA-STRADDLE
+  - ASA-QS-XR-02-HESTON-STRADDLE-MOMENTUM
   current_ASA_status: NEW_REQUIRES_P03
   source_ids:
-    - "ALEXIOU-ET-AL-2025"
-    - "HESTON-ET-AL-2023"
-    - "GAO-XING-ZHANG-2013-WP"
-
+  - ALEXIOU-ET-AL-2025
+  - HESTON-ET-AL-2023
+  - GAO-XING-ZHANG-2013-WP
+  selected_strategies_using:
+  - ASA-QS-EV-01-GXZ-PREEA-STRADDLE-TO-EXPIRY
+  - ASA-QS-XR-02-HESTON-STRADDLE-MOMENTUM
 - fact_id: DF-DN-CALL-WRITE-RETURN
   formula_version: 1.0.0
-  formula: >-
-    Buy-and-hold return to writing one call hedged with Δ_t shares, no rebalancing (Zhan et al.
-    eq. 1): H_t = Δ_t·S_t - C_t (> 0), HR = (Δ_t·S_{t+1} - C_{t+1}) / (Δ_t·S_t - C_t) - 1.
-    Margin-adjusted form (eq. 2): HR_m = [(Δ_t·S_{t+1} - C_{t+1}) - (r/12)·M] / (Δ_t·S_t - C_t) - 1,
-    r = option-maturity-matched annual LIBOR, M = CBOE initial naked-call margin (DF-CBOE-NAKED-MARGIN).
-    The long-short strategy return is defined by the source only as the difference between the decile-10
-    and decile-1 portfolio average HRs; the capital convention of the bought (long delta-hedged call) leg is not stated (UNKNOWN).
+  formula: 'Buy-and-hold return to writing one call hedged with Δ_t shares, no rebalancing (Zhan et al. eq. 1):
+    H_t = Δ_t·S_t - C_t (> 0), HR = (Δ_t·S_{t+1} - C_{t+1}) / (Δ_t·S_t - C_t) - 1. Margin-adjusted form (eq. 2):
+    HR_m = [(Δ_t·S_{t+1} - C_{t+1}) - (r/12)·M] / (Δ_t·S_t - C_t) - 1, r = option-maturity-matched annual LIBOR,
+    M = CBOE initial naked-call margin (DF-CBOE-NAKED-MARGIN). The long-short strategy return is defined by the
+    source only as the difference between the decile-10 and decile-1 portfolio average HRs; the capital convention
+    of the bought (long delta-hedged call) leg is not stated (UNKNOWN).'
   inputs:
-    - "Δ_t (Black-Scholes call delta at t)"
-    - "S_t"
-    - "S_{t+1}"
-    - "C_t"
-    - "C_{t+1}"
-    - "r"
-    - "M"
+  - Δ_t (Black-Scholes call delta at t)
+  - S_t
+  - S_{t+1}
+  - C_t
+  - C_{t+1}
+  - r
+  - M
   units: simple monthly return
   time_semantics: t = formation month end; t+1 = next month end
   missing_behavior: UNKNOWN if any input missing; UNKNOWN if H_t <= 0
   strategies_using:
-    - "ASA-QS-XR-01-ZHAN-NEG-LNPRICE-DN-CALL"
+  - ASA-QS-XR-01-ZHAN-NEG-LNPRICE-DN-CALL
   current_ASA_status: NEW_REQUIRES_P10 (P10 delta-hedged option)
   source_ids:
-    - "ZHAN-ET-AL-2022"
-
+  - ZHAN-ET-AL-2022
+  selected_strategies_using:
+  - ASA-QS-XR-01-ZHAN-NEG-LNPRICE-DN-CALL
 - fact_id: DF-DH-CALL-DAILY-REBAL-RETURN
   formula_version: 1.0.0
-  formula: >-
-    Cao-Han: short one call against Δ shares, Δ = Black-Scholes call delta re-set each trading day;
-    daily return over [t, t+1] = H_{t+1}/H_t - 1 with H_t = Δ_t·S_t - C_t; monthly return =
-    Π_d (1 + daily return_d) - 1 over the trading days to the next month end.
+  formula: 'Cao-Han: short one call against Δ shares, Δ = Black-Scholes call delta re-set each trading day; daily
+    return over [t, t+1] = H_{t+1}/H_t - 1 with H_t = Δ_t·S_t - C_t; monthly return = Π_d (1 + daily return_d) -
+    1 over the trading days to the next month end.'
   inputs:
-    - "daily Δ_t"
-    - "S_t"
-    - "C_t"
+  - daily Δ_t
+  - S_t
+  - C_t
   units: simple monthly return
   time_semantics: daily closes from formation month end to next month end
   missing_behavior: UNKNOWN if any daily input missing (source does not state a fill rule)
   strategies_using:
-    - "ASA-QS-XR-A1-CAOHAN-IVOL-DH-CALL"
+  - ASA-QS-XR-A1-CAOHAN-IVOL-DH-CALL
   current_ASA_status: NEW_REQUIRES_A14
   source_ids:
-    - "CAO-HAN-2013"
-
+  - CAO-HAN-2013
+  selected_strategies_using: []
 - fact_id: DF-BK-DELTA-HEDGED-GAIN
   formula_version: 1.0.0
-  formula: >-
-    Bakshi-Kapadia (2003) discrete delta-hedged gain for a long call held to expiry T, hedged at
-    N rebalancing dates t_n: π_{t,t+τ} = max(S_T - K, 0) - C_t - Σ_{n=0}^{N-1} Δ_{t_n}·(S_{t_{n+1}} - S_{t_n})
-    - Σ_{n=0}^{N-1} r_n·(C_t - Δ_{t_n}·S_{t_n})·τ/N. Δ_{t_n} is the Black-Scholes delta evaluated with
-    a volatility estimate whose definition is a source choice (GARCH fitted on the full sample, or
-    historical volatility); dividends enter as the present value of actual dividends subtracted from S.
+  formula: 'Bakshi-Kapadia (2003) discrete delta-hedged gain for a long call held to expiry T, hedged at N rebalancing
+    dates t_n: π_{t,t+τ} = max(S_T - K, 0) - C_t - Σ_{n=0}^{N-1} Δ_{t_n}·(S_{t_{n+1}} - S_{t_n}) - Σ_{n=0}^{N-1}
+    r_n·(C_t - Δ_{t_n}·S_{t_n})·τ/N. Δ_{t_n} is the Black-Scholes delta evaluated with a volatility estimate whose
+    definition is a source choice (GARCH fitted on the full sample, or historical volatility); dividends enter as
+    the present value of actual dividends subtracted from S.'
   inputs:
-    - "S path"
-    - "K"
-    - "C_t"
-    - "daily Δ"
-    - "r_n"
-    - "τ"
+  - S path
+  - K
+  - C_t
+  - daily Δ
+  - r_n
+  - τ
   units: index points (source normalizes by index level for comparison)
   time_semantics: daily from entry to expiry
   missing_behavior: UNKNOWN if any rebalancing input missing
   strategies_using:
-    - "ASA-QS-SV-A1-BK-DELTA-HEDGED-INDEX-CALL"
+  - ASA-QS-SV-A1-BK-DELTA-HEDGED-INDEX-CALL
   current_ASA_status: NEW_REQUIRES_A14
   source_ids:
-    - "BAKSHI-KAPADIA-2003"
-
-# ---------------------------------------------------------------- volatility facts
+  - BAKSHI-KAPADIA-2003
+  selected_strategies_using: []
 - fact_id: DF-CW-SYNTHETIC-VARIANCE-SWAP-RATE-30D
   formula_version: 1.0.0
-  formula: >-
-    Carr-Wu (2009) eq. (49)-(50): at each of the two nearest maturities T no shorter than 8 calendar
-    days, SW_t(T) = E^Q[RV_{t,T}] = (2/(T-t)) · [ ∫_{-inf}^{0} ( N(-d2(k)) - e^{-k}·N(-d1(k)) ) dk
-    + ∫_{0}^{inf} ( e^{-k}·N(d1(k)) - N(d2(k)) ) dk ], k = ln(K/F_t),
-    d1(k) = (-k + IV(k)²(T-t)/2) / (IV(k)·sqrt(T-t)), d2(k) = d1(k) - IV(k)·sqrt(T-t).
-    IV(k) is linearly interpolated in k between observed IVs and held flat beyond the lowest/highest
-    strike, on a grid of 2,000 points over ±8 standard deviations (standard deviation approximated by
-    the average IV). Options kept only if bid > 0 and bid < ask. SW at 30 calendar days = linear
-    interpolation in maturity between the two maturities, no extrapolation; if the shortest maturity
-    exceeds 30 days, the shortest maturity's SW is used. F_t is computed from interest rates, dividend
-    yields and spot. Transcription note: the extracted PDF text of eq. (49) is garbled in the
-    integrand signs; the form above is the one consistent with the source's own Black (1976)
-    prices in eq. (47) normalized by K·B_t(T) (DERIVED).
+  formula: 'Carr-Wu (2009) eq. (49)-(50): at each of the two nearest maturities T no shorter than 8 calendar days,
+    SW_t(T) = E^Q[RV_{t,T}] = (2/(T-t)) · [ ∫_{-inf}^{0} ( N(-d2(k)) - e^{-k}·N(-d1(k)) ) dk + ∫_{0}^{inf} ( e^{-k}·N(d1(k))
+    - N(d2(k)) ) dk ], k = ln(K/F_t), d1(k) = (-k + IV(k)²(T-t)/2) / (IV(k)·sqrt(T-t)), d2(k) = d1(k) - IV(k)·sqrt(T-t).
+    IV(k) is linearly interpolated in k between observed IVs and held flat beyond the lowest/highest strike, on
+    a grid of 2,000 points over ±8 standard deviations (standard deviation approximated by the average IV). Options
+    kept only if bid > 0 and bid < ask. SW at 30 calendar days = linear interpolation in maturity between the two
+    maturities, no extrapolation; if the shortest maturity exceeds 30 days, the shortest maturity''s SW is used.
+    F_t is computed from interest rates, dividend yields and spot. Transcription note: the extracted PDF text of
+    eq. (49) is garbled in the integrand signs; the form above is the one consistent with the source''s own Black
+    (1976) prices in eq. (47) normalized by K·B_t(T) (DERIVED).'
   inputs:
-    - "option IVs for two maturities"
-    - "F_t (requires r and dividend yield)"
-    - "B_t(T)"
+  - option IVs for two maturities
+  - F_t (requires r and dividend yield)
+  - B_t(T)
   units: annualized variance
   time_semantics: daily observation; 30-calendar-day constant maturity
   missing_behavior: UNKNOWN if no maturity >= 8 days exists or if F_t inputs are unavailable
   strategies_using:
-    - "none as signal — registered as the lane-3 variance-replication measurement"
-    - "see LANE-03"
+  - none as signal — registered as the lane-3 variance-replication measurement
+  - see LANE-03
   current_ASA_status: NEW_REQUIRES_A07 (and X04 for rates / forward)
   source_ids:
-    - "CARR-WU-2009"
-
+  - CARR-WU-2009
+  selected_strategies_using: []
 - fact_id: DF-CW-REALIZED-VARIANCE-30D
   formula_version: 1.0.0
-  formula: RV_{t,t+30} = (365/30) · Σ_{i=1}^{N} ((F_i - F_{i-1}) / F_{i-1})², summing daily forward-price returns over the 30 calendar days following t (CW eq. 51; F = forward/futures level)
+  formula: RV_{t,t+30} = (365/30) · Σ_{i=1}^{N} ((F_i - F_{i-1}) / F_{i-1})², summing daily forward-price returns
+    over the 30 calendar days following t (CW eq. 51; F = forward/futures level)
   inputs:
-    - "daily forward or futures prices"
+  - daily forward or futures prices
   units: annualized variance
   time_semantics: forward-looking realized over [t, t+30 calendar days]
   missing_behavior: UNKNOWN if the window is incomplete
   strategies_using:
-    - "none as signal — LANE-03 measurement"
-  current_ASA_status: EXISTING_PARTIAL (analytics realized_volatility is population volatility of daily log returns; not this estimator)
+  - none as signal — LANE-03 measurement
+  current_ASA_status: EXISTING_PARTIAL (analytics realized_volatility is population volatility of daily log returns;
+    not this estimator)
   source_ids:
-    - "CARR-WU-2009"
-
+  - CARR-WU-2009
+  selected_strategies_using: []
 - fact_id: DF-ALX-BLENDED-IV-POINTS
   formula_version: 1.0.0
-  formula: >-
-    For one expiry: for strikes with |K/S - 1| <= 0.02, IV(K) = w·IV_P(K) + (1 - w)·IV_C(K),
-    w = (K_high - K)/(K_high - K_low), K_high / K_low = highest / lowest strike inside the ±2% band;
-    outside the band use the OTM option's IV (puts below, calls above). Require >= 6 points with
-    >= 2 puts and >= 2 calls after blending.
+  formula: 'For one expiry: for strikes with |K/S - 1| <= 0.02, IV(K) = w·IV_P(K) + (1 - w)·IV_C(K), w = (K_high
+    - K)/(K_high - K_low), K_high / K_low = highest / lowest strike inside the ±2% band; outside the band use the
+    OTM option''s IV (puts below, calls above). Require >= 6 points with >= 2 puts and >= 2 calls after blending.'
   inputs:
-    - "per-strike put and call IVs (OptionMetrics in source)"
-    - "S"
+  - per-strike put and call IVs (OptionMetrics in source)
+  - S
   units: annualized IV (decimal)
   time_semantics: close of trading day d-1 before the EAD
   missing_behavior: UNKNOWN when the point-count requirement fails
   strategies_using:
-    - "ASA-QS-EV-02-ALX-CONCAVE-EA-STRADDLE"
+  - ASA-QS-EV-02-ALX-CONCAVE-EA-STRADDLE
   current_ASA_status: NEW
   source_ids:
-    - "ALEXIOU-ET-AL-2025"
-
+  - ALEXIOU-ET-AL-2025
+  selected_strategies_using: []
 - fact_id: DF-ALX-CONCAVE
   formula_version: 1.0.0
-  formula: >-
-    (1) Fit a quintic smoothing spline IV^(x), x = K/S, to DF-ALX-BLENDED-IV-POINTS by minimizing
-    ρ·Σ_i [IV(K_i) - IV^(K_i)]² + ∫ S'''(x)² dx (MATLAB spaps; ρ chosen so the sum of squared errors
-    stays within the tolerance). Start at a tolerance equal to 0.01% RMSE between actual and fitted IVs.
-    (2) Evaluate the curve at 1,001 points, convert to call prices with Black-Scholes, and compute the
-    risk-neutral density f(K) = e^{rT}·∂²C/∂K² by finite differences over the available moneyness range.
-    (3) If any fitted IV is negative, any density point is negative, or the density has more than two
-    modes, raise the RMSE bound in steps of 0.005% and refit until all three conditions hold.
-    (4) CONCAVE = 1 iff all hold: (a) IV^''(x) < 0 over a continuous moneyness range of at least 0.03;
-    (b) the curve has a stationary point inside that concave range; (c) the stationary point lies
-    between the second-lowest (K_min+1) and second-highest (K_max-1) strikes of the actual IV points
-    (whether "between" is strict is not stated: UNKNOWN at equality). Otherwise CONCAVE = 0.
+  formula: '(1) Fit a quintic smoothing spline IV^(x), x = K/S, to DF-ALX-BLENDED-IV-POINTS by minimizing ρ·Σ_i
+    [IV(K_i) - IV^(K_i)]² + ∫ S''''''(x)² dx (MATLAB spaps; ρ chosen so the sum of squared errors stays within the
+    tolerance). Start at a tolerance equal to 0.01% RMSE between actual and fitted IVs. (2) Evaluate the curve at
+    1,001 points, convert to call prices with Black-Scholes, and compute the risk-neutral density f(K) = e^{rT}·∂²C/∂K²
+    by finite differences over the available moneyness range. (3) If any fitted IV is negative, any density point
+    is negative, or the density has more than two modes, raise the RMSE bound in steps of 0.005% and refit until
+    all three conditions hold. (4) CONCAVE = 1 iff all hold: (a) IV^''''(x) < 0 over a continuous moneyness range
+    of at least 0.03; (b) the curve has a stationary point inside that concave range; (c) the stationary point lies
+    between the second-lowest (K_min+1) and second-highest (K_max-1) strikes of the actual IV points (whether "between"
+    is strict is not stated: UNKNOWN at equality). Otherwise CONCAVE = 0.'
   inputs:
-  - "DF-ALX-BLENDED-IV-POINTS"
-  - "risk-free rate r"
-  - "S"
-  - "time to expiry T"
+  - DF-ALX-BLENDED-IV-POINTS
+  - risk-free rate r
+  - S
+  - time to expiry T
   units: indicator {0,1}
   time_semantics: close of the trading day before the EAD (d-1)
-  missing_behavior: "UNKNOWN if the fit never satisfies the admissibility conditions (no cap on tolerance steps is stated: UNKNOWN); UNKNOWN if r unavailable"
+  missing_behavior: 'UNKNOWN if the fit never satisfies the admissibility conditions (no cap on tolerance steps
+    is stated: UNKNOWN); UNKNOWN if r unavailable'
   strategies_using:
-  - "ASA-QS-EV-02-ALX-CONCAVE-EA-STRADDLE"
+  - ASA-QS-EV-02-ALX-CONCAVE-EA-STRADDLE
   current_ASA_status: NEW_REQUIRES_X04 (r for the density admissibility test)
   source_ids:
-  - "ALEXIOU-ET-AL-2025 (§2.1 fit and density; §2.2 definition)"
-
+  - ALEXIOU-ET-AL-2025 (§2.1 fit and density; §2.2 definition)
+  selected_strategies_using: []
 - fact_id: DF-BLACK-CALL-DELTA-CBOE-BXMD
   formula_version: 1.0.0
-  formula: >-
-    Δ_call = Black-formula call delta for an SPX call "using the Black formula" with "all inputs ...
-    the last available values before 11:00 a.m. ET". The volatility input, the rate input and the
-    forward/dividend treatment are NOT defined in the Cboe BuyWrite methodology or in the Cboe BXRT
-    methodology (checked 2026-09-27): UNKNOWN.
+  formula: 'Δ_call = Black-formula call delta for an SPX call "using the Black formula" with "all inputs ... the
+    last available values before 11:00 a.m. ET". The volatility input, the rate input and the forward/dividend treatment
+    are NOT defined in the Cboe BuyWrite methodology or in the Cboe BXRT methodology (checked 2026-09-27): UNKNOWN.'
   inputs:
-    - "S before 11:00 ET"
-    - "K"
-    - "T"
-    - "σ UNKNOWN"
-    - "r UNKNOWN"
-    - "dividend/forward treatment UNKNOWN"
+  - S before 11:00 ET
+  - K
+  - T
+  - σ UNKNOWN
+  - r UNKNOWN
+  - dividend/forward treatment UNKNOWN
   units: dimensionless
   time_semantics: last values before 11:00 ET on the roll date
   missing_behavior: UNKNOWN (formula inputs undefined by source)
   strategies_using:
-    - "ASA-QS-CC-02-CBOE-BXMD"
+  - ASA-QS-CC-02-CBOE-BXMD
   current_ASA_status: NEW (blocked on source definition)
   source_ids:
-    - "CBOE-BUYWRITE-METHODOLOGY-2024"
-    - "CBOE-BXRT-METHODOLOGY"
-
-# ---------------------------------------------------------------- cross-sectional facts
+  - CBOE-BUYWRITE-METHODOLOGY-2024
+  - CBOE-BXRT-METHODOLOGY
+  selected_strategies_using: []
 - fact_id: DF-NEG-LN-PRICE
   formula_version: 1.0.0
   formula: x_i,t = -ln(P_i,t), P_i,t = closing stock price of i on the formation month-end trading day t
   inputs:
-    - "daily close P_i"
-    - "t"
+  - daily close P_i
+  - t
   units: log USD (sign-inverted)
-  time_semantics: >-
-    Formation at the close of the last trading day of month t. Zhan et al. describe Ln(PRICE) as
-    "the log of stock price at the end of last month" from the perspective of the holding month,
-    i.e. the formation month-end (DERIVED). At formation the observed close is the same whether or
-    not the series is later split-adjusted, so no adjustment choice arises in live use.
+  time_semantics: Formation at the close of the last trading day of month t. Zhan et al. describe Ln(PRICE) as "the
+    log of stock price at the end of last month" from the perspective of the holding month, i.e. the formation month-end
+    (DERIVED). At formation the observed close is the same whether or not the series is later split-adjusted, so
+    no adjustment choice arises in live use.
   missing_behavior: UNKNOWN if the formation-day close is missing
   strategies_using:
-    - "ASA-QS-XR-01-ZHAN-NEG-LNPRICE-DN-CALL"
+  - ASA-QS-XR-01-ZHAN-NEG-LNPRICE-DN-CALL
   current_ASA_status: EXISTING_PARTIAL (latest_price v1 exists; the log transform is NEW)
   source_ids:
-    - "ZHAN-ET-AL-2022"
-
+  - ZHAN-ET-AL-2022
+  selected_strategies_using:
+  - ASA-QS-XR-01-ZHAN-NEG-LNPRICE-DN-CALL
 - fact_id: DF-STRADDLE-MOMENTUM-FORMATION
   formula_version: 1.0.0
-  formula: >-
-    MOM_i,t = (1/11) · Σ_{l=2}^{12} R_straddle,i,t-l, the simple average of the stock's monthly
-    zero-delta straddle returns (DF-STRADDLE-RETURN held expiration-to-expiration) over lags 2..12.
-    Heston et al. require the formation period to have NO missing observations for straddles
-    ("relax the requirement used elsewhere that the formation period have no missing
-    observations" is stated only for VIX-portfolio returns, which instead need 2/3 of months).
+  formula: MOM_i,t = (1/11) · Σ_{l=2}^{12} R_straddle,i,t-l, the simple average of the stock's monthly zero-delta
+    straddle returns (DF-STRADDLE-RETURN held expiration-to-expiration) over lags 2..12. Heston et al. require the
+    formation period to have NO missing observations for straddles ("relax the requirement used elsewhere that the
+    formation period have no missing observations" is stated only for VIX-portfolio returns, which instead need
+    2/3 of months).
   inputs:
-    - "11 monthly DF-STRADDLE-RETURN values"
+  - 11 monthly DF-STRADDLE-RETURN values
   units: simple monthly return
   time_semantics: formed on each monthly expiration day; lag 1 = the month just ended, skipped
   missing_behavior: UNKNOWN (stock ineligible) if any of lags 2..12 is missing
   strategies_using:
-    - "ASA-QS-XR-02-HESTON-STRADDLE-MOMENTUM"
+  - ASA-QS-XR-02-HESTON-STRADDLE-MOMENTUM
   current_ASA_status: NEW_REQUIRES_A08 (historical option-price panel) and A17 (option-return history)
   source_ids:
-    - "HESTON-ET-AL-2023"
-
+  - HESTON-ET-AL-2023
+  selected_strategies_using:
+  - ASA-QS-XR-02-HESTON-STRADDLE-MOMENTUM
 - fact_id: DF-XS-QUANTILE-ASSIGNMENT
-  formula_version: 1.0.0
-  formula: >-
-    q_i,t = quantile group of x_i,t among the eligible set U_t sorted by x, with Q groups (Q = 10
-    deciles or Q = 5 quintiles per source). Sources state "sort into deciles/quintiles" with equal
-    weighting of membership by rank; none of the sources in this sprint states (a) breakpoint
-    convention when |U_t| is not divisible by Q, (b) tie handling, or (c) whether NYSE-only
-    breakpoints are used. Those three components are UNKNOWN; winsorization at 0.5%/99.5% is applied
-    by Zhan et al. to regression variables only, not stated for sorts (UNKNOWN for sorts).
+  formula_version: 1.1.0
+  formula: 'q_i,t = quantile group of x_i,t among the eligible set U_t sorted by x, with Q groups (Q = 10 deciles
+    or Q = 5 quintiles per source). Sources state "sort into deciles/quintiles" with equal weighting of membership
+    by rank; none of the sources in this sprint states (a) breakpoint convention when |U_t| is not divisible by
+    Q, (b) tie handling, or (c) whether NYSE-only breakpoints are used. Those three components are UNKNOWN; winsorization
+    at 0.5%/99.5% is applied by Zhan et al. to regression variables only, not stated for sorts (UNKNOWN for sorts).
+    CLOSEOUT RESEARCH ASSUMPTION RA-XS-01 (version 1.1.0, explicitly not source-stated): rank r_i = 1 + #{j in U_t
+    : x_j < x_i} (ties share the lowest rank); group q_i = ceil(Q · r_i / N), N = |U_t|, all stocks in U_t used
+    for breakpoints (no NYSE-only breakpoints), no winsorization of the sort variable. Materiality: affects at most
+    the boundary stocks of each group.'
   inputs:
-    - "x_i"
-    - "t for all i in U_t"
+  - x_i
+  - t for all i in U_t
   units: integer group 1..Q
   time_semantics: formation timestamp of the source
   missing_behavior: stock excluded from U_t when x_i,t is UNKNOWN; boundary/tie assignment UNKNOWN
   strategies_using:
-    - "ASA-QS-XR-01-ZHAN-NEG-LNPRICE-DN-CALL"
-    - "ASA-QS-XR-02-HESTON-STRADDLE-MOMENTUM"
-    - "ASA-QS-XR-A1-CAOHAN-IVOL-DH-CALL"
-    - "ASA-QS-OS-A1-MPP-SMIRK-DECILE"
-  current_ASA_status: EXISTING_PARTIAL (analytics/cross_sectional_ranking.py rank_named_facts provides deterministic ranking; quantile grouping and the UNKNOWN components are not defined there)
+  - ASA-QS-XR-01-ZHAN-NEG-LNPRICE-DN-CALL
+  - ASA-QS-XR-02-HESTON-STRADDLE-MOMENTUM
+  - ASA-QS-XR-A1-CAOHAN-IVOL-DH-CALL
+  - ASA-QS-OS-A1-MPP-SMIRK-DECILE
+  current_ASA_status: EXISTING_PARTIAL (analytics/cross_sectional_ranking.py rank_named_facts provides deterministic
+    ranking; quantile grouping and the UNKNOWN components are not defined there)
   source_ids:
-    - "ZHAN-ET-AL-2022"
-    - "HESTON-ET-AL-2023"
-    - "CAO-HAN-2013"
-    - "MURAVYEV-PEARSON-POLLET-2022-WP"
-
+  - ZHAN-ET-AL-2022
+  - HESTON-ET-AL-2023
+  - CAO-HAN-2013
+  - MURAVYEV-PEARSON-POLLET-2022-WP
+  selected_strategies_using:
+  - ASA-QS-XR-01-ZHAN-NEG-LNPRICE-DN-CALL
+  - ASA-QS-XR-02-HESTON-STRADDLE-MOMENTUM
 - fact_id: DF-IVOL-FF3-DAILY-1M
   formula_version: 1.0.0
-  formula: IVOL_i,t = std(ε_i,d) from the OLS regression r_i,d - rf_d = α + β1·MKT_d + β2·SMB_d + β3·HML_d + ε_i,d over the daily returns of the previous month (Cao-Han, following Ang et al. 2006); annualization UNKNOWN in Cao-Han text as extracted
+  formula: IVOL_i,t = std(ε_i,d) from the OLS regression r_i,d - rf_d = α + β1·MKT_d + β2·SMB_d + β3·HML_d + ε_i,d
+    over the daily returns of the previous month (Cao-Han, following Ang et al. 2006); annualization UNKNOWN in
+    Cao-Han text as extracted
   inputs:
-    - "daily stock returns"
-    - "Fama-French daily factors"
-    - "rf"
+  - daily stock returns
+  - Fama-French daily factors
+  - rf
   units: return volatility
   time_semantics: previous calendar month, measured at month end
   missing_behavior: UNKNOWN; minimum-days requirement not recovered (UNKNOWN)
   strategies_using:
-    - "ASA-QS-XR-A1-CAOHAN-IVOL-DH-CALL"
+  - ASA-QS-XR-A1-CAOHAN-IVOL-DH-CALL
   current_ASA_status: NEW (requires external factor data — not an existing market capability)
   source_ids:
-    - "CAO-HAN-2013"
-    - "ZHAN-ET-AL-2022 (definition restated)"
-
+  - CAO-HAN-2013
+  - ZHAN-ET-AL-2022 (definition restated)
+  selected_strategies_using: []
 - fact_id: DF-XZZ-SMIRK-MPP
   formula_version: 1.0.0
-  formula: skew_i,t = IV(OTM put with 0.8 < K/S < 0.95) - IV(ATM call with 0.95 < K/S < 1.05); which put/call is used when several qualify is not stated in the MPP version (UNKNOWN)
+  formula: skew_i,t = IV(OTM put with 0.8 < K/S < 0.95) - IV(ATM call with 0.95 < K/S < 1.05); which put/call is
+    used when several qualify is not stated in the MPP version (UNKNOWN)
   inputs:
-    - "put and call IVs"
-    - "DF-OPT-MONEYNESS-KS"
+  - put and call IVs
+  - DF-OPT-MONEYNESS-KS
   units: IV difference (decimal)
   time_semantics: close of day t
   missing_behavior: UNKNOWN if no qualifying put or no qualifying call
   strategies_using:
-    - "ASA-QS-OS-A1-MPP-SMIRK-DECILE"
+  - ASA-QS-OS-A1-MPP-SMIRK-DECILE
   current_ASA_status: EXISTING_PARTIAL ("normalized option skew" is registered; not this definition)
   source_ids:
-    - "MURAVYEV-PEARSON-POLLET-2022-WP"
-    - "XING-ZHANG-ZHAO-2010"
-
+  - MURAVYEV-PEARSON-POLLET-2022-WP
+  - XING-ZHANG-ZHAO-2010
+  selected_strategies_using: []
 - fact_id: DF-CW-IV-SPREAD-OI-WEIGHTED
   formula_version: 1.0.0
-  formula: "spread_i,t = Σ_j OI_j · (IV_put,j - IV_call,j) / Σ_j OI_j over put-call pairs j with identical strike and expiration (MPP sign convention: put minus call); OI_j definition for the pair (sum or average of the two legs) UNKNOWN"
+  formula: 'spread_i,t = Σ_j OI_j · (IV_put,j - IV_call,j) / Σ_j OI_j over put-call pairs j with identical strike
+    and expiration (MPP sign convention: put minus call); OI_j definition for the pair (sum or average of the two
+    legs) UNKNOWN'
   inputs:
-    - "IV and OI for matched pairs"
+  - IV and OI for matched pairs
   units: IV difference
   time_semantics: close of day t
   missing_behavior: UNKNOWN if no valid pair
   strategies_using:
-    - "LANE-05 survey only"
+  - LANE-05 survey only
   current_ASA_status: NEW
   source_ids:
-    - "MURAVYEV-PEARSON-POLLET-2022-WP"
-
+  - MURAVYEV-PEARSON-POLLET-2022-WP
+  selected_strategies_using: []
 - fact_id: DF-OS-VOLUME-RATIO
   formula_version: 1.0.0
-  formula: OS_i,t = (Σ call volume + Σ put volume over all option contracts on i on day t) / share volume of i on day t
+  formula: OS_i,t = (Σ call volume + Σ put volume over all option contracts on i on day t) / share volume of i on
+    day t
   inputs:
-    - "option volumes"
-    - "stock volume"
+  - option volumes
+  - stock volume
   units: contracts per share (source does not multiply by contract size — as stated)
   time_semantics: day t
   missing_behavior: UNKNOWN if stock volume missing or zero
   strategies_using:
-    - "LANE-05 survey only"
+  - LANE-05 survey only
   current_ASA_status: NEW
   source_ids:
-    - "MURAVYEV-PEARSON-POLLET-2022-WP"
-
-# ---------------------------------------------------------------- index-strategy facts
+  - MURAVYEV-PEARSON-POLLET-2022-WP
+  selected_strategies_using: []
 - fact_id: DF-CBOE-TBILL-DAILY-ACCRUAL
   formula_version: 1.0.0
-  formula: >-
-    r^i_{t-1} = (1 / (1 - (n/360)·USBR_i))^{(t - (t-1))/n} - 1, with n = 28 for the 4-week bill
-    (i = 1) and n = 91 for the 13-week bill (i = 3), USBR = US Treasury bank-discount rate published
-    by the US Department of the Treasury, t - (t-1) in calendar days. M^i_t = (1 + r^i_{t-1})·M^i_{t-1}.
-    PUTY/WPUT use only the 4-week rate (n = 28). No interest accrues on roll days for PUTY/WPUT.
+  formula: r^i_{t-1} = (1 / (1 - (n/360)·USBR_i))^{(t - (t-1))/n} - 1, with n = 28 for the 4-week bill (i = 1) and
+    n = 91 for the 13-week bill (i = 3), USBR = US Treasury bank-discount rate published by the US Department of
+    the Treasury, t - (t-1) in calendar days. M^i_t = (1 + r^i_{t-1})·M^i_{t-1}. PUTY/WPUT use only the 4-week rate
+    (n = 28). No interest accrues on roll days for PUTY/WPUT.
   inputs:
-    - "USBR 4-week"
-    - "USBR 13-week"
-    - "calendar day count"
+  - USBR 4-week
+  - USBR 13-week
+  - calendar day count
   units: simple return per day step
   time_semantics: close-to-close
   missing_behavior: UNKNOWN if the Treasury rate for the date is unavailable
   strategies_using:
-    - "ASA-QS-PW-01-CBOE-PUT"
-    - "ASA-QS-PW-02-CBOE-WPUT"
-    - "ASA-QS-PW-A1-CBOE-PUTY"
+  - ASA-QS-PW-01-CBOE-PUT
+  - ASA-QS-PW-02-CBOE-WPUT
+  - ASA-QS-PW-A1-CBOE-PUTY
   current_ASA_status: NEW_REQUIRES_X04 (rate/discount data)
   source_ids:
-    - "CBOE-PUTWRITE-METHODOLOGY-2024"
-    - "CBOE-PUTWRITE-INDICES-METHODOLOGY-2024"
-
+  - CBOE-PUTWRITE-METHODOLOGY-2024
+  - CBOE-PUTWRITE-INDICES-METHODOLOGY-2024
+  selected_strategies_using:
+  - ASA-QS-PW-01-CBOE-PUT
+  - ASA-QS-PW-A1-CBOE-PUTY
 - fact_id: DF-CBOE-PUT-CONTRACT-COUNT
   formula_version: 1.0.0
-  formula: >-
-    Third roll date (the roll that sells an option expiring in March/June/September/December):
-    N_new = (Σ_i (1 + r^i_{t-1})·M^i_{t-1} - N_last·max(0, K_old - SOQ_t)) / (K_new/(1 + R3) - P_price).
-    Other roll dates: N_new = (M1_Roll + M3_Roll) / (K_new - P_price·(1 + R1)), with
-    M1_Roll = max(0, (1 + r^1_{t-1})·M^1_{t-1} - N_last·max(0, K_old - SOQ_t))·(1 + R1) and
-    M3_Roll = ((1 + r^3_{t-1})·M^3_{t-1} + min(0, (1 + r^1_{t-1})·M^1_{t-1} - N_last·max(0, K_old - SOQ_t)))·(1 + R3);
-    R1, R3 = 1- and 3-month bill returns to the next roll date. N is in index-unit puts
-    (multiply by the contract multiplier for contract counts).
+  formula: 'Third roll date (the roll that sells an option expiring in March/June/September/December): N_new = (Σ_i
+    (1 + r^i_{t-1})·M^i_{t-1} - N_last·max(0, K_old - SOQ_t)) / (K_new/(1 + R3) - P_price). Other roll dates: N_new
+    = (M1_Roll + M3_Roll) / (K_new - P_price·(1 + R1)), with M1_Roll = max(0, (1 + r^1_{t-1})·M^1_{t-1} - N_last·max(0,
+    K_old - SOQ_t))·(1 + R1) and M3_Roll = ((1 + r^3_{t-1})·M^3_{t-1} + min(0, (1 + r^1_{t-1})·M^1_{t-1} - N_last·max(0,
+    K_old - SOQ_t)))·(1 + R3); R1, R3 = 1- and 3-month bill returns to the next roll date. N is in index-unit puts
+    (multiply by the contract multiplier for contract counts).'
   inputs:
-    - "T-bill balances M^1"
-    - "M^3"
-    - "DF-CBOE-TBILL-DAILY-ACCRUAL"
-    - "N_last"
-    - "K_old"
-    - "SOQ_t"
-    - "K_new"
-    - "P_price"
-    - "R1"
-    - "R3"
+  - T-bill balances M^1
+  - M^3
+  - DF-CBOE-TBILL-DAILY-ACCRUAL
+  - N_last
+  - K_old
+  - SOQ_t
+  - K_new
+  - P_price
+  - R1
+  - R3
   units: option units
   time_semantics: roll date, after P_price is known
   missing_behavior: UNKNOWN if any input unavailable
   strategies_using:
-    - "ASA-QS-PW-01-CBOE-PUT"
+  - ASA-QS-PW-01-CBOE-PUT
   current_ASA_status: NEW_REQUIRES_X04 and A15 (collateral model)
   source_ids:
-    - "CBOE-PUTWRITE-METHODOLOGY-2024"
-
+  - CBOE-PUTWRITE-METHODOLOGY-2024
+  selected_strategies_using:
+  - ASA-QS-PW-01-CBOE-PUT
 - fact_id: DF-CBOE-BUYWRITE-DAILY-RETURN
   formula_version: 1.0.0
-  formula: >-
-    Non-roll day: 1 + R_t = (S_t + Div_t - C_t)/(S_{t-1} - C_{t-1}). Roll day: 1 + R_t =
-    (1 + Ra)(1 + Rb)(1 + Rc), Ra = (SOQ_t + Div_t - max(0, SOQ_t - K_old))/(S_{t-1} - C_{t-1}) - 1,
-    Rb = S_VWAV/SOQ_t - 1, Rc = (S_t - C_t)/(S_VWAV - C_VWAP) - 1. S = index close; C = mean of last
-    bid/ask before 4:00 pm ET; Div_t = index-point ex-dividends on t; S_VWAV = volume-weighted index
-    value over the same times/weights as the call VWAP (last index value before end of the VWAP
-    window if the call does not trade).
+  formula: 'Non-roll day: 1 + R_t = (S_t + Div_t - C_t)/(S_{t-1} - C_{t-1}). Roll day: 1 + R_t = (1 + Ra)(1 + Rb)(1
+    + Rc), Ra = (SOQ_t + Div_t - max(0, SOQ_t - K_old))/(S_{t-1} - C_{t-1}) - 1, Rb = S_VWAV/SOQ_t - 1, Rc = (S_t
+    - C_t)/(S_VWAV - C_VWAP) - 1. S = index close; C = mean of last bid/ask before 4:00 pm ET; Div_t = index-point
+    ex-dividends on t; S_VWAV = volume-weighted index value over the same times/weights as the call VWAP (last index
+    value before end of the VWAP window if the call does not trade).'
   inputs:
-    - "S_t"
-    - "Div_t"
-    - "call bid/ask"
-    - "SOQ"
-    - "call VWAP"
-    - "S_VWAV"
+  - S_t
+  - Div_t
+  - call bid/ask
+  - SOQ
+  - call VWAP
+  - S_VWAV
   units: simple daily return
   time_semantics: close-to-close with intraday roll segments
   missing_behavior: UNKNOWN if any input unavailable
   strategies_using:
-    - "ASA-QS-CC-01-CBOE-BXM"
-    - "ASA-QS-CC-02-CBOE-BXMD"
-    - "ASA-QS-CC-A1-CBOE-BXY"
+  - ASA-QS-CC-01-CBOE-BXM
+  - ASA-QS-CC-02-CBOE-BXMD
+  - ASA-QS-CC-A1-CBOE-BXY
   current_ASA_status: NEW_REQUIRES_X01 and option trade prints (not in taxonomy, see capability-map)
   source_ids:
-    - "CBOE-BUYWRITE-METHODOLOGY-2024"
-
+  - CBOE-BUYWRITE-METHODOLOGY-2024
+  selected_strategies_using:
+  - ASA-QS-CC-01-CBOE-BXM
 - fact_id: DF-CBOE-NAKED-MARGIN
-  formula_version: 1.0.0
-  formula: >-
-    CBOE initial margin for a short uncovered equity option as quoted by Zhan et al.: calls
-    M = C + max(0.20·S - OTM_amount, 0.10·S); puts M = P + max(0.20·S - OTM_amount, 0.10·K),
-    OTM_amount = max(0, K - S) for calls and max(0, S - K) for puts (per contract unit).
+  formula_version: 1.1.0
+  formula: 'CBOE initial margin for one short uncovered option (per option unit), parameterized by underlying class:
+    call M = max(C + α·S - max(0, K - S), C + β·S); put M = max(P + α·S - max(0, S - K), P + β·K). Parameter sets:
+    equity options α = 0.20, β = 0.10 (as quoted by Zhan et al. from the CBOE margin manual); broad-based index
+    options α = 0.15, β = 0.10 (Santa-Clara-Saretto, CBOE margin manual). Version 1.0.0 carried only the equity
+    set. Combination (straddle) margin is not defined by either source (see architecture-handoff A15).'
   inputs:
-    - "option price"
-    - "S"
-    - "K"
+  - option price
+  - S
+  - K
   units: USD per option unit
   time_semantics: formation
   missing_behavior: UNKNOWN if inputs missing
   strategies_using:
-    - "ASA-QS-XR-01-ZHAN-NEG-LNPRICE-DN-CALL"
+  - ASA-QS-XR-01-ZHAN-NEG-LNPRICE-DN-CALL
+  - ASA-QS-SV-01-SCS-SHORT-NEAR-ATM-STRADDLE
   current_ASA_status: NEW (A15 generalized margin)
   source_ids:
-    - "ZHAN-ET-AL-2022"
-
+  - ZHAN-ET-AL-2022
+  - SANTACLARA-SARETTO-2009
+  selected_strategies_using:
+  - ASA-QS-SV-01-SCS-SHORT-NEAR-ATM-STRADDLE
+  - ASA-QS-XR-01-ZHAN-NEG-LNPRICE-DN-CALL
 - fact_id: DF-HESTON-SPAN-MARGIN
   formula_version: 1.0.0
-  formula: >-
-    SPAN-style margin: the worst loss of the position across a scenario grid of underlying price moves
-    of ±15% in 3% increments crossed with implied volatility moves of ±10%, revaluing with
-    Black-Scholes. Scenario-grid details beyond this (e.g. extreme-move weighting, volatility
-    shift units) not recovered: UNKNOWN.
+  formula: 'SPAN-style margin: the worst loss of the position across a scenario grid of underlying price moves of
+    ±15% in 3% increments crossed with implied volatility moves of ±10%, revaluing with Black-Scholes. Scenario-grid
+    details beyond this (e.g. extreme-move weighting, volatility shift units) not recovered: UNKNOWN.'
   inputs:
-    - "position legs"
-    - "S"
-    - "IVs"
-    - "r"
+  - position legs
+  - S
+  - IVs
+  - r
   units: USD
   time_semantics: formation
   missing_behavior: UNKNOWN
   strategies_using:
-    - "ASA-QS-XR-02-HESTON-STRADDLE-MOMENTUM"
+  - ASA-QS-XR-02-HESTON-STRADDLE-MOMENTUM
   current_ASA_status: NEW (A15)
   source_ids:
-    - "HESTON-ET-AL-2023"
-
-# ---------------------------------------------------------------- event-time facts
+  - HESTON-ET-AL-2023
+  selected_strategies_using:
+  - ASA-QS-XR-02-HESTON-STRADDLE-MOMENTUM
 - fact_id: DF-EA-EFFECTIVE-DATE-ALX
   formula_version: 1.0.0
-  formula: EAD = announcement date if the announcement is before or during the trading session; EAD = next trading day if the announcement is made after the market close
+  formula: EAD = announcement date if the announcement is before or during the trading session; EAD = next trading
+    day if the announcement is made after the market close
   inputs:
-    - "earnings announcement date"
-    - "announcement time-of-day"
-    - "TRADING_CALENDAR"
+  - earnings announcement date
+  - announcement time-of-day
+  - TRADING_CALENDAR
   units: trading date
   time_semantics: exchange session calendar (US/Eastern)
   missing_behavior: UNKNOWN if time-of-day is unknown (source gives no rule for unknown timing)
   strategies_using:
-    - "ASA-QS-EV-02-ALX-CONCAVE-EA-STRADDLE"
+  - ASA-QS-EV-02-ALX-CONCAVE-EA-STRADDLE
   current_ASA_status: EXISTING_PARTIAL (earnings timing facts exist; the AMC shift rule is NEW)
   source_ids:
-    - "ALEXIOU-ET-AL-2025"
-
+  - ALEXIOU-ET-AL-2025
+  selected_strategies_using: []
 - fact_id: DF-EA-EFFECTIVE-DATE-GXZ
   formula_version: 1.0.0
   formula: day 0 = the I/B/E/S earnings announcement date as recorded; the preprint describes no after-close adjustment
   inputs:
-    - "earnings announcement date"
+  - earnings announcement date
   units: trading date
   time_semantics: exchange session calendar
-  missing_behavior: UNKNOWN if date unconfirmed; whether the published JFQA version adjusts for timing is UNKNOWN (published text not accessed)
+  missing_behavior: UNKNOWN if date unconfirmed; whether the published JFQA version adjusts for timing is UNKNOWN
+    (published text not accessed)
   strategies_using:
-    - "ASA-QS-EV-01-GXZ-PREEA-STRADDLE-TO-EXPIRY"
-    - "ASA-QS-EV-A1-GXZ-DN-STRADDLE-M3-0"
+  - ASA-QS-EV-01-GXZ-PREEA-STRADDLE-TO-EXPIRY
+  - ASA-QS-EV-A1-GXZ-DN-STRADDLE-M3-0
   current_ASA_status: EXISTING_PARTIAL
   source_ids:
-    - "GAO-XING-ZHANG-2013-WP"
-
+  - GAO-XING-ZHANG-2013-WP
+  selected_strategies_using:
+  - ASA-QS-EV-01-GXZ-PREEA-STRADDLE-TO-EXPIRY
 - fact_id: DF-TRADING-SESSION-OFFSET
   formula_version: 1.0.0
-  formula: session(d, k) = the k-th trading session relative to trading date d on the exchange calendar (k < 0 before, k > 0 after); session(d, 0) = d
+  formula: session(d, k) = the k-th trading session relative to trading date d on the exchange calendar (k < 0 before,
+    k > 0 after); session(d, 0) = d
   inputs:
-    - "TRADING_CALENDAR_V1"
+  - TRADING_CALENDAR_V1
   units: trading date
   time_semantics: exchange calendar
   missing_behavior: UNKNOWN if calendar unavailable for the range
   strategies_using:
-    - "ASA-QS-EV-01-GXZ-PREEA-STRADDLE-TO-EXPIRY"
-    - "ASA-QS-EV-A1-GXZ-DN-STRADDLE-M3-0"
-    - "ASA-QS-EV-02-ALX-CONCAVE-EA-STRADDLE"
-    - "ASA-QS-OS-A1-MPP-SMIRK-DECILE"
+  - ASA-QS-EV-01-GXZ-PREEA-STRADDLE-TO-EXPIRY
+  - ASA-QS-EV-A1-GXZ-DN-STRADDLE-M3-0
+  - ASA-QS-EV-02-ALX-CONCAVE-EA-STRADDLE
+  - ASA-QS-OS-A1-MPP-SMIRK-DECILE
   current_ASA_status: EXISTING_PARTIAL (market_data session_calendar exists; not a registered derived fact)
   source_ids:
-    - "GAO-XING-ZHANG-2013-WP"
-    - "ALEXIOU-ET-AL-2025"
-    - "MURAVYEV-PEARSON-POLLET-2022-WP"
-
+  - GAO-XING-ZHANG-2013-WP
+  - ALEXIOU-ET-AL-2025
+  - MURAVYEV-PEARSON-POLLET-2022-WP
+  selected_strategies_using:
+  - ASA-QS-EV-01-GXZ-PREEA-STRADDLE-TO-EXPIRY
 - fact_id: DF-THIRD-FRIDAY-ROLL-DATE
   formula_version: 1.0.0
-  formula: roll_date(month m) = third Friday of m if it is an exchange business day, else the preceding business day (Cboe holiday schedule)
+  formula: roll_date(month m) = third Friday of m if it is an exchange business day, else the preceding business
+    day (Cboe holiday schedule)
   inputs:
-    - "TRADING_CALENDAR_V1 (Cboe Options holiday schedule)"
+  - TRADING_CALENDAR_V1 (Cboe Options holiday schedule)
   units: date
   time_semantics: exchange calendar
   missing_behavior: UNKNOWN if calendar unavailable
   strategies_using:
-    - "ASA-QS-PW-01-CBOE-PUT"
-    - "ASA-QS-PW-A1-CBOE-PUTY"
-    - "ASA-QS-CC-01-CBOE-BXM"
-    - "ASA-QS-CC-02-CBOE-BXMD"
-    - "ASA-QS-CC-A1-CBOE-BXY"
+  - ASA-QS-PW-01-CBOE-PUT
+  - ASA-QS-PW-A1-CBOE-PUTY
+  - ASA-QS-CC-01-CBOE-BXM
+  - ASA-QS-CC-02-CBOE-BXMD
+  - ASA-QS-CC-A1-CBOE-BXY
   current_ASA_status: NEW (analytics/expiration_selection.py selects expirations; this roll-date fact is not registered)
   source_ids:
-    - "CBOE-PUTWRITE-METHODOLOGY-2024"
-    - "CBOE-PUTWRITE-INDICES-METHODOLOGY-2024"
-    - "CBOE-BUYWRITE-METHODOLOGY-2024"
-
+  - CBOE-PUTWRITE-METHODOLOGY-2024
+  - CBOE-PUTWRITE-INDICES-METHODOLOGY-2024
+  - CBOE-BUYWRITE-METHODOLOGY-2024
+  selected_strategies_using:
+  - ASA-QS-PW-01-CBOE-PUT
+  - ASA-QS-PW-A1-CBOE-PUTY
+  - ASA-QS-CC-01-CBOE-BXM
 - fact_id: DF-WEEKLY-FRIDAY-ROLL-DATE
   formula_version: 1.0.0
   formula: roll_date(week w) = Friday of w if an exchange business day, else the preceding business day
   inputs:
-    - "TRADING_CALENDAR_V1"
+  - TRADING_CALENDAR_V1
   units: date
   time_semantics: exchange calendar
   missing_behavior: UNKNOWN if calendar unavailable
   strategies_using:
-    - "ASA-QS-PW-02-CBOE-WPUT"
+  - ASA-QS-PW-02-CBOE-WPUT
   current_ASA_status: NEW
   source_ids:
-    - "CBOE-PUTWRITE-INDICES-METHODOLOGY-2024"
+  - CBOE-PUTWRITE-INDICES-METHODOLOGY-2024
+  selected_strategies_using: []
+- fact_id: DF-FIRST-TRADING-DAY-OF-MONTH
+  formula_version: 1.0.0
+  formula: 'first(m) = min{ d in month m : d is an exchange trading session }'
+  inputs:
+  - TRADING_CALENDAR_V1
+  units: date
+  time_semantics: exchange calendar (US/Eastern)
+  missing_behavior: UNKNOWN if calendar unavailable
+  strategies_using:
+  - ASA-QS-SV-01-SCS-SHORT-NEAR-ATM-STRADDLE
+  current_ASA_status: NEW (session calendar exists; not a registered fact)
+  source_ids:
+  - SANTACLARA-SARETTO-2009
+  selected_strategies_using:
+  - ASA-QS-SV-01-SCS-SHORT-NEAR-ATM-STRADDLE
+- fact_id: DF-LAST-TRADING-DAY-OF-MONTH
+  formula_version: 1.0.0
+  formula: 'last(m) = max{ d in month m : d is an exchange trading session }'
+  inputs:
+  - TRADING_CALENDAR_V1
+  units: date
+  time_semantics: exchange calendar
+  missing_behavior: UNKNOWN if calendar unavailable
+  strategies_using:
+  - ASA-QS-XR-01-ZHAN-NEG-LNPRICE-DN-CALL
+  current_ASA_status: NEW
+  source_ids:
+  - ZHAN-ET-AL-2022
+  selected_strategies_using:
+  - ASA-QS-XR-01-ZHAN-NEG-LNPRICE-DN-CALL
+- fact_id: DF-MONTHLY-EXPIRATION-DAY
+  formula_version: 1.0.0
+  formula: 'exp_day(m) = the standard monthly equity-option expiration date of month m (third Friday; if an exchange
+    holiday, the preceding trading day). Heston et al.: pre-2015 Saturday expirations map to the prior trading day.'
+  inputs:
+  - TRADING_CALENDAR_V1
+  - option expiration calendar
+  units: date
+  time_semantics: exchange calendar
+  missing_behavior: UNKNOWN if calendar unavailable
+  strategies_using:
+  - ASA-QS-XR-02-HESTON-STRADDLE-MOMENTUM
+  current_ASA_status: NEW (analytics/expiration_selection.py selects expirations; not this fact)
+  source_ids:
+  - HESTON-ET-AL-2023
+  selected_strategies_using:
+  - ASA-QS-XR-02-HESTON-STRADDLE-MOMENTUM
+- fact_id: DF-ZERO-COST-OPTION-RETURN
+  formula_version: 1.0.0
+  formula: 'Zero-cost convention (Santa-Clara-Saretto §2): long position return R_long = (V_exit - V_entry)/V_entry
+    - rf_period; short position return R_short = -R_long = (V_entry - V_exit)/V_entry + rf_period, where V is the
+    combined value of all legs (entry and exit at the spec price convention: mid, or sell at bid / buy at ask) and
+    rf_period is the risk-free return over the holding period. Worked example in source: long ATM straddle Feb 1989:
+    (12.65 - 12.80)/12.80 - 0.92% = -2.09%.'
+  inputs:
+  - V_entry
+  - V_exit
+  - rf over holding period (X04)
+  units: simple return per $1 of premium notional
+  time_semantics: entry close to exit close (or expiration settlement at SOQ)
+  missing_behavior: UNKNOWN if any input missing
+  strategies_using:
+  - ASA-QS-SV-01-SCS-SHORT-NEAR-ATM-STRADDLE
+  current_ASA_status: NEW_REQUIRES_X04
+  source_ids:
+  - SANTACLARA-SARETTO-2009
+  selected_strategies_using:
+  - ASA-QS-SV-01-SCS-SHORT-NEAR-ATM-STRADDLE
+- fact_id: DF-DELTA-NEUTRAL-HEDGE-QUANTITY
+  formula_version: 1.0.0
+  formula: shares_hedge = -sign_option · Δ(c,t) · n_contracts · multiplier, where sign_option = +1 for a long option,
+    -1 for a short option; for a written call (sign -1) this is +Δ·n·multiplier shares long. Static at formation
+    unless the spec rebalances.
+  inputs:
+  - option delta Δ (Black-Scholes in Zhan; provider delta equivalence is a DATA question)
+  - contract count
+  - contract multiplier
+  units: shares
+  time_semantics: formation snapshot
+  missing_behavior: UNKNOWN if delta missing
+  strategies_using:
+  - ASA-QS-XR-01-ZHAN-NEG-LNPRICE-DN-CALL
+  current_ASA_status: NEW_REQUIRES_P10
+  source_ids:
+  - ZHAN-ET-AL-2022
+  selected_strategies_using:
+  - ASA-QS-XR-01-ZHAN-NEG-LNPRICE-DN-CALL
+- fact_id: DF-GXZ-PAIR-VOLUME
+  formula_version: 1.0.0
+  formula: 'CLOSEOUT RESEARCH ASSUMPTION RA-EV-01 (not source-stated): v_j = volume(call_j, day -3) + volume(put_j,
+    day -3) for each qualifying same-strike pair j; pair weight ω_j = v_j / Σ_k v_k. Basis: Table 6 states volume
+    weighting across pairs; day -3 volume is the only look-ahead-free volume at formation; the source reports that
+    equal, volume and open-interest weighting give "very similar" results, bounding materiality. If Σ v_k = 0 ->
+    UNKNOWN.'
+  inputs:
+  - option volume at the day -3 close
+  units: dimensionless weights summing to 1
+  time_semantics: formation (close of day -3)
+  missing_behavior: UNKNOWN if any qualifying pair volume missing or total zero
+  strategies_using:
+  - ASA-QS-EV-01-GXZ-PREEA-STRADDLE-TO-EXPIRY
+  current_ASA_status: NEW
+  source_ids:
+  - GAO-XING-ZHANG-2013-WP
+  selected_strategies_using:
+  - ASA-QS-EV-01-GXZ-PREEA-STRADDLE-TO-EXPIRY
+closeout:
+  recorded_at: '2026-09-27'
+  note: 'ASA-RES-STRATEGY-QUALIFICATION-002-CLOSEOUT: 6 facts added; DF-CBOE-NAKED-MARGIN 1.1.0 (index parameter
+    set); DF-XS-QUANTILE-ASSIGNMENT 1.1.0 (research assumption RA-XS-01). selected_strategies_using lists the frozen
+    selection only. Facts marked RESEARCH ASSUMPTION are Researcher decisions under the closeout delegation, not
+    source rules.'

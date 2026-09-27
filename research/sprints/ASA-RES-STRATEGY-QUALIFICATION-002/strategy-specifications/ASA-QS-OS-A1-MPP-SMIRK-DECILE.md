@@ -41,3 +41,7 @@ The final JFE abstract (2025): predictability "decreases by about two-thirds" af
 **Status reason:** the recovered evidence shows that the abnormal return is almost entirely compensation for borrow costs on hard-to-borrow stocks. Net of those costs it is statistically insignificant. This materially defeats the return-seeking thesis for the stock expression.
 
 The ASA-relevant corollary is recorded in LANE-05: an **option** expression would embed the same borrow cost in option prices (put-call parity with lending fees).
+
+## Closeout disposition (2026-09-27)
+
+NOT SELECTED (Founder direction). The existing evidence base (FAM-OPTION-SIGNAL-EQUITY dossier) holds no other signal with better than abstract-level evidence or net-positive results; MPP reattributes the family to borrow fees. Lane 5 closes with zero targets. State unchanged: RESEARCH_REJECT.

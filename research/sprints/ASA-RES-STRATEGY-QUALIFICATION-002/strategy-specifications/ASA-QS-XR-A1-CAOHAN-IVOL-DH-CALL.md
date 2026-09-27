@@ -41,3 +41,7 @@ For context, Zhan et al. (same author group) measure actual OPRA effective sprea
 The signal also needs external daily factor data (Fama-French), which is not an ASA market capability.
 
 **Status reason:** the headline rule is defeated at a 50% effective spread. The decile variant survives only at or below about a 50% effective spread and has no tabulated level. The evidence does not support advancement for return-seeking use.
+
+## Closeout disposition (2026-09-27)
+
+NOT SELECTED. Evidence is marginal net of costs, and the live rule would consume Fama-French factors (an external-data requirement the Architect advises against creating for this purpose). State unchanged: INSUFFICIENT_EVIDENCE.

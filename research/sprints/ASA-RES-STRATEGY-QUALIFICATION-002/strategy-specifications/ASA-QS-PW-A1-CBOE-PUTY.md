@@ -55,8 +55,28 @@ The same as PUT, plus the equality case above.
 
 ## ASA translation (summary)
 
-- **Primitives:** P01, X01, X02a, X04.
+- **Primitives:** P01, X01 (INDEX quote, SOQ), X04, X05.
 - **Derived facts:** DF-THIRD-FRIDAY-ROLL-DATE, DF-CBOE-TBILL-DAILY-ACCRUAL, DF-OPT-MID.
-- **Architect review:** tracking-price scope only (GAP-OPTION-TRADE-PRINTS), as for PUT.
+- **Architect review:** none beyond the shared X05 classification (formerly GAP-OPTION-TRADE-PRINTS), as for PUT.
 
 **Manifest readiness:** a manifest could be authored mechanically. Advancement is blocked on evidence, not specification.
+
+## Closeout resolution (2026-09-27)
+
+The original INSUFFICIENT_EVIDENCE determination above is preserved.
+
+The targeted pass recovered exact-rule evidence: the Cboe PUTY factsheet as of 2026-08-31 ([`CBOE-PUTY-FACTSHEET-2026`](../../../sources/CBOE-PUTY-FACTSHEET-2026.yaml)).
+
+| Series | Annualized return | Volatility | Max drawdown | Beta | Sharpe | Sortino |
+|---|---|---|---|---|---|---|
+| PUTY, since June 30, 1986 | 6.9% | 8.7% | −28.9% | 0.43 | 0.53 | 0.67 |
+| S&P 500 Total Return | 11.2% | 15.2% | −50.9% | — | 0.57 | — |
+
+- **Post-launch** (launched Feb 15, 2019) calendar-year returns: 2019 9.7%, 2020 −2.4%, 2021 15.7%, 2022 −1.5%, 2023 12.2%, 2024 13.5%, 2025 7.2%.
+- **Caveats:** sponsor-published; back-tested before 2019; excludes costs.
+
+**Qualification after closeout:** READY_WITH_EXPLICIT_UNKNOWNS. Evidence is QUALIFIED: sponsor index history comparable in kind to PUT's.
+
+**Diversity:** systematically OTM (2%) vs PUT's ATM is named in the lane-2 requirements as legitimate differentiation, and the documented beta (0.43 vs PUT 0.47) and drawdown differ.
+
+**Selected** as the second lane-2 target.

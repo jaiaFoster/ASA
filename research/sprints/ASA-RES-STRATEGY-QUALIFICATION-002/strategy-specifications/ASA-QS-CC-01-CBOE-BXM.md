@@ -31,10 +31,10 @@ U_t = { listed SPX calls with the next monthly (AM-settled) expiration on roll d
 
 | Fact | Unit | Observation | ASA status | Missing |
 |---|---|---|---|---|
-| spx_value(t) | index points | last before 11:00 a.m. ET (strike); close (marks) | X01 + X02a | UNKNOWN |
+| spx_value(t) | index points | last before 11:00 a.m. ET (strike); close (marks) | X01 INDEX quote | UNKNOWN |
 | option chain (SPX calls) | — | roll date | OPTION_CHAIN_V1 + X01 | UNKNOWN |
 | call bid/ask, last before 4:00 p.m. ET | USD | daily | OPTION_CHAIN_V1 | UNKNOWN |
-| call trades 11:30 a.m.–1:30 p.m. ET (OPRA; late, cancelled and spread trades excluded) | USD | roll date | **GAP-OPTION-TRADE-PRINTS** | fallback only for the no-trade case (last bid before end of window) |
+| call trades 11:30 a.m.–1:30 p.m. ET (OPRA; late, cancelled and spread trades excluded) | USD | roll date | **X05 OPTION_TRADE_TAPE** | fallback only for the no-trade case (last bid before end of window) |
 | S_VWAV (volume-weighted index value at the same times and weights as the call VWAP) | index points | roll date | **not available** (needs trade prints + intraday index) | UNKNOWN |
 | soq(t) | index points | roll date | not available (X01) | UNKNOWN |
 | index dividends Div_t | index points | ex-date | **not available** (index-level dividend points) | UNKNOWN |
@@ -176,7 +176,7 @@ No sourced gates. A12 is used for diagnostics only.
 | capital_model | §16 |
 | unknown_states | §18 |
 | current_ASA_reuse | chain, calendar, verdict classifier |
-| missing_reusable_primitives | X01 (HARD), P09 (HARD), X02a (HARD), GAP-OPTION-TRADE-PRINTS (outcome), index dividend points (outcome) |
+| missing_reusable_primitives | X01 (HARD), P09 (HARD; semantics ARCHITECT_REVIEW_REQUIRED), X05 (outcome), X07 INDEX_DIVIDEND_POINTS (outcome) |
 | architecture_review_required | P09 must represent a long **index** leg, a non-tradable index identity (X01). Tracking-price gap as for PUT. |
 
 ## 21. Manifest readiness
@@ -188,3 +188,7 @@ The signal, structure, lifecycle and sizing rules are complete, so a manifest ca
 - net-of-cost evidence.
 
 **Architect note (not a research gap):** P09 has to hold the "long S&P 500 index" leg. How ASA represents a non-tradable index as the covered leg (index identity via X01) is architectural. The source defines the leg as the index itself. Any ETF or futures proxy would be a different strategy and would require its own evidence.
+
+## Closeout disposition (2026-09-27)
+
+SELECTED (lane-4 target) with **architecture status ARCHITECT_REVIEW_REQUIRED** for its P09 expression (PR #501 Architect review item 7). The index must not be represented as a tradable stock, and SPY or futures must not be substituted. Research state: READY_WITH_EXPLICIT_UNKNOWNS. X02a removed; X05 and X07 added.

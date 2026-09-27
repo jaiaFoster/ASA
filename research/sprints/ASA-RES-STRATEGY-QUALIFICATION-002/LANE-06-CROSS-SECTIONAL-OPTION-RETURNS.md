@@ -49,3 +49,7 @@
 - **Persistence.** Both samples end in 2016 (Zhan) or 2019 (Heston). No post-publication replication was recovered.
 - **Spanning.** Zhan's profits are spanned by option factors.
 - **Execution.** Heston's profitability depends on algorithmic-trader execution quality, taken from the Muravyev-Pearson 2020 ratios.
+
+## Closeout disposition (2026-09-27)
+
+**Selected:** Zhan −Ln(PRICE), using the footnote-8 dividend-inclusive variant (XR-01), and Heston straddle momentum, using the low-cost decile variant with RA-XR-03 (XR-02). Cao-Han is not selected. See [FINAL-SELECTION.md](FINAL-SELECTION.md).

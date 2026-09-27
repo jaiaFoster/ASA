@@ -27,3 +27,7 @@
 | Recent contrary evidence | ALX (2013–2020, top-100 option-volume firms): mean EAD one-day DN straddle return −0.86%, median −15.43% |
 
 **Status reason:** the recovered evidence shows net-of-spread returns are negative even at 50% of the quoted spread. That materially defeats use of this rule for return-seeking. It remains useful as the phenomenon source for ASA-QS-EV-01.
+
+## Closeout disposition (2026-09-27)
+
+NOT SELECTED (net-negative; the Founder direction not to resurrect it is applied). State unchanged: RESEARCH_REJECT.

@@ -41,3 +41,7 @@ The lane asks for "two materially different expressions of the volatility-risk p
 Building one would combine or invent rules, for example choosing a straddle strike, DTE and roll to wrap the BK or CW measurement. The no-invention rule forbids that.
 
 **Next research step:** locate an explicit, independently evaluated SPX short-straddle or short-strangle rule set within the SV bundle (X01 + P03), such as an index methodology or a replicated academic rule with a roll schedule.
+
+## Closeout disposition (2026-09-27)
+
+**Selected:** the Santa-Clara-Saretto monthly short near-maturity ATM SPX straddle (new spec [SV-01](strategy-specifications/ASA-QS-SV-01-SCS-SHORT-NEAR-ATM-STRADDLE.md)), found in the targeted pass. It is explicit, peer-reviewed and cost-evaluated: 10.3% per month bid-to-ask on SPX 1996–2002, with a margin-call caveat. This supersedes the "zero" result above, which is kept as history. See [FINAL-SELECTION.md](FINAL-SELECTION.md).

@@ -219,3 +219,23 @@ The core signal and structure are otherwise precisely sourced, and the net-of-co
 Required research actions:
 1. Check the RFS published appendix or replication package for the live dividend treatment and moneyness ratio.
 2. Recover any post-2016 replication.
+
+## Closeout resolution (2026-09-27)
+
+The original DEEP_RESEARCH_REQUIRED determination above is preserved.
+
+The targeted search found no internet appendix or replication package; the RFS page and SSRN show none openly. The source text itself resolves the blocking items:
+
+| Former gap | Resolution | Basis |
+|---|---|---|
+| Ex-post dividend filter | **Removed.** The selected specification is the source's footnote-8 robustness variant: "Our results remain robust when we include options on stocks that make dividend payments". It is look-ahead free. G-ZHAN-NO-DIVIDEND-DURING-LIFE is not used. | source-tested variant |
+| Moneyness ratio | G-ZHAN-MONEYNESS is now three-state: PASS if both K/S and S/K ∈ [0.8, 1.2]; FAIL if both fall outside; UNKNOWN if they disagree. No ratio is chosen. | typed UNKNOWN |
+| Decile boundaries and ties | Research assumption RA-XS-01 (DF-XS-QUANTILE-ASSIGNMENT 1.1.0) | RESEARCH ASSUMPTION |
+| Long-book capital | The source defines the strategy return as HR(decile 10) − HR(decile 1). That equals holding +$1 of H in decile-10 written positions and −$1 of H in decile-1 written positions, so each decile-1 position is the exact negative of a written position: long call, short Δ shares, n_i = w_i / H_i. | DERIVED equivalence |
+| Stock-VW weights | These need `shares_outstanding` (a security-master fact, per the Architect). | DATA |
+| Common-stock identification | This needs `security_type` (a security-master fact). | DATA |
+| Delta | Black-Scholes delta in the source. Footnote 12: "similar results if we compute the option delta using the historical GARCH volatility estimate". Provider-delta equivalence is therefore a DATA/PROVIDER question with bounded materiality. | DATA |
+| Borrow cost of the short-stock hedge in decile 1 | Not modelled by the source. It is a cost-evidence limitation, not a rule. | evidence |
+
+- **Qualification after closeout:** READY_WITH_EXPLICIT_UNKNOWNS.
+- **Selected** as the lane-6 reference target.

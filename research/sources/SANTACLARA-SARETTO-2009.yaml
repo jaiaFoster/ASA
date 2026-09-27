@@ -38,3 +38,38 @@ recoverability:
   external_identifier: 10.1016/j.finmar.2009.01.002
   notes: Bibliographic identity verified via Crossref; abstract retrieved via OpenAlex, Semantic Scholar
     or RePEc IDEAS on 2026-09-26. Claims beyond the abstract are not asserted.
+
+# --- ASA-RES-STRATEGY-QUALIFICATION-002-CLOSEOUT verification (2026-09-27). Fields above are preserved unchanged. ---
+qualification_002_closeout_verification:
+  reviewed_at: '2026-09-27'
+  sprint: ASA-RES-STRATEGY-QUALIFICATION-002
+  verification_depth_after: full_text_reviewed (working-paper copy)
+  full_text_url: https://www.anderson.ucla.edu/documents/areas/fac/finance/santa_clara_option.pdf
+  sample_period: S&P 500 futures options (CME) 1985-01 to 2001-05; SPX options (OptionMetrics) 1996-01 to 2002-12
+  claims:
+  - claim_id: SANTACLARA-SARETTO-2009-Q2-C1
+    claim_class: REPORTED
+    reported_metric: rule
+    value: monthly, from the close of the first trading day of each month to the next; near maturity about 45 days;
+      moneyness ATM, 5% or 10% OTM; zero-cost convention with $1 notional and proceeds at the risk-free rate; liquidate
+      at month end or at expiration if earlier; settlement at the opening price of the underlying on expiration
+      day
+    context: §1-§2, Table 1
+  - claim_id: SANTACLARA-SARETTO-2009-Q2-C2
+    claim_class: REPORTED
+    reported_metric: short near-maturity ATM straddle, SPX 1996-2002 (Table 10)
+    value: 'mid: mean 15.2%/month, SD 28.6%, Sharpe 0.533; bid-to-ask: mean 10.3%/month, SD 29.3%, Sharpe 0.351'
+    context: Table 10
+  - claim_id: SANTACLARA-SARETTO-2009-Q2-C3
+    claim_class: REPORTED
+    reported_metric: margin calls
+    value: with CBOE margins (index alpha 15%, beta 10%) and margin calls, portfolio returns fall sharply; long
+      market + short N ATM straddle 0.9%/month, Sharpe 0.128, about 0.53% after 4.9% straddle costs (Sharpe about
+      0.032)
+    context: §4.2, Tables 11-12
+  - claim_id: SANTACLARA-SARETTO-2009-Q2-C4
+    claim_class: REPORTED
+    reported_metric: filters
+    value: arbitrage bounds; bid > 0; ask >= bid; spread >= minimum tick ($0.05 below $3, $0.10 otherwise); IV between
+      1% and 100%
+    context: §1

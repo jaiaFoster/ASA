@@ -1,0 +1,230 @@
+# ASA-RES-STRATEGY-QUALIFICATION-002 — consolidated architecture/capability handoff for the selected strategies.
+schema: asa.research.architecture_handoff/v1
+sprint: ASA-RES-STRATEGY-QUALIFICATION-002
+recorded_at: '2026-09-27'
+status: 'Consolidated capability work required by the 7 selected strategies. Shared work listed once. Classifications
+  are the Architect''s (selection-001 and PR #501 review); this file adds consumer mapping only and proposes no
+  implementation.'
+not_required:
+- 'X02a (live intraday index-option chain acquisition): no selected strategy needs it'
+- X06 (WPUT not selected)
+- A07 (no selected consumer)
+- A14 (no selected consumer)
+- 'production factor data (Architect item 6: no selected live rule consumes academic factors)'
+groups:
+- group: X01 index option identity / settlement
+  capability: X01 (+ INDEX_QUOTE path, SOQ settlement fact)
+  classification: 'CONTRACT_CHANGE B4 identity-bearing (selection-001); INDEX quote per PR #501 review item 1'
+  required_semantics: SPX root/settlement identity (AM-settled standard vs PM SPXW), SOQ settlement value as a canonical
+    fact, INDEX-subject quotes (value last disseminated before a timestamp; closes).
+  consumers:
+  - index_buywrite_cboe_bxm
+  - index_putwrite_cboe_put
+  - index_putwrite_cboe_puty
+  - index_short_vol_scs_near_atm_straddle
+  sequence_group: G1-shared-data
+- group: X05 option trade tape
+  capability: X05 OPTION_TRADE_TAPE
+  classification: DATA, CONTRACT_CHANGE, B3_CROSS_CUTTING, ADDITIVE_PUBLIC, confidence HIGH (Architect)
+  required_semantics: Option trade events (identity, price, size, event timestamp, sale-condition eligibility) sufficient
+    to reproduce Cboe VWAPs (11:30-12:00 / 11:30-13:30 ET) and S_VWAV. Needed for source-faithful entry price and
+    outcome accounting; proposal selection does not depend on it (until available, entry price is UNKNOWN except
+    the sourced no-trade fallback).
+  consumers:
+  - index_putwrite_cboe_put
+  - index_putwrite_cboe_puty
+  - index_buywrite_cboe_bxm
+  sequence_group: G1-shared-data (parallel; outcome-valuation dependency)
+- group: X06 quote event capture
+  capability: X06 QUOTE_EVENT_CAPTURE
+  classification: DATA, CONTRACT_CHANGE, B3, ADDITIVE_PUBLIC, confidence MEDIUM (Architect)
+  required_semantics: No selected strategy consumes X06. It was classified for WPUT, which is not selected (AM-roll
+    research blocker).
+  consumers: []
+  sequence_group: not required by the selected set
+- group: X07 index dividend points
+  capability: X07 INDEX_DIVIDEND_POINTS
+  classification: DATA, CONTRACT_CHANGE, B3, ADDITIVE_PUBLIC, confidence HIGH (Architect)
+  required_semantics: S&P 500 ex-dividend amounts in index points for BXM total-return accounting (Div_t). CORPORATE_ACTIONS_V1
+    is not a substitute.
+  consumers:
+  - index_buywrite_cboe_bxm
+  sequence_group: G1-shared-data (needed before BXM outcome accounting)
+- group: X04 rates
+  capability: X04 rate/discount facts
+  classification: B3 conditional (selection-001)
+  required_semantics: US Treasury 4-week and 13-week bank-discount rates (PUT/PUTY collateral accrual and sizing);
+    risk-free rate and dividend yield (SCS arbitrage-bound filter, zero-cost return); maturity-matched rate for
+    Zhan margin financing.
+  consumers:
+  - index_putwrite_cboe_put
+  - index_putwrite_cboe_puty
+  - index_short_vol_scs_near_atm_straddle
+  - xs_option_zhan_neg_lnprice_dn_call
+  sequence_group: G1-shared-data
+- group: P01 single leg
+  capability: P01
+  classification: CONTRACT_CHANGE B3
+  required_semantics: Single short option leg with index identity (X01).
+  consumers:
+  - index_putwrite_cboe_put
+  - index_putwrite_cboe_puty
+  sequence_group: G2-structures
+- group: P03 straddle
+  capability: P03
+  classification: CONTRACT_CHANGE B3
+  required_semantics: Call+put same strike/expiry; long and short; non-unit zero-delta ratios (DF-STRADDLE-ZERO-DELTA-WEIGHT);
+    multi-pair volume-weighted positions within one event (GXZ).
+  consumers:
+  - index_short_vol_scs_near_atm_straddle
+  - event_vol_gxz_preea_straddle_to_expiry
+  - xs_option_heston_straddle_momentum_lowcost
+  sequence_group: G2-structures
+- group: P09 overlay semantics
+  capability: P09
+  classification: 'CONTRACT_CHANGE B3; ARCHITECT_REVIEW_REQUIRED (PR #501 review item 7)'
+  required_semantics: Generic underlying-exposure + option overlay able to hold a non-tradable index exposure faithfully;
+    no SPY/futures substitution; no BXM-specific runtime path.
+  consumers:
+  - index_buywrite_cboe_bxm
+  sequence_group: G4-architecture-gated
+- group: P10 delta-hedged option
+  capability: P10
+  classification: CONTRACT_CHANGE (B3 within the XR bundle)
+  required_semantics: One option plus DF-DELTA-NEUTRAL-HEDGE-QUANTITY shares, static at formation, closed at month
+    end; both signs (written and bought).
+  consumers:
+  - xs_option_zhan_neg_lnprice_dn_call
+  sequence_group: G2-structures
+- group: P12 cross-sectional portfolio
+  capability: P12
+  classification: B3 (XR bundle)
+  required_semantics: Decile long/short book over the eligible universe using DF-XS-QUANTILE-ASSIGNMENT; Stock-VW
+    (Zhan) and equal (Heston) weights; monthly re-formation; builds on analytics/cross_sectional_ranking.py.
+  consumers:
+  - xs_option_heston_straddle_momentum_lowcost
+  - xs_option_zhan_neg_lnprice_dn_call
+  sequence_group: G2-structures
+- group: A07 RN moments
+  capability: A07
+  classification: NEW_CAPABILITY B2
+  required_semantics: Not consumed by the selected set (lane 5 closed with zero targets; ALX not selected).
+  consumers: []
+  sequence_group: not required by the selected set
+- group: A08 historical option panel
+  capability: A08
+  classification: CONTRACT_CHANGE B3
+  required_semantics: Point-in-time monthly option prices for 12 months (Heston formation-period pairs, no OI requirement).
+  consumers:
+  - xs_option_heston_straddle_momentum_lowcost
+  sequence_group: G2-structures (data)
+- group: A12 liquidity / effective spread
+  capability: A12
+  classification: EXTENSION B1
+  required_semantics: Diagnostics only for all selected strategies (relative spread, DF-OPT-EFFECTIVE-PRICE for
+    outcome interpretation). The Heston 10% leg filter is a sourced gate using DF-OPT-RELATIVE-SPREAD, not an A12
+    gate.
+  consumers:
+  - index_putwrite_cboe_put
+  - index_putwrite_cboe_puty
+  - index_buywrite_cboe_bxm
+  - index_short_vol_scs_near_atm_straddle
+  - event_vol_gxz_preea_straddle_to_expiry
+  - xs_option_zhan_neg_lnprice_dn_call
+  - xs_option_heston_straddle_momentum_lowcost
+  sequence_group: G1-shared-data
+- group: A14 hedge simulation
+  capability: A14
+  classification: NEW_CAPABILITY B3
+  required_semantics: Not consumed by the selected set (Zhan uses a static hedge; Cao-Han daily rebalancing not
+    selected).
+  consumers: []
+  sequence_group: not required by the selected set
+- group: A15 margin / capital
+  capability: A15
+  classification: NEW_CAPABILITY B3
+  required_semantics: Cash-secured T-bill collateral (PUT, PUTY); CBOE naked-option margin, parameterized index
+    alpha 15% / equity alpha 20%, beta 10% (SCS, Zhan) incl. the CBOE straddle-combination rule; SPAN-style scenario
+    margin (Heston). Must not be replaced by ASA max-loss model.
+  consumers:
+  - index_putwrite_cboe_put
+  - index_putwrite_cboe_puty
+  - index_short_vol_scs_near_atm_straddle
+  - xs_option_zhan_neg_lnprice_dn_call
+  - xs_option_heston_straddle_momentum_lowcost
+  sequence_group: G2-structures
+- group: A17 option-return history
+  capability: A17
+  classification: HARD on A08
+  required_semantics: Monthly zero-delta straddle return history per stock (DF-STRADDLE-RETURN) feeding DF-STRADDLE-MOMENTUM-FORMATION.
+  consumers:
+  - xs_option_heston_straddle_momentum_lowcost
+  sequence_group: G2-structures (data)
+- group: security master facts
+  capability: security_master.security_type, security_master.shares_outstanding
+  classification: canonical fundamental/security-master facts via market_data (Architect item 5)
+  required_semantics: Common-stock identification (Zhan, Heston; GXZ uses price and optionability only); shares
+    outstanding for Zhan Stock-VW weights.
+  consumers:
+  - xs_option_heston_straddle_momentum_lowcost
+  - xs_option_zhan_neg_lnprice_dn_call
+  sequence_group: G1-shared-data
+- group: other reusable capabilities
+  capability: derived facts and calendar facts
+  classification: analytics (pure formulas)
+  required_semantics: 'DF-OPT-MID (all 7), calendar facts (DF-THIRD-FRIDAY-ROLL-DATE, DF-FIRST/LAST-TRADING-DAY-OF-MONTH,
+    DF-MONTHLY-EXPIRATION-DAY, DF-TRADING-SESSION-OFFSET), DF-OPT-DTE-CALENDAR (exists as days_to_expiration), DF-STRADDLE-ZERO-DELTA-WEIGHT,
+    DF-STRADDLE-RETURN, DF-ZERO-COST-OPTION-RETURN, DF-CBOE-TBILL-DAILY-ACCRUAL. Note: OptionContract.mark holds
+    the provider last trade, not the midpoint.'
+  consumers:
+  - index_putwrite_cboe_put
+  - index_putwrite_cboe_puty
+  - index_buywrite_cboe_bxm
+  - index_short_vol_scs_near_atm_straddle
+  - event_vol_gxz_preea_straddle_to_expiry
+  - xs_option_zhan_neg_lnprice_dn_call
+  - xs_option_heston_straddle_momentum_lowcost
+  sequence_group: G1-shared-data
+architect_decisions_required:
+- item: P09 overlay semantics for non-tradable index exposure
+  blocking_for:
+  - index_buywrite_cboe_bxm
+  type: ARCHITECTURE
+- item: P03 multi-pair and non-unit-ratio semantics
+  blocking_for:
+  - event_vol_gxz_preea_straddle_to_expiry
+  - xs_option_heston_straddle_momentum_lowcost
+  type: ARCHITECTURE
+- item: P12 decile long/short portfolio semantics
+  blocking_for:
+  - xs_option_zhan_neg_lnprice_dn_call
+  - xs_option_heston_straddle_momentum_lowcost
+  type: ARCHITECTURE
+- item: A15 collateral and margin representations (T-bill collateral, CBOE naked and straddle margin, SPAN)
+  blocking_for:
+  - index_putwrite_cboe_put
+  - index_putwrite_cboe_puty
+  - index_short_vol_scs_near_atm_straddle
+  - xs_option_zhan_neg_lnprice_dn_call
+  - xs_option_heston_straddle_momentum_lowcost
+  type: ARCHITECTURE
+- item: A08/A17 point-in-time historical option panel semantics
+  blocking_for:
+  - xs_option_heston_straddle_momentum_lowcost
+  type: ARCHITECTURE/DATA
+- item: security-master capability entry (security_type, shares_outstanding)
+  blocking_for:
+  - xs_option_zhan_neg_lnprice_dn_call
+  - xs_option_heston_straddle_momentum_lowcost
+  type: DATA
+- item: three-state propagation through asa.core boolean components into verdict_classifier (confirm UNKNOWN is
+    preserved)
+  blocking_for:
+  - index_putwrite_cboe_put
+  - index_putwrite_cboe_puty
+  - index_buywrite_cboe_bxm
+  - index_short_vol_scs_near_atm_straddle
+  - event_vol_gxz_preea_straddle_to_expiry
+  - xs_option_zhan_neg_lnprice_dn_call
+  - xs_option_heston_straddle_momentum_lowcost
+  type: ARCHITECTURE (confirmation)
