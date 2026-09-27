@@ -7,12 +7,12 @@ is the provider's last trade. It is never used here as a midpoint.
 from __future__ import annotations
 
 from collections.abc import Sequence
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 
 from analytics.derived_facts import compute_bid_ask_spread_ratio
 from analytics.forward_factor import compute_days_to_expiration
-from domain import UnknownReason
+from domain import OptionTradeTape, UnknownReason
 
 TWO = Decimal(2)
 
@@ -125,6 +125,42 @@ def option_holding_return(
     if entry_price <= 0:
         return UnknownReason("non_positive_entry_price")
     return exit_price / entry_price - 1
+
+
+def option_trade_window_vwap(
+    tape: OptionTradeTape | None,
+    window_start: datetime,
+    window_end: datetime,
+    *,
+    excluded_sale_condition_codes: frozenset[str],
+) -> Decimal | UnknownReason:
+    """DF-OPTION-TRADE-WINDOW-VWAP 1.0.0.
+
+    Size-weighted price over exact trade prints whose *event time* is inside
+    the inclusive window and whose sale conditions do not intersect the
+    caller's explicit exclusion set. A quote midpoint or contract mark is not
+    accepted by this formula.
+    """
+    if window_start.tzinfo is None or window_start.utcoffset() is None:
+        raise ValueError("window_start must be timezone-aware")
+    if window_end.tzinfo is None or window_end.utcoffset() is None:
+        raise ValueError("window_end must be timezone-aware")
+    if window_start > window_end:
+        raise ValueError("VWAP window_start must not follow window_end")
+    if any(not code or code != code.strip() for code in excluded_sale_condition_codes):
+        raise ValueError("excluded sale condition codes must be normalized")
+    if tape is None:
+        return UnknownReason("option_trade_tape_unavailable")
+    eligible = tuple(
+        trade
+        for trade in tape.trades
+        if window_start <= trade.event_time <= window_end
+        and not excluded_sale_condition_codes.intersection(trade.sale_condition_codes)
+    )
+    if not eligible:
+        return UnknownReason("no_eligible_option_trades_in_window")
+    total_size = sum((trade.size for trade in eligible), Decimal(0))
+    return sum((trade.price * trade.size for trade in eligible), Decimal(0)) / total_size
 
 
 def delta_neutral_hedge_quantity(

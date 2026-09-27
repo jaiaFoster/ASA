@@ -42,6 +42,7 @@ SPREAD_QUALITY = "spread_quality"
 OPEN_INTEREST_QUALITY = "open_interest_quality"
 SMA_10M_COMPLETED_MONTHS = "sma_10m_completed_months"
 TRAILING_12M_TOTAL_RETURN = "trailing_12m_total_return"
+WINDOWED_OPTION_TRADE_VWAP = "windowed_option_trade_vwap"
 
 
 class AdjustedCloseBarLike(Protocol):
@@ -386,6 +387,12 @@ DERIVED_FACT_DEFINITIONS = (
         SMA_10M_COMPLETED_MONTHS,
         "Arithmetic mean of the previous ten completed month-end adjusted closes.",
         MarketCapability.HISTORICAL_BARS_V1,
+    ),
+    _definition(
+        WINDOWED_OPTION_TRADE_VWAP,
+        "Size-weighted option trade price over an explicit event-time window "
+        "and sale-condition policy.",
+        MarketCapability.OPTION_TRADE_TAPE_V1,
     ),
     _definition(
         REALIZED_VOLATILITY,

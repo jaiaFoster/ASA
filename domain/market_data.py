@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import dataclass, fields
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal, InvalidOperation
 from enum import Enum
 from typing import Any, TypeAlias, cast
@@ -62,7 +62,7 @@ def _canonical_decimal(value: Decimal) -> str:
 
 def _utc(value: datetime) -> datetime:
     require_tz_aware(value, "MarketData", "datetime")
-    return value.astimezone(timezone.utc)
+    return value.astimezone(UTC)
 
 
 class MarketCapability(str, Enum):
@@ -78,6 +78,9 @@ class MarketCapability(str, Enum):
     # X04 (SP-01B): provider-neutral published rate observations (Treasury
     # bill rates, risk-free and dividend-yield series).
     RATE_OBSERVATION_V1 = "rate_observation_v1"
+    # X05 (SP-01C): provider-neutral option trade prints. Quotes, marks and
+    # midpoint observations are deliberately separate capabilities.
+    OPTION_TRADE_TAPE_V1 = "option_trade_tape_v1"
 
 
 class MarketDataSubjectType(str, Enum):
@@ -231,6 +234,7 @@ class MarketDataSubject:
             MarketCapability.EARNINGS_CALENDAR_V1: MarketDataSubjectType.EARNINGS_SECURITY,
             MarketCapability.INDEX_SETTLEMENT_VALUE_V1: MarketDataSubjectType.INSTRUMENT,
             MarketCapability.RATE_OBSERVATION_V1: MarketDataSubjectType.INSTRUMENT,
+            MarketCapability.OPTION_TRADE_TAPE_V1: MarketDataSubjectType.OPTION_UNDERLYING,
         }.get(self.requested_capability)
         if expected_type is not None and self.subject_type is not expected_type:
             raise DomainInvariantError("MarketDataSubject subject type does not match capability")
@@ -324,6 +328,64 @@ class RateObservation:
             raise DomainInvariantError("RateObservation.value must be a decimal fraction")
         if not isinstance(self.effective_date, date) or isinstance(self.effective_date, datetime):
             raise DomainInvariantError("RateObservation.effective_date must be a date")
+
+
+@dataclass(frozen=True, slots=True)
+class OptionTrade:
+    """X05: one immutable provider-neutral option trade print."""
+
+    source_trade_id: str
+    contract_identity: str
+    price: Decimal
+    size: Decimal
+    event_time: datetime
+    observed_time: datetime
+    sale_condition_codes: tuple[str, ...]
+
+    def __post_init__(self) -> None:
+        _text(self.source_trade_id, "OptionTrade", "source_trade_id")
+        _text(self.contract_identity, "OptionTrade", "contract_identity")
+        _decimal(self.price, "OptionTrade", "price", positive=True)
+        _decimal(self.size, "OptionTrade", "size", positive=True)
+        require_tz_aware(self.event_time, "OptionTrade", "event_time")
+        require_tz_aware(self.observed_time, "OptionTrade", "observed_time")
+        if self.observed_time < self.event_time:
+            raise DomainInvariantError("OptionTrade observed_time cannot precede event_time")
+        codes = tuple(sorted(set(self.sale_condition_codes)))
+        if any(not code or code != code.strip() for code in codes):
+            raise DomainInvariantError("OptionTrade sale condition codes must be normalized")
+        object.__setattr__(self, "sale_condition_codes", codes)
+
+    @property
+    def identity(self) -> str:
+        return _content_identity("asa.option_trade", self)
+
+
+@dataclass(frozen=True, slots=True)
+class OptionTradeTape:
+    """X05: exact prints for one option contract, ordered by event time."""
+
+    contract_identity: str
+    as_of: datetime
+    trades: tuple[OptionTrade, ...]
+
+    def __post_init__(self) -> None:
+        _text(self.contract_identity, "OptionTradeTape", "contract_identity")
+        require_tz_aware(self.as_of, "OptionTradeTape", "as_of")
+        ordered = tuple(
+            sorted(
+                self.trades,
+                key=lambda trade: (trade.event_time, trade.observed_time, trade.identity),
+            )
+        )
+        if any(trade.contract_identity != self.contract_identity for trade in ordered):
+            raise DomainInvariantError("OptionTradeTape trades must share contract identity")
+        if any(trade.observed_time > self.as_of for trade in ordered):
+            raise DomainInvariantError("OptionTradeTape as_of precedes an observed trade")
+        identities = tuple(trade.identity for trade in ordered)
+        if len(identities) != len(set(identities)):
+            raise DomainInvariantError("OptionTradeTape contains duplicate trades")
+        object.__setattr__(self, "trades", ordered)
 
 
 @dataclass(frozen=True, slots=True)
@@ -548,6 +610,7 @@ MarketObservationValue: TypeAlias = (
     | CorporateActionPlaceholder
     | IndexSettlementValue
     | RateObservation
+    | OptionTradeTape
 )
 
 
@@ -586,6 +649,7 @@ class MarketObservation:
             CorporateActionPlaceholder: MarketCapability.CORPORATE_ACTIONS_V1,
             IndexSettlementValue: MarketCapability.INDEX_SETTLEMENT_VALUE_V1,
             RateObservation: MarketCapability.RATE_OBSERVATION_V1,
+            OptionTradeTape: MarketCapability.OPTION_TRADE_TAPE_V1,
         }.get(type(self.value))
         if expected_capability is not self.capability:
             raise DomainInvariantError("MarketObservation value does not match capability")
@@ -604,6 +668,8 @@ class MarketObservation:
 MarketDataContract: TypeAlias = (
     Quote
     | RateObservation
+    | OptionTrade
+    | OptionTradeTape
     | OHLCVBar
     | OHLCVSeries
     | TradingCalendarEvent
@@ -623,6 +689,8 @@ _MARKET_TYPES = {
     for value in (
         Quote,
         RateObservation,
+        OptionTrade,
+        OptionTradeTape,
         OHLCVBar,
         OHLCVSeries,
         TradingCalendarEvent,

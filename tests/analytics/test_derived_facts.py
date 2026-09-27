@@ -67,9 +67,9 @@ def test_sma10m_uses_previous_ten_completed_month_ends() -> None:
                 AdjustedCloseBasis.SPLIT_AND_DIVIDEND_ADJUSTED,
             )
         )
-    assert compute_sma_10m_completed_months(
-        bars, datetime(2025, 11, 15, tzinfo=UTC)
-    ) == Decimal("5.5")
+    assert compute_sma_10m_completed_months(bars, datetime(2025, 11, 15, tzinfo=UTC)) == Decimal(
+        "5.5"
+    )
 
 
 def test_sma10m_rejects_insufficient_history() -> None:
@@ -106,8 +106,17 @@ def _monthly_adjusted_bars(
         value = Decimal(100 + index)
         bars.append(
             OHLCVBar(
-                instrument, 86400, start, start + timedelta(days=1),
-                value, value, value, value, Decimal(100), value, basis,
+                instrument,
+                86400,
+                start,
+                start + timedelta(days=1),
+                value,
+                value,
+                value,
+                value,
+                Decimal(100),
+                value,
+                basis,
             )
         )
     return tuple(bars)
@@ -152,7 +161,11 @@ def test_normalized_skew_and_iv_realized_spread() -> None:
 
 def test_atm_iv_vs_realized_volatility_owns_its_own_realized_vol_computation() -> None:
     closes = (
-        Decimal("100"), Decimal("102"), Decimal("99"), Decimal("103"), Decimal("101"),
+        Decimal("100"),
+        Decimal("102"),
+        Decimal("99"),
+        Decimal("103"),
+        Decimal("101"),
     )
     front_iv = Decimal("0.40")
     expected = compute_iv_realized_spread(front_iv, compute_realized_volatility(closes))
@@ -183,7 +196,7 @@ def test_named_momentum_dimensions_are_replay_stable() -> None:
 
 
 def test_initial_registry_is_closed_versioned_and_complete() -> None:
-    assert len(DERIVED_FACT_REGISTRY.registered_ids()) == 24
+    assert len(DERIVED_FACT_REGISTRY.registered_ids()) == 25
     assert DERIVED_FACT_REGISTRY.get("forward_factor").feature_version == "1.0.0"
     assert DERIVED_FACT_REGISTRY.get("iv_term_structure_spread").feature_version == "1.0.0"
     assert DERIVED_FACT_REGISTRY.get("sma_10m_completed_months").feature_version == "1.0.0"
