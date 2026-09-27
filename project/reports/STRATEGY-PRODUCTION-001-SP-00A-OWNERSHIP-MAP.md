@@ -42,9 +42,10 @@ All deltas are additive. None redefines an existing identity for data that lacks
 | S&P 500 dividend points | `market_data/`: `INDEX_DIVIDEND_POINTS_V1` (not `CORPORATE_ACTIONS_V1`) | new | BXM | SP-01D |
 | security_type, shares_outstanding | `market_data/`: `SECURITY_MASTER_V1` (point-in-time `SecurityMasterRecord`) | new | Zhan, Heston | SP-01D |
 | DF-OPT-MID | `analytics/option_facts.py` | **duplicate debt exists** (see §5) | all 7 | SP-01E |
-| DF-OPT-RELATIVE-SPREAD, DF-OPT-WEIGHTED-SPREAD, DF-OPT-EFFECTIVE-PRICE | `analytics/option_facts.py` (A12, measurement only) | `compute_bid_ask_spread_ratio` exists at a different normalization; the new ids are distinct formulas and are named separately | all 7 / Heston gate | SP-01E |
+| DF-OPT-RELATIVE-SPREAD | the existing `compute_bid_ask_spread_ratio` (`analytics/derived_facts.py`) is the single owner; `option_facts.option_relative_spread` only delegates and types failures as UNKNOWN (corrected in SP-01E per SP-01E-IR-001) | exists | Heston gate, A12 diagnostic | SP-01E |
+| DF-OPT-WEIGHTED-SPREAD, DF-OPT-EFFECTIVE-PRICE | `analytics/option_facts.py` (A12, measurement only) | new | all 7 / Heston gate | SP-01E |
 | DF-OPT-MONEYNESS-KS/SK | `analytics/option_facts.py` | new | Zhan, SCS | SP-01E |
-| DF-OPT-DTE-CALENDAR | `analytics/option_facts.py` (the existing `(expiration - as_of).days` idiom, named once) | idiom only | all 7 | SP-01E |
+| DF-OPT-DTE-CALENDAR | the registered `days_to_expiration` 1.0.0 (`analytics/forward_factor.py`) is the single owner; `option_facts.calendar_days_to_expiration` delegates (corrected per SP-01E-IR-001) | exists | all 7 | SP-01E |
 | Calendar facts: third-Friday roll, first/last trading day, monthly expiration day, session offset | `analytics/calendar_facts.py`, reusing `market_data/session_calendar.py` holidays | holidays exist; facts new | all 7 | SP-01E |
 | DF-STRADDLE-ZERO-DELTA-WEIGHT, DF-STRADDLE-RETURN | `analytics/option_returns.py` | new | GXZ, SCS, Heston | SP-01E |
 | DF-ZERO-COST-OPTION-RETURN, DF-DN-CALL-WRITE-RETURN | `analytics/option_returns.py` | new | SCS, Zhan | SP-01E / SP-05C |
@@ -83,7 +84,7 @@ Every row has exactly one owner per missing capability. No strategy-specific mod
 
    New work uses `DF-OPT-MID` only. Existing sites are pre-existing debt (ADR-010 consequences). They are not rewritten by this sprint unless a ticket touches them. That avoids widening scope.
 2. **`OptionContract.mark`** holds provider last trade. It is never used as a midpoint or a Cboe VWAP. This is enforced by X05 acceptance and SP-01E tests.
-3. No other planned owner duplicates an existing formula. `compute_bid_ask_spread_ratio` (spread / mid) and `DF-OPT-RELATIVE-SPREAD` differ in definition per the derived-fact registry, so each keeps a distinct id.
+3. **Correction (SP-01E review SP-01E-IR-001).** `DF-OPT-RELATIVE-SPREAD` is the same formula as the existing `compute_bid_ask_spread_ratio`, and `DF-OPT-DTE-CALENDAR` is the registered `days_to_expiration` feature. Neither gets a second owner: the SP-01E wrappers delegate to the existing functions. No other planned owner duplicates an existing formula.
 
 ## 6. Review floor per ticket (RISK-001 §10.1 is unchanged by Amendment 013)
 
