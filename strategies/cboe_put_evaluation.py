@@ -25,6 +25,19 @@ class CboePutDecision:
     selected_put: OptionContract | None = None
 
 
+@dataclass(frozen=True, slots=True)
+class PutwriteStrikePolicy:
+    fraction: Decimal
+    comparator: str
+    unknown_reason: str
+    pass_reason: str
+
+
+PUT_STRIKE_POLICY = PutwriteStrikePolicy(
+    Decimal(1), "lte", "G_PUT_STRIKE_EXISTS_UNKNOWN", "CBOE_PUT_ALL_GATES_PASS"
+)
+
+
 def evaluate_cboe_put(
     *,
     decision_date: date,
@@ -32,6 +45,7 @@ def evaluate_cboe_put(
     reference_state: str,
     quote_value: Decimal | None,
     chain: OptionChain | None,
+    strike_policy: PutwriteStrikePolicy = PUT_STRIKE_POLICY,
 ) -> CboePutDecision:
     if reference_state not in (PASS, UNKNOWN):
         raise ValueError("reference_state must be PASS or UNKNOWN")
@@ -57,7 +71,11 @@ def evaluate_cboe_put(
             and item.root == "SPX"
             and item.settlement_style is SettlementStyle.AM
             and (item.expiration.year, item.expiration.month) == (next_year, next_month)
-            and item.strike <= quote_value
+            and (
+                item.strike < quote_value * strike_policy.fraction
+                if strike_policy.comparator == "lt"
+                else item.strike <= quote_value * strike_policy.fraction
+            )
         )
     )
     selected = max(candidates, key=lambda item: item.strike) if candidates else None
@@ -76,5 +94,5 @@ def evaluate_cboe_put(
     if reference_state == UNKNOWN:
         return CboePutDecision(verdict, "G_CBOE_SPX_REF_BEFORE_1100_UNKNOWN")
     if strike_state == UNKNOWN:
-        return CboePutDecision(verdict, "G_PUT_STRIKE_EXISTS_UNKNOWN")
-    return CboePutDecision(verdict, "CBOE_PUT_ALL_GATES_PASS", selected)
+        return CboePutDecision(verdict, strike_policy.unknown_reason)
+    return CboePutDecision(verdict, strike_policy.pass_reason, selected)

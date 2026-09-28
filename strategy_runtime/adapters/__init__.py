@@ -27,6 +27,7 @@ from strategies.cboe_put_manifest import CBOE_PUT_MANIFEST
 from strategies.cboe_put_planning import (
     resolved_field_requirements as cboe_put_resolved_field_requirements,
 )
+from strategies.cboe_puty_manifest import CBOE_PUTY_MANIFEST
 from strategies.earnings_calendar_planning import earnings_calendar_resolved_field_requirements
 from strategies.forward_factor_planning import (
     resolved_field_requirements as forward_factor_resolved_field_requirements,
@@ -49,6 +50,10 @@ from strategies.stock_benchmark_planning import (
 from strategy_runtime.adapters.cboe_put import CBOE_PUT_CONTRACT
 from strategy_runtime.adapters.cboe_put_subject_first import (
     build_cboe_put_subject_preparation_binding,
+)
+from strategy_runtime.adapters.cboe_puty import CBOE_PUTY_CONTRACT
+from strategy_runtime.adapters.cboe_puty_subject_first import (
+    build_cboe_puty_subject_preparation_binding,
 )
 from strategy_runtime.adapters.earnings_calendar import (
     EARNINGS_CALENDAR_CONTRACT,
@@ -114,6 +119,7 @@ def build_migrated_strategy_registry() -> StrategyRegistry[UniversalScreeningRes
         (SPY_PUT_CREDIT_SPREAD_MANIFEST, SPY_PUT_CREDIT_SPREAD_CONTRACT),
         (GXZ_MANIFEST, GXZ_CONTRACT),
         (CBOE_PUT_MANIFEST, CBOE_PUT_CONTRACT),
+        (CBOE_PUTY_MANIFEST, CBOE_PUTY_CONTRACT),
     )
     for manifest, contract in pairs:
         validate_manifest_contract(manifest, contract)
@@ -130,6 +136,7 @@ def build_migrated_strategy_registry() -> StrategyRegistry[UniversalScreeningRes
             (SPY_PUT_CREDIT_SPREAD_CONTRACT, _subject_first_only),
             (GXZ_CONTRACT, _subject_first_only),
             (CBOE_PUT_CONTRACT, _subject_first_only),
+            (CBOE_PUTY_CONTRACT, _subject_first_only),
         )
     )
 
@@ -172,6 +179,7 @@ def build_migrated_shadow_registry(
             ),
             (GXZ_CONTRACT.strategy_id, build_gxz_subject_preparation_binding(now)),
             (CBOE_PUT_CONTRACT.strategy_id, build_cboe_put_subject_preparation_binding(now)),
+            (CBOE_PUTY_CONTRACT.strategy_id, build_cboe_puty_subject_preparation_binding(now)),
         )
     )
 
@@ -214,6 +222,7 @@ def migrated_shadow_resolution_policy(
             SPY_PUT_CREDIT_SPREAD_CONTRACT.strategy_id,
             GXZ_CONTRACT.strategy_id,
             CBOE_PUT_CONTRACT.strategy_id,
+            CBOE_PUTY_CONTRACT.strategy_id,
         )
     )
     requirements: dict[MarketCapability, tuple[tuple[str, ...], int]] = {}
@@ -232,6 +241,8 @@ def migrated_shadow_resolution_policy(
     if GXZ_CONTRACT.strategy_id in selected:
         requirements.update(gxz_resolved_field_requirements())
     if CBOE_PUT_CONTRACT.strategy_id in selected:
+        requirements.update(cboe_put_resolved_field_requirements())
+    if CBOE_PUTY_CONTRACT.strategy_id in selected:
         requirements.update(cboe_put_resolved_field_requirements())
     return resolution_policy_for_capabilities(capability_registry, requirements)
 
@@ -261,6 +272,9 @@ def build_migrated_signal_catalog() -> tuple[SignalCatalogEntry, ...]:
         SignalCatalogEntry.from_contract(
             CBOE_PUT_CONTRACT, manifest_id=CBOE_PUT_MANIFEST.manifest_id
         ),
+        SignalCatalogEntry.from_contract(
+            CBOE_PUTY_CONTRACT, manifest_id=CBOE_PUTY_MANIFEST.manifest_id
+        ),
     )
     return tuple(sorted(entries, key=lambda item: item.signal_id))
 
@@ -286,5 +300,6 @@ def build_migrated_cutover_policy(values: Mapping[str, str]) -> CutoverPolicy:
             SPY_PUT_CREDIT_SPREAD_CONTRACT.strategy_id: True,
             GXZ_CONTRACT.strategy_id: True,
             CBOE_PUT_CONTRACT.strategy_id: True,
+            CBOE_PUTY_CONTRACT.strategy_id: True,
         }
     )

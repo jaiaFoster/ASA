@@ -136,8 +136,7 @@ PRODUCTION_SCREENING_UNIVERSE: tuple[tuple[str, str], ...] = tuple(
     for symbol in APPROVED_LIVE_UNIVERSE
 ) + tuple(("earnings_calendar", symbol) for symbol in EARNINGS_CALENDAR_UNIVERSE)
 PRODUCTION_SCREENING_UNIVERSE += tuple(
-    ("event_vol_gxz_preea_straddle_to_expiry", symbol)
-    for symbol in EARNINGS_CALENDAR_UNIVERSE
+    ("event_vol_gxz_preea_straddle_to_expiry", symbol) for symbol in EARNINGS_CALENDAR_UNIVERSE
 )
 
 # STOCK-RUNTIME-001 STK-03: B001/B002 are frozen, SPY-only, no-lifecycle
@@ -160,6 +159,7 @@ STOCK_BENCHMARK_UNIVERSE: tuple[tuple[str, str], ...] = (("B001", "SPY"), ("B002
 # isolated invocation so neither path can starve the other.
 FIXED_SUBJECT_OPTION_UNIVERSE: tuple[tuple[str, str], ...] = (("spy_put_credit_spread", "SPY"),)
 FIXED_SUBJECT_OPTION_UNIVERSE += (("index_putwrite_cboe_put", "SPX"),)
+FIXED_SUBJECT_OPTION_UNIVERSE += (("index_putwrite_cboe_puty", "SPX"),)
 
 # Every scheduler-declared pair outside the membership universe; the API's
 # active scope is derived from this one declaration.

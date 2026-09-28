@@ -25,6 +25,10 @@ MANIFEST_VERSION_PINS: Mapping[tuple[str, str], str] = {
         "index_putwrite_cboe_put",
         "1.0.0",
     ): "850caa5deb23a38db04d8650c078a14c9119c8078edef488f91d90d6c2e6516e",
+    (
+        "index_putwrite_cboe_puty",
+        "1.0.0",
+    ): "ee78c71289f1b431655c53b3fa0d5055ede6a392b7108924676f37960905d2aa",
 }
 
 
