@@ -2,8 +2,8 @@
 
 from datetime import datetime, timedelta
 from typing import Mapping  # noqa: UP035
-from zoneinfo import ZoneInfo
 
+from analytics.calendar_facts import new_york_time
 from domain import (
     CapabilityDemand,
     DemandExpansion,
@@ -18,11 +18,9 @@ from strategies.cboe_put_planning import (
     quote_demand,
 )
 
-_NEW_YORK = ZoneInfo("America/New_York")
-
 
 def trade_tape_demand(now: datetime) -> CapabilityDemand:
-    local = now.astimezone(_NEW_YORK)
+    local = new_york_time(now)
     window_start = local.replace(hour=11, minute=30, second=0, microsecond=0)
     window_end = local.replace(hour=13, minute=30, second=0, microsecond=0)
     return CapabilityDemand(
