@@ -30,6 +30,7 @@ class BxmPayload:
     spot: Decimal
     quote_effective_time: datetime
     entry_vwap: Decimal | UnknownReason
+    tape_contract_identity: str | None
     dividend_points: IndexDividendPoints | UnknownReason
     settlement_value: IndexSettlementValue | UnknownReason
 
@@ -148,6 +149,7 @@ def build_bxm_knowledge_mapping(
             spot,
             quote_effective_time,
             entry_vwap,
+            tape_observation[1].contract_identity if tape_observation is not None else None,
             dividend_observation[1]
             if dividend_observation is not None
             else UnknownReason("INDEX_DIVIDEND_POINTS_UNAVAILABLE"),

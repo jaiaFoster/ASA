@@ -2,6 +2,7 @@
 
 from datetime import datetime, timedelta
 from typing import Mapping  # noqa: UP035
+from zoneinfo import ZoneInfo
 
 from domain import (
     CapabilityDemand,
@@ -17,13 +18,18 @@ from strategies.cboe_put_planning import (
     quote_demand,
 )
 
+_NEW_YORK = ZoneInfo("America/New_York")
+
 
 def trade_tape_demand(now: datetime) -> CapabilityDemand:
+    local = now.astimezone(_NEW_YORK)
+    window_start = local.replace(hour=11, minute=30, second=0, microsecond=0)
+    window_end = local.replace(hour=13, minute=30, second=0, microsecond=0)
     return CapabilityDemand(
         MarketCapability.OPTION_TRADE_TAPE_V1,
         ("contract_identity", "event_time", "price", "sale_condition_codes", "size"),
-        now.replace(hour=11, minute=30, second=0, microsecond=0),
-        now.replace(hour=13, minute=30, second=0, microsecond=0),
+        window_start,
+        window_end,
         required=False,
     )
 

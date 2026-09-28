@@ -24,7 +24,10 @@ SPY or futures and creates no order. X05 entry VWAP, X07 dividend points, and
 SOQ outcome accounting are projected from the sealed snapshot when authoritative
 evidence exists. Otherwise each remains evidence-derived typed UNKNOWN. X05
 uses the registered `windowed_option_trade_vwap@1.0.0` formula and never a quote
-midpoint or last-trade substitute.
+midpoint or last-trade substitute. Its 11:30–13:30 window is explicitly New
+York time, and a tape resolves entry price only when its exact contract identity
+matches the selected short call. Dividend and SOQ facts resolve only for the
+same SPX instrument and the selected holding/settlement period.
 
 ## Verification
 

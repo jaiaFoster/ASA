@@ -55,6 +55,7 @@ def test_bxm_selects_closest_standard_next_month_call_at_or_above_reference() ->
         Decimal("5002"),
         ROLL,
         UnknownReason("OPTION_TRADE_TAPE_UNAVAILABLE"),
+        None,
         UnknownReason("INDEX_DIVIDEND_POINTS_UNAVAILABLE"),
         UnknownReason("INDEX_SETTLEMENT_VALUE_UNAVAILABLE"),
     )
@@ -107,3 +108,8 @@ def test_bxm_plans_every_declared_lifecycle_capability_as_optional_where_appropr
     ):
         assert by_capability[capability].required is False
         assert capability in resolved_field_requirements()
+    tape = by_capability[MarketCapability.OPTION_TRADE_TAPE_V1]
+    start_utc = tape.effective_start.astimezone(UTC)
+    end_utc = tape.effective_end.astimezone(UTC)
+    assert (start_utc.hour, start_utc.minute) == (15, 30)
+    assert (end_utc.hour, end_utc.minute) == (17, 30)

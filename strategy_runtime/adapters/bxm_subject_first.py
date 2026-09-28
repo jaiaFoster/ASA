@@ -158,31 +158,58 @@ def build_bxm_subject_first_adapter(
             if decision.verdict == NO_ACTION
             else EvaluationState.MISSING_DATA
         )
+        exact_tape = (
+            decision.selected_call is not None
+            and payload.tape_contract_identity == decision.selected_call.identity
+        )
+        dividend_in_period = (
+            decision.selected_call is not None
+            and isinstance(payload.dividend_points, IndexDividendPoints)
+            and payload.dividend_points.instrument == decision.selected_call.underlying.instrument
+            and context.clock.now().date()
+            <= payload.dividend_points.effective_date
+            <= decision.selected_call.expiration
+        )
+        settlement_matches = (
+            decision.selected_call is not None
+            and isinstance(payload.settlement_value, IndexSettlementValue)
+            and payload.settlement_value.index.instrument
+            == decision.selected_call.underlying.instrument
+            and payload.settlement_value.settlement_date == decision.selected_call.expiration
+            and payload.settlement_value.settlement_style
+            is decision.selected_call.settlement_style
+        )
         metrics = {
             "decision.reason": TypedValue.of_string(decision.reason),
             "entry.price_state": TypedValue.of_string(
                 payload.entry_vwap.code
                 if isinstance(payload.entry_vwap, UnknownReason)
+                else "OPTION_TRADE_TAPE_CONTRACT_MISMATCH"
+                if not exact_tape
                 else "RESOLVED_WINDOWED_OPTION_TRADE_VWAP"
             ),
             "outcome.dividend_state": TypedValue.of_string(
                 payload.dividend_points.code
                 if isinstance(payload.dividend_points, UnknownReason)
+                else "INDEX_DIVIDEND_POINTS_OUTSIDE_HOLDING_PERIOD"
+                if not dividend_in_period
                 else "RESOLVED_INDEX_DIVIDEND_POINTS"
             ),
             "lifecycle.soq_state": TypedValue.of_string(
                 payload.settlement_value.code
                 if isinstance(payload.settlement_value, UnknownReason)
+                else "INDEX_SETTLEMENT_VALUE_CONTRACT_MISMATCH"
+                if not settlement_matches
                 else "RESOLVED_INDEX_SETTLEMENT_VALUE"
             ),
         }
-        if isinstance(payload.entry_vwap, Decimal):
+        if isinstance(payload.entry_vwap, Decimal) and exact_tape:
             metrics["entry.windowed_vwap"] = TypedValue.of_decimal(payload.entry_vwap)
-        if isinstance(payload.dividend_points, IndexDividendPoints):
+        if isinstance(payload.dividend_points, IndexDividendPoints) and dividend_in_period:
             metrics["outcome.index_dividend_points"] = TypedValue.of_decimal(
                 payload.dividend_points.points
             )
-        if isinstance(payload.settlement_value, IndexSettlementValue):
+        if isinstance(payload.settlement_value, IndexSettlementValue) and settlement_matches:
             metrics["lifecycle.soq_value"] = TypedValue.of_decimal(
                 payload.settlement_value.value
             )
