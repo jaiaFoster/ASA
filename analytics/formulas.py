@@ -78,6 +78,9 @@ DF_OPTION_TRADE_WINDOW_VWAP = "DF-OPTION-TRADE-WINDOW-VWAP"
 DF_GXZ_PAIR_VOLUME = "DF-GXZ-PAIR-VOLUME"
 DF_CASH_SECURED_PUT_COLLATERAL = "DF-CASH-SECURED-PUT-COLLATERAL"
 DF_CBOE_PUT_CONTRACT_COUNT = "DF-CBOE-PUT-CONTRACT-COUNT"
+DF_CBOE_NAKED_MARGIN = "DF-CBOE-NAKED-MARGIN"
+DF_CBOE_STRADDLE_MARGIN = "DF-CBOE-STRADDLE-MARGIN"
+DF_OPTION_PROCEEDS_ACCRUAL = "DF-OPTION-PROCEEDS-ACCRUAL"
 DF_STRADDLE_MOMENTUM_FORMATION = "DF-STRADDLE-MOMENTUM-FORMATION"
 
 _SNAPSHOT = "one quote snapshot t"
@@ -253,6 +256,27 @@ OPTION_STRATEGY_FORMULAS = FormulaRegistry(
             "fractional SPX put contracts",
             "monthly PUT roll",
             "UNKNOWN if any sourced capital, settlement, rate, strike or entry input is missing",
+        ),
+        FormulaDefinition(
+            DF_CBOE_NAKED_MARGIN,
+            "1.1.0",
+            "USD per option unit",
+            "formation snapshot; explicit equity or broad-index alpha/beta parameters",
+            "UNKNOWN if option value, spot, strike, or parameters are unavailable or invalid",
+        ),
+        FormulaDefinition(
+            DF_CBOE_STRADDLE_MARGIN,
+            "1.0.0",
+            "USD per option combination unit",
+            "formation snapshot; greater naked-leg requirement plus the other option value",
+            "UNKNOWN if either naked-leg margin or option value is unavailable or invalid",
+        ),
+        FormulaDefinition(
+            DF_OPTION_PROCEEDS_ACCRUAL,
+            "1.0.0",
+            "USD",
+            "explicit financing period matching the supplied return",
+            "UNKNOWN if proceeds or financing return is unavailable or invalid",
         ),
     )
 )
