@@ -1,11 +1,12 @@
 from dataclasses import replace
-from datetime import date
+from datetime import UTC, date, datetime
 from decimal import Decimal
 
-from domain import OptionType, SettlementStyle, UnknownReason
+from domain import MarketCapability, OptionType, SettlementStyle, UnknownReason
 from strategies.bxm_evaluation import NO_ACTION, PASS, UNKNOWN, evaluate_bxm
+from strategies.bxm_knowledge import BxmPayload
 from strategies.bxm_manifest import BXM_MANIFEST, STRATEGY_ID
-from strategies.cboe_put_knowledge import CboePutPayload
+from strategies.bxm_planning import bootstrap_demands, resolved_field_requirements
 from strategy_runtime.adapters.bxm import BXM_CONTRACT
 from strategy_runtime.adapters.bxm_subject_first import build_bxm_overlay
 from strategy_runtime.contract import StructureKind
@@ -49,7 +50,15 @@ def test_bxm_selects_closest_standard_next_month_call_at_or_above_reference() ->
     assert decision.verdict == PASS
     assert decision.selected_call is not None
     assert decision.selected_call.strike == Decimal("5005")
-    overlay = build_bxm_overlay(CboePutPayload(chain, Decimal("5002"), ROLL), decision)
+    payload = BxmPayload(
+        chain,
+        Decimal("5002"),
+        ROLL,
+        UnknownReason("OPTION_TRADE_TAPE_UNAVAILABLE"),
+        UnknownReason("INDEX_DIVIDEND_POINTS_UNAVAILABLE"),
+        UnknownReason("INDEX_SETTLEMENT_VALUE_UNAVAILABLE"),
+    )
+    overlay = build_bxm_overlay(payload, decision)
     assert overlay.broker_executable is False
     assert overlay.underlying.instrument.display_symbol == "SPX"
     assert overlay.option_legs[0].contract.identity == decision.selected_call.identity
@@ -85,3 +94,16 @@ def test_bxm_truth_table_and_wrong_contract_identity_fail_closed() -> None:
     )
     assert result.verdict == UNKNOWN
     assert result.reason == "G_BXM_STRIKE_EXISTS_UNKNOWN"
+
+
+def test_bxm_plans_every_declared_lifecycle_capability_as_optional_where_appropriate() -> None:
+    now = datetime(2026, 10, 16, 15, 0, tzinfo=UTC)
+    demands = bootstrap_demands(now)
+    by_capability = {item.capability: item for item in demands}
+    for capability in (
+        MarketCapability.OPTION_TRADE_TAPE_V1,
+        MarketCapability.INDEX_DIVIDEND_POINTS_V1,
+        MarketCapability.INDEX_SETTLEMENT_VALUE_V1,
+    ):
+        assert by_capability[capability].required is False
+        assert capability in resolved_field_requirements()

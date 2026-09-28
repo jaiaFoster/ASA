@@ -204,6 +204,7 @@ def build_capability_subject(
         )
     subject_type = {
         MarketCapability.OPTION_CHAIN_V1: MarketDataSubjectType.OPTION_UNDERLYING,
+        MarketCapability.OPTION_TRADE_TAPE_V1: MarketDataSubjectType.OPTION_UNDERLYING,
         MarketCapability.EARNINGS_CALENDAR_V1: MarketDataSubjectType.EARNINGS_SECURITY,
     }.get(capability, MarketDataSubjectType.INSTRUMENT)
     evidence = (EvidenceReference(EvidenceKind.OBSERVATION, f"screening:live:{symbol}"),)

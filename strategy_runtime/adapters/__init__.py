@@ -28,6 +28,7 @@ from strategies.cboe_put_manifest import CBOE_PUT_MANIFEST
 from strategies.cboe_put_planning import (
     resolved_field_requirements as cboe_put_resolved_field_requirements,
 )
+from strategies.bxm_planning import resolved_field_requirements as bxm_resolved_field_requirements
 from strategies.cboe_puty_manifest import CBOE_PUTY_MANIFEST
 from strategies.earnings_calendar_planning import earnings_calendar_resolved_field_requirements
 from strategies.forward_factor_planning import (
@@ -252,7 +253,7 @@ def migrated_shadow_resolution_policy(
     if CBOE_PUTY_CONTRACT.strategy_id in selected:
         requirements.update(cboe_put_resolved_field_requirements())
     if BXM_CONTRACT.strategy_id in selected:
-        requirements.update(cboe_put_resolved_field_requirements())
+        requirements.update(bxm_resolved_field_requirements())
     return resolution_policy_for_capabilities(capability_registry, requirements)
 
 
