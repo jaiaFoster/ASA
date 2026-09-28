@@ -159,6 +159,7 @@ STOCK_BENCHMARK_UNIVERSE: tuple[tuple[str, str], ...] = (("B001", "SPY"), ("B002
 # SPY-only). Same always-evaluate semantics as the benchmarks, on its own
 # isolated invocation so neither path can starve the other.
 FIXED_SUBJECT_OPTION_UNIVERSE: tuple[tuple[str, str], ...] = (("spy_put_credit_spread", "SPY"),)
+FIXED_SUBJECT_OPTION_UNIVERSE += (("index_putwrite_cboe_put", "SPX"),)
 
 # Every scheduler-declared pair outside the membership universe; the API's
 # active scope is derived from this one declaration.

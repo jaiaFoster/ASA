@@ -107,6 +107,7 @@ def test_strategy_health_exposes_all_registered_production_funnels() -> None:
         "earnings_calendar",
         "event_vol_gxz_preea_straddle_to_expiry",
         "forward_factor",
+        "index_putwrite_cboe_put",
         "skew_momentum",
         "spy_put_credit_spread",
     }
@@ -234,6 +235,7 @@ class TestCapabilities:
             "earnings_calendar",
             "event_vol_gxz_preea_straddle_to_expiry",
             "forward_factor",
+            "index_putwrite_cboe_put",
             "skew_momentum",
             "spy_put_credit_spread",
         }

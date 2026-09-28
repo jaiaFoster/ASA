@@ -21,6 +21,10 @@ MANIFEST_VERSION_PINS: Mapping[tuple[str, str], str] = {
         "event_vol_gxz_preea_straddle_to_expiry",
         "1.0.0-research",
     ): "8d0293718bb2e4228bc2a30aa3b6381f58a1ef9fd247e899b6b1d491b78778ef",
+    (
+        "index_putwrite_cboe_put",
+        "1.0.0",
+    ): "850caa5deb23a38db04d8650c078a14c9119c8078edef488f91d90d6c2e6516e",
 }
 
 

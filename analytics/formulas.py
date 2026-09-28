@@ -77,6 +77,7 @@ DF_MONTHLY_EXPIRATION_DAY = "DF-MONTHLY-EXPIRATION-DAY"
 DF_OPTION_TRADE_WINDOW_VWAP = "DF-OPTION-TRADE-WINDOW-VWAP"
 DF_GXZ_PAIR_VOLUME = "DF-GXZ-PAIR-VOLUME"
 DF_CASH_SECURED_PUT_COLLATERAL = "DF-CASH-SECURED-PUT-COLLATERAL"
+DF_CBOE_PUT_CONTRACT_COUNT = "DF-CBOE-PUT-CONTRACT-COUNT"
 
 _SNAPSHOT = "one quote snapshot t"
 _CALENDAR = "exchange trading calendar, US/Eastern dates"
@@ -237,6 +238,13 @@ OPTION_STRATEGY_FORMULAS = FormulaRegistry(
             "USD collateral present value",
             "formation snapshot through selected put expiration",
             "UNKNOWN if the Treasury collateral return is unavailable or invalid",
+        ),
+        FormulaDefinition(
+            DF_CBOE_PUT_CONTRACT_COUNT,
+            "1.0.0",
+            "fractional SPX put contracts",
+            "monthly PUT roll",
+            "UNKNOWN if any sourced capital, settlement, rate, strike or entry input is missing",
         ),
     )
 )
