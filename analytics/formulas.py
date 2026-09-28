@@ -78,6 +78,7 @@ DF_OPTION_TRADE_WINDOW_VWAP = "DF-OPTION-TRADE-WINDOW-VWAP"
 DF_GXZ_PAIR_VOLUME = "DF-GXZ-PAIR-VOLUME"
 DF_CASH_SECURED_PUT_COLLATERAL = "DF-CASH-SECURED-PUT-COLLATERAL"
 DF_CBOE_PUT_CONTRACT_COUNT = "DF-CBOE-PUT-CONTRACT-COUNT"
+DF_STRADDLE_MOMENTUM_FORMATION = "DF-STRADDLE-MOMENTUM-FORMATION"
 
 _SNAPSHOT = "one quote snapshot t"
 _CALENDAR = "exchange trading calendar, US/Eastern dates"
@@ -85,6 +86,13 @@ _UNKNOWN_IF_MISSING = "UNKNOWN if any input is missing"
 
 OPTION_STRATEGY_FORMULAS = FormulaRegistry(
     (
+        FormulaDefinition(
+            DF_STRADDLE_MOMENTUM_FORMATION,
+            "1.0.0",
+            "simple monthly return",
+            "monthly formation using complete lags 2 through 12; lag 1 skipped",
+            "UNKNOWN if any required monthly straddle return is missing",
+        ),
         FormulaDefinition(
             DF_OPT_MID,
             "1.0.0",
