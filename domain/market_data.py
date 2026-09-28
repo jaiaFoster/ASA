@@ -21,6 +21,7 @@ from domain.financial import (
     deserialize_financial_contract,
     financial_contract_to_data,
 )
+from domain.historical_options import HistoricalOptionPanel, HistoricalOptionSnapshot
 from domain.operational import (
     CanonicalInstrumentIdentity,
     Instrument,
@@ -86,6 +87,9 @@ class MarketCapability(str, Enum):
     INDEX_DIVIDEND_POINTS_V1 = "index_dividend_points_v1"
     # Point-in-time security classification and shares outstanding.
     SECURITY_MASTER_V1 = "security_master_v1"
+    # A08 (SP-05B): sealed point-in-time option observations. No provider is
+    # implied; absent authoritative history remains typed UNKNOWN.
+    HISTORICAL_OPTION_PANEL_V1 = "historical_option_panel_v1"
 
 
 class MarketDataSubjectType(str, Enum):
@@ -242,6 +246,7 @@ class MarketDataSubject:
             MarketCapability.OPTION_TRADE_TAPE_V1: MarketDataSubjectType.OPTION_UNDERLYING,
             MarketCapability.INDEX_DIVIDEND_POINTS_V1: MarketDataSubjectType.INSTRUMENT,
             MarketCapability.SECURITY_MASTER_V1: MarketDataSubjectType.INSTRUMENT,
+            MarketCapability.HISTORICAL_OPTION_PANEL_V1: MarketDataSubjectType.OPTION_UNDERLYING,
         }.get(self.requested_capability)
         if expected_type is not None and self.subject_type is not expected_type:
             raise DomainInvariantError("MarketDataSubject subject type does not match capability")
@@ -671,6 +676,7 @@ MarketObservationValue: TypeAlias = (
     | OptionTradeTape
     | IndexDividendPoints
     | SecurityMasterRecord
+    | HistoricalOptionPanel
 )
 
 
@@ -712,6 +718,7 @@ class MarketObservation:
             OptionTradeTape: MarketCapability.OPTION_TRADE_TAPE_V1,
             IndexDividendPoints: MarketCapability.INDEX_DIVIDEND_POINTS_V1,
             SecurityMasterRecord: MarketCapability.SECURITY_MASTER_V1,
+            HistoricalOptionPanel: MarketCapability.HISTORICAL_OPTION_PANEL_V1,
         }.get(type(self.value))
         if expected_capability is not self.capability:
             raise DomainInvariantError("MarketObservation value does not match capability")
@@ -721,6 +728,10 @@ class MarketObservation:
             raise DomainInvariantError(
                 "MarketObservation value instrument does not match canonical subject"
             )
+        if isinstance(self.value, HistoricalOptionPanel) and (
+            self.value.subject != self.subject.canonical_instrument
+        ):
+            raise DomainInvariantError("MarketObservation historical option panel subject mismatch")
         expected = market_observation_identity(
             self.provenance.provider_id,
             self.capability,
@@ -752,6 +763,8 @@ MarketDataContract: TypeAlias = (
     | MarketDataRequestContext
     | MarketDataSubject
     | MarketObservation
+    | HistoricalOptionSnapshot
+    | HistoricalOptionPanel
 )
 
 _MARKET_TYPES = {
@@ -775,6 +788,8 @@ _MARKET_TYPES = {
         MarketDataRequestContext,
         MarketDataSubject,
         MarketObservation,
+        HistoricalOptionSnapshot,
+        HistoricalOptionPanel,
     )
 }
 _ENUM_TYPES = {

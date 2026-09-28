@@ -60,6 +60,11 @@ from domain.financial import (
     serialize_financial_contract,
 )
 from domain.guardrail import GuardrailOutcome
+from domain.historical_options import (
+    HistoricalOptionPanel,
+    HistoricalOptionSnapshot,
+    historical_option_panel_or_unknown,
+)
 from domain.indicator import Indicator
 from domain.market_data import (
     MARKET_DATA_CONTRACT_VERSION,
@@ -158,6 +163,9 @@ __all__ = [
     "UnknownReason",
     "HistoricalSkewObservation",
     "HistoricalSkewObservations",
+    "HistoricalOptionPanel",
+    "HistoricalOptionSnapshot",
+    "historical_option_panel_or_unknown",
     "ExpectedOutcomeMetrics",
     "ExecutionPlanningEvent",
     "ExecutionPlanningEventType",
