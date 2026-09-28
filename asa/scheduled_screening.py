@@ -160,6 +160,7 @@ STOCK_BENCHMARK_UNIVERSE: tuple[tuple[str, str], ...] = (("B001", "SPY"), ("B002
 FIXED_SUBJECT_OPTION_UNIVERSE: tuple[tuple[str, str], ...] = (("spy_put_credit_spread", "SPY"),)
 FIXED_SUBJECT_OPTION_UNIVERSE += (("index_putwrite_cboe_put", "SPX"),)
 FIXED_SUBJECT_OPTION_UNIVERSE += (("index_putwrite_cboe_puty", "SPX"),)
+FIXED_SUBJECT_OPTION_UNIVERSE += (("index_buywrite_cboe_bxm", "SPX"),)
 
 # Every scheduler-declared pair outside the membership universe; the API's
 # active scope is derived from this one declaration.

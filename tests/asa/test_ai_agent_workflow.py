@@ -271,6 +271,7 @@ def test_ai_agent_workflow_discovers_reads_refreshes_and_briefs(
         "earnings_calendar",
         "event_vol_gxz_preea_straddle_to_expiry",
         "forward_factor",
+        "index_buywrite_cboe_bxm",
         "index_putwrite_cboe_put",
         "index_putwrite_cboe_puty",
         "skew_momentum",

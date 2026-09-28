@@ -2435,6 +2435,7 @@ def test_fixed_subject_option_pairs_run_isolated_and_are_api_active() -> None:
         ("spy_put_credit_spread", "SPY"),
         ("index_putwrite_cboe_put", "SPX"),
         ("index_putwrite_cboe_puty", "SPX"),
+        ("index_buywrite_cboe_bxm", "SPX"),
     )
     assert set(scheduled_screening_module.SCHEDULED_FIXED_SUBJECT_PAIRS) == {
         ("B001", "SPY"),
@@ -2442,6 +2443,7 @@ def test_fixed_subject_option_pairs_run_isolated_and_are_api_active() -> None:
         ("spy_put_credit_spread", "SPY"),
         ("index_putwrite_cboe_put", "SPX"),
         ("index_putwrite_cboe_puty", "SPX"),
+        ("index_buywrite_cboe_bxm", "SPX"),
     }
 
 
