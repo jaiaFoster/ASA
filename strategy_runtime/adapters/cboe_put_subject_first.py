@@ -1,6 +1,7 @@
 """Cboe PUT sealed-evidence preparation and read-only adapter."""
 
 from collections.abc import Mapping
+from dataclasses import replace
 from datetime import date, datetime, time
 from decimal import Decimal
 from functools import partial
@@ -19,14 +20,19 @@ from market_data.session_calendar import NEW_YORK, UsEquitySessionCalendar
 from market_data.snapshot import MarketSnapshot
 from screening.subject_fact_projection import resolution_for
 from screening.subject_planning import ResolvedEvidenceView, SubjectPlanConsumer
-from strategies.cboe_put_evaluation import NO_ACTION, CboePutDecision, evaluate_cboe_put
+from strategies.cboe_put_evaluation import (
+    NO_ACTION,
+    CboePutDecision,
+    PutwriteStrikePolicy,
+    evaluate_cboe_put,
+)
 from strategies.cboe_put_knowledge import CboePutPayload, build_cboe_put_knowledge_mapping
 from strategies.cboe_put_planning import bootstrap_demands, expand_demands
 from strategies.knowledge_contracts import KnowledgeMapping
 from strategies.tristate_components import PASS, UNKNOWN
 from strategy_runtime.adapters.cboe_put import CBOE_PUT_CONTRACT
 from strategy_runtime.context import RuntimeContext
-from strategy_runtime.contract import StructureKind
+from strategy_runtime.contract import StrategyContract, StructureKind
 from strategy_runtime.executable_structures import ExecutableStructureAssessment
 from strategy_runtime.knowledge import ReadOnlyStrategyInput
 from strategy_runtime.lifecycle import compute_opportunity_id
@@ -84,7 +90,12 @@ def _prepare(
     )
 
 
-def _decision(payload: CboePutPayload, now: datetime) -> CboePutDecision:
+def _decision(
+    payload: CboePutPayload,
+    now: datetime,
+    *,
+    strike_policy: PutwriteStrikePolicy | None = None,
+) -> CboePutDecision:
     local = now.astimezone(NEW_YORK)
     first = local.date().replace(day=1)
     following = date(first.year + (first.month == 12), first.month % 12 + 1, 1)
@@ -107,6 +118,10 @@ def _decision(payload: CboePutPayload, now: datetime) -> CboePutDecision:
         reference_state=reference_state,
         quote_value=payload.spot,
         chain=payload.chain,
+        strike_policy=strike_policy
+        or PutwriteStrikePolicy(
+            Decimal(1), "lte", "G_PUT_STRIKE_EXISTS_UNKNOWN", "CBOE_PUT_ALL_GATES_PASS"
+        ),
     )
 
 
@@ -169,12 +184,54 @@ def build_cboe_put_subject_first_adapter(
     return _adapter
 
 
+def build_cboe_putwrite_subject_first_adapter(
+    knowledge_by_subject: Mapping[str, ReadOnlyStrategyInput[CboePutPayload]],
+    *,
+    contract: StrategyContract,
+    strike_policy: PutwriteStrikePolicy,
+) -> StrategyAdapter[UniversalScreeningResult]:
+    """Reuse the PUT binding while keeping economic difference in manifest policy."""
+    base = build_cboe_put_subject_first_adapter(knowledge_by_subject)
+
+    def _adapter(context: RuntimeContext) -> UniversalScreeningResult:
+        original = base(context)
+        knowledge = knowledge_by_subject[context.subject]
+        decision = _decision(knowledge.payload, context.clock.now(), strike_policy=strike_policy)
+        state = (
+            EvaluationState.PASS
+            if decision.verdict == PASS
+            else EvaluationState.NO_SIGNAL
+            if decision.verdict == NO_ACTION
+            else EvaluationState.MISSING_DATA
+        )
+        return replace(
+            original,
+            strategy_id=contract.strategy_id,
+            strategy_version=contract.version,
+            observation_id=compute_observation_id(
+                context.run_id, contract.strategy_id, context.subject
+            ),
+            opportunity_id=compute_opportunity_id(contract.strategy_id, context.subject)
+            if state is EvaluationState.PASS
+            else None,
+            verdict=None if state is EvaluationState.MISSING_DATA else decision.verdict,
+            evaluation_state=state,
+            lifecycle_stage="identified" if state is EvaluationState.PASS else None,
+            metrics=original.metrics | {"decision.reason": TypedValue.of_string(decision.reason)},
+            blockers=() if decision.verdict != UNKNOWN else (decision.reason,),
+        )
+
+    return _adapter
+
+
 def _assessment(
     knowledge: ReadOnlyStrategyInput[CboePutPayload],
     result: UniversalScreeningResult,
     assessed_at: datetime,
+    *,
+    strike_policy: PutwriteStrikePolicy | None = None,
 ) -> ExecutableStructureAssessment:
-    decision = _decision(knowledge.payload, assessed_at)
+    decision = _decision(knowledge.payload, assessed_at, strike_policy=strike_policy)
     if decision.verdict != PASS or decision.selected_put is None:
         raise ValueError("Cboe PUT assessment requires a passing exact selection")
     return resolve_option_structure(

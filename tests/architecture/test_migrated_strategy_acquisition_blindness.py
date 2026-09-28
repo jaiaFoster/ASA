@@ -46,6 +46,7 @@ def test_all_production_strategies_have_subject_first_bindings() -> None:
         "event_vol_gxz_preea_straddle_to_expiry",
         "forward_factor",
         "index_putwrite_cboe_put",
+        "index_putwrite_cboe_puty",
         "skew_momentum",
         "spy_put_credit_spread",
     )
