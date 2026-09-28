@@ -100,6 +100,7 @@ def test_bootstrap_first_run_from_a_genuinely_empty_deployment(
         "earnings_calendar",
         "event_vol_gxz_preea_straddle_to_expiry",
         "forward_factor",
+        "index_putwrite_cboe_put",
         "skew_momentum",
         "spy_put_credit_spread",
     }

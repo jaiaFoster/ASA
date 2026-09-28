@@ -18,6 +18,7 @@ def test_all_three_migration_targets_are_registered() -> None:
         "earnings_calendar",
         "event_vol_gxz_preea_straddle_to_expiry",
         "forward_factor",
+        "index_putwrite_cboe_put",
         "skew_momentum",
         "spy_put_credit_spread",
     )
