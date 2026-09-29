@@ -165,6 +165,7 @@ FIXED_SUBJECT_OPTION_UNIVERSE: tuple[tuple[str, str], ...] = (("spy_put_credit_s
 FIXED_SUBJECT_OPTION_UNIVERSE += (("index_putwrite_cboe_put", "SPX"),)
 FIXED_SUBJECT_OPTION_UNIVERSE += (("index_putwrite_cboe_puty", "SPX"),)
 FIXED_SUBJECT_OPTION_UNIVERSE += (("index_buywrite_cboe_bxm", "SPX"),)
+FIXED_SUBJECT_OPTION_UNIVERSE += (("index_short_vol_scs_near_atm_straddle", "SPX"),)
 
 # Every scheduler-declared pair outside the membership universe; the API's
 # active scope is derived from this one declaration.

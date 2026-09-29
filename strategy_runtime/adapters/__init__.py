@@ -44,6 +44,8 @@ from strategies.put_credit_spread_manifest import SPY_PUT_CREDIT_SPREAD_MANIFEST
 from strategies.put_credit_spread_planning import (
     resolved_field_requirements as put_credit_spread_resolved_field_requirements,
 )
+from strategies.scs_manifest import SCS_MANIFEST
+from strategies.scs_planning import resolved_field_requirements as scs_resolved_field_requirements
 from strategies.skew_momentum_planning import (
     resolved_field_requirements as skew_momentum_resolved_field_requirements,
 )
@@ -80,6 +82,8 @@ from strategy_runtime.adapters.put_credit_spread import SPY_PUT_CREDIT_SPREAD_CO
 from strategy_runtime.adapters.put_credit_spread_subject_first import (
     build_put_credit_spread_subject_preparation_binding,
 )
+from strategy_runtime.adapters.scs import SCS_CONTRACT
+from strategy_runtime.adapters.scs_subject_first import build_scs_subject_preparation_binding
 from strategy_runtime.adapters.skew_momentum_subject_first import (
     build_skew_momentum_subject_preparation_binding,
 )
@@ -128,6 +132,7 @@ def build_migrated_strategy_registry() -> StrategyRegistry[UniversalScreeningRes
         (CBOE_PUT_MANIFEST, CBOE_PUT_CONTRACT),
         (CBOE_PUTY_MANIFEST, CBOE_PUTY_CONTRACT),
         (BXM_MANIFEST, BXM_CONTRACT),
+        (SCS_MANIFEST, SCS_CONTRACT),
     )
     for manifest, contract in pairs:
         validate_manifest_contract(manifest, contract)
@@ -146,6 +151,7 @@ def build_migrated_strategy_registry() -> StrategyRegistry[UniversalScreeningRes
             (CBOE_PUT_CONTRACT, _subject_first_only),
             (CBOE_PUTY_CONTRACT, _subject_first_only),
             (BXM_CONTRACT, _subject_first_only),
+            (SCS_CONTRACT, _subject_first_only),
         )
     )
 
@@ -220,6 +226,7 @@ def build_migrated_shadow_registry(
                     ),
                 ),
             ),
+            (SCS_CONTRACT.strategy_id, build_scs_subject_preparation_binding(now)),
         )
     )
 
@@ -264,6 +271,7 @@ def migrated_shadow_resolution_policy(
             CBOE_PUT_CONTRACT.strategy_id,
             CBOE_PUTY_CONTRACT.strategy_id,
             BXM_CONTRACT.strategy_id,
+            SCS_CONTRACT.strategy_id,
         )
     )
     requirements: dict[MarketCapability, tuple[tuple[str, ...], int]] = {}
@@ -287,6 +295,8 @@ def migrated_shadow_resolution_policy(
         requirements.update(cboe_put_resolved_field_requirements())
     if BXM_CONTRACT.strategy_id in selected:
         requirements.update(bxm_resolved_field_requirements())
+    if SCS_CONTRACT.strategy_id in selected:
+        requirements.update(scs_resolved_field_requirements())
     return resolution_policy_for_capabilities(capability_registry, requirements)
 
 
@@ -319,6 +329,7 @@ def build_migrated_signal_catalog() -> tuple[SignalCatalogEntry, ...]:
             CBOE_PUTY_CONTRACT, manifest_id=CBOE_PUTY_MANIFEST.manifest_id
         ),
         SignalCatalogEntry.from_contract(BXM_CONTRACT, manifest_id=BXM_MANIFEST.manifest_id),
+        SignalCatalogEntry.from_contract(SCS_CONTRACT, manifest_id=SCS_MANIFEST.manifest_id),
     )
     return tuple(sorted(entries, key=lambda item: item.signal_id))
 
