@@ -10,6 +10,7 @@ from domain import (
     MarketCapability,
     ResolvedCapabilityEvidence,
 )
+from strategies.bxm_manifest import bxm_parameter
 from strategies.cboe_put_planning import (
     expand_demands as expand_monthly_chain_demands,
 )
@@ -21,8 +22,16 @@ from strategies.cboe_put_planning import (
 
 def trade_tape_demand(now: datetime) -> CapabilityDemand:
     local = new_york_time(now)
-    window_start = local.replace(hour=11, minute=30, second=0, microsecond=0)
-    window_end = local.replace(hour=13, minute=30, second=0, microsecond=0)
+    start = datetime.strptime(
+        str(bxm_parameter("timing", "vwap_window_start_et")), "%H:%M:%S"
+    ).time()
+    end = datetime.strptime(
+        str(bxm_parameter("timing", "vwap_window_end_et")), "%H:%M:%S"
+    ).time()
+    window_start = local.replace(
+        hour=start.hour, minute=start.minute, second=start.second, microsecond=0
+    )
+    window_end = local.replace(hour=end.hour, minute=end.minute, second=end.second, microsecond=0)
     return CapabilityDemand(
         MarketCapability.OPTION_TRADE_TAPE_V1,
         ("contract_identity", "event_time", "price", "sale_condition_codes", "size"),

@@ -1,20 +1,31 @@
-"""Frozen Cboe BXM roll and exact-call selection semantics."""
+"""Execute the frozen BXM manifest graph over sealed provider-neutral inputs."""
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
+from typing import cast
 
-from domain import OptionChain, OptionContract, OptionType, SettlementStyle, UnknownReason
+from domain import OptionChain, OptionContract, UnknownReason
 from strategies import CORE_COMPONENTS, compile_strategy_graph, execute_strategy_graph
+from strategies.bxm_components import (
+    BXM_PLUGIN,
+    DATE,
+    DECIMAL,
+    INSTANT,
+    OPTION_CHAIN,
+    OPTIONAL_DATE,
+)
 from strategies.bxm_manifest import BXM_MANIFEST
 from strategies.cboe_put_components import CBOE_PUT_PLUGIN
+from strategies.manifest import StrategyManifest
 from strategies.plugins import build_plugin_registry
-from strategies.tristate_components import FAIL, PASS, TRISTATE, TRISTATE_PLUGIN, UNKNOWN
+from strategies.tristate_components import TRISTATE_PLUGIN, UNKNOWN
 from strategies.type_system import ComponentValues, TypedValue
 
 NO_ACTION = "NO_ACTION"
 _GRAPH = compile_strategy_graph(
-    BXM_MANIFEST, build_plugin_registry(CORE_COMPONENTS, (TRISTATE_PLUGIN, CBOE_PUT_PLUGIN))
+    BXM_MANIFEST,
+    build_plugin_registry(CORE_COMPONENTS, (TRISTATE_PLUGIN, CBOE_PUT_PLUGIN, BXM_PLUGIN)),
 )
 
 
@@ -23,66 +34,56 @@ class BXMDecision:
     verdict: str
     reason: str
     selected_call: OptionContract | None = None
+    index_units: Decimal = Decimal(1)
+    short_call_quantity: Decimal = Decimal(1)
 
 
 def evaluate_bxm(
     *,
     decision_date: date,
     roll_date: date | UnknownReason,
-    reference_state: str,
-    quote_value: Decimal | None,
-    chain: OptionChain | None,
+    quote_effective_time: datetime,
+    quote_value: Decimal,
+    chain: OptionChain,
+    manifest: StrategyManifest = BXM_MANIFEST,
 ) -> BXMDecision:
-    if reference_state not in (PASS, UNKNOWN):
-        raise ValueError("reference_state must be PASS or UNKNOWN")
-    roll_state = (
-        UNKNOWN
-        if isinstance(roll_date, UnknownReason)
-        else PASS
-        if decision_date == roll_date
-        else FAIL
+    optional_roll = None if isinstance(roll_date, UnknownReason) else roll_date
+    graph = _GRAPH if manifest is BXM_MANIFEST else compile_strategy_graph(
+        manifest,
+        build_plugin_registry(CORE_COMPONENTS, (TRISTATE_PLUGIN, CBOE_PUT_PLUGIN, BXM_PLUGIN)),
     )
-    if roll_state == FAIL:
-        return BXMDecision(NO_ACTION, "G_CBOE_MONTHLY_ROLL_DATE_FAIL")
-    if roll_state == UNKNOWN:
-        return BXMDecision(UNKNOWN, "G_CBOE_MONTHLY_ROLL_DATE_UNKNOWN")
-    assert isinstance(roll_date, date)
-    year, month = (
-        (roll_date.year + 1, 1) if roll_date.month == 12 else (roll_date.year, roll_date.month + 1)
+    outputs = execute_strategy_graph(
+        graph,
+        ComponentValues(
+            (
+                ("timing.decision_date", TypedValue(DATE, decision_date)),
+                ("timing.roll_date", TypedValue(OPTIONAL_DATE, optional_roll)),
+                ("timing.quote_effective_time", TypedValue(INSTANT, quote_effective_time)),
+                ("selection.chain", TypedValue(OPTION_CHAIN, chain)),
+                ("selection.reference", TypedValue(DECIMAL, quote_value)),
+                ("selection.roll_date", TypedValue(OPTIONAL_DATE, optional_roll)),
+            )
+        ),
+    ).outputs
+    verdict = cast(str, outputs.get("verdict").value)
+    selected = cast(OptionContract | None, outputs.get("selected_call").value)
+    roll_state = cast(str, outputs.get("roll_state").value)
+    reference_state = cast(str, outputs.get("reference_state").value)
+    reason = (
+        "G_CBOE_MONTHLY_ROLL_DATE_FAIL"
+        if verdict == NO_ACTION
+        else "G_CBOE_MONTHLY_ROLL_DATE_UNKNOWN"
+        if roll_state == UNKNOWN
+        else "G_CBOE_SPX_REF_BEFORE_1100_UNKNOWN"
+        if reference_state == UNKNOWN
+        else "G_BXM_STRIKE_EXISTS_UNKNOWN"
+        if selected is None
+        else "CBOE_BXM_ALL_GATES_PASS"
     )
-    candidates = (
-        ()
-        if chain is None or quote_value is None
-        else tuple(
-            item
-            for item in chain.contracts
-            if item.option_type is OptionType.CALL
-            and item.root == "SPX"
-            and item.settlement_style is SettlementStyle.AM
-            and (item.expiration.year, item.expiration.month) == (year, month)
-            and item.strike >= quote_value
-        )
+    return BXMDecision(
+        verdict,
+        reason,
+        selected,
+        cast(Decimal, outputs.get("index_units").value),
+        cast(Decimal, outputs.get("short_call_quantity").value),
     )
-    selected = (
-        min(candidates, key=lambda item: (item.strike, item.identity)) if candidates else None
-    )
-    strike_state = PASS if selected is not None else UNKNOWN
-    verdict = str(
-        execute_strategy_graph(
-            _GRAPH,
-            ComponentValues(
-                (
-                    ("entry_gates.left", TypedValue(TRISTATE, reference_state)),
-                    ("entry_gates.right", TypedValue(TRISTATE, strike_state)),
-                    ("verdict.roll_date", TypedValue(TRISTATE, roll_state)),
-                )
-            ),
-        )
-        .outputs.get("verdict")
-        .value
-    )
-    if reference_state == UNKNOWN:
-        return BXMDecision(verdict, "G_CBOE_SPX_REF_BEFORE_1100_UNKNOWN")
-    if selected is None:
-        return BXMDecision(verdict, "G_BXM_STRIKE_EXISTS_UNKNOWN")
-    return BXMDecision(verdict, "CBOE_BXM_ALL_GATES_PASS", selected)

@@ -2,25 +2,73 @@ from dataclasses import replace
 from datetime import UTC, date, datetime
 from decimal import Decimal
 
-from domain import MarketCapability, OptionType, SettlementStyle, UnknownReason
-from strategies.bxm_evaluation import NO_ACTION, PASS, UNKNOWN, evaluate_bxm
+from domain import (
+    CanonicalInstrumentIdentity,
+    EvidenceKind,
+    EvidenceReference,
+    Instrument,
+    InstrumentKind,
+    MarketCapability,
+    OptionChain,
+    OptionContract,
+    OptionType,
+    Security,
+    SecurityAssetType,
+    SettlementStyle,
+    UnknownReason,
+)
+from strategies.bxm_evaluation import NO_ACTION, evaluate_bxm
 from strategies.bxm_knowledge import BxmPayload
 from strategies.bxm_manifest import BXM_MANIFEST, STRATEGY_ID
 from strategies.bxm_planning import bootstrap_demands, resolved_field_requirements
+from strategies.manifest import ParameterSpec
+from strategies.tristate_components import PASS, UNKNOWN
 from strategy_runtime.adapters.bxm import BXM_CONTRACT
 from strategy_runtime.adapters.bxm_subject_first import build_bxm_overlay
 from strategy_runtime.contract import StructureKind
-from tests.strategies.test_cboe_put_strategy import EXPIRY, ROLL, _chain, _put
+
+ROLL = datetime(2026, 10, 16, 14, 55, tzinfo=UTC)
+EXPIRY = date(2026, 11, 20)
+EVIDENCE = (EvidenceReference(EvidenceKind.OBSERVATION, "spx-chain", 1),)
+SPX = Security(
+    Instrument(
+        CanonicalInstrumentIdentity("index_root", "SPX"), InstrumentKind.INDEX, "SPX", "USD"
+    ),
+    "SPX",
+    SecurityAssetType.INDEX,
+    "CBOE",
+)
 
 
-def _call(strike: str, *, root: str = "SPX", settlement=SettlementStyle.AM):  # type: ignore[no-untyped-def]
-    put = _put(strike, root=root, settlement=settlement)
-    return replace(
-        put,
-        option_contract_id=replace(put.option_contract_id, value=f"SPX-{EXPIRY}-{strike}-C"),
-        option_type=OptionType.CALL,
-        delta=Decimal("0.5"),
+def _call(
+    strike: str, *, root: str = "SPX", settlement: SettlementStyle = SettlementStyle.AM
+) -> OptionContract:
+    return OptionContract(
+        CanonicalInstrumentIdentity("occ", f"SPX-{EXPIRY}-{strike}-C"),
+        SPX,
+        EXPIRY,
+        Decimal(strike),
+        OptionType.CALL,
+        Decimal("50"),
+        Decimal("51"),
+        None,
+        10,
+        10,
+        Decimal("0.5"),
+        None,
+        None,
+        None,
+        None,
+        None,
+        ROLL,
+        EVIDENCE,
+        root,
+        settlement,
     )
+
+
+def _chain(*contracts: OptionContract) -> OptionChain:
+    return OptionChain("spx-chain", SPX, ROLL, contracts, EVIDENCE)
 
 
 def test_bxm_manifest_contract_and_capabilities_are_production_exact() -> None:
@@ -43,7 +91,7 @@ def test_bxm_selects_closest_standard_next_month_call_at_or_above_reference() ->
     decision = evaluate_bxm(
         decision_date=ROLL.date(),
         roll_date=ROLL.date(),
-        reference_state=PASS,
+        quote_effective_time=ROLL,
         quote_value=Decimal("5002"),
         chain=chain,
     )
@@ -65,14 +113,45 @@ def test_bxm_selects_closest_standard_next_month_call_at_or_above_reference() ->
     assert overlay.option_legs[0].contract.identity == decision.selected_call.identity
 
 
+def test_manifest_parameters_are_the_live_selection_and_quantity_authority() -> None:
+    nodes = []
+    for node in BXM_MANIFEST.nodes:
+        if node.node_id == "selection":
+            values = {item.name: item for item in node.parameters}
+            values["contract_root"] = ParameterSpec("contract_root", "Text", "SPXW")
+            values["settlement_style"] = ParameterSpec("settlement_style", "Text", "pm")
+            node = replace(node, parameters=tuple(values.values()))
+        elif node.node_id == "short_call_quantity":
+            node = replace(
+                node, parameters=(ParameterSpec("value", "Decimal", "2"),)
+            )
+        nodes.append(node)
+    changed = replace(BXM_MANIFEST, nodes=tuple(nodes), strategy_version="1.0.1")
+    decision = evaluate_bxm(
+        decision_date=ROLL.date(),
+        roll_date=ROLL.date(),
+        quote_effective_time=ROLL,
+        quote_value=Decimal("5000"),
+        chain=_chain(
+            _call("5000"),
+            _call("5001", root="SPXW", settlement=SettlementStyle.PM),
+        ),
+        manifest=changed,
+    )
+    assert decision.verdict == PASS
+    assert decision.selected_call is not None
+    assert decision.selected_call.root == "SPXW"
+    assert decision.short_call_quantity == Decimal(2)
+
+
 def test_bxm_truth_table_and_wrong_contract_identity_fail_closed() -> None:
     assert (
         evaluate_bxm(
             decision_date=date(2026, 10, 12),
             roll_date=ROLL.date(),
-            reference_state=UNKNOWN,
-            quote_value=None,
-            chain=None,
+            quote_effective_time=ROLL,
+            quote_value=Decimal("5000"),
+            chain=_chain(_call("5000")),
         ).verdict
         == NO_ACTION
     )
@@ -80,7 +159,7 @@ def test_bxm_truth_table_and_wrong_contract_identity_fail_closed() -> None:
         evaluate_bxm(
             decision_date=ROLL.date(),
             roll_date=UnknownReason("calendar_unavailable"),
-            reference_state=PASS,
+            quote_effective_time=ROLL,
             quote_value=Decimal("5000"),
             chain=_chain(_call("5000")),
         ).verdict
@@ -89,7 +168,7 @@ def test_bxm_truth_table_and_wrong_contract_identity_fail_closed() -> None:
     result = evaluate_bxm(
         decision_date=ROLL.date(),
         roll_date=ROLL.date(),
-        reference_state=PASS,
+        quote_effective_time=ROLL,
         quote_value=Decimal("5000"),
         chain=_chain(_call("5000", root="SPXW", settlement=SettlementStyle.PM)),
     )

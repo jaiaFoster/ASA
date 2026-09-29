@@ -1,11 +1,16 @@
 """BXM sealed-evidence preparation and read-only adapter."""
 
 from collections.abc import Mapping
-from datetime import date, datetime, time
+from datetime import date, datetime
 from decimal import Decimal
 from functools import partial
 from types import MappingProxyType
 
+from analytics.buywrite import (
+    CBOE_BUYWRITE_DAILY_RETURN_ID,
+    CBOE_BUYWRITE_DAILY_RETURN_VERSION,
+    cboe_buywrite_daily_return,
+)
 from analytics.calendar_facts import TradingCalendarView, third_friday_roll_date
 from domain import (
     IndexDividendPoints,
@@ -24,9 +29,10 @@ from screening.subject_fact_projection import resolution_for
 from screening.subject_planning import ResolvedEvidenceView, SubjectPlanConsumer
 from strategies.bxm_evaluation import NO_ACTION, BXMDecision, evaluate_bxm
 from strategies.bxm_knowledge import BxmPayload, build_bxm_knowledge_mapping
+from strategies.bxm_manifest import bxm_parameter
 from strategies.bxm_planning import bootstrap_demands, expand_demands
 from strategies.knowledge_contracts import KnowledgeMapping
-from strategies.tristate_components import PASS, UNKNOWN
+from strategies.tristate_components import PASS
 from strategy_runtime.adapters.bxm import BXM_CONTRACT
 from strategy_runtime.context import RuntimeContext
 from strategy_runtime.knowledge import ReadOnlyStrategyInput
@@ -78,8 +84,16 @@ def _prepare(
         return observation.observation_id, observation.value
 
     local = now.astimezone(NEW_YORK)
-    window_start = local.replace(hour=11, minute=30, second=0, microsecond=0)
-    window_end = local.replace(hour=13, minute=30, second=0, microsecond=0)
+    start = datetime.strptime(
+        str(bxm_parameter("timing", "vwap_window_start_et")), "%H:%M:%S"
+    ).time()
+    end = datetime.strptime(
+        str(bxm_parameter("timing", "vwap_window_end_et")), "%H:%M:%S"
+    ).time()
+    window_start = local.replace(
+        hour=start.hour, minute=start.minute, second=start.second, microsecond=0
+    )
+    window_end = local.replace(hour=end.hour, minute=end.minute, second=end.second, microsecond=0)
     tape = _optional(MarketCapability.OPTION_TRADE_TAPE_V1, OptionTradeTape)
     dividends = _optional(MarketCapability.INDEX_DIVIDEND_POINTS_V1, IndexDividendPoints)
     settlement = _optional(MarketCapability.INDEX_SETTLEMENT_VALUE_V1, IndexSettlementValue)
@@ -91,9 +105,9 @@ def _prepare(
         chain=chain_o.value,
         spot=quote_o.value.last,
         quote_effective_time=quote_o.effective_time,
-        tape_observation=tape,  # type: ignore[arg-type]
-        dividend_observation=dividends,  # type: ignore[arg-type]
-        settlement_observation=settlement,  # type: ignore[arg-type]
+        tape_observation=tape,
+        dividend_observation=dividends,
+        settlement_observation=settlement,
         vwap_window_start=window_start,
         vwap_window_end=window_end,
     )
@@ -109,18 +123,10 @@ def _decision(payload: BxmPayload, now: datetime) -> BXMDecision:
         local.year,
         local.month,
     )
-    observed = payload.quote_effective_time.astimezone(NEW_YORK)
-    reference_state = (
-        PASS
-        if not isinstance(roll_date, UnknownReason)
-        and observed.date() == roll_date
-        and observed.time() < time(11)
-        else UNKNOWN
-    )
     return evaluate_bxm(
         decision_date=local.date(),
         roll_date=roll_date,
-        reference_state=reference_state,
+        quote_effective_time=payload.quote_effective_time,
         quote_value=payload.spot,
         chain=payload.chain,
     )
@@ -132,13 +138,13 @@ def build_bxm_overlay(payload: BxmPayload, decision: BXMDecision) -> OptionOverl
     call = decision.selected_call
     exposure = UnderlyingExposureLeg(
         call.underlying.instrument,
-        Decimal(1),
+        decision.index_units,
         UnderlyingExposureKind.INDEX_TOTAL_RETURN,
         False,
     )
     return OptionOverlayPosition(
         exposure,
-        (OptionLeg(call, OptionLegPosition.SHORT, Decimal(1), "short_call"),),
+        (OptionLeg(call, OptionLegPosition.SHORT, decision.short_call_quantity, "short_call"),),
     )
 
 
@@ -179,6 +185,28 @@ def build_bxm_subject_first_adapter(
             and payload.settlement_value.settlement_style
             is decision.selected_call.settlement_style
         )
+        daily_return = cboe_buywrite_daily_return(
+            roll_day=decision.verdict == PASS,
+            prior_index_close=None,
+            prior_call_close=None,
+            index_close=payload.spot,
+            call_close=None,
+            dividend_points=(
+                payload.dividend_points.points
+                if isinstance(payload.dividend_points, IndexDividendPoints) and dividend_in_period
+                else None
+            ),
+            old_strike=(
+                decision.selected_call.strike if decision.selected_call is not None else None
+            ),
+            settlement_value=(
+                payload.settlement_value.value
+                if isinstance(payload.settlement_value, IndexSettlementValue) and settlement_matches
+                else None
+            ),
+            index_vwav=None,
+            call_vwap=payload.entry_vwap if isinstance(payload.entry_vwap, Decimal) else None,
+        )
         metrics = {
             "decision.reason": TypedValue.of_string(decision.reason),
             "entry.price_state": TypedValue.of_string(
@@ -202,6 +230,15 @@ def build_bxm_subject_first_adapter(
                 if not settlement_matches
                 else "RESOLVED_INDEX_SETTLEMENT_VALUE"
             ),
+            "outcome.daily_return_formula_id": TypedValue.of_string(
+                CBOE_BUYWRITE_DAILY_RETURN_ID
+            ),
+            "outcome.daily_return_formula_version": TypedValue.of_string(
+                CBOE_BUYWRITE_DAILY_RETURN_VERSION
+            ),
+            "outcome.daily_return_state": TypedValue.of_string(
+                daily_return.code if isinstance(daily_return, UnknownReason) else "RESOLVED"
+            ),
         }
         if isinstance(payload.entry_vwap, Decimal) and exact_tape:
             metrics["entry.windowed_vwap"] = TypedValue.of_decimal(payload.entry_vwap)
@@ -213,6 +250,8 @@ def build_bxm_subject_first_adapter(
             metrics["lifecycle.soq_value"] = TypedValue.of_decimal(
                 payload.settlement_value.value
             )
+        if isinstance(daily_return, Decimal):
+            metrics["outcome.daily_return"] = TypedValue.of_decimal(daily_return)
         if state is EvaluationState.PASS:
             metrics["structure.overlay_identity"] = TypedValue.of_string(
                 build_bxm_overlay(knowledge.payload, decision).identity

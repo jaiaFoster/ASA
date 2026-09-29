@@ -82,6 +82,7 @@ DF_CBOE_NAKED_MARGIN = "DF-CBOE-NAKED-MARGIN"
 DF_CBOE_STRADDLE_MARGIN = "DF-CBOE-STRADDLE-MARGIN"
 DF_OPTION_PROCEEDS_ACCRUAL = "DF-OPTION-PROCEEDS-ACCRUAL"
 DF_STRADDLE_MOMENTUM_FORMATION = "DF-STRADDLE-MOMENTUM-FORMATION"
+DF_CBOE_BUYWRITE_DAILY_RETURN = "DF-CBOE-BUYWRITE-DAILY-RETURN"
 
 _SNAPSHOT = "one quote snapshot t"
 _CALENDAR = "exchange trading calendar, US/Eastern dates"
@@ -89,6 +90,13 @@ _UNKNOWN_IF_MISSING = "UNKNOWN if any input is missing"
 
 OPTION_STRATEGY_FORMULAS = FormulaRegistry(
     (
+        FormulaDefinition(
+            DF_CBOE_BUYWRITE_DAILY_RETURN,
+            "1.0.0",
+            "simple daily return",
+            "close-to-close; three source-defined intraday segments on roll date",
+            "UNKNOWN if any required close, dividend, VWAP, or settlement input is missing",
+        ),
         FormulaDefinition(
             DF_STRADDLE_MOMENTUM_FORMATION,
             "1.0.0",
