@@ -83,6 +83,8 @@ BXM_MANIFEST = StrategyManifest(
             MarketCapability.INDEX_SETTLEMENT_VALUE_V1,
             MarketCapability.OPTION_TRADE_TAPE_V1,
             MarketCapability.INDEX_DIVIDEND_POINTS_V1,
+            MarketCapability.HISTORICAL_BARS_V1,
+            MarketCapability.HISTORICAL_OPTION_PANEL_V1,
         )
     ),
 )

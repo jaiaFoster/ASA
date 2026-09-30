@@ -43,6 +43,8 @@ OPEN_INTEREST_QUALITY = "open_interest_quality"
 SMA_10M_COMPLETED_MONTHS = "sma_10m_completed_months"
 TRAILING_12M_TOTAL_RETURN = "trailing_12m_total_return"
 WINDOWED_OPTION_TRADE_VWAP = "windowed_option_trade_vwap"
+CBOE_BUYWRITE_DAILY_RETURN = "DF-CBOE-BUYWRITE-DAILY-RETURN"
+THIRD_FRIDAY_ROLL_DATE = "DF-THIRD-FRIDAY-ROLL-DATE"
 GXZ_PAIR_VOLUME = "gxz_pair_volume"
 
 
@@ -394,6 +396,17 @@ DERIVED_FACT_DEFINITIONS = (
         "Size-weighted option trade price over an explicit event-time window "
         "and sale-condition policy.",
         MarketCapability.OPTION_TRADE_TAPE_V1,
+    ),
+    _definition(
+        CBOE_BUYWRITE_DAILY_RETURN,
+        "Cboe BXM close-to-close or roll-day total return.",
+        MarketCapability.HISTORICAL_BARS_V1,
+        MarketCapability.OPTION_CHAIN_V1,
+    ),
+    _definition(
+        THIRD_FRIDAY_ROLL_DATE,
+        "Standard third-Friday roll date adjusted to the prior trading session.",
+        MarketCapability.TRADING_CALENDAR_V1,
     ),
     _definition(
         GXZ_PAIR_VOLUME,

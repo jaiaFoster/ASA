@@ -77,6 +77,9 @@ RawResolvedEvidence = Mapping[str, CapabilityFulfillmentResult]
 # screening-owned type, so a strategies/-owned function can satisfy this
 # signature without importing screening/ at all.
 DemandExpansionFunction = Callable[[ResolvedEvidenceView], DemandExpansion]
+PostSelectionExpansionFunction = Callable[
+    [ResolvedEvidenceView, tuple[tuple[str, object], ...]], DemandExpansion
+]
 
 # Reduces N CapabilityFulfillmentResults sharing one capability (e.g.
 # Earnings Calendar's own front/back expiration-scoped option-chain
@@ -103,6 +106,7 @@ class SubjectPlanConsumer:
     consumer_id: str
     bootstrap_demands: tuple[CapabilityDemand, ...]
     expand: DemandExpansionFunction
+    post_selection_expand: PostSelectionExpansionFunction | None = None
 
     def __post_init__(self) -> None:
         if not self.consumer_id or self.consumer_id != self.consumer_id.strip():
@@ -148,6 +152,7 @@ def _to_capability_request(
         effective_end=demand.effective_end,
         required_fields=demand.required_fields,
         expiration=demand.expiration,
+        contract_identity=demand.contract_identity,
     )
     maximum_age_seconds = (
         demand.maximum_age_seconds if demand.maximum_age_seconds is not None else 3600
@@ -250,8 +255,8 @@ def _seal(
     provider_metadata: tuple[ProviderMetadata, ...],
     capability_reducer_by_capability: Mapping[MarketCapability, CapabilityResultReducer],
 ) -> MarketSnapshot:
-    results_by_capability: dict[MarketCapability, list[CapabilityFulfillmentResult]] = (
-        defaultdict(list)
+    results_by_capability: dict[MarketCapability, list[CapabilityFulfillmentResult]] = defaultdict(
+        list
     )
     for demand_id, result in resolved.items():
         results_by_capability[demand_by_id[demand_id].capability].append(result)
@@ -272,11 +277,7 @@ def _seal(
 
     required_capabilities = tuple(
         sorted(
-            {
-                demand.capability
-                for demand_id, demand in demand_by_id.items()
-                if demand.required
-            },
+            {demand.capability for demand_id, demand in demand_by_id.items() if demand.required},
             key=lambda item: item.value,
         )
     )
@@ -353,6 +354,35 @@ def run_subject_plan(
         expansion = consumer.expand(read_only_evidence)
         expansions_by_consumer[consumer.consumer_id] = expansion
         for demand in expansion.demands:
+            demand_by_id.setdefault(demand.demand_id, demand)
+            demand_ids_by_consumer[consumer.consumer_id].append(demand.demand_id)
+    _resolve_new_demands(plan, symbol, now, demand_by_id, resolved)
+
+    # Phase 3: an optional pure post-selection expansion.  This is required
+    # when an exact request identity can only be known after phase-two
+    # evidence exists (for example, an option tape for the exact contract
+    # selected from an acquired chain).  The callback remains provider blind
+    # and receives only projected evidence plus the immutable prior selections.
+    phase_two_evidence: ResolvedEvidenceView = MappingProxyType(
+        {
+            demand_id: _project(
+                demand_id, demand_by_id[demand_id], result, now=now, market_is_open=market_is_open
+            )
+            for demand_id, result in resolved.items()
+        }
+    )
+    for consumer in consumers:
+        if consumer.post_selection_expand is None:
+            continue
+        prior = expansions_by_consumer[consumer.consumer_id]
+        post = consumer.post_selection_expand(phase_two_evidence, prior.selections)
+        merged = DemandExpansion(
+            prior.demands + post.demands,
+            prior.selections + post.selections,
+            prior.unknown_reasons + post.unknown_reasons,
+        )
+        expansions_by_consumer[consumer.consumer_id] = merged
+        for demand in post.demands:
             demand_by_id.setdefault(demand.demand_id, demand)
             demand_ids_by_consumer[consumer.consumer_id].append(demand.demand_id)
     _resolve_new_demands(plan, symbol, now, demand_by_id, resolved)

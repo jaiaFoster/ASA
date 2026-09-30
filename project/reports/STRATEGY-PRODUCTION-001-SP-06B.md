@@ -33,17 +33,28 @@ York time, and a tape resolves entry price only when its exact contract identity
 matches the selected short call. Dividend and SOQ facts resolve only for the
 same SPX instrument and the selected holding/settlement period.
 
+X05 is post-selection acquisition: the manifest-selected exact call identity is
+carried by `CapabilityDemand`, projected as the provider's explicit
+`option_contract` address, and only that contract's sealed tape can materialize
+entry VWAP. The reusable third-Friday roll date is composed before the BXM
+binding, carried through immutable planning selections, and materialized as
+`DF-THIRD-FRIDAY-ROLL-DATE@1.0.0`; the result adapter no longer owns calendar
+interpretation.
+
 `DF-CBOE-BUYWRITE-DAILY-RETURN@1.0.0` implements both the source non-roll
-close-to-close formula and the three compounded roll-day segments. The live
-adapter consumes that named formula. Until the sealed evidence boundary also
-contains prior close/call marks and S_VWAV, the return remains the explicit
-typed `missing_cboe_buywrite_daily_return_input`; a raw dividend observation is
-not reported as completed BXM return accounting.
+close-to-close formula and the three compounded roll-day segments. Historical
+index bars and the provider-neutral historical option panel supply prior/current
+marks; roll-day tape, dividend, and SOQ evidence supply the remaining inputs.
+Those inputs are projected as canonical facts and the named return is
+materialized by the existing derived-fact owner. The live adapter consumes only
+that materialized fact or its typed missing-input state; it no longer invokes
+the formula with hardcoded missing values.
 
 ## Verification
 
 Pinned vectors cover manifest-authority mutation, exact strike/root/settlement
-selection, verdict precedence, non-roll and roll return equations, typed missing
-return inputs, P09 identity/executability, optional lifecycle-capability planning,
-generic typed no-provider deferral, production registry/catalog/scheduler wiring,
-and existing fixed-subject option orchestration.
+selection, post-selection exact-contract acquisition, verdict precedence,
+non-roll and roll return equations, a non-UNKNOWN materialized daily return,
+matching/mismatched tape identity, relevant/irrelevant dividend and SOQ evidence,
+P09 identity/executability, generic typed no-provider deferral, production
+registry/catalog/scheduler wiring, and existing fixed-subject option orchestration.

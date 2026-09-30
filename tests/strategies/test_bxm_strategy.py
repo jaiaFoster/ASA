@@ -2,30 +2,53 @@ from dataclasses import replace
 from datetime import UTC, date, datetime
 from decimal import Decimal
 
+from analytics.derived_fact_materialization import materialize_derived_fact
+from analytics.derived_facts import CBOE_BUYWRITE_DAILY_RETURN, DERIVED_FACT_REGISTRY
+from analytics.features import DerivedFactSet
 from domain import (
+    CanonicalFact,
     CanonicalInstrumentIdentity,
+    Confidence,
     EvidenceKind,
     EvidenceReference,
+    EvidenceUsability,
+    IndexDividendPoints,
+    IndexSettlementValue,
     Instrument,
     InstrumentKind,
     MarketCapability,
     OptionChain,
     OptionContract,
     OptionType,
+    Provenance,
+    Quote,
+    ResolvedCapabilityEvidence,
     Security,
     SecurityAssetType,
     SettlementStyle,
     UnknownReason,
 )
+from facts.canonical_projection import canonical_fact_id
 from strategies.bxm_evaluation import NO_ACTION, evaluate_bxm
-from strategies.bxm_knowledge import BxmPayload
+from strategies.bxm_knowledge import BxmPayload, build_bxm_knowledge_mapping
 from strategies.bxm_manifest import BXM_MANIFEST, STRATEGY_ID
-from strategies.bxm_planning import bootstrap_demands, resolved_field_requirements
+from strategies.bxm_planning import (
+    bootstrap_demands,
+    expand_post_selection_demands,
+    resolved_field_requirements,
+)
+from strategies.cboe_put_planning import chain_demand, quote_demand
 from strategies.manifest import ParameterSpec
 from strategies.tristate_components import PASS, UNKNOWN
 from strategy_runtime.adapters.bxm import BXM_CONTRACT
-from strategy_runtime.adapters.bxm_subject_first import build_bxm_overlay
+from strategy_runtime.adapters.bxm_subject_first import (
+    build_bxm_overlay,
+    build_bxm_subject_first_adapter,
+)
+from strategy_runtime.context import RuntimeContext
 from strategy_runtime.contract import StructureKind
+from strategy_runtime.knowledge import ReadOnlyStrategyInput
+from strategy_runtime.result import EvaluationState
 
 ROLL = datetime(2026, 10, 16, 14, 55, tzinfo=UTC)
 EXPIRY = date(2026, 11, 20)
@@ -122,9 +145,7 @@ def test_manifest_parameters_are_the_live_selection_and_quantity_authority() -> 
             values["settlement_style"] = ParameterSpec("settlement_style", "Text", "pm")
             node = replace(node, parameters=tuple(values.values()))
         elif node.node_id == "short_call_quantity":
-            node = replace(
-                node, parameters=(ParameterSpec("value", "Decimal", "2"),)
-            )
+            node = replace(node, parameters=(ParameterSpec("value", "Decimal", "2"),))
         nodes.append(node)
     changed = replace(BXM_MANIFEST, nodes=tuple(nodes), strategy_version="1.0.1")
     decision = evaluate_bxm(
@@ -181,14 +202,167 @@ def test_bxm_plans_every_declared_lifecycle_capability_as_optional_where_appropr
     demands = bootstrap_demands(now)
     by_capability = {item.capability: item for item in demands}
     for capability in (
-        MarketCapability.OPTION_TRADE_TAPE_V1,
         MarketCapability.INDEX_DIVIDEND_POINTS_V1,
         MarketCapability.INDEX_SETTLEMENT_VALUE_V1,
+        MarketCapability.HISTORICAL_BARS_V1,
+        MarketCapability.HISTORICAL_OPTION_PANEL_V1,
     ):
         assert by_capability[capability].required is False
         assert capability in resolved_field_requirements()
-    tape = by_capability[MarketCapability.OPTION_TRADE_TAPE_V1]
+    assert MarketCapability.OPTION_TRADE_TAPE_V1 not in by_capability
+
+    call = _call("5005")
+    quote = Quote(SPX.instrument, None, None, Decimal("5002"), None, None, None, "USD")
+    chain = _chain(call)
+    evidence = {
+        quote_demand(now).demand_id: ResolvedCapabilityEvidence(
+            quote_demand(now).demand_id,
+            MarketCapability.REAL_TIME_QUOTE_V1,
+            EvidenceUsability.RESOLVED,
+            quote,
+            ("quote-observation",),
+            None,
+        ),
+        chain_demand(now, EXPIRY).demand_id: ResolvedCapabilityEvidence(
+            chain_demand(now, EXPIRY).demand_id,
+            MarketCapability.OPTION_CHAIN_V1,
+            EvidenceUsability.RESOLVED,
+            chain,
+            ("chain-observation",),
+            None,
+        ),
+    }
+    post = expand_post_selection_demands(
+        evidence,
+        (("expiration", EXPIRY.isoformat()),),
+        now=now,
+        roll_date=now.date(),
+    )
+    assert len(post.demands) == 1
+    tape = post.demands[0]
+    assert tape.capability is MarketCapability.OPTION_TRADE_TAPE_V1
+    assert tape.contract_identity == call.identity
     start_utc = tape.effective_start.astimezone(UTC)
     end_utc = tape.effective_end.astimezone(UTC)
     assert (start_utc.hour, start_utc.minute) == (15, 30)
     assert (end_utc.hour, end_utc.minute) == (17, 30)
+
+
+def test_buywrite_daily_return_is_materialized_from_projected_inputs() -> None:
+    mapping = build_bxm_knowledge_mapping(
+        subject="SPX",
+        snapshot_digest="digest",
+        quote_observation_id="quote-observation",
+        chain_observation_id="chain-observation",
+        chain=_chain(_call("5005")),
+        spot=Decimal("102"),
+        quote_effective_time=ROLL,
+        tape_observation=None,
+        dividend_observation=(
+            "dividend-observation",
+            IndexDividendPoints(SPX.instrument, Decimal("1"), ROLL.date()),
+        ),
+        settlement_observation=None,
+        vwap_window_start=ROLL,
+        vwap_window_end=ROLL,
+        roll_date=date(2026, 10, 15),
+        prior_index_close=Decimal("100"),
+        prior_call_close=Decimal("4"),
+        current_call_close=Decimal("3"),
+        index_close=Decimal("102"),
+        bars_observation_id="bars-observation",
+        option_history_observation_id="option-history-observation",
+    )
+    facts = tuple(
+        CanonicalFact(
+            canonical_fact_id(request.fact_type, request.subject, "digest"),
+            1,
+            request.fact_type,
+            request.value,
+            Confidence(1.0),
+            Provenance((request.observation_id,), ("fixture",), "fixture", (), ROLL),
+            ROLL,
+            ROLL,
+        )
+        for request in mapping.canonical_fact_requests
+    )
+    requests = mapping.compute_derived_fact_requests(facts)
+    assert not isinstance(requests, UnknownReason)
+    daily_request = next(item for item in requests if item.feature_id == CBOE_BUYWRITE_DAILY_RETURN)
+    assert daily_request.value == Decimal("0.041666666666666666666666667")
+    materialized = materialize_derived_fact(
+        DERIVED_FACT_REGISTRY,
+        daily_request.feature_id,
+        daily_request.subject,
+        "digest",
+        value=daily_request.value,
+        unit=daily_request.unit,
+        effective_time=ROLL,
+        input_evidence=daily_request.input_evidence,
+        quality_status=daily_request.quality_status,
+        parameters=daily_request.parameters,
+    )
+    payload = mapping.build_payload(facts, DerivedFactSet((materialized,)))
+    assert payload.daily_return == daily_request.value
+
+
+def test_production_adapter_resolves_exact_lifecycle_evidence_and_materialized_return() -> None:
+    class Clock:
+        def now(self) -> datetime:
+            return ROLL
+
+    call = _call("5005")
+    settlement = IndexSettlementValue(
+        SPX,
+        call.expiration,
+        SettlementStyle.AM,
+        Decimal("5010"),
+        ROLL,
+        EVIDENCE,
+    )
+    payload = BxmPayload(
+        _chain(call),
+        Decimal("5002"),
+        ROLL,
+        Decimal("50.5"),
+        call.identity,
+        IndexDividendPoints(SPX.instrument, Decimal("1"), ROLL.date()),
+        settlement,
+        ROLL.date(),
+        Decimal("0.01"),
+    )
+    knowledge = ReadOnlyStrategyInput(
+        "snapshot",
+        "digest",
+        ROLL,
+        (),
+        DerivedFactSet(()),
+        payload,
+    )
+    result = build_bxm_subject_first_adapter({"SPX": knowledge})(
+        RuntimeContext(BXM_CONTRACT, "SPX", Clock(), "run")
+    )
+    assert result.evaluation_state is EvaluationState.PASS
+    assert result.metrics["entry.price_state"].native() == "RESOLVED_WINDOWED_OPTION_TRADE_VWAP"
+    assert result.metrics["outcome.index_dividend_points"].native() == Decimal("1")
+    assert result.metrics["lifecycle.soq_value"].native() == Decimal("5010")
+    assert result.metrics["outcome.daily_return"].native() == Decimal("0.01")
+
+    mismatched = replace(payload, tape_contract_identity="other")
+    mismatch_knowledge = replace(knowledge, payload=mismatched)
+    mismatch = build_bxm_subject_first_adapter({"SPX": mismatch_knowledge})(
+        RuntimeContext(BXM_CONTRACT, "SPX", Clock(), "run")
+    )
+    assert mismatch.metrics["entry.price_state"].native() == "OPTION_TRADE_TAPE_CONTRACT_MISMATCH"
+    assert "entry.windowed_vwap" not in mismatch.metrics
+
+    irrelevant = replace(
+        payload,
+        dividend_points=IndexDividendPoints(SPX.instrument, Decimal("1"), date(2027, 1, 1)),
+        settlement_value=replace(settlement, settlement_date=date(2026, 12, 18)),
+    )
+    irrelevant_result = build_bxm_subject_first_adapter(
+        {"SPX": replace(knowledge, payload=irrelevant)}
+    )(RuntimeContext(BXM_CONTRACT, "SPX", Clock(), "run"))
+    assert "outcome.index_dividend_points" not in irrelevant_result.metrics
+    assert "lifecycle.soq_value" not in irrelevant_result.metrics

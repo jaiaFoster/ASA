@@ -79,8 +79,7 @@ def select_atm_strike_at_expiration(
     chain: OptionChain, expiration: date, spot_price: Decimal, option_type: OptionType
 ) -> Decimal:
     strikes = tuple(
-        contract.strike
-        for contract in chain.find(expiration=expiration, option_type=option_type)
+        contract.strike for contract in chain.find(expiration=expiration, option_type=option_type)
     )
     if not strikes:
         raise NoContractsAtExpirationError(
@@ -173,6 +172,7 @@ def build_capability_subject(
     provider_symbol_window_days: int = 2,
     required_fields: tuple[str, ...] | None = None,
     expiration: date | None = None,
+    contract_identity: str | None = None,
 ) -> MarketDataSubject:
     """A bounded, symbol-scoped subject for acquire_capability(). The
     symbol is always caller-supplied explicitly -- never inferred, never
@@ -224,6 +224,19 @@ def build_capability_subject(
                 "v1",
                 "expiration",
                 expiration.isoformat(),
+                window_start,
+                None,
+                evidence,
+            )
+            for provider_id in KNOWN_PROVIDER_IDS
+        )
+    if contract_identity is not None:
+        projections += tuple(
+            ProviderAddressProjection(
+                provider_id,
+                "v1",
+                "option_contract",
+                contract_identity,
                 window_start,
                 None,
                 evidence,

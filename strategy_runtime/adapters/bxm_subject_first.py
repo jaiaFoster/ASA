@@ -6,16 +6,13 @@ from decimal import Decimal
 from functools import partial
 from types import MappingProxyType
 
-from analytics.buywrite import (
-    CBOE_BUYWRITE_DAILY_RETURN_ID,
-    CBOE_BUYWRITE_DAILY_RETURN_VERSION,
-    cboe_buywrite_daily_return,
-)
-from analytics.calendar_facts import TradingCalendarView, third_friday_roll_date
+from analytics.buywrite import CBOE_BUYWRITE_DAILY_RETURN_ID, CBOE_BUYWRITE_DAILY_RETURN_VERSION
 from domain import (
+    HistoricalOptionPanel,
     IndexDividendPoints,
     IndexSettlementValue,
     MarketCapability,
+    OHLCVSeries,
     OptionChain,
     OptionLeg,
     OptionLegPosition,
@@ -23,14 +20,18 @@ from domain import (
     Quote,
     UnknownReason,
 )
-from market_data.session_calendar import NEW_YORK, UsEquitySessionCalendar
+from market_data.session_calendar import NEW_YORK
 from market_data.snapshot import MarketSnapshot
 from screening.subject_fact_projection import resolution_for
 from screening.subject_planning import ResolvedEvidenceView, SubjectPlanConsumer
 from strategies.bxm_evaluation import NO_ACTION, BXMDecision, evaluate_bxm
 from strategies.bxm_knowledge import BxmPayload, build_bxm_knowledge_mapping
 from strategies.bxm_manifest import bxm_parameter
-from strategies.bxm_planning import bootstrap_demands, expand_demands
+from strategies.bxm_planning import (
+    bootstrap_demands,
+    expand_demands,
+    expand_post_selection_demands,
+)
 from strategies.knowledge_contracts import KnowledgeMapping
 from strategies.tristate_components import PASS
 from strategy_runtime.adapters.bxm import BXM_CONTRACT
@@ -60,7 +61,7 @@ def _prepare(
     selections: tuple[tuple[str, object], ...],
     subject: str,
 ) -> KnowledgeMapping[BxmPayload] | UnknownReason:
-    del projected, selections
+    selection_values = dict(selections)
     try:
         quote_r = resolution_for(snapshot, MarketCapability.REAL_TIME_QUOTE_V1)
         chain_r = resolution_for(snapshot, MarketCapability.OPTION_CHAIN_V1)
@@ -71,6 +72,7 @@ def _prepare(
         return UnknownReason("G_CBOE_SPX_REF_BEFORE_1100_UNKNOWN")
     if chain_o is None or not isinstance(chain_o.value, OptionChain):
         return UnknownReason("G_BXM_STRIKE_EXISTS_UNKNOWN")
+
     def _optional(
         capability: MarketCapability, expected: type[object]
     ) -> tuple[str, object] | None:
@@ -87,9 +89,7 @@ def _prepare(
     start = datetime.strptime(
         str(bxm_parameter("timing", "vwap_window_start_et")), "%H:%M:%S"
     ).time()
-    end = datetime.strptime(
-        str(bxm_parameter("timing", "vwap_window_end_et")), "%H:%M:%S"
-    ).time()
+    end = datetime.strptime(str(bxm_parameter("timing", "vwap_window_end_et")), "%H:%M:%S").time()
     window_start = local.replace(
         hour=start.hour, minute=start.minute, second=start.second, microsecond=0
     )
@@ -97,7 +97,59 @@ def _prepare(
     tape = _optional(MarketCapability.OPTION_TRADE_TAPE_V1, OptionTradeTape)
     dividends = _optional(MarketCapability.INDEX_DIVIDEND_POINTS_V1, IndexDividendPoints)
     settlement = _optional(MarketCapability.INDEX_SETTLEMENT_VALUE_V1, IndexSettlementValue)
-    return build_bxm_knowledge_mapping(
+    bars = _optional(MarketCapability.HISTORICAL_BARS_V1, OHLCVSeries)
+    option_history = _optional(MarketCapability.HISTORICAL_OPTION_PANEL_V1, HistoricalOptionPanel)
+    selected_identity = selection_values.get("selected_call_identity")
+    selected_call = next(
+        (
+            item
+            for item in chain_o.value.contracts
+            if isinstance(selected_identity, str) and item.identity == selected_identity
+        ),
+        None,
+    )
+    prior_index_close: Decimal | None = None
+    index_close: Decimal = quote_o.value.last
+    index_vwav: Decimal | None = None
+    if bars is not None:
+        series = bars[1]
+        assert isinstance(series, OHLCVSeries)
+        if len(series.bars) >= 2:
+            prior_index_close = series.bars[-2].close
+            index_close = series.bars[-1].close
+        same_day = tuple(item for item in series.bars if item.end_at.date() == local.date())
+        total_volume = sum((item.volume for item in same_day), Decimal(0))
+        if same_day and total_volume > 0:
+            index_vwav = (
+                sum((item.close * item.volume for item in same_day), Decimal(0)) / total_volume
+            )
+    current_call_close: Decimal | None = None
+    prior_call_close: Decimal | None = None
+    if selected_call is not None:
+        current_call_close = selected_call.mark
+        if (
+            current_call_close is None
+            and selected_call.bid is not None
+            and selected_call.ask is not None
+        ):
+            current_call_close = (selected_call.bid + selected_call.ask) / Decimal(2)
+        if option_history is not None:
+            panel = option_history[1]
+            assert isinstance(panel, HistoricalOptionPanel)
+            historical_contracts = tuple(
+                contract
+                for historical_snapshot in panel.snapshots
+                for contract in historical_snapshot.contracts
+                if contract.option_contract_id == selected_call.option_contract_id
+            )
+            if historical_contracts:
+                prior = historical_contracts[-1]
+                prior_call_close = prior.mark
+                if prior_call_close is None and prior.bid is not None and prior.ask is not None:
+                    prior_call_close = (prior.bid + prior.ask) / Decimal(2)
+    roll_date_text = selection_values.get("roll_date")
+    roll_date = date.fromisoformat(roll_date_text) if isinstance(roll_date_text, str) else None
+    mapping = build_bxm_knowledge_mapping(
         subject=subject,
         snapshot_digest=snapshot.snapshot_digest,
         quote_observation_id=quote_o.observation_id,
@@ -110,22 +162,24 @@ def _prepare(
         settlement_observation=settlement,
         vwap_window_start=window_start,
         vwap_window_end=window_end,
+        roll_date=roll_date,
+        prior_index_close=prior_index_close,
+        prior_call_close=prior_call_close,
+        current_call_close=current_call_close,
+        index_vwav=index_vwav,
+        selected_call_strike=selected_call.strike if selected_call is not None else None,
+        index_close=index_close,
+        bars_observation_id=bars[0] if bars is not None else None,
+        option_history_observation_id=option_history[0] if option_history is not None else None,
     )
+    return mapping
 
 
 def _decision(payload: BxmPayload, now: datetime) -> BXMDecision:
     local = now.astimezone(NEW_YORK)
-    first = local.date().replace(day=1)
-    following = date(first.year + (first.month == 12), first.month % 12 + 1, 1)
-    sessions = UsEquitySessionCalendar()
-    roll_date = third_friday_roll_date(
-        TradingCalendarView(lambda value: sessions.session(value) is not None, first, following),
-        local.year,
-        local.month,
-    )
     return evaluate_bxm(
         decision_date=local.date(),
-        roll_date=roll_date,
+        roll_date=payload.roll_date or UnknownReason("trading_calendar_not_covered"),
         quote_effective_time=payload.quote_effective_time,
         quote_value=payload.spot,
         chain=payload.chain,
@@ -182,31 +236,9 @@ def build_bxm_subject_first_adapter(
             and payload.settlement_value.index.instrument
             == decision.selected_call.underlying.instrument
             and payload.settlement_value.settlement_date == decision.selected_call.expiration
-            and payload.settlement_value.settlement_style
-            is decision.selected_call.settlement_style
+            and payload.settlement_value.settlement_style is decision.selected_call.settlement_style
         )
-        daily_return = cboe_buywrite_daily_return(
-            roll_day=decision.verdict == PASS,
-            prior_index_close=None,
-            prior_call_close=None,
-            index_close=payload.spot,
-            call_close=None,
-            dividend_points=(
-                payload.dividend_points.points
-                if isinstance(payload.dividend_points, IndexDividendPoints) and dividend_in_period
-                else None
-            ),
-            old_strike=(
-                decision.selected_call.strike if decision.selected_call is not None else None
-            ),
-            settlement_value=(
-                payload.settlement_value.value
-                if isinstance(payload.settlement_value, IndexSettlementValue) and settlement_matches
-                else None
-            ),
-            index_vwav=None,
-            call_vwap=payload.entry_vwap if isinstance(payload.entry_vwap, Decimal) else None,
-        )
+        daily_return = payload.daily_return
         metrics = {
             "decision.reason": TypedValue.of_string(decision.reason),
             "entry.price_state": TypedValue.of_string(
@@ -230,9 +262,7 @@ def build_bxm_subject_first_adapter(
                 if not settlement_matches
                 else "RESOLVED_INDEX_SETTLEMENT_VALUE"
             ),
-            "outcome.daily_return_formula_id": TypedValue.of_string(
-                CBOE_BUYWRITE_DAILY_RETURN_ID
-            ),
+            "outcome.daily_return_formula_id": TypedValue.of_string(CBOE_BUYWRITE_DAILY_RETURN_ID),
             "outcome.daily_return_formula_version": TypedValue.of_string(
                 CBOE_BUYWRITE_DAILY_RETURN_VERSION
             ),
@@ -247,9 +277,7 @@ def build_bxm_subject_first_adapter(
                 payload.dividend_points.points
             )
         if isinstance(payload.settlement_value, IndexSettlementValue) and settlement_matches:
-            metrics["lifecycle.soq_value"] = TypedValue.of_decimal(
-                payload.settlement_value.value
-            )
+            metrics["lifecycle.soq_value"] = TypedValue.of_decimal(payload.settlement_value.value)
         if isinstance(daily_return, Decimal):
             metrics["outcome.daily_return"] = TypedValue.of_decimal(daily_return)
         if state is EvaluationState.PASS:
@@ -291,10 +319,14 @@ def build_bxm_subject_first_adapter(
 
 def build_bxm_subject_preparation_binding(
     now: datetime,
+    roll_date: date | UnknownReason,
 ) -> SubjectPreparationBinding[BxmPayload]:
     return SubjectPreparationBinding(
         SubjectPlanConsumer(
-            BXM_CONTRACT.strategy_id, bootstrap_demands(now), partial(expand_demands, now=now)
+            BXM_CONTRACT.strategy_id,
+            bootstrap_demands(now),
+            partial(expand_demands, now=now),
+            partial(expand_post_selection_demands, now=now, roll_date=roll_date),
         ),
         partial(_prepare, now),
         build_bxm_subject_first_adapter,

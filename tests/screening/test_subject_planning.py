@@ -158,6 +158,38 @@ class TestTwoSyntheticConsumers:
         assert projected.demand_id == phase_two_only_demand.demand_id
         assert projected.capability == CAPABILITY
 
+    def test_post_selection_exact_demand_resolves_after_phase_two(self) -> None:
+        phase_two = CapabilityDemand(CAPABILITY, ("last",), NOW, NOW + timedelta(seconds=1))
+        phase_three = CapabilityDemand(CAPABILITY, ("last",), NOW, NOW + timedelta(seconds=2))
+        seen: dict[str, object] = {}
+
+        def expand(_evidence: object) -> DemandExpansion:
+            return DemandExpansion(demands=(phase_two,), selections=(("selected", "exact"),))
+
+        def post_expand(
+            evidence: object, selections: tuple[tuple[str, object], ...]
+        ) -> DemandExpansion:
+            seen.update(evidence)  # type: ignore[arg-type]
+            assert dict(selections) == {"selected": "exact"}
+            return DemandExpansion(demands=(phase_three,), selections=(("contract", "exact"),))
+
+        fulfillment, _ = service(provider("primary"))
+        result = run_subject_plan(
+            _plan(fulfillment),
+            NOW,
+            (SubjectPlanConsumer("consumer-a", (), expand, post_expand),),
+            provider_metadata=(provider("primary").metadata,),
+            resolution_policy_by_capability=_RESOLUTION_POLICY,
+            capability_reducer_by_capability={CAPABILITY: lambda values: values[-1]},
+        )
+
+        assert phase_two.demand_id in seen
+        assert phase_three.demand_id in result.projected_evidence
+        assert dict(result.expansions_by_consumer["consumer-a"].selections) == {
+            "contract": "exact",
+            "selected": "exact",
+        }
+
     def test_selections_and_unknown_reasons_pass_through_untouched(self) -> None:
         reason = UnknownReason("no_data", demand_ids=(_quote_demand().demand_id,))
 

@@ -10,6 +10,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from datetime import datetime
 
+from analytics.calendar_facts import TradingCalendarView, new_york_time, third_friday_roll_date
 from domain import MarketCapability
 from market_data import CapabilityRegistry
 from market_data.capability_coalescing import (
@@ -17,6 +18,7 @@ from market_data.capability_coalescing import (
     reduce_option_chain_results,
 )
 from market_data.resolution import ResolutionPolicy
+from market_data.session_calendar import UsEquitySessionCalendar
 from screening.subject_planning import CapabilityResultReducer
 from strategies import (
     EARNINGS_CALENDAR_MANIFEST,
@@ -24,11 +26,11 @@ from strategies import (
     SKEW_MOMENTUM_VERTICAL_MANIFEST,
 )
 from strategies.bxm_manifest import BXM_MANIFEST
+from strategies.bxm_planning import resolved_field_requirements as bxm_resolved_field_requirements
 from strategies.cboe_put_manifest import CBOE_PUT_MANIFEST
 from strategies.cboe_put_planning import (
     resolved_field_requirements as cboe_put_resolved_field_requirements,
 )
-from strategies.bxm_planning import resolved_field_requirements as bxm_resolved_field_requirements
 from strategies.cboe_puty_manifest import CBOE_PUTY_MANIFEST
 from strategies.earnings_calendar_planning import earnings_calendar_resolved_field_requirements
 from strategies.forward_factor_planning import (
@@ -163,6 +165,19 @@ def build_migrated_shadow_registry(
     itself closes its own bootstrap demands and phase-two expansion over
     this exact ``now``.
     """
+    local = new_york_time(now)
+    first = local.date().replace(day=1)
+    following = first.replace(year=first.year + (first.month == 12), month=first.month % 12 + 1)
+    sessions = UsEquitySessionCalendar()
+    bxm_roll_date = third_friday_roll_date(
+        TradingCalendarView(
+            lambda value: sessions.session(value) is not None,
+            first,
+            following,
+        ),
+        local.year,
+        local.month,
+    )
     return SubjectPreparationRegistry(
         (
             (
@@ -186,7 +201,10 @@ def build_migrated_shadow_registry(
             (GXZ_CONTRACT.strategy_id, build_gxz_subject_preparation_binding(now)),
             (CBOE_PUT_CONTRACT.strategy_id, build_cboe_put_subject_preparation_binding(now)),
             (CBOE_PUTY_CONTRACT.strategy_id, build_cboe_puty_subject_preparation_binding(now)),
-            (BXM_CONTRACT.strategy_id, build_bxm_subject_preparation_binding(now)),
+            (
+                BXM_CONTRACT.strategy_id,
+                build_bxm_subject_preparation_binding(now, bxm_roll_date),
+            ),
         )
     )
 

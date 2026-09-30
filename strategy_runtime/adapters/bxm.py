@@ -25,6 +25,7 @@ BXM_CONTRACT = StrategyContract(
                 MarketCapability.REAL_TIME_QUOTE_V1,
                 MarketCapability.TRADING_CALENDAR_V1,
                 MarketCapability.INDEX_DIVIDEND_POINTS_V1,
+                MarketCapability.HISTORICAL_BARS_V1,
             ),
         ),
         DataRequirement(
@@ -33,6 +34,7 @@ BXM_CONTRACT = StrategyContract(
                 MarketCapability.OPTION_CHAIN_V1,
                 MarketCapability.OPTION_TRADE_TAPE_V1,
                 MarketCapability.INDEX_SETTLEMENT_VALUE_V1,
+                MarketCapability.HISTORICAL_OPTION_PANEL_V1,
             ),
         ),
     ),
