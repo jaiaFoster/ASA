@@ -27,11 +27,11 @@ Passing selection builds generic P09: one analytical, non-broker-executable S&P
 SPY or futures and creates no order. X05 entry VWAP, X07 dividend points, and
 SOQ evidence are projected from the sealed snapshot when authoritative evidence
 exists. Otherwise each remains evidence-derived typed UNKNOWN. X05
-uses the registered `windowed_option_trade_vwap@1.0.0` formula and never a quote
-midpoint or last-trade substitute. Its 11:30–13:30 window is explicitly New
-York time, and a tape resolves entry price only when its exact contract identity
-matches the selected short call. Dividend and SOQ facts resolve only for the
-same SPX instrument and the selected holding/settlement period.
+uses exact eligible trade prints in its 11:30–13:30 New York window. When an
+authoritative exact-contract tape proves no eligible trade, the sourced fallback
+is the last exact-contract bid before 13:30 ET. Missing tape or timestamped quote
+evidence remains typed UNKNOWN. Dividend and SOQ facts resolve only for the same
+SPX instrument and the selected holding/settlement period.
 
 X05 is post-selection acquisition: the manifest-selected exact call identity is
 carried by `CapabilityDemand`, projected as the provider's explicit
@@ -43,18 +43,23 @@ interpretation.
 
 `DF-CBOE-BUYWRITE-DAILY-RETURN@1.0.0` implements both the source non-roll
 close-to-close formula and the three compounded roll-day segments. Historical
-index bars and the provider-neutral historical option panel supply prior/current
-marks; roll-day tape, dividend, and SOQ evidence supply the remaining inputs.
-Those inputs are projected as canonical facts and the named return is
-materialized by the existing derived-fact owner. The live adapter consumes only
-that materialized fact or its typed missing-input state; it no longer invokes
-the formula with hardcoded missing values.
+index observations and the provider-neutral historical option panel supply
+source-faithful lifecycle inputs. `K_old` comes from the uniquely identified
+expiring call, independently of the new selected strike. Prior/current call
+closes are the exact contracts' last bid/ask means before 16:00 ET. `S_VWAV`
+uses index values at the same timestamps and size weights as eligible call
+trades; it never uses index-bar volume as a proxy. Missing exact alignment stays
+typed UNKNOWN. Those inputs are projected as canonical facts and the named
+return is materialized by the existing derived-fact owner. The live adapter
+consumes only that materialized fact or its typed missing-input state.
 
 ## Verification
 
 Pinned vectors cover manifest-authority mutation, exact strike/root/settlement
 selection, post-selection exact-contract acquisition, verdict precedence,
-non-roll and roll return equations, a non-UNKNOWN materialized daily return,
+non-roll and roll return equations, distinct old/new strikes, pre-close quote
+selection, exact trade/index timestamp alignment, no-trade bid fallback, a
+non-UNKNOWN materialized daily return,
 matching/mismatched tape identity, relevant/irrelevant dividend and SOQ evidence,
 P09 identity/executability, generic typed no-provider deferral, production
 registry/catalog/scheduler wiring, and existing fixed-subject option orchestration.

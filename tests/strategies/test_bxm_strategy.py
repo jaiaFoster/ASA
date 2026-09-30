@@ -1,9 +1,14 @@
 from dataclasses import replace
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 
+from analytics.buywrite import cboe_buywrite_daily_return
 from analytics.derived_fact_materialization import materialize_derived_fact
-from analytics.derived_facts import CBOE_BUYWRITE_DAILY_RETURN, DERIVED_FACT_REGISTRY
+from analytics.derived_facts import (
+    CBOE_BUYWRITE_DAILY_RETURN,
+    DERIVED_FACT_REGISTRY,
+    WINDOWED_OPTION_TRADE_VWAP,
+)
 from analytics.features import DerivedFactSet
 from domain import (
     CanonicalFact,
@@ -12,13 +17,19 @@ from domain import (
     EvidenceKind,
     EvidenceReference,
     EvidenceUsability,
+    HistoricalOptionPanel,
+    HistoricalOptionSnapshot,
     IndexDividendPoints,
     IndexSettlementValue,
     Instrument,
     InstrumentKind,
     MarketCapability,
+    OHLCVBar,
+    OHLCVSeries,
     OptionChain,
     OptionContract,
+    OptionTrade,
+    OptionTradeTape,
     OptionType,
     Provenance,
     Quote,
@@ -249,29 +260,93 @@ def test_bxm_plans_every_declared_lifecycle_capability_as_optional_where_appropr
 
 
 def test_buywrite_daily_return_is_materialized_from_projected_inputs() -> None:
+    prior_time = datetime(2026, 10, 15, 19, 59, tzinfo=UTC)
+    entry_time = datetime(2026, 10, 16, 17, 0, tzinfo=UTC)
+    close_time = datetime(2026, 10, 16, 19, 59, tzinfo=UTC)
+    old_call = replace(
+        _call("5005"),
+        option_contract_id=CanonicalInstrumentIdentity("occ", "SPX-2026-10-16-98-C"),
+        expiration=ROLL.date(),
+        strike=Decimal("98"),
+        bid=Decimal("3"),
+        ask=Decimal("5"),
+        observed_at=prior_time,
+    )
+    new_call = replace(
+        _call("5005"),
+        strike=Decimal("105"),
+        bid=Decimal("2"),
+        ask=Decimal("4"),
+    )
+    new_close = replace(new_call, observed_at=close_time)
+    after_close = replace(
+        new_call,
+        bid=Decimal("98"),
+        ask=Decimal("100"),
+        observed_at=datetime(2026, 10, 16, 20, 1, tzinfo=UTC),
+    )
+    panel = HistoricalOptionPanel(
+        SPX.instrument,
+        datetime(2026, 10, 16, 20, 2, tzinfo=UTC),
+        (
+            HistoricalOptionSnapshot(
+                SPX.instrument, prior_time, prior_time, "prior-close", (old_call,)
+            ),
+            HistoricalOptionSnapshot(
+                SPX.instrument, close_time, close_time, "current-close", (new_close,)
+            ),
+            HistoricalOptionSnapshot(
+                SPX.instrument,
+                after_close.observed_at,
+                after_close.observed_at,
+                "after-close",
+                (after_close,),
+            ),
+        ),
+    )
+    trade = OptionTrade(
+        "trade-1", new_call.identity, Decimal("4"), Decimal("2"), entry_time, entry_time, ()
+    )
+    tape = OptionTradeTape(new_call.identity, close_time, (trade,))
+    aligned_bar = OHLCVBar(
+        SPX.instrument,
+        60,
+        entry_time - timedelta(seconds=60),
+        entry_time,
+        Decimal("102"),
+        Decimal("102"),
+        Decimal("102"),
+        Decimal("102"),
+        Decimal("1"),
+    )
+    series = OHLCVSeries(SPX.instrument, 60, close_time, (aligned_bar,))
     mapping = build_bxm_knowledge_mapping(
         subject="SPX",
         snapshot_digest="digest",
         quote_observation_id="quote-observation",
         chain_observation_id="chain-observation",
-        chain=_chain(_call("5005")),
+        chain=_chain(new_call),
         spot=Decimal("102"),
         quote_effective_time=ROLL,
-        tape_observation=None,
+        tape_observation=("tape-observation", tape),
         dividend_observation=(
             "dividend-observation",
             IndexDividendPoints(SPX.instrument, Decimal("1"), ROLL.date()),
         ),
-        settlement_observation=None,
-        vwap_window_start=ROLL,
-        vwap_window_end=ROLL,
-        roll_date=date(2026, 10, 15),
+        settlement_observation=(
+            "settlement-observation",
+            IndexSettlementValue(
+                SPX, ROLL.date(), SettlementStyle.AM, Decimal("101"), ROLL, EVIDENCE
+            ),
+        ),
+        vwap_window_start=datetime(2026, 10, 16, 15, 30, tzinfo=UTC),
+        vwap_window_end=datetime(2026, 10, 16, 17, 30, tzinfo=UTC),
+        roll_date=ROLL.date(),
         prior_index_close=Decimal("100"),
-        prior_call_close=Decimal("4"),
-        current_call_close=Decimal("3"),
         index_close=Decimal("102"),
-        bars_observation_id="bars-observation",
-        option_history_observation_id="option-history-observation",
+        bars_observation=("bars-observation", series),
+        option_history_observation=("option-history-observation", panel),
+        selected_call_identity=new_call.identity,
     )
     facts = tuple(
         CanonicalFact(
@@ -289,7 +364,19 @@ def test_buywrite_daily_return_is_materialized_from_projected_inputs() -> None:
     requests = mapping.compute_derived_fact_requests(facts)
     assert not isinstance(requests, UnknownReason)
     daily_request = next(item for item in requests if item.feature_id == CBOE_BUYWRITE_DAILY_RETURN)
-    assert daily_request.value == Decimal("0.041666666666666666666666667")
+    expected = cboe_buywrite_daily_return(
+        roll_day=True,
+        prior_index_close=Decimal("100"),
+        prior_call_close=Decimal("4"),
+        index_close=Decimal("102"),
+        call_close=Decimal("3"),
+        dividend_points=Decimal("1"),
+        old_strike=Decimal("98"),
+        settlement_value=Decimal("101"),
+        index_vwav=Decimal("102"),
+        call_vwap=Decimal("4"),
+    )
+    assert daily_request.value == expected
     materialized = materialize_derived_fact(
         DERIVED_FACT_REGISTRY,
         daily_request.feature_id,
@@ -304,6 +391,119 @@ def test_buywrite_daily_return_is_materialized_from_projected_inputs() -> None:
     )
     payload = mapping.build_payload(facts, DerivedFactSet((materialized,)))
     assert payload.daily_return == daily_request.value
+
+    fallback_time = datetime(2026, 10, 16, 17, 29, tzinfo=UTC)
+    fallback_quote = replace(new_call, bid=Decimal("3.5"), observed_at=fallback_time)
+    fallback_panel = replace(
+        panel,
+        snapshots=(
+            panel.snapshots[0],
+            HistoricalOptionSnapshot(
+                SPX.instrument,
+                fallback_time,
+                fallback_time,
+                "no-trade-fallback",
+                (fallback_quote,),
+            ),
+            *panel.snapshots[1:],
+        ),
+    )
+    fallback_mapping = build_bxm_knowledge_mapping(
+        subject="SPX",
+        snapshot_digest="fallback-digest",
+        quote_observation_id="quote-observation",
+        chain_observation_id="chain-observation",
+        chain=_chain(new_call),
+        spot=Decimal("102"),
+        quote_effective_time=ROLL,
+        tape_observation=(
+            "empty-tape-observation",
+            OptionTradeTape(new_call.identity, close_time, ()),
+        ),
+        dividend_observation=(
+            "dividend-observation",
+            IndexDividendPoints(SPX.instrument, Decimal("1"), ROLL.date()),
+        ),
+        settlement_observation=None,
+        vwap_window_start=datetime(2026, 10, 16, 15, 30, tzinfo=UTC),
+        vwap_window_end=datetime(2026, 10, 16, 17, 30, tzinfo=UTC),
+        roll_date=ROLL.date(),
+        bars_observation=("bars-observation", series),
+        option_history_observation=("option-history-observation", fallback_panel),
+        selected_call_identity=new_call.identity,
+    )
+    fallback_facts = tuple(
+        CanonicalFact(
+            canonical_fact_id(request.fact_type, request.subject, "fallback-digest"),
+            1,
+            request.fact_type,
+            request.value,
+            Confidence(1.0),
+            Provenance((request.observation_id,), ("fixture",), "fixture", (), ROLL),
+            ROLL,
+            ROLL,
+        )
+        for request in fallback_mapping.canonical_fact_requests
+    )
+    fallback_requests = fallback_mapping.compute_derived_fact_requests(fallback_facts)
+    assert not isinstance(fallback_requests, UnknownReason)
+    fallback_vwap = next(
+        item for item in fallback_requests if item.feature_id == WINDOWED_OPTION_TRADE_VWAP
+    )
+    assert fallback_vwap.value == Decimal("3.5")
+
+    misaligned_bar = replace(
+        aligned_bar,
+        start_at=aligned_bar.start_at + timedelta(minutes=1),
+        end_at=aligned_bar.end_at + timedelta(minutes=1),
+    )
+    misaligned_mapping = build_bxm_knowledge_mapping(
+        subject="SPX",
+        snapshot_digest="misaligned-digest",
+        quote_observation_id="quote-observation",
+        chain_observation_id="chain-observation",
+        chain=_chain(new_call),
+        spot=Decimal("102"),
+        quote_effective_time=ROLL,
+        tape_observation=("tape-observation", tape),
+        dividend_observation=(
+            "dividend-observation",
+            IndexDividendPoints(SPX.instrument, Decimal("1"), ROLL.date()),
+        ),
+        settlement_observation=(
+            "settlement-observation",
+            IndexSettlementValue(
+                SPX, ROLL.date(), SettlementStyle.AM, Decimal("101"), ROLL, EVIDENCE
+            ),
+        ),
+        vwap_window_start=datetime(2026, 10, 16, 15, 30, tzinfo=UTC),
+        vwap_window_end=datetime(2026, 10, 16, 17, 30, tzinfo=UTC),
+        roll_date=ROLL.date(),
+        prior_index_close=Decimal("100"),
+        index_close=Decimal("102"),
+        bars_observation=(
+            "bars-observation",
+            OHLCVSeries(SPX.instrument, 60, close_time, (misaligned_bar,)),
+        ),
+        option_history_observation=("option-history-observation", panel),
+        selected_call_identity=new_call.identity,
+    )
+    misaligned_facts = tuple(
+        CanonicalFact(
+            canonical_fact_id(request.fact_type, request.subject, "misaligned-digest"),
+            1,
+            request.fact_type,
+            request.value,
+            Confidence(1.0),
+            Provenance((request.observation_id,), ("fixture",), "fixture", (), ROLL),
+            ROLL,
+            ROLL,
+        )
+        for request in misaligned_mapping.canonical_fact_requests
+    )
+    misaligned_requests = misaligned_mapping.compute_derived_fact_requests(misaligned_facts)
+    assert not isinstance(misaligned_requests, UnknownReason)
+    assert all(item.feature_id != CBOE_BUYWRITE_DAILY_RETURN for item in misaligned_requests)
 
 
 def test_production_adapter_resolves_exact_lifecycle_evidence_and_materialized_return() -> None:

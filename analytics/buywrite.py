@@ -1,11 +1,223 @@
 """Versioned provider-neutral Cboe buy-write return accounting."""
 
+from dataclasses import dataclass
+from datetime import date, datetime
 from decimal import Decimal
+from zoneinfo import ZoneInfo
 
-from domain import UnknownReason
+from domain import (
+    HistoricalOptionPanel,
+    OHLCVSeries,
+    OptionContract,
+    OptionTrade,
+    OptionTradeTape,
+    OptionType,
+    UnknownReason,
+)
 
 CBOE_BUYWRITE_DAILY_RETURN_ID = "DF-CBOE-BUYWRITE-DAILY-RETURN"
 CBOE_BUYWRITE_DAILY_RETURN_VERSION = "1.0.0"
+NEW_YORK = ZoneInfo("America/New_York")
+
+
+@dataclass(frozen=True, slots=True)
+class BxmLifecycleFacts:
+    """Source-faithful lifecycle inputs; absent evidence stays UNKNOWN."""
+
+    old_strike: Decimal | UnknownReason
+    prior_call_close: Decimal | UnknownReason
+    current_call_close: Decimal | UnknownReason
+    index_vwav: Decimal | UnknownReason
+    entry_price: Decimal | UnknownReason
+
+
+def _eligible_trades(
+    tape: OptionTradeTape,
+    window_start: datetime,
+    window_end: datetime,
+    excluded_sale_condition_codes: frozenset[str],
+) -> tuple[OptionTrade, ...]:
+    return tuple(
+        trade
+        for trade in tape.trades
+        if window_start <= trade.event_time <= window_end
+        and not excluded_sale_condition_codes.intersection(trade.sale_condition_codes)
+    )
+
+
+def _last_contract_quote(
+    panel: HistoricalOptionPanel,
+    contract_identity: str,
+    session_date: date,
+    cutoff: datetime,
+) -> OptionContract | UnknownReason:
+    matches = tuple(
+        contract
+        for snapshot in panel.snapshots
+        if snapshot.observed_at.astimezone(NEW_YORK).date() == session_date
+        and snapshot.observed_at < cutoff
+        for contract in snapshot.contracts
+        if contract.identity == contract_identity
+        and contract.observed_at.astimezone(NEW_YORK).date() == session_date
+        and contract.observed_at < cutoff
+    )
+    if not matches:
+        return UnknownReason("exact_option_quote_before_cutoff_unavailable")
+    return max(matches, key=lambda item: item.observed_at)
+
+
+def option_close_before_new_york_close(
+    panel: HistoricalOptionPanel,
+    contract_identity: str,
+    session_date: date,
+) -> Decimal | UnknownReason:
+    """Mean of exact contract's last bid/ask observed before 16:00 New York."""
+    cutoff = datetime.combine(session_date, datetime.min.time(), NEW_YORK).replace(hour=16)
+    quote = _last_contract_quote(panel, contract_identity, session_date, cutoff)
+    if isinstance(quote, UnknownReason):
+        return quote
+    if quote.bid is None or quote.ask is None:
+        return UnknownReason("closing_bid_or_ask_unavailable")
+    return (quote.bid + quote.ask) / Decimal(2)
+
+
+def option_entry_price(
+    tape: OptionTradeTape | None,
+    panel: HistoricalOptionPanel | None,
+    contract_identity: str,
+    window_start: datetime,
+    window_end: datetime,
+    *,
+    excluded_sale_condition_codes: frozenset[str],
+) -> Decimal | UnknownReason:
+    """Trade VWAP, or sourced no-trade fallback: last bid before window end."""
+    if tape is None or tape.contract_identity != contract_identity:
+        return UnknownReason("option_trade_tape_unavailable")
+    eligible = _eligible_trades(tape, window_start, window_end, excluded_sale_condition_codes)
+    if eligible:
+        total = sum((trade.size for trade in eligible), Decimal(0))
+        return sum((trade.price * trade.size for trade in eligible), Decimal(0)) / total
+    if panel is None:
+        return UnknownReason("no_trade_fallback_quote_unavailable")
+    quote = _last_contract_quote(
+        panel,
+        contract_identity,
+        window_end.astimezone(NEW_YORK).date(),
+        window_end,
+    )
+    if isinstance(quote, UnknownReason) or quote.bid is None:
+        return UnknownReason("no_trade_fallback_quote_unavailable")
+    return quote.bid
+
+
+def index_value_weighted_at_option_trades(
+    series: OHLCVSeries | None,
+    tape: OptionTradeTape | None,
+    window_start: datetime,
+    window_end: datetime,
+    *,
+    excluded_sale_condition_codes: frozenset[str],
+) -> Decimal | UnknownReason:
+    """Index values at exact option-trade timestamps, with identical size weights.
+
+    When authoritative tape proves no eligible trade, use last index value at or
+    before window end. Bars are point observations only at their end timestamp.
+    """
+    if series is None or tape is None:
+        return UnknownReason("aligned_index_observations_unavailable")
+    eligible = _eligible_trades(tape, window_start, window_end, excluded_sale_condition_codes)
+    by_time = {bar.end_at: bar.close for bar in series.bars}
+    if eligible:
+        if any(trade.event_time not in by_time for trade in eligible):
+            return UnknownReason("aligned_index_observations_unavailable")
+        total = sum((trade.size for trade in eligible), Decimal(0))
+        weighted = sum(
+            (by_time[trade.event_time] * trade.size for trade in eligible),
+            Decimal(0),
+        )
+        return weighted / total
+    prior = tuple(bar for bar in series.bars if bar.end_at < window_end)
+    if not prior:
+        return UnknownReason("index_value_before_window_end_unavailable")
+    return max(prior, key=lambda item: item.end_at).close
+
+
+def resolve_bxm_lifecycle_facts(
+    *,
+    panel: HistoricalOptionPanel | None,
+    series: OHLCVSeries | None,
+    tape: OptionTradeTape | None,
+    selected_contract_identity: str,
+    roll_date: date,
+    window_start: datetime,
+    window_end: datetime,
+    excluded_sale_condition_codes: frozenset[str] = frozenset(),
+) -> BxmLifecycleFacts:
+    """Resolve old/new contract lifecycle inputs from exact sealed evidence."""
+    unknown = UnknownReason("historical_option_lifecycle_unavailable")
+    if panel is None:
+        return BxmLifecycleFacts(
+            unknown,
+            unknown,
+            unknown,
+            unknown,
+            option_entry_price(
+                tape,
+                None,
+                selected_contract_identity,
+                window_start,
+                window_end,
+                excluded_sale_condition_codes=excluded_sale_condition_codes,
+            ),
+        )
+    prior_dates = sorted(
+        {
+            snapshot.observed_at.astimezone(NEW_YORK).date()
+            for snapshot in panel.snapshots
+            if snapshot.observed_at.astimezone(NEW_YORK).date() < roll_date
+        }
+    )
+    if not prior_dates:
+        old_contract: OptionContract | UnknownReason = unknown
+        prior_close: Decimal | UnknownReason = unknown
+    else:
+        prior_date = prior_dates[-1]
+        old_candidates = {
+            contract.identity: contract
+            for snapshot in panel.snapshots
+            if snapshot.observed_at.astimezone(NEW_YORK).date() == prior_date
+            for contract in snapshot.contracts
+            if contract.option_type is OptionType.CALL and contract.expiration == roll_date
+        }
+        if len(old_candidates) != 1:
+            old_contract = UnknownReason("expiring_call_identity_not_unique")
+            prior_close = old_contract
+        else:
+            old_contract = next(iter(old_candidates.values()))
+            prior_close = option_close_before_new_york_close(
+                panel, old_contract.identity, prior_date
+            )
+    current_close = option_close_before_new_york_close(panel, selected_contract_identity, roll_date)
+    return BxmLifecycleFacts(
+        old_contract.strike if isinstance(old_contract, OptionContract) else old_contract,
+        prior_close,
+        current_close,
+        index_value_weighted_at_option_trades(
+            series,
+            tape,
+            window_start,
+            window_end,
+            excluded_sale_condition_codes=excluded_sale_condition_codes,
+        ),
+        option_entry_price(
+            tape,
+            panel,
+            selected_contract_identity,
+            window_start,
+            window_end,
+            excluded_sale_condition_codes=excluded_sale_condition_codes,
+        ),
+    )
 
 
 def cboe_buywrite_daily_return(

@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
 
-from analytics.buywrite import cboe_buywrite_daily_return
+from analytics.buywrite import cboe_buywrite_daily_return, resolve_bxm_lifecycle_facts
 from analytics.calendar_facts import new_york_time
 from analytics.derived_facts import (
     CBOE_BUYWRITE_DAILY_RETURN,
@@ -17,9 +17,11 @@ from domain import (
     CanonicalFact,
     EvidenceKind,
     EvidenceReference,
+    HistoricalOptionPanel,
     IndexDividendPoints,
     IndexSettlementValue,
     MarketCapability,
+    OHLCVSeries,
     OptionChain,
     OptionTradeTape,
     UnknownReason,
@@ -61,13 +63,10 @@ def build_bxm_knowledge_mapping(
     vwap_window_end: datetime,
     roll_date: date | None = None,
     prior_index_close: Decimal | None = None,
-    prior_call_close: Decimal | None = None,
-    current_call_close: Decimal | None = None,
-    index_vwav: Decimal | None = None,
-    selected_call_strike: Decimal | None = None,
     index_close: Decimal | None = None,
-    bars_observation_id: str | None = None,
-    option_history_observation_id: str | None = None,
+    bars_observation: tuple[str, OHLCVSeries] | None = None,
+    option_history_observation: tuple[str, HistoricalOptionPanel] | None = None,
+    selected_call_identity: str | None = None,
 ) -> KnowledgeMapping[BxmPayload]:
     requests = [
         CanonicalFactRequest(
@@ -115,6 +114,23 @@ def build_bxm_knowledge_mapping(
                 "index_settlement_value",
             )
         )
+    lifecycle = (
+        resolve_bxm_lifecycle_facts(
+            panel=option_history_observation[1] if option_history_observation else None,
+            series=bars_observation[1] if bars_observation else None,
+            tape=tape_observation[1] if tape_observation else None,
+            selected_contract_identity=selected_call_identity,
+            roll_date=roll_date,
+            window_start=vwap_window_start,
+            window_end=vwap_window_end,
+        )
+        if selected_call_identity is not None and roll_date is not None
+        else None
+    )
+    bars_observation_id = bars_observation[0] if bars_observation else None
+    option_history_observation_id = (
+        option_history_observation[0] if option_history_observation else None
+    )
     scalar_inputs = (
         (
             "prior_index_close",
@@ -123,28 +139,33 @@ def build_bxm_knowledge_mapping(
             MarketCapability.HISTORICAL_BARS_V1,
         ),
         ("index_close", index_close, bars_observation_id, MarketCapability.HISTORICAL_BARS_V1),
-        ("index_vwav", index_vwav, bars_observation_id, MarketCapability.HISTORICAL_BARS_V1),
+        (
+            "index_vwav",
+            lifecycle.index_vwav if lifecycle else None,
+            bars_observation_id,
+            MarketCapability.HISTORICAL_BARS_V1,
+        ),
         (
             "prior_call_close",
-            prior_call_close,
+            lifecycle.prior_call_close if lifecycle else None,
             option_history_observation_id,
             MarketCapability.HISTORICAL_OPTION_PANEL_V1,
         ),
         (
             "current_call_close",
-            current_call_close,
-            chain_observation_id,
-            MarketCapability.OPTION_CHAIN_V1,
+            lifecycle.current_call_close if lifecycle else None,
+            option_history_observation_id,
+            MarketCapability.HISTORICAL_OPTION_PANEL_V1,
         ),
         (
-            "selected_call_strike",
-            selected_call_strike,
-            chain_observation_id,
-            MarketCapability.OPTION_CHAIN_V1,
+            "old_call_strike",
+            lifecycle.old_strike if lifecycle else None,
+            option_history_observation_id,
+            MarketCapability.HISTORICAL_OPTION_PANEL_V1,
         ),
     )
     for fact_type, value, observation_id, capability in scalar_inputs:
-        if value is not None and observation_id is not None:
+        if isinstance(value, Decimal) and observation_id is not None:
             requests.append(
                 CanonicalFactRequest(capability, observation_id, value, subject, fact_type)
             )
@@ -153,11 +174,15 @@ def build_bxm_knowledge_mapping(
         requests: list[DerivedFactRequest] = []
         entry_vwap: Decimal | None = None
         if tape_observation is not None:
-            value = option_trade_window_vwap(
-                tape_observation[1],
-                vwap_window_start,
-                vwap_window_end,
-                excluded_sale_condition_codes=frozenset(),
+            value = (
+                lifecycle.entry_price
+                if lifecycle
+                else option_trade_window_vwap(
+                    tape_observation[1],
+                    vwap_window_start,
+                    vwap_window_end,
+                    excluded_sale_condition_codes=frozenset(),
+                )
             )
             if isinstance(value, Decimal):
                 entry_vwap = value
@@ -201,7 +226,7 @@ def build_bxm_knowledge_mapping(
             index_close=_decimal_fact("index_close"),
             call_close=_decimal_fact("current_call_close"),
             dividend_points=_decimal_fact("index_dividend_points"),
-            old_strike=_decimal_fact("selected_call_strike"),
+            old_strike=_decimal_fact("old_call_strike"),
             settlement_value=_decimal_fact("index_settlement_value"),
             index_vwav=_decimal_fact("index_vwav"),
             call_vwap=entry_vwap,

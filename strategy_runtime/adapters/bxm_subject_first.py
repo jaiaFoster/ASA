@@ -5,6 +5,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from functools import partial
 from types import MappingProxyType
+from typing import TypeVar
 
 from analytics.buywrite import CBOE_BUYWRITE_DAILY_RETURN_ID, CBOE_BUYWRITE_DAILY_RETURN_VERSION
 from domain import (
@@ -53,6 +54,8 @@ from strategy_runtime.underlying_overlay import (
 )
 from strategy_runtime.values import TypedValue
 
+T = TypeVar("T")
+
 
 def _prepare(
     now: datetime,
@@ -73,9 +76,7 @@ def _prepare(
     if chain_o is None or not isinstance(chain_o.value, OptionChain):
         return UnknownReason("G_BXM_STRIKE_EXISTS_UNKNOWN")
 
-    def _optional(
-        capability: MarketCapability, expected: type[object]
-    ) -> tuple[str, object] | None:
+    def _optional(capability: MarketCapability, expected: type[T]) -> tuple[str, T] | None:
         try:
             resolution = resolution_for(snapshot, capability)
         except ValueError:
@@ -110,43 +111,12 @@ def _prepare(
     )
     prior_index_close: Decimal | None = None
     index_close: Decimal = quote_o.value.last
-    index_vwav: Decimal | None = None
     if bars is not None:
         series = bars[1]
         assert isinstance(series, OHLCVSeries)
         if len(series.bars) >= 2:
             prior_index_close = series.bars[-2].close
             index_close = series.bars[-1].close
-        same_day = tuple(item for item in series.bars if item.end_at.date() == local.date())
-        total_volume = sum((item.volume for item in same_day), Decimal(0))
-        if same_day and total_volume > 0:
-            index_vwav = (
-                sum((item.close * item.volume for item in same_day), Decimal(0)) / total_volume
-            )
-    current_call_close: Decimal | None = None
-    prior_call_close: Decimal | None = None
-    if selected_call is not None:
-        current_call_close = selected_call.mark
-        if (
-            current_call_close is None
-            and selected_call.bid is not None
-            and selected_call.ask is not None
-        ):
-            current_call_close = (selected_call.bid + selected_call.ask) / Decimal(2)
-        if option_history is not None:
-            panel = option_history[1]
-            assert isinstance(panel, HistoricalOptionPanel)
-            historical_contracts = tuple(
-                contract
-                for historical_snapshot in panel.snapshots
-                for contract in historical_snapshot.contracts
-                if contract.option_contract_id == selected_call.option_contract_id
-            )
-            if historical_contracts:
-                prior = historical_contracts[-1]
-                prior_call_close = prior.mark
-                if prior_call_close is None and prior.bid is not None and prior.ask is not None:
-                    prior_call_close = (prior.bid + prior.ask) / Decimal(2)
     roll_date_text = selection_values.get("roll_date")
     roll_date = date.fromisoformat(roll_date_text) if isinstance(roll_date_text, str) else None
     mapping = build_bxm_knowledge_mapping(
@@ -164,13 +134,10 @@ def _prepare(
         vwap_window_end=window_end,
         roll_date=roll_date,
         prior_index_close=prior_index_close,
-        prior_call_close=prior_call_close,
-        current_call_close=current_call_close,
-        index_vwav=index_vwav,
-        selected_call_strike=selected_call.strike if selected_call is not None else None,
         index_close=index_close,
-        bars_observation_id=bars[0] if bars is not None else None,
-        option_history_observation_id=option_history[0] if option_history is not None else None,
+        bars_observation=bars,
+        option_history_observation=option_history,
+        selected_call_identity=selected_call.identity if selected_call is not None else None,
     )
     return mapping
 
