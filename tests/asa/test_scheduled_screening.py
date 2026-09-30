@@ -1971,6 +1971,9 @@ def test_scheduled_readiness_does_not_advance_past_authoritative_screening_row(
         def upsert(self, row: object) -> None:
             return None
 
+        def get_all(self) -> tuple[object, ...]:
+            return ()
+
     class CaptureReadiness:
         def __init__(self) -> None:
             self.artifacts = []

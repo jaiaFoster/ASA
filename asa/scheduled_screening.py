@@ -114,7 +114,11 @@ from strategy_runtime.orchestration import (
     prepare_subject_shadow_knowledge_with_temporal,
     refresh_with_shadow,
 )
-from strategy_runtime.persistence import LatestResultRepository, ObservationHistoryRepository
+from strategy_runtime.persistence import (
+    LatestResultRepository,
+    ObservationHistoryRepository,
+    lifecycle_position_identities,
+)
 from strategy_runtime.preparation_diagnostics import classify_subject_preparation_exception
 from strategy_runtime.service import record_opportunity_observation
 
@@ -594,7 +598,9 @@ def run_scheduled_refresh(
     # unresolved argument silently disabled Skew's historical z-score facts in
     # every default scheduled cycle.
     shadow_registry = build_migrated_shadow_registry(
-        clock.now(), resolved_historical_skew_repository
+        clock.now(),
+        resolved_historical_skew_repository,
+        lifecycle_position_identities(resolved_repository.get_all()),
     )
     shadow_capability_reducers = migrated_shadow_capability_reducers()
     # SPRINT-014 S14-PR-05, Architect checkpoint: nineteenth review, "one

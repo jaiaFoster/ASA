@@ -45,11 +45,17 @@ interpretation.
 close-to-close formula and the three compounded roll-day segments. Historical
 index observations and the provider-neutral historical option panel supply
 source-faithful lifecycle inputs. `K_old` comes from the uniquely identified
-expiring call, independently of the new selected strike. Prior/current call
+expiring call, independently of the new selected strike. Exact held-call
+identity is carried forward through the generic persisted lifecycle-position
+metric and injected at both production composition roots; no expiration-only
+inference remains. Prior/current call
 closes are the exact contracts' last bid/ask means before 16:00 ET. `S_VWAV`
 uses index values at the same timestamps and size weights as eligible call
-trades; it never uses index-bar volume as a proxy. Missing exact alignment stays
-typed UNKNOWN. Those inputs are projected as canonical facts and the named
+trades after applying the manifest-owned OPRA exclusion set (A-H and f-t); it
+never uses index-bar volume as a proxy. `S_{t-1}` and `S_t` resolve as the latest
+valid index observations at/before each New York session close, never by list
+position. Missing exact identity, timing, or alignment stays typed UNKNOWN.
+Those inputs are projected as canonical facts and the named
 return is materialized by the existing derived-fact owner. The live adapter
 consumes only that materialized fact or its typed missing-input state.
 
@@ -57,8 +63,10 @@ consumes only that materialized fact or its typed missing-input state.
 
 Pinned vectors cover manifest-authority mutation, exact strike/root/settlement
 selection, post-selection exact-contract acquisition, verdict precedence,
-non-roll and roll return equations, distinct old/new strikes, pre-close quote
-selection, exact trade/index timestamp alignment, no-trade bid fallback, a
+non-roll and roll return equations, multiple same-expiry strikes with explicit
+persisted held identity, intraday bars around explicit session closes,
+pre-close quote selection, OPRA exclusions applied identically to call/index
+weights, exact trade/index timestamp alignment, no-trade bid fallback, a
 non-UNKNOWN materialized daily return,
 matching/mismatched tape identity, relevant/irrelevant dividend and SOQ evidence,
 P09 identity/executability, generic typed no-provider deferral, production

@@ -251,6 +251,15 @@ def refresh(
             f"{execution_result.error_detail}"
         )
     result = execution_result.result
+    if previous is not None:
+        stable_keys = ("lifecycle.held_position_identity",)
+        carried = {
+            key: previous.metrics[key]
+            for key in stable_keys
+            if key in previous.metrics and key not in result.metrics
+        }
+        if carried:
+            result = replace(result, metrics={**result.metrics, **carried})
     temporal = _temporal_metadata(
         registry, strategy_id, result.observed_at, observations(), previous
     )

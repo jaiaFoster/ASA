@@ -7,6 +7,7 @@ from zoneinfo import ZoneInfo
 
 from domain import (
     HistoricalOptionPanel,
+    OHLCVBar,
     OHLCVSeries,
     OptionContract,
     OptionTrade,
@@ -29,6 +30,28 @@ class BxmLifecycleFacts:
     current_call_close: Decimal | UnknownReason
     index_vwav: Decimal | UnknownReason
     entry_price: Decimal | UnknownReason
+
+
+def index_session_closes(
+    series: OHLCVSeries | None, session_date: date
+) -> tuple[Decimal | UnknownReason, Decimal | UnknownReason]:
+    """Prior/current New York session closes from explicit bar end times."""
+    missing = UnknownReason("index_session_close_unavailable")
+    if series is None:
+        return missing, missing
+    by_date: dict[date, list[OHLCVBar]] = {}
+    for bar in series.bars:
+        local = bar.end_at.astimezone(NEW_YORK)
+        cutoff = datetime.combine(local.date(), datetime.min.time(), NEW_YORK).replace(hour=16)
+        if bar.end_at <= cutoff:
+            by_date.setdefault(local.date(), []).append(bar)
+    prior_dates = sorted(day for day in by_date if day < session_date)
+    current = by_date.get(session_date, [])
+    prior = by_date[prior_dates[-1]] if prior_dates else []
+    return (
+        max(prior, key=lambda item: item.end_at).close if prior else missing,
+        max(current, key=lambda item: item.end_at).close if current else missing,
+    )
 
 
 def _eligible_trades(
@@ -148,6 +171,7 @@ def resolve_bxm_lifecycle_facts(
     series: OHLCVSeries | None,
     tape: OptionTradeTape | None,
     selected_contract_identity: str,
+    held_contract_identity: str | None,
     roll_date: date,
     window_start: datetime,
     window_end: datetime,
@@ -177,23 +201,25 @@ def resolve_bxm_lifecycle_facts(
             if snapshot.observed_at.astimezone(NEW_YORK).date() < roll_date
         }
     )
-    if not prior_dates:
+    if not prior_dates or held_contract_identity is None:
         old_contract: OptionContract | UnknownReason = unknown
         prior_close: Decimal | UnknownReason = unknown
     else:
         prior_date = prior_dates[-1]
-        old_candidates = {
-            contract.identity: contract
+        old_candidates = tuple(
+            contract
             for snapshot in panel.snapshots
             if snapshot.observed_at.astimezone(NEW_YORK).date() == prior_date
             for contract in snapshot.contracts
-            if contract.option_type is OptionType.CALL and contract.expiration == roll_date
-        }
-        if len(old_candidates) != 1:
-            old_contract = UnknownReason("expiring_call_identity_not_unique")
+            if contract.option_type is OptionType.CALL
+            and contract.identity == held_contract_identity
+            and contract.expiration == roll_date
+        )
+        if not old_candidates:
+            old_contract = UnknownReason("held_call_identity_not_in_lifecycle_evidence")
             prior_close = old_contract
         else:
-            old_contract = next(iter(old_candidates.values()))
+            old_contract = max(old_candidates, key=lambda item: item.observed_at)
             prior_close = option_close_before_new_york_close(
                 panel, old_contract.identity, prior_date
             )

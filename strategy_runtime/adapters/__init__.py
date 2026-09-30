@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from datetime import datetime
+from types import MappingProxyType
 
 from analytics.calendar_facts import TradingCalendarView, new_york_time, third_friday_roll_date
 from domain import MarketCapability
@@ -150,7 +151,9 @@ def build_migrated_strategy_registry() -> StrategyRegistry[UniversalScreeningRes
 
 
 def build_migrated_shadow_registry(
-    now: datetime, historical_skew_repository: HistoricalSkewRepository | None = None
+    now: datetime,
+    historical_skew_repository: HistoricalSkewRepository | None = None,
+    lifecycle_identity_by_strategy_subject: Mapping[tuple[str, str], str] = MappingProxyType({}),
 ) -> SubjectPreparationRegistry[object]:
     """Every migrated strategy with a registered subject-first shadow
     binding, assembled once per invocation/cycle (SPRINT-014 S14-PR-05A,
@@ -203,7 +206,19 @@ def build_migrated_shadow_registry(
             (CBOE_PUTY_CONTRACT.strategy_id, build_cboe_puty_subject_preparation_binding(now)),
             (
                 BXM_CONTRACT.strategy_id,
-                build_bxm_subject_preparation_binding(now, bxm_roll_date),
+                build_bxm_subject_preparation_binding(
+                    now,
+                    bxm_roll_date,
+                    MappingProxyType(
+                        {
+                            subject: identity
+                            for (strategy_id, subject), identity in (
+                                lifecycle_identity_by_strategy_subject.items()
+                            )
+                            if strategy_id == BXM_CONTRACT.strategy_id
+                        }
+                    ),
+                ),
             ),
         )
     )

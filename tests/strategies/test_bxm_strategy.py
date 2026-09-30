@@ -272,6 +272,11 @@ def test_buywrite_daily_return_is_materialized_from_projected_inputs() -> None:
         ask=Decimal("5"),
         observed_at=prior_time,
     )
+    other_old_call = replace(
+        old_call,
+        option_contract_id=CanonicalInstrumentIdentity("occ", "SPX-2026-10-16-99-C"),
+        strike=Decimal("99"),
+    )
     new_call = replace(
         _call("5005"),
         strike=Decimal("105"),
@@ -290,7 +295,11 @@ def test_buywrite_daily_return_is_materialized_from_projected_inputs() -> None:
         datetime(2026, 10, 16, 20, 2, tzinfo=UTC),
         (
             HistoricalOptionSnapshot(
-                SPX.instrument, prior_time, prior_time, "prior-close", (old_call,)
+                SPX.instrument,
+                prior_time,
+                prior_time,
+                "prior-close",
+                (old_call, other_old_call),
             ),
             HistoricalOptionSnapshot(
                 SPX.instrument, close_time, close_time, "current-close", (new_close,)
@@ -307,7 +316,17 @@ def test_buywrite_daily_return_is_materialized_from_projected_inputs() -> None:
     trade = OptionTrade(
         "trade-1", new_call.identity, Decimal("4"), Decimal("2"), entry_time, entry_time, ()
     )
-    tape = OptionTradeTape(new_call.identity, close_time, (trade,))
+    excluded_time = entry_time + timedelta(minutes=1)
+    excluded_trade = OptionTrade(
+        "trade-excluded",
+        new_call.identity,
+        Decimal("10"),
+        Decimal("100"),
+        excluded_time,
+        excluded_time,
+        ("A",),
+    )
+    tape = OptionTradeTape(new_call.identity, close_time, (trade, excluded_trade))
     aligned_bar = OHLCVBar(
         SPX.instrument,
         60,
@@ -319,7 +338,35 @@ def test_buywrite_daily_return_is_materialized_from_projected_inputs() -> None:
         Decimal("102"),
         Decimal("1"),
     )
-    series = OHLCVSeries(SPX.instrument, 60, close_time, (aligned_bar,))
+    excluded_bar = replace(
+        aligned_bar,
+        start_at=excluded_time - timedelta(seconds=60),
+        end_at=excluded_time,
+        open=Decimal("999"),
+        high=Decimal("999"),
+        low=Decimal("999"),
+        close=Decimal("999"),
+    )
+    prior_close_bar = replace(
+        aligned_bar,
+        start_at=prior_time - timedelta(seconds=60),
+        end_at=prior_time,
+        open=Decimal("100"),
+        high=Decimal("100"),
+        low=Decimal("100"),
+        close=Decimal("100"),
+    )
+    current_close_bar = replace(
+        aligned_bar,
+        start_at=close_time - timedelta(seconds=60),
+        end_at=close_time,
+    )
+    series = OHLCVSeries(
+        SPX.instrument,
+        60,
+        datetime(2026, 10, 16, 20, 2, tzinfo=UTC),
+        (prior_close_bar, aligned_bar, excluded_bar, current_close_bar),
+    )
     mapping = build_bxm_knowledge_mapping(
         subject="SPX",
         snapshot_digest="digest",
@@ -342,11 +389,10 @@ def test_buywrite_daily_return_is_materialized_from_projected_inputs() -> None:
         vwap_window_start=datetime(2026, 10, 16, 15, 30, tzinfo=UTC),
         vwap_window_end=datetime(2026, 10, 16, 17, 30, tzinfo=UTC),
         roll_date=ROLL.date(),
-        prior_index_close=Decimal("100"),
-        index_close=Decimal("102"),
         bars_observation=("bars-observation", series),
         option_history_observation=("option-history-observation", panel),
         selected_call_identity=new_call.identity,
+        held_call_identity=old_call.identity,
     )
     facts = tuple(
         CanonicalFact(
@@ -431,6 +477,7 @@ def test_buywrite_daily_return_is_materialized_from_projected_inputs() -> None:
         bars_observation=("bars-observation", series),
         option_history_observation=("option-history-observation", fallback_panel),
         selected_call_identity=new_call.identity,
+        held_call_identity=old_call.identity,
     )
     fallback_facts = tuple(
         CanonicalFact(
@@ -479,14 +526,13 @@ def test_buywrite_daily_return_is_materialized_from_projected_inputs() -> None:
         vwap_window_start=datetime(2026, 10, 16, 15, 30, tzinfo=UTC),
         vwap_window_end=datetime(2026, 10, 16, 17, 30, tzinfo=UTC),
         roll_date=ROLL.date(),
-        prior_index_close=Decimal("100"),
-        index_close=Decimal("102"),
         bars_observation=(
             "bars-observation",
             OHLCVSeries(SPX.instrument, 60, close_time, (misaligned_bar,)),
         ),
         option_history_observation=("option-history-observation", panel),
         selected_call_identity=new_call.identity,
+        held_call_identity=old_call.identity,
     )
     misaligned_facts = tuple(
         CanonicalFact(
@@ -547,6 +593,7 @@ def test_production_adapter_resolves_exact_lifecycle_evidence_and_materialized_r
     assert result.metrics["outcome.index_dividend_points"].native() == Decimal("1")
     assert result.metrics["lifecycle.soq_value"].native() == Decimal("5010")
     assert result.metrics["outcome.daily_return"].native() == Decimal("0.01")
+    assert result.metrics["lifecycle.held_position_identity"].native() == call.identity
 
     mismatched = replace(payload, tape_contract_identity="other")
     mismatch_knowledge = replace(knowledge, payload=mismatched)

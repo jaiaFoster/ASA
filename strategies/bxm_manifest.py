@@ -34,6 +34,11 @@ BXM_MANIFEST = StrategyManifest(
                 ParameterSpec("reference_time_et", "Text", "11:00:00"),
                 ParameterSpec("vwap_window_start_et", "Text", "11:30:00"),
                 ParameterSpec("vwap_window_end_et", "Text", "13:30:00"),
+                ParameterSpec(
+                    "excluded_sale_condition_codes",
+                    "Text",
+                    "ABCDEFGHfghijklmnopqrst",
+                ),
             ),
         ),
         NodeSpec(

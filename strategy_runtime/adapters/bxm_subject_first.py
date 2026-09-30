@@ -59,6 +59,7 @@ T = TypeVar("T")
 
 def _prepare(
     now: datetime,
+    held_call_identities: Mapping[str, str],
     snapshot: MarketSnapshot,
     projected: ResolvedEvidenceView,
     selections: tuple[tuple[str, object], ...],
@@ -109,14 +110,6 @@ def _prepare(
         ),
         None,
     )
-    prior_index_close: Decimal | None = None
-    index_close: Decimal = quote_o.value.last
-    if bars is not None:
-        series = bars[1]
-        assert isinstance(series, OHLCVSeries)
-        if len(series.bars) >= 2:
-            prior_index_close = series.bars[-2].close
-            index_close = series.bars[-1].close
     roll_date_text = selection_values.get("roll_date")
     roll_date = date.fromisoformat(roll_date_text) if isinstance(roll_date_text, str) else None
     mapping = build_bxm_knowledge_mapping(
@@ -133,11 +126,10 @@ def _prepare(
         vwap_window_start=window_start,
         vwap_window_end=window_end,
         roll_date=roll_date,
-        prior_index_close=prior_index_close,
-        index_close=index_close,
         bars_observation=bars,
         option_history_observation=option_history,
         selected_call_identity=selected_call.identity if selected_call is not None else None,
+        held_call_identity=held_call_identities.get(subject),
     )
     return mapping
 
@@ -247,6 +239,13 @@ def build_bxm_subject_first_adapter(
             metrics["lifecycle.soq_value"] = TypedValue.of_decimal(payload.settlement_value.value)
         if isinstance(daily_return, Decimal):
             metrics["outcome.daily_return"] = TypedValue.of_decimal(daily_return)
+        held_call_identity = (
+            decision.selected_call.identity
+            if decision.verdict == PASS and decision.selected_call is not None
+            else payload.held_call_identity
+        )
+        if held_call_identity is not None:
+            metrics["lifecycle.held_position_identity"] = TypedValue.of_string(held_call_identity)
         if state is EvaluationState.PASS:
             metrics["structure.overlay_identity"] = TypedValue.of_string(
                 build_bxm_overlay(knowledge.payload, decision).identity
@@ -287,6 +286,7 @@ def build_bxm_subject_first_adapter(
 def build_bxm_subject_preparation_binding(
     now: datetime,
     roll_date: date | UnknownReason,
+    held_call_identities: Mapping[str, str] = MappingProxyType({}),
 ) -> SubjectPreparationBinding[BxmPayload]:
     return SubjectPreparationBinding(
         SubjectPlanConsumer(
@@ -295,6 +295,6 @@ def build_bxm_subject_preparation_binding(
             partial(expand_demands, now=now),
             partial(expand_post_selection_demands, now=now, roll_date=roll_date),
         ),
-        partial(_prepare, now),
+        partial(_prepare, now, held_call_identities),
         build_bxm_subject_first_adapter,
     )

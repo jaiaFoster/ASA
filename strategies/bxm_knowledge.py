@@ -4,7 +4,11 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
 
-from analytics.buywrite import cboe_buywrite_daily_return, resolve_bxm_lifecycle_facts
+from analytics.buywrite import (
+    cboe_buywrite_daily_return,
+    index_session_closes,
+    resolve_bxm_lifecycle_facts,
+)
 from analytics.calendar_facts import new_york_time
 from analytics.derived_facts import (
     CBOE_BUYWRITE_DAILY_RETURN,
@@ -27,6 +31,7 @@ from domain import (
     UnknownReason,
 )
 from facts.canonical_projection import CanonicalFactRequest, canonical_fact_id
+from strategies.bxm_manifest import bxm_parameter
 from strategies.knowledge_contracts import KnowledgeMapping
 
 _FACT_VERSION = 1
@@ -45,6 +50,7 @@ class BxmPayload:
     daily_return: Decimal | UnknownReason = UnknownReason(
         "missing_cboe_buywrite_daily_return_input"
     )
+    held_call_identity: str | None = None
 
 
 def build_bxm_knowledge_mapping(
@@ -62,11 +68,10 @@ def build_bxm_knowledge_mapping(
     vwap_window_start: datetime,
     vwap_window_end: datetime,
     roll_date: date | None = None,
-    prior_index_close: Decimal | None = None,
-    index_close: Decimal | None = None,
     bars_observation: tuple[str, OHLCVSeries] | None = None,
     option_history_observation: tuple[str, HistoricalOptionPanel] | None = None,
     selected_call_identity: str | None = None,
+    held_call_identity: str | None = None,
 ) -> KnowledgeMapping[BxmPayload]:
     requests = [
         CanonicalFactRequest(
@@ -120,9 +125,13 @@ def build_bxm_knowledge_mapping(
             series=bars_observation[1] if bars_observation else None,
             tape=tape_observation[1] if tape_observation else None,
             selected_contract_identity=selected_call_identity,
+            held_contract_identity=held_call_identity,
             roll_date=roll_date,
             window_start=vwap_window_start,
             window_end=vwap_window_end,
+            excluded_sale_condition_codes=frozenset(
+                str(bxm_parameter("timing", "excluded_sale_condition_codes"))
+            ),
         )
         if selected_call_identity is not None and roll_date is not None
         else None
@@ -130,6 +139,10 @@ def build_bxm_knowledge_mapping(
     bars_observation_id = bars_observation[0] if bars_observation else None
     option_history_observation_id = (
         option_history_observation[0] if option_history_observation else None
+    )
+    prior_index_close, index_close = index_session_closes(
+        bars_observation[1] if bars_observation else None,
+        new_york_time(quote_effective_time).date(),
     )
     scalar_inputs = (
         (
@@ -297,6 +310,7 @@ def build_bxm_knowledge_mapping(
             daily_fact.value
             if daily_fact is not None and isinstance(daily_fact.value, Decimal)
             else UnknownReason("missing_cboe_buywrite_daily_return_input"),
+            held_call_identity,
         )
 
     return KnowledgeMapping(tuple(requests), _compute, _payload)

@@ -60,8 +60,9 @@ class BxmEntryTiming(BaseComponent):  # type: ignore[misc]
             ParameterDefinition("reference_time_et", TEXT),
             ParameterDefinition("vwap_window_start_et", TEXT),
             ParameterDefinition("vwap_window_end_et", TEXT),
+            ParameterDefinition("excluded_sale_condition_codes", TEXT),
         ),
-        explanation_template=ManifestObject((('operation', 'bxm_entry_timing'),)),
+        explanation_template=ManifestObject((("operation", "bxm_entry_timing"),)),
     )
 
     def evaluate(self, inputs: ComponentValues, parameters: ComponentValues) -> ComponentValues:
@@ -71,6 +72,9 @@ class BxmEntryTiming(BaseComponent):  # type: ignore[misc]
         reference_time = _clock(parameters.get("reference_time_et").value, "reference_time_et")
         start = _clock(parameters.get("vwap_window_start_et").value, "vwap_window_start_et")
         end = _clock(parameters.get("vwap_window_end_et").value, "vwap_window_end_et")
+        excluded = cast(str, parameters.get("excluded_sale_condition_codes").value)
+        if not excluded or len(excluded) != len(set(excluded)):
+            raise ValueError("BXM excluded sale-condition codes must be unique")
         if not reference_time < start < end:
             raise ValueError("BXM reference/VWAP times must be strictly ordered")
         roll_state = UNKNOWN if roll_date is None else PASS if decision_date == roll_date else FAIL
@@ -111,7 +115,7 @@ class BxmCallSelection(BaseComponent):  # type: ignore[misc]
             ParameterDefinition("expiration_month_offset", DECIMAL),
             ParameterDefinition("strike_operator", TEXT),
         ),
-        explanation_template=ManifestObject((('operation', 'bxm_call_selection'),)),
+        explanation_template=ManifestObject((("operation", "bxm_call_selection"),)),
     )
 
     def evaluate(self, inputs: ComponentValues, parameters: ComponentValues) -> ComponentValues:
