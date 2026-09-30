@@ -1,0 +1,1806 @@
+{
+  "artifact_kind": "program_session_capture",
+  "artifact_version": "1.0.0",
+  "captured_at": "2026-09-30T22:38:22.257121+00:00",
+  "census": {
+    "artifact_version": "1.0.0",
+    "captured_at": "2026-09-30T22:38:22.257121+00:00",
+    "census_checksum": "fc0d68f7cd03cff0bf74c2f489aa7fcc6c5b1ecbce9d7bb9402a1a18ef473cb5",
+    "production_sha": "a63ae596ca727f60b896f1c30a023a6f79ae1c09",
+    "sprint": "OPTIONS-TRUTH-001",
+    "strategies": {
+      "earnings_calendar": {
+        "actionable": [
+          {
+            "observed_at": "2026-09-30T18:32:16Z",
+            "symbol": "AOS"
+          },
+          {
+            "observed_at": "2026-09-30T18:54:05Z",
+            "symbol": "CBRE"
+          },
+          {
+            "observed_at": "2026-09-30T18:22:52.198351Z",
+            "symbol": "CI"
+          },
+          {
+            "observed_at": "2026-09-30T19:12:25Z",
+            "symbol": "CMS"
+          },
+          {
+            "observed_at": "2026-09-30T19:12:33Z",
+            "symbol": "CNP"
+          },
+          {
+            "observed_at": "2026-09-30T17:42:45Z",
+            "symbol": "CPT"
+          },
+          {
+            "observed_at": "2026-09-30T17:43:06Z",
+            "symbol": "CSGP"
+          },
+          {
+            "observed_at": "2026-09-30T18:54:17Z",
+            "symbol": "FE"
+          },
+          {
+            "observed_at": "2026-09-30T19:04:52Z",
+            "symbol": "HBAN"
+          },
+          {
+            "observed_at": "2026-09-30T18:43:58Z",
+            "symbol": "JBHT"
+          },
+          {
+            "observed_at": "2026-09-30T18:44:24Z",
+            "symbol": "KDP"
+          },
+          {
+            "observed_at": "2026-09-30T18:55:37Z",
+            "symbol": "KIM"
+          },
+          {
+            "observed_at": "2026-09-30T19:13:16Z",
+            "symbol": "L"
+          },
+          {
+            "observed_at": "2026-09-30T20:03:10.340545Z",
+            "symbol": "NI"
+          },
+          {
+            "observed_at": "2026-09-30T19:24:34Z",
+            "symbol": "NWSA"
+          },
+          {
+            "observed_at": "2026-09-30T19:32:38Z",
+            "symbol": "PFG"
+          },
+          {
+            "observed_at": "2026-09-30T17:22:34Z",
+            "symbol": "REG"
+          },
+          {
+            "observed_at": "2026-09-30T17:53:47.357422Z",
+            "symbol": "RJF"
+          },
+          {
+            "observed_at": "2026-09-30T17:35:04Z",
+            "symbol": "SWKS"
+          },
+          {
+            "observed_at": "2026-09-30T19:44:11Z",
+            "symbol": "VICI"
+          },
+          {
+            "observed_at": "2026-09-30T18:04:43Z",
+            "symbol": "WEC"
+          }
+        ],
+        "active_total": 503,
+        "terminal_counts": {
+          "actionable_opportunity": 21,
+          "evidence_unavailable": 76,
+          "strategy_rejected": 403,
+          "structure_unavailable": 3
+        },
+        "terminal_reason_counts": {
+          "actionable_opportunity:constructible_as_intended": 21,
+          "evidence_unavailable:typed unknown evidence gap: missing_earnings_date": 13,
+          "evidence_unavailable:typed unknown evidence gap: missing_implied_volatility": 1,
+          "evidence_unavailable:typed unknown evidence gap: no_valid_expiration_pair": 60,
+          "evidence_unavailable:typed unknown evidence gap: unusable_phase_two_evidence": 2,
+          "strategy_rejected:verdict:fail": 403,
+          "structure_unavailable:no_compatible_contract": 3
+        },
+        "traced": 503,
+        "unexplained": []
+      },
+      "forward_factor": {
+        "actionable": [],
+        "active_total": 503,
+        "terminal_counts": {
+          "evidence_unavailable": 98,
+          "strategy_rejected": 404,
+          "structure_unknown": 1
+        },
+        "terminal_reason_counts": {
+          "evidence_unavailable:typed unknown evidence gap: missing_implied_volatility": 10,
+          "evidence_unavailable:typed unknown evidence gap: no_valid_expiration_pair": 84,
+          "evidence_unavailable:typed unknown evidence gap: non_positive_forward_variance": 2,
+          "evidence_unavailable:typed unknown evidence gap: unusable_option_chain": 1,
+          "evidence_unavailable:typed unknown evidence gap: unusable_quote": 1,
+          "strategy_rejected:verdict:fail": 404,
+          "structure_unknown:earnings_clearance:unknown_unconfirmed": 1
+        },
+        "traced": 503,
+        "unexplained": []
+      },
+      "index_putwrite_cboe_put": {
+        "actionable": [],
+        "active_total": 1,
+        "terminal_counts": {
+          "evidence_unavailable": 1
+        },
+        "terminal_reason_counts": {
+          "evidence_unavailable:typed unknown evidence gap: G_CBOE_SPX_REF_BEFORE_1100_UNKNOWN": 1
+        },
+        "traced": 1,
+        "unexplained": []
+      },
+      "index_putwrite_cboe_puty": {
+        "actionable": [],
+        "active_total": 1,
+        "terminal_counts": {
+          "evidence_unavailable": 1
+        },
+        "terminal_reason_counts": {
+          "evidence_unavailable:typed unknown evidence gap: G_CBOE_SPX_REF_BEFORE_1100_UNKNOWN": 1
+        },
+        "traced": 1,
+        "unexplained": []
+      },
+      "skew_momentum": {
+        "actionable": [],
+        "active_total": 503,
+        "terminal_counts": {
+          "evidence_unavailable": 6,
+          "strategy_rejected": 497
+        },
+        "terminal_reason_counts": {
+          "evidence_unavailable:typed unknown evidence gap: no_future_expiration": 3,
+          "evidence_unavailable:typed unknown evidence gap: unusable_option_chain": 1,
+          "evidence_unavailable:typed unknown evidence gap: unusable_quote": 2,
+          "strategy_rejected:verdict:fail": 497
+        },
+        "traced": 503,
+        "unexplained": []
+      },
+      "spy_put_credit_spread": {
+        "actionable": [
+          {
+            "observed_at": "2026-09-30T20:54:27.885900Z",
+            "symbol": "SPY"
+          }
+        ],
+        "active_total": 1,
+        "terminal_counts": {
+          "actionable_opportunity": 1
+        },
+        "terminal_reason_counts": {
+          "actionable_opportunity:constructible_as_intended": 1
+        },
+        "traced": 1,
+        "unexplained": []
+      }
+    },
+    "ticket": "OT-06",
+    "unexplained_drop_total": 0,
+    "verdict": "pass"
+  },
+  "outcomes": {
+    "candidates": [
+      {
+        "candidate_id": "300de3a6-0d58-59d1-b130-987b837103c4",
+        "has_frozen_proposal": true,
+        "horizons": [
+          {
+            "due_at": "2026-09-28T20:00:00Z",
+            "has_modeled_pnl": true,
+            "horizon_id": "d1",
+            "status": "observed"
+          },
+          {
+            "due_at": "2026-10-02T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "d5",
+            "status": "pending"
+          },
+          {
+            "due_at": "2026-10-09T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "d10",
+            "status": "pending"
+          },
+          {
+            "due_at": "2026-10-23T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "first_expiration",
+            "status": "pending"
+          }
+        ],
+        "strategy_id": "spy_put_credit_spread",
+        "symbol": "SPY",
+        "tracked_at": "2026-09-26T06:39:08.991959Z"
+      },
+      {
+        "candidate_id": "528bc6d0-8eae-5186-8d2f-4e89008cf764",
+        "has_frozen_proposal": true,
+        "horizons": [
+          {
+            "due_at": "2026-09-04T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "d1",
+            "status": "missed"
+          },
+          {
+            "due_at": "2026-09-11T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "d5",
+            "status": "missed"
+          },
+          {
+            "due_at": "2026-09-18T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "d10",
+            "status": "missed"
+          }
+        ],
+        "strategy_id": "forward_factor",
+        "symbol": "BKNG",
+        "tracked_at": "2026-09-03T15:33:09.154280Z"
+      }
+    ],
+    "ledger_status": "available"
+  },
+  "production_sha": "a63ae596ca727f60b896f1c30a023a6f79ae1c09",
+  "session_date": "2026-09-30",
+  "stocks": {
+    "artifact_version": "1.0.0",
+    "captured_at": "2026-09-30T22:38:22.257121+00:00",
+    "defect_count": 0,
+    "observations": [
+      {
+        "action": "BUY",
+        "action_reason": null,
+        "evidence_age_seconds": 9863,
+        "freshness": "fresh",
+        "gaps": [],
+        "observation_id": "2498221d3c0a81b509151f2877f25b599a3791c86bb22653dac5ef4c1fd3b1cb",
+        "signal_id": "B001",
+        "status": "actionable",
+        "symbol": "SPY",
+        "unknown_reasons": []
+      },
+      {
+        "action": null,
+        "action_reason": "evaluation_incomplete",
+        "evidence_age_seconds": 9863,
+        "freshness": "fresh",
+        "gaps": [],
+        "observation_id": "b059698ae189260dd9dde7aa1a97493705f05469cb1ee21d1a44bd990df0ccbc",
+        "signal_id": "B002",
+        "status": "unknown",
+        "symbol": "SPY",
+        "unknown_reasons": [
+          "typed unknown evidence gap: unusable_historical_bars"
+        ]
+      }
+    ],
+    "production_sha": "a63ae596ca727f60b896f1c30a023a6f79ae1c09",
+    "sprint": "STOCK-PRODUCT-001",
+    "status_counts": {
+      "actionable": 1,
+      "unknown": 1
+    },
+    "stock_signals": [
+      "B001",
+      "B002"
+    ],
+    "ticket": "SP-06",
+    "verdict": "actionable_stock_path_observed"
+  },
+  "system_outcomes": {
+    "candidates": [
+      {
+        "also_tracked_by_user": false,
+        "candidate_id": "128d10f7-c176-59bd-ae42-d49ba0557eb5",
+        "exact_leg_set": [
+          "5fec5aacbeae92dc38b1202ea22de0decbbb0dd7f52138bdce72688573dcf939",
+          "b661b01726eace53957d32d7afac4d8390d06ad52cb17fbc02192a907d9587d5"
+        ],
+        "has_frozen_proposal": true,
+        "horizons": [
+          {
+            "due_at": "2026-09-30T20:00:00Z",
+            "has_modeled_pnl": true,
+            "horizon_id": "d1",
+            "status": "observed"
+          },
+          {
+            "due_at": "2026-10-06T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "d5",
+            "status": "pending"
+          },
+          {
+            "due_at": "2026-10-13T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "d10",
+            "status": "pending"
+          },
+          {
+            "due_at": "2026-10-16T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "first_expiration",
+            "status": "pending"
+          }
+        ],
+        "opportunity_id": "1c405bda29da8aabaefc745aa70d0cfcdbab41776c4a475c6562c5ef89b858d6",
+        "session_date": "2026-09-29",
+        "strategy_id": "earnings_calendar",
+        "symbol": "HUM",
+        "tracked_at": "2026-09-29T14:34:28.216439Z"
+      },
+      {
+        "also_tracked_by_user": false,
+        "candidate_id": "150d3f99-bec6-5d8b-8081-2f193dbc2fec",
+        "exact_leg_set": [
+          "2fcc8abf8b6003730fcf45346274c9921de029b45f05df8227f79eb300341f51",
+          "e633244a1cbfff6550547546755b1523c278301e60bcf35f78fb4145b869c628"
+        ],
+        "has_frozen_proposal": true,
+        "horizons": [
+          {
+            "due_at": "2026-09-30T20:00:00Z",
+            "has_modeled_pnl": true,
+            "horizon_id": "d1",
+            "status": "observed"
+          },
+          {
+            "due_at": "2026-10-06T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "d5",
+            "status": "pending"
+          },
+          {
+            "due_at": "2026-10-09T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "first_expiration",
+            "status": "pending"
+          }
+        ],
+        "opportunity_id": "60d799f07862e352e5a0d9502897734bd60feaed77d3375d1bbe5961dd9af547",
+        "session_date": "2026-09-29",
+        "strategy_id": "earnings_calendar",
+        "symbol": "XOM",
+        "tracked_at": "2026-09-29T13:54:47.371968Z"
+      },
+      {
+        "also_tracked_by_user": false,
+        "candidate_id": "2288da12-2597-5c4d-bd4c-a2d481e3f70c",
+        "exact_leg_set": [
+          "99e55f5162377e6705d836d90bb8c17ca96721b4cc39f24cdffa7ae12cf23c28",
+          "df7f61817b18fbf2a66edb052f8a004268d3fdf455527ddbcf3a88bf854d9069"
+        ],
+        "has_frozen_proposal": true,
+        "horizons": [
+          {
+            "due_at": "2026-10-01T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "d1",
+            "status": "pending"
+          },
+          {
+            "due_at": "2026-10-07T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "d5",
+            "status": "pending"
+          },
+          {
+            "due_at": "2026-10-14T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "d10",
+            "status": "pending"
+          },
+          {
+            "due_at": "2026-10-16T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "first_expiration",
+            "status": "pending"
+          }
+        ],
+        "opportunity_id": "d0a92bbb7bf0de4a05affe32d6772fae8ac9aa0667e65ba326e32d04ae0c1080",
+        "session_date": "2026-09-30",
+        "strategy_id": "earnings_calendar",
+        "symbol": "VICI",
+        "tracked_at": "2026-09-30T14:06:53.759744Z"
+      },
+      {
+        "also_tracked_by_user": false,
+        "candidate_id": "248213da-2a78-5cab-be90-0343ddd4cb7a",
+        "exact_leg_set": [
+          "857e0bf43d1436a3d660d8b22af4c120878977fab14efe91bb7a2f7377d69a0c",
+          "a0595edde76f0c654d1f3dfe9cf5918174b42b4b894cd8837de557aab342bb5d"
+        ],
+        "has_frozen_proposal": true,
+        "horizons": [
+          {
+            "due_at": "2026-09-28T20:00:00Z",
+            "has_modeled_pnl": true,
+            "horizon_id": "d1",
+            "status": "observed"
+          },
+          {
+            "due_at": "2026-10-02T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "d5",
+            "status": "pending"
+          },
+          {
+            "due_at": "2026-10-09T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "d10",
+            "status": "pending"
+          },
+          {
+            "due_at": "2026-10-16T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "first_expiration",
+            "status": "pending"
+          }
+        ],
+        "opportunity_id": "cc88ec86a01ce40f9355241f15d647eea6e84e498125c3fe2eeed37ab1326bd7",
+        "session_date": "2026-09-25",
+        "strategy_id": "earnings_calendar",
+        "symbol": "CHD",
+        "tracked_at": "2026-09-25T14:13:06.035916Z"
+      },
+      {
+        "also_tracked_by_user": false,
+        "candidate_id": "2b22420f-aee5-5ddc-9d90-5de2dfe49b1e",
+        "exact_leg_set": [
+          "6a788e71fdf92ebc1ac6a589f6bac0bdcfb03d756f49abaa98b248e25bc47980",
+          "9f23dfc4ab35d20483b01dffdf251ff0b021f3420963ad08d8b8c20ea5b63074"
+        ],
+        "has_frozen_proposal": true,
+        "horizons": [
+          {
+            "due_at": "2026-09-28T20:00:00Z",
+            "has_modeled_pnl": true,
+            "horizon_id": "d1",
+            "status": "observed"
+          },
+          {
+            "due_at": "2026-10-02T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "d5",
+            "status": "pending"
+          },
+          {
+            "due_at": "2026-10-09T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "d10",
+            "status": "pending"
+          },
+          {
+            "due_at": "2026-10-16T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "first_expiration",
+            "status": "pending"
+          }
+        ],
+        "opportunity_id": "f37e338f5d21abdd1cd0bd32d892416cc5308221cccedd36a5166fef1b9eb748",
+        "session_date": "2026-09-25",
+        "strategy_id": "earnings_calendar",
+        "symbol": "NWSA",
+        "tracked_at": "2026-09-25T13:52:29.504083Z"
+      },
+      {
+        "also_tracked_by_user": false,
+        "candidate_id": "32b99a46-5a55-5dc5-adfe-f86bae6efac1",
+        "exact_leg_set": [
+          "9f1e0a54c503fe99bf17e7bc973cf63bab1361a038b95de5af8661ad765dcf82",
+          "e07d6155b4fe035fd0c3fe286f942b752438747c9b6f0cc97587752e45f133b5"
+        ],
+        "has_frozen_proposal": true,
+        "horizons": [
+          {
+            "due_at": "2026-09-30T20:00:00Z",
+            "has_modeled_pnl": true,
+            "horizon_id": "d1",
+            "status": "observed"
+          },
+          {
+            "due_at": "2026-10-06T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "d5",
+            "status": "pending"
+          },
+          {
+            "due_at": "2026-10-13T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "d10",
+            "status": "pending"
+          },
+          {
+            "due_at": "2026-10-16T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "first_expiration",
+            "status": "pending"
+          }
+        ],
+        "opportunity_id": "655dc757ca65c7c8947145f97180b9626f6be0e6598f3c5de50a3668e79ec5fb",
+        "session_date": "2026-09-29",
+        "strategy_id": "earnings_calendar",
+        "symbol": "INVH",
+        "tracked_at": "2026-09-29T14:34:28.216439Z"
+      },
+      {
+        "also_tracked_by_user": false,
+        "candidate_id": "34ce6595-17a6-5f90-85d1-bf0842f3cbe9",
+        "exact_leg_set": [
+          "bf6a2aa1c26d12271c0ad34dc598e53ea12c9f8bea1ad24a62d55dba54c2b398",
+          "de0801feac42edcdadd6fae6a0dcc558c6ce6d40ea80dc3e7581ac14a58b66ab"
+        ],
+        "has_frozen_proposal": true,
+        "horizons": [
+          {
+            "due_at": "2026-09-29T20:00:00Z",
+            "has_modeled_pnl": true,
+            "horizon_id": "d1",
+            "status": "observed"
+          },
+          {
+            "due_at": "2026-10-05T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "d5",
+            "status": "pending"
+          },
+          {
+            "due_at": "2026-10-12T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "d10",
+            "status": "pending"
+          },
+          {
+            "due_at": "2026-10-30T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "first_expiration",
+            "status": "pending"
+          }
+        ],
+        "opportunity_id": null,
+        "session_date": "2026-09-28",
+        "strategy_id": "spy_put_credit_spread",
+        "symbol": "SPY",
+        "tracked_at": "2026-09-28T13:30:15.490719Z"
+      },
+      {
+        "also_tracked_by_user": false,
+        "candidate_id": "3b3c53c0-8897-5667-9cfe-268c5a8474f3",
+        "exact_leg_set": [
+          "059b9b31b67366f40bb7052ab30c5e866ffcde4998c5dd017de4987b4b3d918e",
+          "4d4d4c359a740190ea3a576c550fdf00a69306098faa23508346465a79dec542"
+        ],
+        "has_frozen_proposal": true,
+        "horizons": [
+          {
+            "due_at": "2026-09-30T20:00:00Z",
+            "has_modeled_pnl": true,
+            "horizon_id": "d1",
+            "status": "observed"
+          },
+          {
+            "due_at": "2026-10-06T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "d5",
+            "status": "pending"
+          },
+          {
+            "due_at": "2026-10-13T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "d10",
+            "status": "pending"
+          },
+          {
+            "due_at": "2026-10-16T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "first_expiration",
+            "status": "pending"
+          }
+        ],
+        "opportunity_id": "3be8e2e8fe52569b345767246eb4fe20f7daa0d8b3cf7338638cb29099549ab0",
+        "session_date": "2026-09-29",
+        "strategy_id": "earnings_calendar",
+        "symbol": "ELV",
+        "tracked_at": "2026-09-29T14:16:49.393555Z"
+      },
+      {
+        "also_tracked_by_user": false,
+        "candidate_id": "54c7c9fe-f24f-50b3-abaf-0421fea87ec9",
+        "exact_leg_set": [
+          "a381c5e7725227a2462fc1c8c1363a14005264fa6c525189556ce4a3e55119e7",
+          "ec3636acef4e994e7f7d02690d36d3ec531277539466817f0577e10d492ef54a"
+        ],
+        "has_frozen_proposal": true,
+        "horizons": [
+          {
+            "due_at": "2026-09-29T20:00:00Z",
+            "has_modeled_pnl": true,
+            "horizon_id": "d1",
+            "status": "observed"
+          },
+          {
+            "due_at": "2026-10-05T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "d5",
+            "status": "pending"
+          },
+          {
+            "due_at": "2026-10-09T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "first_expiration",
+            "status": "pending"
+          }
+        ],
+        "opportunity_id": "b328d3bff88a123e22a158c9829a72f261e8d5006f24276cad969940c6e85884",
+        "session_date": "2026-09-28",
+        "strategy_id": "earnings_calendar",
+        "symbol": "UAL",
+        "tracked_at": "2026-09-28T13:55:14.894873Z"
+      },
+      {
+        "also_tracked_by_user": false,
+        "candidate_id": "570c7cb2-9fa0-5b15-b64c-8ab2c7985753",
+        "exact_leg_set": [
+          "efc4c48a9485dd9f06c2dfbfe109e910281854ade262ac2a9428b645c78b23ec",
+          "fe5e267d999d9cd2190ad349ff6f3984741ea727b4f1cd1380a687b0a953f06c"
+        ],
+        "has_frozen_proposal": true,
+        "horizons": [
+          {
+            "due_at": "2026-09-28T20:00:00Z",
+            "has_modeled_pnl": true,
+            "horizon_id": "d1",
+            "status": "observed"
+          },
+          {
+            "due_at": "2026-10-02T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "first_expiration",
+            "status": "pending"
+          }
+        ],
+        "opportunity_id": "0778f781a52b294f3a488068f68a906400f2ca7f98e3d78e588d45435c4c3222",
+        "session_date": "2026-09-25",
+        "strategy_id": "earnings_calendar",
+        "symbol": "PPG",
+        "tracked_at": "2026-09-25T14:03:12.209616Z"
+      },
+      {
+        "also_tracked_by_user": false,
+        "candidate_id": "5ee98bef-d533-5904-938d-67a11f387c0d",
+        "exact_leg_set": [
+          "78f6e9507d6a6d5ac77051a0ea1a21941dfa8ba07282dbcfb87605b87939a7c6",
+          "9b6522e052c6529b925470e348b853860adb24e6fcac1abc0f626b437e939e29"
+        ],
+        "has_frozen_proposal": true,
+        "horizons": [
+          {
+            "due_at": "2026-09-29T20:00:00Z",
+            "has_modeled_pnl": true,
+            "horizon_id": "d1",
+            "status": "observed"
+          },
+          {
+            "due_at": "2026-10-05T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "d5",
+            "status": "pending"
+          },
+          {
+            "due_at": "2026-10-12T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "d10",
+            "status": "pending"
+          },
+          {
+            "due_at": "2026-10-16T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "first_expiration",
+            "status": "pending"
+          }
+        ],
+        "opportunity_id": "1a154aff620f33860968214a16509cbc76946f05814eb9abf0fd7365f3f849b5",
+        "session_date": "2026-09-28",
+        "strategy_id": "earnings_calendar",
+        "symbol": "CPT",
+        "tracked_at": "2026-09-28T14:15:33.700928Z"
+      },
+      {
+        "also_tracked_by_user": false,
+        "candidate_id": "5f9e8e36-84ca-563a-9fbc-6a10daaf1fd7",
+        "exact_leg_set": [
+          "a98e8bebff63f6857d49b8c7257330160384ac43a91f5231dc3b7369b8ce6629",
+          "f4537e4af6a3deb7585587109bc19c2617adc0317eb873eb3ec7cdacaf5c17d2"
+        ],
+        "has_frozen_proposal": true,
+        "horizons": [
+          {
+            "due_at": "2026-09-28T20:00:00Z",
+            "has_modeled_pnl": true,
+            "horizon_id": "d1",
+            "status": "observed"
+          },
+          {
+            "due_at": "2026-10-02T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "d5",
+            "status": "pending"
+          },
+          {
+            "due_at": "2026-10-09T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "d10",
+            "status": "pending"
+          },
+          {
+            "due_at": "2026-10-23T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "first_expiration",
+            "status": "pending"
+          }
+        ],
+        "opportunity_id": null,
+        "session_date": "2026-09-25",
+        "strategy_id": "spy_put_credit_spread",
+        "symbol": "SPY",
+        "tracked_at": "2026-09-25T13:43:23.473229Z"
+      },
+      {
+        "also_tracked_by_user": false,
+        "candidate_id": "6b5ec75f-4dff-51df-9e48-d161dc65aecb",
+        "exact_leg_set": [
+          "29848e9ef22ae06e73d4fd21bd8f7580fc2732a6d710ee8e24d3137c923ec243",
+          "2fe1a1f1e44c486afeb55293db9360788ac38dee96989e381aeb0f0afe60b687"
+        ],
+        "has_frozen_proposal": true,
+        "horizons": [
+          {
+            "due_at": "2026-09-28T20:00:00Z",
+            "has_modeled_pnl": true,
+            "horizon_id": "d1",
+            "status": "observed"
+          },
+          {
+            "due_at": "2026-10-02T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "d5",
+            "status": "pending"
+          },
+          {
+            "due_at": "2026-10-09T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "d10",
+            "status": "pending"
+          },
+          {
+            "due_at": "2026-10-16T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "first_expiration",
+            "status": "pending"
+          }
+        ],
+        "opportunity_id": "3a992186489f9b524539046d7241c3c5db20caf7dc92c748e4991975a4713b07",
+        "session_date": "2026-09-25",
+        "strategy_id": "earnings_calendar",
+        "symbol": "MAA",
+        "tracked_at": "2026-09-25T13:43:23.473229Z"
+      },
+      {
+        "also_tracked_by_user": false,
+        "candidate_id": "79ee4b84-1151-55c6-94b4-169d9e5135cf",
+        "exact_leg_set": [
+          "3fb01076a21e8fe2e3656c9c3825b7f844137de268771429913f447ddd2750c7",
+          "4ad42c7f4c86917418f481bdaeedf0bf8cdec11e5c88a0a25e9955a3b437dbbf"
+        ],
+        "has_frozen_proposal": true,
+        "horizons": [
+          {
+            "due_at": "2026-10-01T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "d1",
+            "status": "pending"
+          },
+          {
+            "due_at": "2026-10-07T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "d5",
+            "status": "pending"
+          },
+          {
+            "due_at": "2026-10-09T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "first_expiration",
+            "status": "pending"
+          }
+        ],
+        "opportunity_id": "b260c447d18aab3fe56803d5d4b5b146c25385170ca3c7bf742b7d7e5160205f",
+        "session_date": "2026-09-30",
+        "strategy_id": "earnings_calendar",
+        "symbol": "VZ",
+        "tracked_at": "2026-09-30T14:25:34.149709Z"
+      },
+      {
+        "also_tracked_by_user": false,
+        "candidate_id": "7a91904c-43dc-53cb-beb2-6f2abc662f69",
+        "exact_leg_set": [
+          "532c59530f6d7568625232e4cd61908770fcdd906af0b1efbd143af89da760ef",
+          "57febf8de49d294fd8a4df3d5f38d591c87fe25625554581e88ee1d1713b3160"
+        ],
+        "has_frozen_proposal": true,
+        "horizons": [
+          {
+            "due_at": "2026-10-01T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "d1",
+            "status": "pending"
+          },
+          {
+            "due_at": "2026-10-07T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "d5",
+            "status": "pending"
+          },
+          {
+            "due_at": "2026-10-14T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "d10",
+            "status": "pending"
+          },
+          {
+            "due_at": "2026-10-16T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "first_expiration",
+            "status": "pending"
+          }
+        ],
+        "opportunity_id": "b97440a47f49cad0c583371314a812e35fd11a985f636752149550b9b4289bae",
+        "session_date": "2026-09-30",
+        "strategy_id": "earnings_calendar",
+        "symbol": "MGM",
+        "tracked_at": "2026-09-30T14:25:34.149709Z"
+      },
+      {
+        "also_tracked_by_user": false,
+        "candidate_id": "81df189a-6e38-5de6-a36c-aa85a6bd382c",
+        "exact_leg_set": [
+          "a97ce8bc0a0a5c2ab31ab4c5a67bf6d8e86b3593b54b3cea36c7de2313643fc8",
+          "ce1366d10761da172a2c725a4197b957f47230769241b8d1a947dc1e4089f3b1"
+        ],
+        "has_frozen_proposal": true,
+        "horizons": [
+          {
+            "due_at": "2026-10-01T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "d1",
+            "status": "pending"
+          },
+          {
+            "due_at": "2026-10-07T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "d5",
+            "status": "pending"
+          },
+          {
+            "due_at": "2026-10-14T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "d10",
+            "status": "pending"
+          },
+          {
+            "due_at": "2026-10-30T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "first_expiration",
+            "status": "pending"
+          }
+        ],
+        "opportunity_id": null,
+        "session_date": "2026-09-30",
+        "strategy_id": "spy_put_credit_spread",
+        "symbol": "SPY",
+        "tracked_at": "2026-09-30T13:30:44.608748Z"
+      },
+      {
+        "also_tracked_by_user": false,
+        "candidate_id": "87371103-b8c4-58c9-bbfc-0504620909c1",
+        "exact_leg_set": [
+          "1219c76dc425c4ee0c999341fdb8861a9ce54158618c3d4cec5c483dd59c5489",
+          "9785dbf97f8edcc0838e1fe021a4a34899100b92b475fc811da6e4da4886530e"
+        ],
+        "has_frozen_proposal": true,
+        "horizons": [
+          {
+            "due_at": "2026-10-01T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "d1",
+            "status": "pending"
+          },
+          {
+            "due_at": "2026-10-07T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "d5",
+            "status": "pending"
+          },
+          {
+            "due_at": "2026-10-14T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "d10",
+            "status": "pending"
+          },
+          {
+            "due_at": "2026-10-16T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "first_expiration",
+            "status": "pending"
+          }
+        ],
+        "opportunity_id": "3923b83a9ee08112e2516f26083d6882b3a8e562429f1d37d9c6ac3459b58181",
+        "session_date": "2026-09-30",
+        "strategy_id": "earnings_calendar",
+        "symbol": "VTR",
+        "tracked_at": "2026-09-30T14:15:55.466552Z"
+      },
+      {
+        "also_tracked_by_user": false,
+        "candidate_id": "92bd181c-a3a1-5853-8d0f-ed823d8b3a7d",
+        "exact_leg_set": [
+          "343dfbc9916114f10e8d009fefd53689a8ffbca2f0c119a15162da33b7fd1816",
+          "598f95b4130d61d448c75a1d62f190ddd63b62eb9a591b00e628bb9967cd2c10"
+        ],
+        "has_frozen_proposal": true,
+        "horizons": [
+          {
+            "due_at": "2026-09-30T20:00:00Z",
+            "has_modeled_pnl": true,
+            "horizon_id": "d1",
+            "status": "observed"
+          },
+          {
+            "due_at": "2026-10-06T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "d5",
+            "status": "pending"
+          },
+          {
+            "due_at": "2026-10-13T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "d10",
+            "status": "pending"
+          },
+          {
+            "due_at": "2026-10-30T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "first_expiration",
+            "status": "pending"
+          }
+        ],
+        "opportunity_id": null,
+        "session_date": "2026-09-29",
+        "strategy_id": "spy_put_credit_spread",
+        "symbol": "SPY",
+        "tracked_at": "2026-09-29T13:30:55.908380Z"
+      },
+      {
+        "also_tracked_by_user": false,
+        "candidate_id": "a1271115-b20b-5e50-9859-a65c147e09b0",
+        "exact_leg_set": [
+          "3f2e2ce737a9c5e2c502ca8b0d3c26e852453dc2c35242177900c63e982b266f",
+          "77a85b38b6d699db336857e230979c17cf7b04fe57ee219ba07853dc2f9862a0"
+        ],
+        "has_frozen_proposal": true,
+        "horizons": [
+          {
+            "due_at": "2026-10-01T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "d1",
+            "status": "pending"
+          },
+          {
+            "due_at": "2026-10-07T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "d5",
+            "status": "pending"
+          },
+          {
+            "due_at": "2026-10-14T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "d10",
+            "status": "pending"
+          },
+          {
+            "due_at": "2026-10-16T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "first_expiration",
+            "status": "pending"
+          }
+        ],
+        "opportunity_id": "1ec102aa3bebb5c2b3f9941a7c10438d896e39d28ff986e73401baf7b4b9c139",
+        "session_date": "2026-09-30",
+        "strategy_id": "earnings_calendar",
+        "symbol": "TRMB",
+        "tracked_at": "2026-09-30T14:35:33.378250Z"
+      },
+      {
+        "also_tracked_by_user": false,
+        "candidate_id": "a2c7f2e9-1162-57ee-a813-0608485b9c2c",
+        "exact_leg_set": [
+          "0d5b339195cb733af017113654d23f60f8bc2f88f0bf960cf6a6e1801280f41b",
+          "23ac9ae2fac9cbdddfc54cd55ba87bd2f66a956345b3832feb866a1f0d6c8beb"
+        ],
+        "has_frozen_proposal": true,
+        "horizons": [
+          {
+            "due_at": "2026-10-01T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "d1",
+            "status": "pending"
+          },
+          {
+            "due_at": "2026-10-07T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "d5",
+            "status": "pending"
+          },
+          {
+            "due_at": "2026-10-14T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "d10",
+            "status": "pending"
+          },
+          {
+            "due_at": "2026-10-16T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "first_expiration",
+            "status": "pending"
+          }
+        ],
+        "opportunity_id": "014df5d530e4a559d4369b311893c63cd432df915bc7d77e145bcfda54e84b94",
+        "session_date": "2026-09-30",
+        "strategy_id": "earnings_calendar",
+        "symbol": "REG",
+        "tracked_at": "2026-09-30T14:35:33.378250Z"
+      },
+      {
+        "also_tracked_by_user": false,
+        "candidate_id": "a3e9204c-c529-50a6-a074-969549d62429",
+        "exact_leg_set": [
+          "54d8a88db689da85ed605c1231fd081651f361a1c93f4ca542d1380c1cf4164e",
+          "5689e60a10684ac7f49bb1e5e7d1f60807a50f962fb78f1ec69cb6e97f6f4965"
+        ],
+        "has_frozen_proposal": true,
+        "horizons": [
+          {
+            "due_at": "2026-09-29T20:00:00Z",
+            "has_modeled_pnl": true,
+            "horizon_id": "d1",
+            "status": "observed"
+          },
+          {
+            "due_at": "2026-10-05T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "d5",
+            "status": "pending"
+          },
+          {
+            "due_at": "2026-10-09T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "first_expiration",
+            "status": "pending"
+          }
+        ],
+        "opportunity_id": "3b8b2719c84d892ed8152efc8fcdbd1b043d129adad2939e594007033753dc94",
+        "session_date": "2026-09-28",
+        "strategy_id": "earnings_calendar",
+        "symbol": "CI",
+        "tracked_at": "2026-09-28T15:05:28.620771Z"
+      },
+      {
+        "also_tracked_by_user": false,
+        "candidate_id": "bfa9ed3a-e366-5c84-aa36-6d4cf23b15ac",
+        "exact_leg_set": [
+          "1c610a7047a9b1595c4047f3cb7ecce4211efb2a59f0af5f6f346be6c5b90f4f",
+          "5cdc8444852a4d02ccc9ffcd1bff0332e5087c246fdc05c4d67d5b33a974fcee"
+        ],
+        "has_frozen_proposal": true,
+        "horizons": [
+          {
+            "due_at": "2026-09-28T20:00:00Z",
+            "has_modeled_pnl": true,
+            "horizon_id": "d1",
+            "status": "observed"
+          },
+          {
+            "due_at": "2026-10-02T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "d5",
+            "status": "pending"
+          },
+          {
+            "due_at": "2026-10-09T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "d10",
+            "status": "pending"
+          },
+          {
+            "due_at": "2026-10-16T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "first_expiration",
+            "status": "pending"
+          }
+        ],
+        "opportunity_id": "fa53b47867f208810e923d03fbbd3e012f0cee22126d31157f5c38eb394d32cd",
+        "session_date": "2026-09-25",
+        "strategy_id": "earnings_calendar",
+        "symbol": "PNW",
+        "tracked_at": "2026-09-25T14:03:12.209616Z"
+      },
+      {
+        "also_tracked_by_user": false,
+        "candidate_id": "c14d609e-6e49-5f83-bfa2-9d70c19f3062",
+        "exact_leg_set": [
+          "958590190ed629b5c01a7ea4fafc0a915acc4b12f37fe2446708838d017fa4aa",
+          "f56fbf1b384bad14e84c5f2294d577d2ac08aa7b8fce781988513d817cc31694"
+        ],
+        "has_frozen_proposal": true,
+        "horizons": [
+          {
+            "due_at": "2026-09-28T20:00:00Z",
+            "has_modeled_pnl": true,
+            "horizon_id": "d1",
+            "status": "observed"
+          },
+          {
+            "due_at": "2026-10-02T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "d5",
+            "status": "pending"
+          },
+          {
+            "due_at": "2026-10-09T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "d10",
+            "status": "pending"
+          },
+          {
+            "due_at": "2026-10-16T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "first_expiration",
+            "status": "pending"
+          }
+        ],
+        "opportunity_id": "bac6aca83500ec6d41d5ce88334f9725e3b7c2ea9465c5cfa4e6e0b69b1d6c88",
+        "session_date": "2026-09-25",
+        "strategy_id": "earnings_calendar",
+        "symbol": "PSKY",
+        "tracked_at": "2026-09-25T14:03:12.209616Z"
+      },
+      {
+        "also_tracked_by_user": false,
+        "candidate_id": "c815b6da-c08c-5d17-acbe-b5cbb53e66b0",
+        "exact_leg_set": [
+          "9ded32f4b2a58a4ba57b53ec2cfd8f7444a7dfcecda68b9fe73d6e18a5d09ab2",
+          "ade127d754c79a75771d3345779f9262af64e913d949cdded91562e66155836f"
+        ],
+        "has_frozen_proposal": true,
+        "horizons": [
+          {
+            "due_at": "2026-09-29T20:00:00Z",
+            "has_modeled_pnl": true,
+            "horizon_id": "d1",
+            "status": "observed"
+          },
+          {
+            "due_at": "2026-10-05T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "d5",
+            "status": "pending"
+          },
+          {
+            "due_at": "2026-10-12T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "d10",
+            "status": "pending"
+          },
+          {
+            "due_at": "2026-10-16T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "first_expiration",
+            "status": "pending"
+          }
+        ],
+        "opportunity_id": "a28ea3e3bc4924eeb129e562f62fba703309221d2f2b449b4ac923154d41cdab",
+        "session_date": "2026-09-28",
+        "strategy_id": "earnings_calendar",
+        "symbol": "JBHT",
+        "tracked_at": "2026-09-28T15:25:05.992252Z"
+      },
+      {
+        "also_tracked_by_user": false,
+        "candidate_id": "cd15c5d1-7936-5501-81a7-6ec0968c8077",
+        "exact_leg_set": [
+          "f28845b28fb4ea7ab33479b42fc533eb004e113a33c0853c7ed583f17a5c49a2",
+          "f50b8e27a632957ad32f00ef423fbae3e0882885d342e25ba65e05d03b8ec309"
+        ],
+        "has_frozen_proposal": true,
+        "horizons": [
+          {
+            "due_at": "2026-09-28T20:00:00Z",
+            "has_modeled_pnl": true,
+            "horizon_id": "d1",
+            "status": "observed"
+          },
+          {
+            "due_at": "2026-10-02T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "d5",
+            "status": "pending"
+          },
+          {
+            "due_at": "2026-10-09T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "d10",
+            "status": "pending"
+          },
+          {
+            "due_at": "2026-10-16T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "first_expiration",
+            "status": "pending"
+          }
+        ],
+        "opportunity_id": "ff72722cfb438bca074849eebd0a5efb62a0910f55cc77a9d3b3990dc84bee71",
+        "session_date": "2026-09-25",
+        "strategy_id": "earnings_calendar",
+        "symbol": "PCAR",
+        "tracked_at": "2026-09-25T13:52:29.504083Z"
+      },
+      {
+        "also_tracked_by_user": false,
+        "candidate_id": "cff7acf7-d0bb-5f9c-bcab-b1ffb97aaa1d",
+        "exact_leg_set": [
+          "16b829f700392721482ca9ffa2d78cf44e23574ef0fb0095f8aeb15975848305",
+          "5dff5683db6d687869acf7d62120ef05050c251b3174a293a95553181cf6ecfc"
+        ],
+        "has_frozen_proposal": true,
+        "horizons": [
+          {
+            "due_at": "2026-09-30T20:00:00Z",
+            "has_modeled_pnl": true,
+            "horizon_id": "d1",
+            "status": "observed"
+          },
+          {
+            "due_at": "2026-10-06T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "d5",
+            "status": "pending"
+          },
+          {
+            "due_at": "2026-10-13T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "d10",
+            "status": "pending"
+          },
+          {
+            "due_at": "2026-10-16T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "first_expiration",
+            "status": "pending"
+          }
+        ],
+        "opportunity_id": "f48f519f5b1e229bfd59ffc26c372437cee6ed9a036e007983a9c2fa6e747eef",
+        "session_date": "2026-09-29",
+        "strategy_id": "earnings_calendar",
+        "symbol": "RJF",
+        "tracked_at": "2026-09-29T13:45:23.552383Z"
+      },
+      {
+        "also_tracked_by_user": false,
+        "candidate_id": "d0784b54-4f2a-5894-881f-6558c76ef1f4",
+        "exact_leg_set": [
+          "8b5bf3298ff837c998cc4e3738b12ed3cd538f8c3051277a2d4425b9d492fb8f",
+          "9868565a4e8fae5b680211b046a38f4f48619f4ddd6e67e6221e1914d4e1c681"
+        ],
+        "has_frozen_proposal": true,
+        "horizons": [
+          {
+            "due_at": "2026-10-01T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "d1",
+            "status": "pending"
+          },
+          {
+            "due_at": "2026-10-07T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "d5",
+            "status": "pending"
+          },
+          {
+            "due_at": "2026-10-14T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "d10",
+            "status": "pending"
+          },
+          {
+            "due_at": "2026-10-16T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "first_expiration",
+            "status": "pending"
+          }
+        ],
+        "opportunity_id": "52e70aa3399e54856616415b499eb98ddde1c4271dcb2fcc7d5ef2ffb0695a37",
+        "session_date": "2026-09-30",
+        "strategy_id": "earnings_calendar",
+        "symbol": "MPC",
+        "tracked_at": "2026-09-30T14:15:55.466552Z"
+      },
+      {
+        "also_tracked_by_user": false,
+        "candidate_id": "d8ed2ef6-844a-5a71-bf87-acdc6b10519f",
+        "exact_leg_set": [
+          "1bd40c1a38f9b1be34fa40006a9e1e804bb22527351934cfda6b810cc14562e4",
+          "b5c11104355a475390a8262d6d54557f84a4deb242db6bff3ccc97966c06d512"
+        ],
+        "has_frozen_proposal": true,
+        "horizons": [
+          {
+            "due_at": "2026-09-30T20:00:00Z",
+            "has_modeled_pnl": true,
+            "horizon_id": "d1",
+            "status": "observed"
+          },
+          {
+            "due_at": "2026-10-06T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "d5",
+            "status": "pending"
+          },
+          {
+            "due_at": "2026-10-13T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "d10",
+            "status": "pending"
+          },
+          {
+            "due_at": "2026-10-16T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "first_expiration",
+            "status": "pending"
+          }
+        ],
+        "opportunity_id": "0031745edb33d274de9c54039aae4743037f4bc73e8e1784a682118655524cb1",
+        "session_date": "2026-09-29",
+        "strategy_id": "earnings_calendar",
+        "symbol": "AVY",
+        "tracked_at": "2026-09-29T13:45:23.552383Z"
+      },
+      {
+        "also_tracked_by_user": false,
+        "candidate_id": "dc6ffa69-385f-5d7d-9c71-22496f4ba6ac",
+        "exact_leg_set": [
+          "467671bc646ba45eed12ec3c4e7bb1ca5e8be97cca06c77f99663147b594a246",
+          "99bd3769acca5940933c3fa1009c945b11e15ab304f821d987af29f4cc41f57f"
+        ],
+        "has_frozen_proposal": true,
+        "horizons": [
+          {
+            "due_at": "2026-09-30T20:00:00Z",
+            "has_modeled_pnl": true,
+            "horizon_id": "d1",
+            "status": "observed"
+          },
+          {
+            "due_at": "2026-10-06T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "d5",
+            "status": "pending"
+          },
+          {
+            "due_at": "2026-10-13T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "d10",
+            "status": "pending"
+          },
+          {
+            "due_at": "2026-10-16T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "first_expiration",
+            "status": "pending"
+          }
+        ],
+        "opportunity_id": "929e8122ee76fd1193130ecf68ac2e6b3248f09c27ff10de94a1fe1eff02968b",
+        "session_date": "2026-09-29",
+        "strategy_id": "earnings_calendar",
+        "symbol": "HSIC",
+        "tracked_at": "2026-09-29T14:34:28.216439Z"
+      },
+      {
+        "also_tracked_by_user": false,
+        "candidate_id": "dd7217d6-7215-5c6d-83c5-b49f9d748476",
+        "exact_leg_set": [
+          "8c7b52c7c3388abf03d0577eeb12afd57f0fbada3fd3ff41425899c06259c593",
+          "c80fb0399d7ccf34986ef667e52fd441508f0674017d1b44146e03b15e3617bc"
+        ],
+        "has_frozen_proposal": true,
+        "horizons": [
+          {
+            "due_at": "2026-09-29T20:00:00Z",
+            "has_modeled_pnl": true,
+            "horizon_id": "d1",
+            "status": "observed"
+          },
+          {
+            "due_at": "2026-10-05T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "d5",
+            "status": "pending"
+          },
+          {
+            "due_at": "2026-10-12T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "d10",
+            "status": "pending"
+          },
+          {
+            "due_at": "2026-10-16T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "first_expiration",
+            "status": "pending"
+          }
+        ],
+        "opportunity_id": "6905b44cc0dd7ec6d6d9842e7b19e44a2dda2e960fbefdb97980102c6becb6c5",
+        "session_date": "2026-09-28",
+        "strategy_id": "earnings_calendar",
+        "symbol": "HBAN",
+        "tracked_at": "2026-09-28T15:05:28.620771Z"
+      },
+      {
+        "also_tracked_by_user": false,
+        "candidate_id": "f0cdb1da-5ca3-5090-b6fc-fba949a6e366",
+        "exact_leg_set": [
+          "9f1e0a54c503fe99bf17e7bc973cf63bab1361a038b95de5af8661ad765dcf82",
+          "e07d6155b4fe035fd0c3fe286f942b752438747c9b6f0cc97587752e45f133b5"
+        ],
+        "has_frozen_proposal": true,
+        "horizons": [
+          {
+            "due_at": "2026-09-29T20:00:00Z",
+            "has_modeled_pnl": true,
+            "horizon_id": "d1",
+            "status": "observed"
+          },
+          {
+            "due_at": "2026-10-05T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "d5",
+            "status": "pending"
+          },
+          {
+            "due_at": "2026-10-12T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "d10",
+            "status": "pending"
+          },
+          {
+            "due_at": "2026-10-16T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "first_expiration",
+            "status": "pending"
+          }
+        ],
+        "opportunity_id": "655dc757ca65c7c8947145f97180b9626f6be0e6598f3c5de50a3668e79ec5fb",
+        "session_date": "2026-09-28",
+        "strategy_id": "earnings_calendar",
+        "symbol": "INVH",
+        "tracked_at": "2026-09-28T15:15:25.093504Z"
+      },
+      {
+        "also_tracked_by_user": false,
+        "candidate_id": "f88786e6-053f-5e19-b106-4d8f54326d7a",
+        "exact_leg_set": [
+          "116be77a98797b90564c536bfdc44ba5c7cb5839daafa1cf94ad3271af11f0a7",
+          "f0540511094b61bbc6f1172880af5d46c08cd243040afd3728972f35fbe9cbff"
+        ],
+        "has_frozen_proposal": true,
+        "horizons": [
+          {
+            "due_at": "2026-09-29T20:00:00Z",
+            "has_modeled_pnl": true,
+            "horizon_id": "d1",
+            "status": "observed"
+          },
+          {
+            "due_at": "2026-10-05T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "d5",
+            "status": "pending"
+          },
+          {
+            "due_at": "2026-10-12T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "d10",
+            "status": "pending"
+          },
+          {
+            "due_at": "2026-10-16T20:00:00Z",
+            "has_modeled_pnl": false,
+            "horizon_id": "first_expiration",
+            "status": "pending"
+          }
+        ],
+        "opportunity_id": "51a2ab8c6637a2d1bfd1830f95cc93b965d7da4ca8521cec6ac3763a7216bab6",
+        "session_date": "2026-09-28",
+        "strategy_id": "earnings_calendar",
+        "symbol": "KDP",
+        "tracked_at": "2026-09-28T15:25:05.992252Z"
+      }
+    ],
+    "ledger_status": "available"
+  },
+  "trade_cards": {
+    "artifact_version": "1.0.0",
+    "captured_at": "2026-09-30T22:38:22.257121+00:00",
+    "observation_checksum": "eae01b291345a1997f64b326fcbc858659e6ebe5475ae5abf055e596c6f06e0f",
+    "observations": [
+      {
+        "gaps": [],
+        "outcome": "complete_trade_card",
+        "signal_id": "earnings_calendar",
+        "symbol": "AOS",
+        "terminal_state": "actionable_opportunity"
+      },
+      {
+        "gaps": [],
+        "outcome": "complete_trade_card",
+        "signal_id": "earnings_calendar",
+        "symbol": "CBRE",
+        "terminal_state": "actionable_opportunity"
+      },
+      {
+        "gaps": [],
+        "outcome": "complete_trade_card",
+        "signal_id": "earnings_calendar",
+        "symbol": "CI",
+        "terminal_state": "actionable_opportunity"
+      },
+      {
+        "gaps": [],
+        "outcome": "complete_trade_card",
+        "signal_id": "earnings_calendar",
+        "symbol": "CMS",
+        "terminal_state": "actionable_opportunity"
+      },
+      {
+        "gaps": [],
+        "outcome": "complete_trade_card",
+        "signal_id": "earnings_calendar",
+        "symbol": "CNP",
+        "terminal_state": "actionable_opportunity"
+      },
+      {
+        "gaps": [],
+        "outcome": "complete_trade_card",
+        "signal_id": "earnings_calendar",
+        "symbol": "CPT",
+        "terminal_state": "actionable_opportunity"
+      },
+      {
+        "gaps": [],
+        "outcome": "complete_trade_card",
+        "signal_id": "earnings_calendar",
+        "symbol": "CSGP",
+        "terminal_state": "actionable_opportunity"
+      },
+      {
+        "gaps": [],
+        "outcome": "complete_trade_card",
+        "signal_id": "earnings_calendar",
+        "symbol": "FE",
+        "terminal_state": "actionable_opportunity"
+      },
+      {
+        "gaps": [],
+        "outcome": "complete_trade_card",
+        "signal_id": "earnings_calendar",
+        "symbol": "HBAN",
+        "terminal_state": "actionable_opportunity"
+      },
+      {
+        "gaps": [],
+        "outcome": "typed_failure_presentation",
+        "signal_id": "earnings_calendar",
+        "symbol": "HUM",
+        "terminal_state": "structure_unavailable"
+      },
+      {
+        "gaps": [],
+        "outcome": "complete_trade_card",
+        "signal_id": "earnings_calendar",
+        "symbol": "JBHT",
+        "terminal_state": "actionable_opportunity"
+      },
+      {
+        "gaps": [],
+        "outcome": "complete_trade_card",
+        "signal_id": "earnings_calendar",
+        "symbol": "KDP",
+        "terminal_state": "actionable_opportunity"
+      },
+      {
+        "gaps": [],
+        "outcome": "complete_trade_card",
+        "signal_id": "earnings_calendar",
+        "symbol": "KIM",
+        "terminal_state": "actionable_opportunity"
+      },
+      {
+        "gaps": [],
+        "outcome": "complete_trade_card",
+        "signal_id": "earnings_calendar",
+        "symbol": "L",
+        "terminal_state": "actionable_opportunity"
+      },
+      {
+        "gaps": [],
+        "outcome": "complete_trade_card",
+        "signal_id": "earnings_calendar",
+        "symbol": "NI",
+        "terminal_state": "actionable_opportunity"
+      },
+      {
+        "gaps": [],
+        "outcome": "complete_trade_card",
+        "signal_id": "earnings_calendar",
+        "symbol": "NWSA",
+        "terminal_state": "actionable_opportunity"
+      },
+      {
+        "gaps": [],
+        "outcome": "complete_trade_card",
+        "signal_id": "earnings_calendar",
+        "symbol": "PFG",
+        "terminal_state": "actionable_opportunity"
+      },
+      {
+        "gaps": [],
+        "outcome": "typed_failure_presentation",
+        "signal_id": "earnings_calendar",
+        "symbol": "PSKY",
+        "terminal_state": "structure_unavailable"
+      },
+      {
+        "gaps": [],
+        "outcome": "complete_trade_card",
+        "signal_id": "earnings_calendar",
+        "symbol": "REG",
+        "terminal_state": "actionable_opportunity"
+      },
+      {
+        "gaps": [],
+        "outcome": "complete_trade_card",
+        "signal_id": "earnings_calendar",
+        "symbol": "RJF",
+        "terminal_state": "actionable_opportunity"
+      },
+      {
+        "gaps": [],
+        "outcome": "complete_trade_card",
+        "signal_id": "earnings_calendar",
+        "symbol": "SWKS",
+        "terminal_state": "actionable_opportunity"
+      },
+      {
+        "gaps": [],
+        "outcome": "typed_failure_presentation",
+        "signal_id": "earnings_calendar",
+        "symbol": "UNH",
+        "terminal_state": "structure_unavailable"
+      },
+      {
+        "gaps": [],
+        "outcome": "complete_trade_card",
+        "signal_id": "earnings_calendar",
+        "symbol": "VICI",
+        "terminal_state": "actionable_opportunity"
+      },
+      {
+        "gaps": [],
+        "outcome": "complete_trade_card",
+        "signal_id": "earnings_calendar",
+        "symbol": "WEC",
+        "terminal_state": "actionable_opportunity"
+      },
+      {
+        "gaps": [],
+        "outcome": "typed_failure_presentation",
+        "signal_id": "forward_factor",
+        "symbol": "FDXF",
+        "terminal_state": "structure_unknown"
+      },
+      {
+        "gaps": [],
+        "outcome": "complete_trade_card",
+        "signal_id": "spy_put_credit_spread",
+        "symbol": "SPY",
+        "terminal_state": "actionable_opportunity"
+      }
+    ],
+    "outcome_counts": {
+      "complete_trade_card": 22,
+      "typed_failure_presentation": 4
+    },
+    "production_sha": "a63ae596ca727f60b896f1c30a023a6f79ae1c09",
+    "qualifying_option_results": 26,
+    "signals": {
+      "B001": {
+        "active_total": 1,
+        "declares_option_structure": false,
+        "qualifying_verdict_count": 1
+      },
+      "B002": {
+        "active_total": 1,
+        "declares_option_structure": null,
+        "qualifying_verdict_count": 0
+      },
+      "earnings_calendar": {
+        "active_total": 503,
+        "declares_option_structure": true,
+        "qualifying_verdict_count": 24
+      },
+      "event_vol_gxz_preea_straddle_to_expiry": {
+        "active_total": 0,
+        "declares_option_structure": null,
+        "qualifying_verdict_count": 0
+      },
+      "forward_factor": {
+        "active_total": 503,
+        "declares_option_structure": true,
+        "qualifying_verdict_count": 1
+      },
+      "index_putwrite_cboe_put": {
+        "active_total": 1,
+        "declares_option_structure": null,
+        "qualifying_verdict_count": 0
+      },
+      "index_putwrite_cboe_puty": {
+        "active_total": 1,
+        "declares_option_structure": null,
+        "qualifying_verdict_count": 0
+      },
+      "skew_momentum": {
+        "active_total": 503,
+        "declares_option_structure": null,
+        "qualifying_verdict_count": 0
+      },
+      "spy_put_credit_spread": {
+        "active_total": 1,
+        "declares_option_structure": true,
+        "qualifying_verdict_count": 1
+      }
+    },
+    "sprint": "OPTIONS-PRODUCT-001",
+    "ticket": "OP-07",
+    "verdict": "complete_trade_card_path_observed"
+  }
+}
