@@ -49,6 +49,7 @@ from strategies.bxm_planning import (
     resolved_field_requirements,
 )
 from strategies.cboe_put_planning import chain_demand, quote_demand
+from strategies.knowledge_contracts import KnowledgeMapping
 from strategies.manifest import ParameterSpec
 from strategies.tristate_components import PASS, UNKNOWN
 from strategy_runtime.adapters.bxm import BXM_CONTRACT
@@ -694,3 +695,130 @@ def test_production_adapter_resolves_exact_lifecycle_evidence_and_materialized_r
     )(RuntimeContext(BXM_CONTRACT, "SPX", Clock(), "run"))
     assert "outcome.index_dividend_points" not in irrelevant_result.metrics
     assert "lifecycle.soq_value" not in irrelevant_result.metrics
+
+
+def test_production_knowledge_path_uses_held_call_for_non_roll_daily_return() -> None:
+    return_time = datetime(2026, 11, 19, 19, 59, tzinfo=UTC)
+    prior_time = datetime(2026, 11, 18, 19, 59, tzinfo=UTC)
+    roll_date = date(2026, 11, 20)
+    held = replace(
+        _call("5005"),
+        expiration=roll_date,
+        bid=Decimal("3"),
+        ask=Decimal("5"),
+        observed_at=prior_time,
+    )
+    held_current = replace(
+        held,
+        bid=Decimal("2"),
+        ask=Decimal("4"),
+        observed_at=return_time,
+    )
+    panel = HistoricalOptionPanel(
+        SPX.instrument,
+        return_time,
+        (
+            HistoricalOptionSnapshot(
+                SPX.instrument, prior_time, prior_time, "prior-close", (held,)
+            ),
+            HistoricalOptionSnapshot(
+                SPX.instrument,
+                return_time,
+                return_time,
+                "current-close",
+                (held_current,),
+            ),
+        ),
+    )
+    prior_bar = OHLCVBar(
+        SPX.instrument,
+        60,
+        prior_time - timedelta(seconds=60),
+        prior_time,
+        Decimal("100"),
+        Decimal("100"),
+        Decimal("100"),
+        Decimal("100"),
+        Decimal("1"),
+    )
+    current_bar = replace(
+        prior_bar,
+        start_at=return_time - timedelta(seconds=60),
+        end_at=return_time,
+        open=Decimal("101"),
+        high=Decimal("101"),
+        low=Decimal("101"),
+        close=Decimal("101"),
+    )
+    series = OHLCVSeries(SPX.instrument, 60, return_time, (prior_bar, current_bar))
+
+    def _mapping(held_identity: str | None, digest: str) -> KnowledgeMapping[BxmPayload]:
+        return build_bxm_knowledge_mapping(
+            subject="SPX",
+            snapshot_digest=digest,
+            quote_observation_id="quote-observation",
+            chain_observation_id="chain-observation",
+            chain=_chain(_call("5100")),
+            spot=Decimal("101"),
+            quote_effective_time=return_time,
+            tape_observation=None,
+            dividend_observation=(
+                "dividend-observation",
+                IndexDividendPoints(SPX.instrument, Decimal("1"), return_time.date()),
+            ),
+            settlement_observation=None,
+            vwap_window_start=return_time - timedelta(hours=4),
+            vwap_window_end=return_time - timedelta(hours=2),
+            roll_date=roll_date,
+            bars_observation=("bars-observation", series),
+            option_history_observation=("option-history-observation", panel),
+            selected_call_identity=None,
+            held_call_identity=held_identity,
+        )
+
+    def _facts(
+        mapping: KnowledgeMapping[BxmPayload], digest: str
+    ) -> tuple[CanonicalFact, ...]:
+        return tuple(
+            CanonicalFact(
+                canonical_fact_id(request.fact_type, request.subject, digest),
+                1,
+                request.fact_type,
+                request.value,
+                Confidence(1.0),
+                Provenance((request.observation_id,), ("fixture",), "fixture", (), return_time),
+                return_time,
+                return_time,
+            )
+            for request in mapping.canonical_fact_requests
+        )
+
+    mapping = _mapping(held.identity, "non-roll")
+    facts = _facts(mapping, "non-roll")
+    requests = mapping.compute_derived_fact_requests(facts)
+    assert not isinstance(requests, UnknownReason)
+    daily_request = next(item for item in requests if item.feature_id == CBOE_BUYWRITE_DAILY_RETURN)
+    assert daily_request.value == (Decimal("99") / Decimal("96")) - Decimal(1)
+    materialized = materialize_derived_fact(
+        DERIVED_FACT_REGISTRY,
+        daily_request.feature_id,
+        daily_request.subject,
+        "non-roll",
+        value=daily_request.value,
+        unit=daily_request.unit,
+        effective_time=return_time,
+        input_evidence=daily_request.input_evidence,
+        quality_status=daily_request.quality_status,
+        parameters=daily_request.parameters,
+    )
+    assert mapping.build_payload(facts, DerivedFactSet((materialized,))).daily_return == (
+        daily_request.value
+    )
+
+    missing_mapping = _mapping(None, "non-roll-missing-held")
+    missing_facts = _facts(missing_mapping, "non-roll-missing-held")
+    missing_requests = missing_mapping.compute_derived_fact_requests(missing_facts)
+    assert not isinstance(missing_requests, UnknownReason)
+    assert all(item.feature_id != CBOE_BUYWRITE_DAILY_RETURN for item in missing_requests)
+    missing_payload = missing_mapping.build_payload(missing_facts, DerivedFactSet(()))
+    assert isinstance(missing_payload.daily_return, UnknownReason)

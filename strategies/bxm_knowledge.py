@@ -95,11 +95,16 @@ def build_bxm_knowledge_mapping(
         ),
         None,
     )
+    roll_day = roll_date is not None and return_date == roll_date
+    accounting_call = selected_call if roll_day else held_call
+    accounting_call_identity = (
+        accounting_call.identity if accounting_call is not None else None
+    )
     valid_dividend_observation = (
         dividend_observation
         if dividend_observation is not None
-        and selected_call is not None
-        and dividend_observation[1].instrument == selected_call.underlying.instrument
+        and accounting_call is not None
+        and dividend_observation[1].instrument == accounting_call.underlying.instrument
         and dividend_observation[1].effective_date == return_date
         else None
     )
@@ -107,6 +112,7 @@ def build_bxm_knowledge_mapping(
         settlement_observation
         if settlement_observation is not None
         and held_call is not None
+        and roll_day
         and roll_date is not None
         and held_call.expiration == roll_date
         and settlement_observation[1].index.instrument == held_call.underlying.instrument
@@ -165,8 +171,9 @@ def build_bxm_knowledge_mapping(
             panel=option_history_observation[1] if option_history_observation else None,
             series=bars_observation[1] if bars_observation else None,
             tape=tape_observation[1] if tape_observation else None,
-            selected_contract_identity=selected_call_identity,
+            selected_contract_identity=accounting_call_identity,
             held_contract_identity=held_call_identity,
+            return_date=return_date,
             roll_date=roll_date,
             window_start=vwap_window_start,
             window_end=vwap_window_end,
@@ -174,7 +181,7 @@ def build_bxm_knowledge_mapping(
                 str(bxm_parameter("timing", "excluded_sale_condition_codes"))
             ),
         )
-        if selected_call_identity is not None and roll_date is not None
+        if accounting_call_identity is not None and roll_date is not None
         else None
     )
     bars_observation_id = bars_observation[0] if bars_observation else None
@@ -272,9 +279,7 @@ def build_bxm_knowledge_mapping(
             return value if isinstance(value, Decimal) else None
 
         daily = cboe_buywrite_daily_return(
-            roll_day=(
-                roll_date is not None and new_york_time(quote_effective_time).date() == roll_date
-            ),
+            roll_day=roll_day,
             prior_index_close=_decimal_fact("prior_index_close"),
             prior_call_close=_decimal_fact("prior_call_close"),
             index_close=_decimal_fact("index_close"),

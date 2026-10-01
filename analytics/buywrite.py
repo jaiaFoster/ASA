@@ -172,6 +172,7 @@ def resolve_bxm_lifecycle_facts(
     tape: OptionTradeTape | None,
     selected_contract_identity: str,
     held_contract_identity: str | None,
+    return_date: date,
     roll_date: date,
     window_start: datetime,
     window_end: datetime,
@@ -194,11 +195,12 @@ def resolve_bxm_lifecycle_facts(
                 excluded_sale_condition_codes=excluded_sale_condition_codes,
             ),
         )
+    roll_day = return_date == roll_date
     prior_dates = sorted(
         {
             snapshot.observed_at.astimezone(NEW_YORK).date()
             for snapshot in panel.snapshots
-            if snapshot.observed_at.astimezone(NEW_YORK).date() < roll_date
+            if snapshot.observed_at.astimezone(NEW_YORK).date() < return_date
         }
     )
     if not prior_dates or held_contract_identity is None:
@@ -213,7 +215,7 @@ def resolve_bxm_lifecycle_facts(
             for contract in snapshot.contracts
             if contract.option_type is OptionType.CALL
             and contract.identity == held_contract_identity
-            and contract.expiration == roll_date
+            and (not roll_day or contract.expiration == roll_date)
         )
         if not old_candidates:
             old_contract = UnknownReason("held_call_identity_not_in_lifecycle_evidence")
@@ -223,7 +225,9 @@ def resolve_bxm_lifecycle_facts(
             prior_close = option_close_before_new_york_close(
                 panel, old_contract.identity, prior_date
             )
-    current_close = option_close_before_new_york_close(panel, selected_contract_identity, roll_date)
+    current_close = option_close_before_new_york_close(
+        panel, selected_contract_identity, return_date
+    )
     return BxmLifecycleFacts(
         old_contract.strike if isinstance(old_contract, OptionContract) else old_contract,
         prior_close,
