@@ -124,6 +124,7 @@ def test_consumer_protocol_never_exposes_the_plan_fulfiller_or_infrastructure() 
         "consumer_id",
         "bootstrap_demands",
         "expand",
+        "post_selection_expand",
     }
     assert DemandExpansion.__dataclass_fields__.keys() == {
         "demands",

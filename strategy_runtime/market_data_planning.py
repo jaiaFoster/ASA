@@ -32,6 +32,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 from domain import MarketCapability
+from domain.values import DomainInvariantError
 from market_data import (
     CapabilityFulfillmentService,
     CapabilityRegistry,
@@ -261,15 +262,21 @@ def resolution_policy_for_capabilities(
     ``field_requirements`` is caller-supplied data, not a lookup.
     """
     policy = capability_registry.policy
-    return {
-        capability: ResolutionPolicy(
+    result: dict[MarketCapability, ResolutionPolicy] = {}
+    for capability, (required_fields, freshness_threshold_seconds) in field_requirements.items():
+        try:
+            provider_ids = policy.for_capability(capability).provider_ids
+        except DomainInvariantError as exc:
+            if not str(exc).startswith("No priority policy for"):
+                raise
+            # A declared optional capability with no enabled provider remains a
+            # requested, typed UNSUPPORTED_CAPABILITY fulfillment. No resolution
+            # policy is needed because it can contribute no observation.
+            continue
+        result[capability] = ResolutionPolicy(
             policy.policy_version,
-            policy.for_capability(capability).provider_ids,
+            provider_ids,
             freshness_threshold_seconds,
             required_fields,
         )
-        for capability, (
-            required_fields,
-            freshness_threshold_seconds,
-        ) in field_requirements.items()
-    }
+    return result

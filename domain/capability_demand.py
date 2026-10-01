@@ -45,7 +45,7 @@ from datetime import UTC, date, datetime
 from domain.market_data import MarketCapability
 from domain.values import DomainInvariantError, require_tz_aware
 
-CAPABILITY_DEMAND_CONTRACT_VERSION = "asa.capability_demand.v2"
+CAPABILITY_DEMAND_CONTRACT_VERSION = "asa.capability_demand.v3"
 
 
 @dataclass(frozen=True, slots=True)
@@ -68,6 +68,7 @@ class CapabilityDemand:
     require_open_session: bool = False
     allow_prior_session: bool = True
     maximum_age_seconds: int | None = None
+    contract_identity: str | None = None
 
     def __post_init__(self) -> None:
         require_tz_aware(self.effective_start, "CapabilityDemand", "effective_start")
@@ -84,6 +85,10 @@ class CapabilityDemand:
             type(self.maximum_age_seconds) is not int or self.maximum_age_seconds < 0
         ):
             raise DomainInvariantError("CapabilityDemand.maximum_age_seconds must be non-negative")
+        if self.contract_identity is not None and (
+            not self.contract_identity or self.contract_identity != self.contract_identity.strip()
+        ):
+            raise DomainInvariantError("CapabilityDemand.contract_identity must be normalized")
 
     @property
     def demand_id(self) -> str:
@@ -105,6 +110,7 @@ class CapabilityDemand:
             "require_open_session": self.require_open_session,
             "allow_prior_session": self.allow_prior_session,
             "maximum_age_seconds": self.maximum_age_seconds,
+            "contract_identity": self.contract_identity,
         }
         encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
         return hashlib.sha256(encoded).hexdigest()

@@ -10,9 +10,19 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 from domain import UnknownReason
+
+_NEW_YORK = ZoneInfo("America/New_York")
+
+
+def new_york_time(value: datetime) -> datetime:
+    """Return an aware instant in the exchange-local New York timezone."""
+    if value.tzinfo is None or value.utcoffset() is None:
+        raise ValueError("new_york_time requires a timezone-aware datetime")
+    return value.astimezone(_NEW_YORK)
 
 
 @dataclass(frozen=True, slots=True)

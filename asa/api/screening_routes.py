@@ -105,6 +105,7 @@ from strategy_runtime.orchestration import (
 from strategy_runtime.persistence import (
     LatestResultRepository,
     ObservationHistoryRepository,
+    lifecycle_position_identities,
     replay_opportunity_history,
 )
 from strategy_runtime.preparation_diagnostics import classify_subject_preparation_exception
@@ -756,7 +757,12 @@ def build_screening_router(
         # strategy happens to be registered for shadowing. A preparation
         # failure is isolated and never affects this request's own legacy
         # evaluation below.
-        shadow_registry = build_migrated_shadow_registry(clock.now())
+        shadow_registry = build_migrated_shadow_registry(
+            clock.now(),
+            lifecycle_identity_by_strategy_subject=lifecycle_position_identities(
+                repository.get_all()
+            ),
+        )
         # SPRINT-014 S14-PR-05, Architect checkpoint: nineteenth review,
         # "one shared cutover policy owner used identically by scheduled
         # and API roots" -- same function, same environment boundary as

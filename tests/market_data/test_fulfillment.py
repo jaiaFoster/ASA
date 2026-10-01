@@ -222,6 +222,34 @@ def test_primary_success_is_selected_without_fallback() -> None:
     assert len(budgets.accounting) == 1
 
 
+def test_no_capable_provider_is_a_typed_non_network_deferral() -> None:
+    fulfillment, budgets = service(provider("primary"))
+    base = request()
+    fields = ("effective_date", "points")
+    subject = dataclasses.replace(
+        base.subjects[0],
+        requested_capability=MarketCapability.INDEX_DIVIDEND_POINTS_V1,
+        request_context=dataclasses.replace(
+            base.subjects[0].request_context, required_fields=fields
+        ),
+    )
+    unsupported = dataclasses.replace(
+        base,
+        capability=MarketCapability.INDEX_DIVIDEND_POINTS_V1,
+        subjects=(subject,),
+        required_fields=fields,
+    )
+
+    result = fulfillment.fulfill(unsupported, required=False)
+
+    assert result.status is FulfillmentStatus.FAILED
+    assert result.required is False
+    assert result.attempts[0].provider_id == "capability_registry"
+    assert result.attempts[0].error is not None
+    assert result.attempts[0].error.code is ProviderErrorCode.UNSUPPORTED_CAPABILITY
+    assert budgets.accounting == ()
+
+
 def test_primary_failure_secondary_success_is_explicitly_degraded() -> None:
     primary = provider(
         "primary", FixtureScenario(failures=((CAPABILITY, ProviderErrorCode.TIMEOUT),))

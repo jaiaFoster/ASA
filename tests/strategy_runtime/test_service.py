@@ -8,7 +8,7 @@ tests/asa/test_universal_screening_service_postgres_integration.py.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 
 import pytest
@@ -36,6 +36,7 @@ from strategy_runtime.lifecycle import (
 from strategy_runtime.persistence import UniversalSignalRow, replay_opportunity_history
 from strategy_runtime.result import EvaluationState, RowType
 from strategy_runtime.service import get_state, record_opportunity_observation, refresh
+from strategy_runtime.values import TypedValue
 
 
 @dataclass
@@ -180,6 +181,24 @@ class TestRefresh:
 
         assert result.strategy_id == "alpha"
         assert repository.get_one("alpha", "AAPL").to_result() == result
+
+    def test_refresh_carries_exact_held_position_identity_until_replaced(self) -> None:
+        registry = StrategyRegistry(((_contract("alpha"), _succeeding_adapter),))
+        repository = InMemoryLatestResultRepository()
+        clock = _FixedClock(datetime(2026, 1, 1, tzinfo=UTC))
+        prior = _succeeding_adapter(RuntimeContext(_contract("alpha"), "AAPL", clock, "old"))
+        prior = replace(
+            prior,
+            metrics={
+                **prior.metrics,
+                "lifecycle.held_position_identity": TypedValue.of_string("exact-call-id"),
+            },
+        )
+        repository.upsert(UniversalSignalRow.from_result(prior))
+
+        result = refresh(registry, repository, clock, strategy_id="alpha", symbol="AAPL")
+
+        assert result.metrics["lifecycle.held_position_identity"].native() == "exact-call-id"
 
     def test_refresh_raises_on_an_unexpected_adapter_exception(self) -> None:
         registry = StrategyRegistry(((_contract("alpha"), _failing_adapter),))

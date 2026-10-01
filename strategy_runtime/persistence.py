@@ -157,6 +157,19 @@ class LatestResultRepository(Protocol):
     def get_one(self, signal_id: str, symbol: str) -> UniversalSignalRow | None: ...
 
 
+def lifecycle_position_identities(
+    rows: tuple[UniversalSignalRow, ...],
+) -> dict[tuple[str, str], str]:
+    """Exact persisted held-position identities, keyed without strategy branching."""
+    identities: dict[tuple[str, str], str] = {}
+    for row in rows:
+        value = row.metrics.get("lifecycle.held_position_identity")
+        native = None if value is None else value.native()
+        if isinstance(native, str) and native:
+            identities[(row.signal_id, row.symbol)] = native
+    return identities
+
+
 def latest_ordering_key(row: UniversalSignalRow) -> tuple[datetime, datetime, str]:
     """Canonical monotonic order: snapshot time, evaluation time, stable identity.
 

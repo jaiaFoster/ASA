@@ -148,7 +148,29 @@ class CapabilityFulfillmentService:
             decision = self._bypass_decision_for(existing)
 
         audit: list[ProviderFulfillmentAttempt] = []
-        for candidate in self._capabilities.lookup(request.capability):
+        try:
+            candidates = self._capabilities.lookup(request.capability)
+        except DomainInvariantError as exc:
+            if required or not str(exc).startswith("No priority policy for"):
+                raise
+            error = normalized_provider_error(
+                ProviderErrorCode.UNSUPPORTED_CAPABILITY,
+                "no enabled provider declares this canonical capability",
+                "capability_registry",
+                request.capability,
+            )
+            audit.append(
+                ProviderFulfillmentAttempt(
+                    "capability_registry", 1, ProviderStatus.UNKNOWN, (), error, ()
+                )
+            )
+            result = CapabilityFulfillmentResult(
+                request, FulfillmentStatus.FAILED, None, (), tuple(audit), required
+            )
+            self._results[key] = result
+            self._call_log.append((result, decision))
+            return result
+        for candidate in candidates:
             provider = self._providers.provider(candidate.provider_id)
             try:
                 authorization = self._budgets.authorize(
