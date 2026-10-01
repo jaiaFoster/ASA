@@ -642,7 +642,7 @@ def test_production_adapter_resolves_exact_lifecycle_evidence_and_materialized_r
     call = _call("5005")
     settlement = IndexSettlementValue(
         SPX,
-        call.expiration,
+        ROLL.date(),
         SettlementStyle.AM,
         Decimal("5010"),
         ROLL,
@@ -674,6 +674,7 @@ def test_production_adapter_resolves_exact_lifecycle_evidence_and_materialized_r
     assert result.metrics["entry.price_state"].native() == "RESOLVED_WINDOWED_OPTION_TRADE_VWAP"
     assert result.metrics["outcome.index_dividend_points"].native() == Decimal("1")
     assert result.metrics["lifecycle.soq_value"].native() == Decimal("5010")
+    assert settlement.settlement_date != call.expiration
     assert result.metrics["outcome.daily_return"].native() == Decimal("0.01")
     assert result.metrics["lifecycle.held_position_identity"].native() == call.identity
 
@@ -687,14 +688,22 @@ def test_production_adapter_resolves_exact_lifecycle_evidence_and_materialized_r
 
     irrelevant = replace(
         payload,
-        dividend_points=IndexDividendPoints(SPX.instrument, Decimal("1"), date(2027, 1, 1)),
-        settlement_value=replace(settlement, settlement_date=date(2026, 12, 18)),
+        dividend_points=UnknownReason("INDEX_DIVIDEND_POINTS_LIFECYCLE_MISMATCH"),
+        settlement_value=UnknownReason("INDEX_SETTLEMENT_VALUE_LIFECYCLE_MISMATCH"),
     )
     irrelevant_result = build_bxm_subject_first_adapter(
         {"SPX": replace(knowledge, payload=irrelevant)}
     )(RuntimeContext(BXM_CONTRACT, "SPX", Clock(), "run"))
     assert "outcome.index_dividend_points" not in irrelevant_result.metrics
     assert "lifecycle.soq_value" not in irrelevant_result.metrics
+    assert (
+        irrelevant_result.metrics["outcome.dividend_state"].native()
+        == "INDEX_DIVIDEND_POINTS_LIFECYCLE_MISMATCH"
+    )
+    assert (
+        irrelevant_result.metrics["lifecycle.soq_state"].native()
+        == "INDEX_SETTLEMENT_VALUE_LIFECYCLE_MISMATCH"
+    )
 
 
 def test_production_knowledge_path_uses_held_call_for_non_roll_daily_return() -> None:
@@ -811,9 +820,32 @@ def test_production_knowledge_path_uses_held_call_for_non_roll_daily_return() ->
         quality_status=daily_request.quality_status,
         parameters=daily_request.parameters,
     )
-    assert mapping.build_payload(facts, DerivedFactSet((materialized,))).daily_return == (
-        daily_request.value
+    payload = mapping.build_payload(facts, DerivedFactSet((materialized,)))
+    assert payload.daily_return == daily_request.value
+
+    class NonRollClock:
+        def now(self) -> datetime:
+            return return_time
+
+    result = build_bxm_subject_first_adapter(
+        {
+            "SPX": ReadOnlyStrategyInput(
+                "snapshot",
+                "non-roll",
+                return_time,
+                facts,
+                DerivedFactSet((materialized,)),
+                payload,
+            )
+        }
+    )(RuntimeContext(BXM_CONTRACT, "SPX", NonRollClock(), "non-roll-run"))
+    assert result.evaluation_state is EvaluationState.NO_SIGNAL
+    assert result.metrics["outcome.dividend_state"].native() == (
+        "RESOLVED_INDEX_DIVIDEND_POINTS"
     )
+    assert result.metrics["outcome.index_dividend_points"].native() == Decimal("1")
+    assert result.metrics["outcome.daily_return_state"].native() == "RESOLVED"
+    assert result.metrics["outcome.daily_return"].native() == daily_request.value
 
     missing_mapping = _mapping(None, "non-roll-missing-held")
     missing_facts = _facts(missing_mapping, "non-roll-missing-held")

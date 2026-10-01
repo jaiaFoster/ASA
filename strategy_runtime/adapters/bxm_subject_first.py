@@ -181,22 +181,12 @@ def build_bxm_subject_first_adapter(
             decision.selected_call is not None
             and payload.tape_contract_identity == decision.selected_call.identity
         )
-        dividend_in_period = (
-            decision.selected_call is not None
-            and isinstance(payload.dividend_points, IndexDividendPoints)
-            and payload.dividend_points.instrument == decision.selected_call.underlying.instrument
-            and context.clock.now().date()
-            <= payload.dividend_points.effective_date
-            <= decision.selected_call.expiration
-        )
-        settlement_matches = (
-            decision.selected_call is not None
-            and isinstance(payload.settlement_value, IndexSettlementValue)
-            and payload.settlement_value.index.instrument
-            == decision.selected_call.underlying.instrument
-            and payload.settlement_value.settlement_date == decision.selected_call.expiration
-            and payload.settlement_value.settlement_style is decision.selected_call.settlement_style
-        )
+        # BxmPayload contains only lifecycle evidence validated by the
+        # knowledge boundary. Re-validating here against decision.selected_call
+        # is incorrect: on non-roll days there is no new selected call, and on
+        # roll days SOQ belongs to the expiring held call rather than K_new.
+        dividend_resolved = isinstance(payload.dividend_points, IndexDividendPoints)
+        settlement_resolved = isinstance(payload.settlement_value, IndexSettlementValue)
         daily_return = payload.daily_return
         metrics = {
             "decision.reason": TypedValue.of_string(decision.reason),
@@ -210,15 +200,11 @@ def build_bxm_subject_first_adapter(
             "outcome.dividend_state": TypedValue.of_string(
                 payload.dividend_points.code
                 if isinstance(payload.dividend_points, UnknownReason)
-                else "INDEX_DIVIDEND_POINTS_OUTSIDE_HOLDING_PERIOD"
-                if not dividend_in_period
                 else "RESOLVED_INDEX_DIVIDEND_POINTS"
             ),
             "lifecycle.soq_state": TypedValue.of_string(
                 payload.settlement_value.code
                 if isinstance(payload.settlement_value, UnknownReason)
-                else "INDEX_SETTLEMENT_VALUE_CONTRACT_MISMATCH"
-                if not settlement_matches
                 else "RESOLVED_INDEX_SETTLEMENT_VALUE"
             ),
             "outcome.daily_return_formula_id": TypedValue.of_string(CBOE_BUYWRITE_DAILY_RETURN_ID),
@@ -231,11 +217,13 @@ def build_bxm_subject_first_adapter(
         }
         if isinstance(payload.entry_vwap, Decimal) and exact_tape:
             metrics["entry.windowed_vwap"] = TypedValue.of_decimal(payload.entry_vwap)
-        if isinstance(payload.dividend_points, IndexDividendPoints) and dividend_in_period:
+        if dividend_resolved:
+            assert isinstance(payload.dividend_points, IndexDividendPoints)
             metrics["outcome.index_dividend_points"] = TypedValue.of_decimal(
                 payload.dividend_points.points
             )
-        if isinstance(payload.settlement_value, IndexSettlementValue) and settlement_matches:
+        if settlement_resolved:
+            assert isinstance(payload.settlement_value, IndexSettlementValue)
             metrics["lifecycle.soq_value"] = TypedValue.of_decimal(payload.settlement_value.value)
         if isinstance(daily_return, Decimal):
             metrics["outcome.daily_return"] = TypedValue.of_decimal(daily_return)
