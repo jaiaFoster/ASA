@@ -47,6 +47,7 @@ CBOE_BUYWRITE_DAILY_RETURN = "DF-CBOE-BUYWRITE-DAILY-RETURN"
 THIRD_FRIDAY_ROLL_DATE = "DF-THIRD-FRIDAY-ROLL-DATE"
 GXZ_PAIR_VOLUME = "gxz_pair_volume"
 NEGATIVE_LOG_PRICE = "negative_log_price"
+STRADDLE_MOMENTUM_FORMATION = "DF-STRADDLE-MOMENTUM-FORMATION"
 
 
 class AdjustedCloseBarLike(Protocol):
@@ -390,6 +391,11 @@ def _definition(
 
 
 DERIVED_FACT_DEFINITIONS = (
+    _definition(
+        STRADDLE_MOMENTUM_FORMATION,
+        "Mean of eleven complete monthly zero-delta straddle returns at lags 2 through 12.",
+        MarketCapability.HISTORICAL_OPTION_PANEL_V1,
+    ),
     _definition(
         NEGATIVE_LOG_PRICE,
         "Negative natural logarithm of one canonical security price.",
