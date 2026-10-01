@@ -438,6 +438,87 @@ def test_buywrite_daily_return_is_materialized_from_projected_inputs() -> None:
     payload = mapping.build_payload(facts, DerivedFactSet((materialized,)))
     assert payload.daily_return == daily_request.value
 
+    def _assert_lifecycle_mismatch_stays_unknown(
+        *,
+        dividend: IndexDividendPoints,
+        settlement: IndexSettlementValue,
+        digest: str,
+    ) -> None:
+        mismatched = build_bxm_knowledge_mapping(
+            subject="SPX",
+            snapshot_digest=digest,
+            quote_observation_id="quote-observation",
+            chain_observation_id="chain-observation",
+            chain=_chain(new_call),
+            spot=Decimal("102"),
+            quote_effective_time=ROLL,
+            tape_observation=("tape-observation", tape),
+            dividend_observation=("dividend-observation", dividend),
+            settlement_observation=("settlement-observation", settlement),
+            vwap_window_start=datetime(2026, 10, 16, 15, 30, tzinfo=UTC),
+            vwap_window_end=datetime(2026, 10, 16, 17, 30, tzinfo=UTC),
+            roll_date=ROLL.date(),
+            bars_observation=("bars-observation", series),
+            option_history_observation=("option-history-observation", panel),
+            selected_call_identity=new_call.identity,
+            held_call_identity=old_call.identity,
+        )
+        mismatched_facts = tuple(
+            CanonicalFact(
+                canonical_fact_id(request.fact_type, request.subject, digest),
+                1,
+                request.fact_type,
+                request.value,
+                Confidence(1.0),
+                Provenance((request.observation_id,), ("fixture",), "fixture", (), ROLL),
+                ROLL,
+                ROLL,
+            )
+            for request in mismatched.canonical_fact_requests
+        )
+        mismatched_requests = mismatched.compute_derived_fact_requests(mismatched_facts)
+        assert not isinstance(mismatched_requests, UnknownReason)
+        assert all(
+            item.feature_id != CBOE_BUYWRITE_DAILY_RETURN for item in mismatched_requests
+        )
+        mismatched_payload = mismatched.build_payload(mismatched_facts, DerivedFactSet(()))
+        assert isinstance(mismatched_payload.daily_return, UnknownReason)
+
+    valid_dividend = IndexDividendPoints(SPX.instrument, Decimal("1"), ROLL.date())
+    valid_settlement = IndexSettlementValue(
+        SPX, ROLL.date(), SettlementStyle.AM, Decimal("101"), ROLL, EVIDENCE
+    )
+    _assert_lifecycle_mismatch_stays_unknown(
+        dividend=replace(valid_dividend, effective_date=ROLL.date() + timedelta(days=1)),
+        settlement=valid_settlement,
+        digest="wrong-dividend-date",
+    )
+    other_index = replace(
+        SPX,
+        instrument=replace(
+            SPX.instrument,
+            identity=CanonicalInstrumentIdentity("index_root", "NDX"),
+            display_symbol="NDX",
+        ),
+        symbol="NDX",
+    )
+    for digest, invalid_settlement in (
+        (
+            "wrong-settlement-date",
+            replace(valid_settlement, settlement_date=ROLL.date() + timedelta(days=1)),
+        ),
+        (
+            "wrong-settlement-style",
+            replace(valid_settlement, settlement_style=SettlementStyle.PM),
+        ),
+        ("wrong-settlement-index", replace(valid_settlement, index=other_index)),
+    ):
+        _assert_lifecycle_mismatch_stays_unknown(
+            dividend=valid_dividend,
+            settlement=invalid_settlement,
+            digest=digest,
+        )
+
     fallback_time = datetime(2026, 10, 16, 17, 29, tzinfo=UTC)
     fallback_quote = replace(new_call, bid=Decimal("3.5"), observed_at=fallback_time)
     fallback_panel = replace(

@@ -73,6 +73,47 @@ def build_bxm_knowledge_mapping(
     selected_call_identity: str | None = None,
     held_call_identity: str | None = None,
 ) -> KnowledgeMapping[BxmPayload]:
+    return_date = new_york_time(quote_effective_time).date()
+    selected_call = next(
+        (
+            contract
+            for contract in chain.contracts
+            if selected_call_identity is not None and contract.identity == selected_call_identity
+        ),
+        None,
+    )
+    held_call = next(
+        (
+            contract
+            for snapshot in (
+                option_history_observation[1].snapshots
+                if option_history_observation is not None
+                else ()
+            )
+            for contract in snapshot.contracts
+            if held_call_identity is not None and contract.identity == held_call_identity
+        ),
+        None,
+    )
+    valid_dividend_observation = (
+        dividend_observation
+        if dividend_observation is not None
+        and selected_call is not None
+        and dividend_observation[1].instrument == selected_call.underlying.instrument
+        and dividend_observation[1].effective_date == return_date
+        else None
+    )
+    valid_settlement_observation = (
+        settlement_observation
+        if settlement_observation is not None
+        and held_call is not None
+        and roll_date is not None
+        and held_call.expiration == roll_date
+        and settlement_observation[1].index.instrument == held_call.underlying.instrument
+        and settlement_observation[1].settlement_date == held_call.expiration
+        and settlement_observation[1].settlement_style is held_call.settlement_style
+        else None
+    )
     requests = [
         CanonicalFactRequest(
             MarketCapability.REAL_TIME_QUOTE_V1,
@@ -99,22 +140,22 @@ def build_bxm_knowledge_mapping(
                 "option_trade_tape_contract_identity",
             )
         )
-    if dividend_observation is not None:
+    if valid_dividend_observation is not None:
         requests.append(
             CanonicalFactRequest(
                 MarketCapability.INDEX_DIVIDEND_POINTS_V1,
-                dividend_observation[0],
-                dividend_observation[1].points,
+                valid_dividend_observation[0],
+                valid_dividend_observation[1].points,
                 subject,
                 "index_dividend_points",
             )
         )
-    if settlement_observation is not None:
+    if valid_settlement_observation is not None:
         requests.append(
             CanonicalFactRequest(
                 MarketCapability.INDEX_SETTLEMENT_VALUE_V1,
-                settlement_observation[0],
-                settlement_observation[1].value,
+                valid_settlement_observation[0],
+                valid_settlement_observation[1].value,
                 subject,
                 "index_settlement_value",
             )
@@ -300,12 +341,20 @@ def build_bxm_knowledge_mapping(
             quote_effective_time,
             entry_vwap,
             tape_observation[1].contract_identity if tape_observation is not None else None,
-            dividend_observation[1]
-            if dividend_observation is not None
-            else UnknownReason("INDEX_DIVIDEND_POINTS_UNAVAILABLE"),
-            settlement_observation[1]
-            if settlement_observation is not None
-            else UnknownReason("INDEX_SETTLEMENT_VALUE_UNAVAILABLE"),
+            valid_dividend_observation[1]
+            if valid_dividend_observation is not None
+            else UnknownReason(
+                "INDEX_DIVIDEND_POINTS_UNAVAILABLE"
+                if dividend_observation is None
+                else "INDEX_DIVIDEND_POINTS_LIFECYCLE_MISMATCH"
+            ),
+            valid_settlement_observation[1]
+            if valid_settlement_observation is not None
+            else UnknownReason(
+                "INDEX_SETTLEMENT_VALUE_UNAVAILABLE"
+                if settlement_observation is None
+                else "INDEX_SETTLEMENT_VALUE_LIFECYCLE_MISMATCH"
+            ),
             roll_date,
             daily_fact.value
             if daily_fact is not None and isinstance(daily_fact.value, Decimal)
