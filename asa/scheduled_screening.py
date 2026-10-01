@@ -414,6 +414,7 @@ def run_scheduled_refresh(
     attempts_recorded=False so acquisition accounting is never silently
     reported complete when it wasn't.
     """
+    cycle_started_monotonic = time.monotonic()
     run_at = now or datetime.now(UTC)
     resolved_universe = PRODUCTION_SCREENING_UNIVERSE if universe is None else universe
     invocation_type = "manual"
@@ -624,6 +625,8 @@ def run_scheduled_refresh(
         str, dict[str, tuple[CapabilityDemandDiagnostic, ...]]
     ] = {}
     prepared_request_count_by_symbol: dict[str, int] = {}
+    declared_strategy_demand_count = 0
+    unique_planned_demand_count = 0
     for symbol in unique_symbols:
         if not (requested_signal_ids_by_symbol[symbol] & set(shadow_registry.strategy_ids())):
             continue
@@ -653,6 +656,17 @@ def run_scheduled_refresh(
             )
             acquisition_diagnostics_by_symbol[symbol] = dict(
                 prepared_subject.acquisition_diagnostics_by_strategy
+            )
+            declared_strategy_demand_count += sum(
+                len(diagnostics)
+                for diagnostics in prepared_subject.acquisition_diagnostics_by_strategy.values()
+            )
+            unique_planned_demand_count += len(
+                {
+                    diagnostic.demand_id
+                    for diagnostics in prepared_subject.acquisition_diagnostics_by_strategy.values()
+                    for diagnostic in diagnostics
+                }
             )
         except Exception as failure:
             _LOGGER.warning(
@@ -865,6 +879,64 @@ def run_scheduled_refresh(
             "screening_cycle_id": screening_cycle_id,
             "unique_capability_requests": unique_capability_requests,
             **reuse_counts,
+        },
+    )
+    capability_demands: dict[str, int] = {}
+    unique_capability_requests_by_type: dict[str, int] = {}
+    provider_deferrals = 0
+    deferral_codes = {
+        "pair_budget_exhausted",
+        "pair_burst_exhausted",
+        "provider_rolling_window_exhausted",
+        "provider_cooldown_active",
+        "quota_exhausted",
+        "rate_limited",
+    }
+    for subject_access in access.values():
+        for fulfillment_result, decision in subject_access.fulfillment.call_log:
+            capability = fulfillment_result.request.capability.value
+            capability_demands[capability] = capability_demands.get(capability, 0) + 1
+            if decision is not ReuseDecision.REUSED:
+                provider_deferrals += sum(
+                    attempt.error is not None and attempt.error.code.value in deferral_codes
+                    for attempt in fulfillment_result.attempts
+                )
+        for fulfillment_result in subject_access.fulfillment.completed_results:
+            capability = fulfillment_result.request.capability.value
+            unique_capability_requests_by_type[capability] = (
+                unique_capability_requests_by_type.get(capability, 0) + 1
+            )
+    provider_request_count = sum(
+        len(subject_access.budget_manager.accounting) for subject_access in access.values()
+    )
+    _LOGGER.info(
+        "cycle_capacity_release_summary",
+        extra={
+            "screening_cycle_id": screening_cycle_id,
+            "due_strategy_subject_pairs": len(universe),
+            "attempted_pairs": len(outcomes),
+            "completed_pairs": sum(item.error is None for item in outcomes),
+            "failed_pairs": sum(item.error is not None for item in outcomes),
+            "capacity_deferred_provider_attempts": provider_deferrals,
+            "provider_request_count": provider_request_count,
+            "strategy_capability_demands": declared_strategy_demand_count,
+            "unique_fact_requests": unique_planned_demand_count,
+            "deduplicated_fact_demands": (
+                declared_strategy_demand_count - unique_planned_demand_count
+            ),
+            "capability_demands": dict(sorted(capability_demands.items())),
+            "unique_capability_requests_by_type": dict(
+                sorted(unique_capability_requests_by_type.items())
+            ),
+            "option_chain_requests": unique_capability_requests_by_type.get(
+                "option_chain_v1", 0
+            ),
+            "historical_panel_requests": unique_capability_requests_by_type.get(
+                "historical_option_panel_v1", 0
+            ),
+            "cycle_duration_ms": round(
+                (time.monotonic() - cycle_started_monotonic) * 1000, 3
+            ),
         },
     )
     if resolved_subject_repository is not None:

@@ -1469,7 +1469,7 @@ def test_production_root_prepares_all_three_strategies_from_one_subject_snapshot
     monkeypatch.setenv("ASA_TRADIER_ENABLED", "true")
     monkeypatch.setenv("ASA_TRADIER_ACCESS_TOKEN", "sandbox-secret-token")
     repository = InMemoryLatestResultRepository()
-    caplog.set_level(logging.WARNING)
+    caplog.set_level(logging.INFO)
 
     outcomes = run_scheduled_refresh(
         (
@@ -1614,7 +1614,7 @@ def test_production_universe_topology_has_no_universal_preparation_failure(
     monkeypatch.setenv("ASA_TRADIER_ENABLED", "true")
     monkeypatch.setenv("ASA_TRADIER_ACCESS_TOKEN", "sandbox-secret-token")
     repository = InMemoryLatestResultRepository()
-    caplog.set_level(logging.WARNING)
+    caplog.set_level(logging.INFO)
 
     outcomes = run_scheduled_refresh(
         PRODUCTION_SCREENING_UNIVERSE,
@@ -1639,6 +1639,18 @@ def test_production_universe_topology_has_no_universal_preparation_failure(
     assert not any(
         record.message == "shadow_subject_preparation_failed" for record in caplog.records
     )
+    capacity = next(
+        record for record in caplog.records if record.message == "cycle_capacity_release_summary"
+    )
+    assert capacity.due_strategy_subject_pairs == len(PRODUCTION_SCREENING_UNIVERSE)
+    assert capacity.attempted_pairs == len(PRODUCTION_SCREENING_UNIVERSE)
+    assert capacity.completed_pairs == len(PRODUCTION_SCREENING_UNIVERSE)
+    assert capacity.failed_pairs == 0
+    assert capacity.provider_request_count >= 1
+    assert capacity.strategy_capability_demands > capacity.unique_fact_requests
+    assert capacity.deduplicated_fact_demands > 0
+    assert capacity.option_chain_requests >= 1
+    assert capacity.cycle_duration_ms >= 0
     skew = repository.get_one("skew_momentum", "AAPL")
     assert skew is not None
     assert skew.metrics["derived_fact.cross_sectional_percentile"].native() != "UNKNOWN"
