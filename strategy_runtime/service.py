@@ -99,9 +99,7 @@ def _current_temporal_observations(
             existing.observation_id,
         ):
             latest_historical[key] = observation
-    return tuple(point_in_time) + tuple(
-        latest_historical[key] for key in sorted(latest_historical)
-    )
+    return tuple(point_in_time) + tuple(latest_historical[key] for key in sorted(latest_historical))
 
 
 def _temporal_metadata(
@@ -114,9 +112,7 @@ def _temporal_metadata(
     if not observations:
         return None
     current_observations = _current_temporal_observations(observations)
-    effective_times = tuple(
-        item.effective_time.astimezone(UTC) for item in current_observations
-    )
+    effective_times = tuple(item.effective_time.astimezone(UTC) for item in current_observations)
     recorded_times = tuple(item.recorded_time.astimezone(UTC) for item in observations)
     observed = max(effective_times)
     received = max(recorded_times)
@@ -165,12 +161,8 @@ def _temporal_metadata(
         last_refresh_attempt_at=evaluated,
         last_successful_refresh_at=evaluated,
         next_refresh_at=SessionRefreshSchedule(calendar).next_slot(evaluated).scheduled_at,
-        data_advanced_on_last_refresh=(
-            previous_observed is None or observed > previous_observed
-        ),
-        freshness_status=(
-            "live" if freshness is FreshnessStatus.FRESH else freshness.value
-        ),
+        data_advanced_on_last_refresh=(previous_observed is None or observed > previous_observed),
+        freshness_status=("live" if freshness is FreshnessStatus.FRESH else freshness.value),
         usability_status=usability.status.value,
         usability_reason=usability.reason,
         warning_codes=tuple(
@@ -252,11 +244,18 @@ def refresh(
         )
     result = execution_result.result
     if previous is not None:
-        stable_keys = ("lifecycle.held_position_identity",)
+        stable_keys = (
+            "lifecycle.held_position_identity",
+            "lifecycle.entered_on",
+            "lifecycle.expires_on",
+        )
+        closed = result.metrics.get("lifecycle.position_closed")
         carried = {
             key: previous.metrics[key]
             for key in stable_keys
-            if key in previous.metrics and key not in result.metrics
+            if key in previous.metrics
+            and key not in result.metrics
+            and not (closed is not None and closed.native() is True)
         }
         if carried:
             result = replace(result, metrics={**result.metrics, **carried})

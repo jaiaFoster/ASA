@@ -23,7 +23,6 @@ SCS_CONTRACT = StrategyContract(
             RequirementCategory.MARKET_DATA,
             (
                 MarketCapability.REAL_TIME_QUOTE_V1,
-                MarketCapability.TRADING_CALENDAR_V1,
                 MarketCapability.RATE_OBSERVATION_V1,
             ),
         ),

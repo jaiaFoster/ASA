@@ -15,7 +15,7 @@ screening.state.ScreeningStateRepository.
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 from strategy_runtime.lifecycle import (
     OpportunityHistory,
@@ -27,9 +27,11 @@ from strategy_runtime.persistence import (
     LatestResultRepository,
     ObservationHistoryRepository,
     UniversalSignalRow,
+    lifecycle_position_states,
     should_replace_latest,
 )
 from strategy_runtime.result import EvaluationState, RowType, UniversalScreeningResult
+from strategy_runtime.values import TypedValue
 
 NOW = datetime(2026, 1, 1, tzinfo=UTC)
 
@@ -94,6 +96,22 @@ def _row(signal_id: str, symbol: str, verdict: str = "pass") -> UniversalSignalR
             observed_at=NOW,
         )
     )
+
+
+def test_complete_lifecycle_position_state_round_trips_without_identity_parsing() -> None:
+    row = _row("scs", "SPX")
+    row = replace(
+        row,
+        metrics={
+            "lifecycle.held_position_identity": TypedValue.of_string("opaque-position"),
+            "lifecycle.entered_on": TypedValue.of_string("2026-10-01"),
+            "lifecycle.expires_on": TypedValue.of_string("2026-11-20"),
+        },
+    )
+    state = lifecycle_position_states((row,))[("scs", "SPX")]
+    assert state.position_identity == "opaque-position"
+    assert state.entered_on == date(2026, 10, 1)
+    assert state.expires_on == date(2026, 11, 20)
 
 
 def _observation(

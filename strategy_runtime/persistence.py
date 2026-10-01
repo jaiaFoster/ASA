@@ -49,7 +49,7 @@ delete, only append() and read), not merely by convention.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 from typing import Protocol
 
 from strategy_runtime.lifecycle import OpportunityHistory, OpportunityObservation
@@ -170,6 +170,42 @@ def lifecycle_position_identities(
     return identities
 
 
+@dataclass(frozen=True, slots=True)
+class LifecyclePositionState:
+    """Generic persisted position coordinates; financial policy stays strategy-owned."""
+
+    position_identity: str
+    entered_on: date
+    expires_on: date
+
+
+def lifecycle_position_states(
+    rows: tuple[UniversalSignalRow, ...],
+) -> dict[tuple[str, str], LifecyclePositionState]:
+    """Recover complete typed lifecycle state without parsing opaque identities."""
+    states: dict[tuple[str, str], LifecyclePositionState] = {}
+    for row in rows:
+        identity = row.metrics.get("lifecycle.held_position_identity")
+        entered = row.metrics.get("lifecycle.entered_on")
+        expires = row.metrics.get("lifecycle.expires_on")
+        identity_value = None if identity is None else identity.native()
+        entered_value = None if entered is None else entered.native()
+        expires_value = None if expires is None else expires.native()
+        if not isinstance(identity_value, str) or not identity_value:
+            continue
+        if not isinstance(entered_value, str) or not entered_value:
+            continue
+        if not isinstance(expires_value, str) or not expires_value:
+            continue
+        try:
+            states[(row.signal_id, row.symbol)] = LifecyclePositionState(
+                identity_value, date.fromisoformat(entered_value), date.fromisoformat(expires_value)
+            )
+        except ValueError:
+            continue
+    return states
+
+
 def latest_ordering_key(row: UniversalSignalRow) -> tuple[datetime, datetime, str]:
     """Canonical monotonic order: snapshot time, evaluation time, stable identity.
 
@@ -180,13 +216,9 @@ def latest_ordering_key(row: UniversalSignalRow) -> tuple[datetime, datetime, st
     identity remains only the final idempotent tie-breaker.
     """
     snapshot_time = (
-        row.temporal.subject_snapshot_at
-        if row.temporal is not None
-        else row.observed_at
+        row.temporal.subject_snapshot_at if row.temporal is not None else row.observed_at
     )
-    evaluated_time = (
-        row.temporal.evaluated_at if row.temporal is not None else row.observed_at
-    )
+    evaluated_time = row.temporal.evaluated_at if row.temporal is not None else row.observed_at
     return snapshot_time, evaluated_time, row.observation_id
 
 
@@ -194,9 +226,7 @@ def should_replace_latest(
     existing: UniversalSignalRow | None, candidate: UniversalSignalRow
 ) -> bool:
     """Late older arrivals may be retained elsewhere, but never regress latest."""
-    return existing is None or latest_ordering_key(candidate) >= latest_ordering_key(
-        existing
-    )
+    return existing is None or latest_ordering_key(candidate) >= latest_ordering_key(existing)
 
 
 class ObservationHistoryRepository(Protocol):

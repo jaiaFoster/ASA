@@ -399,3 +399,42 @@ def reduce_historical_bar_results(
         attempts,
         True,
     )
+
+
+def reduce_rate_observation_results(
+    results: tuple[CapabilityFulfillmentResult, ...],
+) -> CapabilityFulfillmentResult:
+    """Seal multiple named rate-series attempts under one capability.
+
+    The selected observation is deterministic; every series' raw observation and
+    attempt remains in the snapshot evidence. Consumers bind their exact named
+    series from the per-demand projected evidence, never from this representative.
+    """
+    if not results or any(
+        item.request.capability is not MarketCapability.RATE_OBSERVATION_V1
+        for item in results
+    ):
+        raise ValueError("reduce_rate_observation_results requires RATE_OBSERVATION_V1")
+    attempts = tuple(attempt for item in results for attempt in item.attempts)
+    successful = tuple(item for item in results if item.observations)
+    if not successful:
+        return CapabilityFulfillmentResult(
+            results[0].request, FulfillmentStatus.FAILED, None, (), attempts, True
+        )
+    primary = min(
+        successful,
+        key=lambda item: item.request.subjects[0].canonical_instrument.identity.value,
+    )
+    status = (
+        FulfillmentStatus.FULFILLED
+        if len(successful) == len(results)
+        else FulfillmentStatus.DEGRADED
+    )
+    return CapabilityFulfillmentResult(
+        primary.request,
+        status,
+        primary.selected_provider,
+        primary.observations,
+        attempts,
+        True,
+    )

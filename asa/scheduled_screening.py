@@ -118,6 +118,7 @@ from strategy_runtime.persistence import (
     LatestResultRepository,
     ObservationHistoryRepository,
     lifecycle_position_identities,
+    lifecycle_position_states,
 )
 from strategy_runtime.preparation_diagnostics import classify_subject_preparation_exception
 from strategy_runtime.service import record_opportunity_observation
@@ -602,6 +603,7 @@ def run_scheduled_refresh(
         clock.now(),
         resolved_historical_skew_repository,
         lifecycle_position_identities(resolved_repository.get_all()),
+        lifecycle_position_states(resolved_repository.get_all()),
     )
     shadow_capability_reducers = migrated_shadow_capability_reducers()
     # SPRINT-014 S14-PR-05, Architect checkpoint: nineteenth review, "one

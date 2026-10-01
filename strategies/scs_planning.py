@@ -1,6 +1,7 @@
 """Provider-neutral two-phase SPX demands for SCS."""
 
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
+from decimal import Decimal
 from typing import Mapping  # noqa: UP035
 
 from domain import (
@@ -12,6 +13,8 @@ from domain import (
     ResolvedCapabilityEvidence,
     UnknownReason,
 )
+from strategies.scs_components import select_monthly_expiration
+from strategies.scs_manifest import scs_parameter
 
 
 def quote_demand(now: datetime) -> CapabilityDemand:
@@ -28,8 +31,35 @@ def chain_demand(now: datetime, expiration: date) -> CapabilityDemand:
     )
 
 
+def rate_demand(now: datetime, parameter_name: str) -> CapabilityDemand:
+    return CapabilityDemand(
+        MarketCapability.RATE_OBSERVATION_V1,
+        ("value",),
+        now - timedelta(days=7),
+        now,
+        subject_symbol=str(scs_parameter(parameter_name)),
+        maximum_age_seconds=86400 * 7,
+    )
+
+
+def settlement_demand(now: datetime) -> CapabilityDemand:
+    return CapabilityDemand(
+        MarketCapability.INDEX_SETTLEMENT_VALUE_V1,
+        ("observed_at", "settlement_date", "settlement_style", "value"),
+        now - timedelta(days=7),
+        now,
+        required=False,
+    )
+
+
 def bootstrap_demands(now: datetime) -> tuple[CapabilityDemand, ...]:
-    return quote_demand(now), expirations_demand(now)
+    return (
+        quote_demand(now),
+        expirations_demand(now),
+        rate_demand(now, "risk_free_series"),
+        rate_demand(now, "dividend_yield_series"),
+        settlement_demand(now),
+    )
 
 
 def expand_demands(
@@ -42,15 +72,19 @@ def expand_demands(
         or not isinstance(resolved.value, ExpirationCollection)
     ):
         return DemandExpansion(unknown_reasons=(UnknownReason("G_SCS_EXPIRY_UNIQUE_UNKNOWN"),))
-    candidates = tuple(item for item in resolved.value.cycles if item.monthly)
-    if not candidates:
-        return DemandExpansion(unknown_reasons=(UnknownReason("G_SCS_EXPIRY_UNIQUE_UNKNOWN"),))
-    distances = {item.expiration_date: abs(item.days_to_expiration - 45) for item in candidates}
-    minimum = min(distances.values())
-    selected = tuple(sorted(day for day, distance in distances.items() if distance == minimum))
-    if len(selected) != 1:
-        return DemandExpansion(unknown_reasons=(UnknownReason("AMBIGUOUS_SELECTION"),))
-    expiration = selected[0]
+    target = Decimal(str(scs_parameter("target_dte_calendar_days")))
+    if target != target.to_integral_value() or target <= 0:
+        raise ValueError("target_dte_calendar_days must be a positive integer")
+    expiration = select_monthly_expiration(
+        tuple(
+            (item.expiration_date, item.days_to_expiration, item.monthly)
+            for item in resolved.value.cycles
+        ),
+        int(target),
+        str(scs_parameter("expiration_cycle")),
+    )
+    if isinstance(expiration, UnknownReason):
+        return DemandExpansion(unknown_reasons=(expiration,))
     return DemandExpansion(
         demands=(chain_demand(now, expiration),),
         selections=(("expiration", expiration.isoformat()),),
@@ -61,4 +95,9 @@ def resolved_field_requirements() -> dict[MarketCapability, tuple[tuple[str, ...
     return {
         MarketCapability.REAL_TIME_QUOTE_V1: (("last",), 3600),
         MarketCapability.OPTION_CHAIN_V1: (("contracts",), 3600),
+        MarketCapability.RATE_OBSERVATION_V1: (("value",), 86400 * 7),
+        MarketCapability.INDEX_SETTLEMENT_VALUE_V1: (
+            ("observed_at", "settlement_date", "settlement_style", "value"),
+            86400 * 7,
+        ),
     }

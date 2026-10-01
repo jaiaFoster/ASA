@@ -1,11 +1,11 @@
 """Immutable canonical mapping for SCS."""
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 
 from analytics.features import DerivedFactRequest, DerivedFactSet
-from domain import CanonicalFact, MarketCapability, OptionChain
+from domain import CanonicalFact, IndexSettlementValue, MarketCapability, OptionChain
 from facts.canonical_projection import CanonicalFactRequest
 from strategies.knowledge_contracts import KnowledgeMapping
 
@@ -17,6 +17,8 @@ class SCSPayload:
     selected_expiration: date
     rate: Decimal | None
     dividend_yield: Decimal | None
+    quote_effective_time: datetime
+    settlement_value: IndexSettlementValue | None
 
 
 def build_scs_knowledge_mapping(
@@ -27,6 +29,10 @@ def build_scs_knowledge_mapping(
     chain: OptionChain,
     spot: Decimal,
     selected_expiration: date,
+    quote_effective_time: datetime,
+    rate: Decimal | None,
+    dividend_yield: Decimal | None,
+    settlement_value: IndexSettlementValue | None,
 ) -> KnowledgeMapping[SCSPayload]:
     requests = (
         CanonicalFactRequest(
@@ -49,9 +55,14 @@ def build_scs_knowledge_mapping(
         return ()
 
     def _payload(_facts: tuple[CanonicalFact, ...], _derived: DerivedFactSet) -> SCSPayload:
-        # X04 has a canonical risk-free rate but no canonical SPX dividend-yield
-        # series in the current provider topology. Both remain explicit UNKNOWN
-        # rather than weakening the sourced arbitrage filter.
-        return SCSPayload(chain, spot, selected_expiration, None, None)
+        return SCSPayload(
+            chain,
+            spot,
+            selected_expiration,
+            rate,
+            dividend_yield,
+            quote_effective_time,
+            settlement_value,
+        )
 
     return KnowledgeMapping(requests, _compute, _payload)
