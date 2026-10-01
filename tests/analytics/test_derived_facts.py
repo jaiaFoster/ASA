@@ -196,13 +196,14 @@ def test_named_momentum_dimensions_are_replay_stable() -> None:
 
 
 def test_initial_registry_is_closed_versioned_and_complete() -> None:
-    assert len(DERIVED_FACT_REGISTRY.registered_ids()) == 28
+    assert len(DERIVED_FACT_REGISTRY.registered_ids()) == 29
     assert DERIVED_FACT_REGISTRY.get("DF-CBOE-BUYWRITE-DAILY-RETURN").feature_version == "1.0.0"
     assert DERIVED_FACT_REGISTRY.get("DF-THIRD-FRIDAY-ROLL-DATE").feature_version == "1.0.0"
     assert DERIVED_FACT_REGISTRY.get("forward_factor").feature_version == "1.0.0"
     assert DERIVED_FACT_REGISTRY.get("iv_term_structure_spread").feature_version == "1.0.0"
     assert DERIVED_FACT_REGISTRY.get("sma_10m_completed_months").feature_version == "1.0.0"
     assert DERIVED_FACT_REGISTRY.get("trailing_12m_total_return").feature_version == "1.0.0"
+    assert DERIVED_FACT_REGISTRY.get("negative_log_price").feature_version == "1.0.0"
 
 
 def test_confirmed_earnings_through_back_expiration_is_ineligible() -> None:

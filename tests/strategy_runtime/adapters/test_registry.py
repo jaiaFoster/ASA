@@ -10,7 +10,7 @@ from __future__ import annotations
 from strategy_runtime.adapters import build_migrated_strategy_registry
 
 
-def test_all_three_migration_targets_are_registered() -> None:
+def test_all_production_targets_are_registered() -> None:
     registry = build_migrated_strategy_registry()
     assert registry.strategy_ids() == (
         "B001",
@@ -24,6 +24,7 @@ def test_all_three_migration_targets_are_registered() -> None:
         "index_short_vol_scs_near_atm_straddle",
         "skew_momentum",
         "spy_put_credit_spread",
+        "xs_option_zhan_neg_lnprice_dn_call",
     )
 
 

@@ -45,9 +45,7 @@ def _selected_inputs(
     for item in returns:
         subject = item.instrument
         period = (item.period_start, item.period_end)
-        comparison = select_comparison_universe_returns(
-            subject, period, returns, asset_types
-        )
+        comparison = select_comparison_universe_returns(subject, period, returns, asset_types)
         sector = select_sector_reference_returns(subject, period, sectors, returns)
         if subject not in asset_types:
             comparison_reason = "missing_instrument_class"
@@ -87,8 +85,13 @@ def compose_cross_subject_knowledge(
         binding = registry.binding_for(strategy_id)
         family_id = binding.cross_subject_family_id
         extractor = binding.extract_cross_subject_return
+        candidate_extractor = binding.extract_cross_subject_candidate
         binder = binding.bind_cross_subject_facts
-        if family_id is None or extractor is None or binder is None:
+        if (
+            family_id is None
+            or (extractor is None and candidate_extractor is None)
+            or binder is None
+        ):
             continue
         for subject, by_strategy in result.items():
             knowledge = by_strategy.get(strategy_id)
@@ -99,6 +102,33 @@ def compose_cross_subject_knowledge(
     counts: list[tuple[str, int]] = []
     for family_id in sorted(family_entries):
         entries = family_entries[family_id]
+        first_binding = registry.binding_for(entries[0][0])
+        candidate_extractor = first_binding.extract_cross_subject_candidate
+        family_materializer = first_binding.materialize_cross_subject_family
+        if candidate_extractor is not None and family_materializer is not None:
+            candidates: dict[str, object] = {}
+            for strategy_id, subject, knowledge in entries:
+                binding = registry.binding_for(strategy_id)
+                if binding.extract_cross_subject_candidate is not candidate_extractor:
+                    raise ValueError(
+                        f"cross-subject family {family_id!r} has conflicting candidate extractors"
+                    )
+                if binding.materialize_cross_subject_family is not family_materializer:
+                    raise ValueError(
+                        f"cross-subject family {family_id!r} has conflicting materializers"
+                    )
+                candidates[subject] = candidate_extractor(knowledge)
+            family_output = family_materializer(candidates)
+            if set(family_output) != set(candidates):
+                raise ValueError(
+                    f"cross-subject family {family_id!r} materializer must return every subject"
+                )
+            counts.append((family_id, 1))
+            for strategy_id, subject, knowledge in entries:
+                binder = registry.binding_for(strategy_id).bind_cross_subject_facts
+                assert binder is not None
+                result[subject][strategy_id] = binder(knowledge, family_output[subject])
+            continue
         returns_by_subject: dict[str, CanonicalReturnObservation] = {}
         for strategy_id, subject, knowledge in entries:
             extractor = registry.binding_for(strategy_id).extract_cross_subject_return
@@ -114,11 +144,11 @@ def compose_cross_subject_knowledge(
         returns = tuple(returns_by_subject[subject] for subject in sorted(returns_by_subject))
         if not returns:
             continue
-        materialized = materialize_cross_sectional_facts(
+        legacy_materialized = materialize_cross_sectional_facts(
             _selected_inputs(returns, asset_types, sectors),
             effective_time=max(item.effective_time for item in returns),
         )
-        by_subject = {item.subject: item for item in materialized}
+        by_subject = {item.subject: item for item in legacy_materialized}
         counts.append((family_id, 1))
         for strategy_id, subject, knowledge in entries:
             binder = registry.binding_for(strategy_id).bind_cross_subject_facts

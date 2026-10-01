@@ -83,6 +83,8 @@ BuildShadowAdapter = Callable[
 ExtractCrossSubjectReturn = Callable[
     ["ReadOnlyStrategyInput[TPayload]"], CanonicalReturnObservation
 ]
+ExtractCrossSubjectCandidate = Callable[["ReadOnlyStrategyInput[TPayload]"], object]
+MaterializeCrossSubjectFamily = Callable[[Mapping[str, object]], Mapping[str, object]]
 BindCrossSubjectFacts = Callable[
     ["ReadOnlyStrategyInput[TPayload]", object],
     "ReadOnlyStrategyInput[TPayload]",
@@ -108,17 +110,30 @@ class SubjectPreparationBinding(Generic[TPayload]):  # noqa: UP046
     cross_subject_family_id: str | None = None
     extract_cross_subject_return: ExtractCrossSubjectReturn[TPayload] | None = None
     bind_cross_subject_facts: BindCrossSubjectFacts[TPayload] | None = None
+    extract_cross_subject_candidate: ExtractCrossSubjectCandidate[TPayload] | None = None
+    materialize_cross_subject_family: MaterializeCrossSubjectFamily | None = None
     build_execution_assessment: BuildExecutionAssessment[TPayload] | None = None
 
     def __post_init__(self) -> None:
         callbacks = (
             self.extract_cross_subject_return,
+            self.extract_cross_subject_candidate,
+            self.materialize_cross_subject_family,
             self.bind_cross_subject_facts,
         )
         if self.cross_subject_family_id is None and any(item is not None for item in callbacks):
             raise ValueError("cross-subject callbacks require a family id")
-        if self.cross_subject_family_id is not None and any(item is None for item in callbacks):
-            raise ValueError("cross-subject family requires extraction and binding callbacks")
+        if self.cross_subject_family_id is not None:
+            legacy = self.extract_cross_subject_return is not None
+            generic = (
+                self.extract_cross_subject_candidate is not None
+                and self.materialize_cross_subject_family is not None
+            )
+            if legacy == generic or self.bind_cross_subject_facts is None:
+                raise ValueError(
+                    "cross-subject family requires exactly one extraction/materialization "
+                    "mode and a binding callback"
+                )
 
 
 class UnknownSubjectPreparationBindingError(KeyError):

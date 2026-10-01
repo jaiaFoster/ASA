@@ -5,6 +5,7 @@ from decimal import Decimal
 from analytics.quantile_assignment import QuantilePolicy
 from domain import OptionLeg, OptionLegPosition, UnknownReason
 from strategy_runtime.cross_sectional_portfolio import (
+    PortfolioBookSide,
     PortfolioWeightPolicy,
     build_cross_sectional_portfolio,
     build_delta_hedged_option_position,
@@ -108,3 +109,24 @@ def test_p12_source_residual_uses_largest_weight_without_zeroing_tiny_member() -
     weights = {item.subject: item.weight for item in result.members}
     assert weights["C"] > 0
     assert sum(weights.values(), Decimal(0)) == Decimal(1)
+
+
+def test_p12_long_short_books_normalize_each_side_and_preserve_direction_in_identity() -> None:
+    kwargs = dict(
+        as_of=datetime(2026, 9, 30, tzinfo=UTC),
+        evidence_identity="sealed",
+        sort_values={"HIGH": Decimal(1), "LOW": Decimal(2)},
+        positions={"HIGH": FixturePosition("long"), "LOW": FixturePosition("short")},
+        quantile_policy=QuantilePolicy(groups=2),
+        included_quantiles=frozenset({1, 2}),
+        weight_policy=PortfolioWeightPolicy.SOURCE_DEFINED,
+        source_weights={"HIGH": Decimal(9), "LOW": Decimal(3)},
+    )
+    result = build_cross_sectional_portfolio(**kwargs, short_quantiles=frozenset({2}))
+    all_long = build_cross_sectional_portfolio(**kwargs)
+    assert not isinstance(result, UnknownReason) and not isinstance(all_long, UnknownReason)
+    assert [(item.side, item.weight) for item in result.members] == [
+        (PortfolioBookSide.LONG, Decimal(1)),
+        (PortfolioBookSide.SHORT, Decimal(1)),
+    ]
+    assert result.identity != all_long.identity

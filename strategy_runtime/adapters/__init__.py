@@ -55,6 +55,8 @@ from strategies.stock_benchmark_planning import (
     b001_resolved_field_requirements,
     b002_resolved_field_requirements,
 )
+from strategies.zhan_manifest import ZHAN_MANIFEST
+from strategies.zhan_planning import resolved_field_requirements as zhan_resolved_field_requirements
 from strategy_runtime.adapters.bxm import BXM_CONTRACT
 from strategy_runtime.adapters.bxm_subject_first import build_bxm_subject_preparation_binding
 from strategy_runtime.adapters.cboe_put import CBOE_PUT_CONTRACT
@@ -96,6 +98,8 @@ from strategy_runtime.adapters.stock_benchmarks_subject_first import (
     build_b001_subject_preparation_binding,
     build_b002_subject_preparation_binding,
 )
+from strategy_runtime.adapters.zhan import ZHAN_CONTRACT
+from strategy_runtime.adapters.zhan_subject_first import build_zhan_subject_preparation_binding
 from strategy_runtime.catalog import SignalCatalogEntry
 from strategy_runtime.context import RuntimeContext
 from strategy_runtime.historical_evidence import HistoricalSkewRepository
@@ -135,6 +139,7 @@ def build_migrated_strategy_registry() -> StrategyRegistry[UniversalScreeningRes
         (CBOE_PUTY_MANIFEST, CBOE_PUTY_CONTRACT),
         (BXM_MANIFEST, BXM_CONTRACT),
         (SCS_MANIFEST, SCS_CONTRACT),
+        (ZHAN_MANIFEST, ZHAN_CONTRACT),
     )
     for manifest, contract in pairs:
         validate_manifest_contract(manifest, contract)
@@ -154,6 +159,7 @@ def build_migrated_strategy_registry() -> StrategyRegistry[UniversalScreeningRes
             (CBOE_PUTY_CONTRACT, _subject_first_only),
             (BXM_CONTRACT, _subject_first_only),
             (SCS_CONTRACT, _subject_first_only),
+            (ZHAN_CONTRACT, _subject_first_only),
         )
     )
 
@@ -246,6 +252,7 @@ def build_migrated_shadow_registry(
                     ),
                 ),
             ),
+            (ZHAN_CONTRACT.strategy_id, build_zhan_subject_preparation_binding(now)),
         )
     )
 
@@ -292,6 +299,7 @@ def migrated_shadow_resolution_policy(
             CBOE_PUTY_CONTRACT.strategy_id,
             BXM_CONTRACT.strategy_id,
             SCS_CONTRACT.strategy_id,
+            ZHAN_CONTRACT.strategy_id,
         )
     )
     requirements: dict[MarketCapability, tuple[tuple[str, ...], int]] = {}
@@ -317,6 +325,8 @@ def migrated_shadow_resolution_policy(
         requirements.update(bxm_resolved_field_requirements())
     if SCS_CONTRACT.strategy_id in selected:
         requirements.update(scs_resolved_field_requirements())
+    if ZHAN_CONTRACT.strategy_id in selected:
+        requirements.update(zhan_resolved_field_requirements())
     return resolution_policy_for_capabilities(capability_registry, requirements)
 
 
@@ -350,6 +360,7 @@ def build_migrated_signal_catalog() -> tuple[SignalCatalogEntry, ...]:
         ),
         SignalCatalogEntry.from_contract(BXM_CONTRACT, manifest_id=BXM_MANIFEST.manifest_id),
         SignalCatalogEntry.from_contract(SCS_CONTRACT, manifest_id=SCS_MANIFEST.manifest_id),
+        SignalCatalogEntry.from_contract(ZHAN_CONTRACT, manifest_id=ZHAN_MANIFEST.manifest_id),
     )
     return tuple(sorted(entries, key=lambda item: item.signal_id))
 
@@ -377,5 +388,6 @@ def build_migrated_cutover_policy(values: Mapping[str, str]) -> CutoverPolicy:
             CBOE_PUT_CONTRACT.strategy_id: True,
             CBOE_PUTY_CONTRACT.strategy_id: True,
             BXM_CONTRACT.strategy_id: True,
+            ZHAN_CONTRACT.strategy_id: True,
         }
     )

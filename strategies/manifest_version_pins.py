@@ -33,6 +33,10 @@ MANIFEST_VERSION_PINS: Mapping[tuple[str, str], str] = {
         "index_short_vol_scs_near_atm_straddle",
         "1.2.0",
     ): "4cea6943d10697564501599651aee26d5418fb3492c9852236e2595bd714a632",
+    (
+        "xs_option_zhan_neg_lnprice_dn_call",
+        "1.0.0",
+    ): "7165bd8dbc016b566826171202b9aaf23995d359014f6a614928fcc30b160a41",
 }
 
 

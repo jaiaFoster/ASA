@@ -21,6 +21,11 @@ class PortfolioWeightPolicy(StrEnum):
     SOURCE_DEFINED = "source_defined"
 
 
+class PortfolioBookSide(StrEnum):
+    LONG = "long"
+    SHORT = "short"
+
+
 class IdentifiedPosition(Protocol):
     @property
     def identity(self) -> str: ...
@@ -64,6 +69,7 @@ class CrossSectionalMember:
     position_identity: str
     quantile: int
     weight: Decimal
+    side: PortfolioBookSide = PortfolioBookSide.LONG
 
     def __post_init__(self) -> None:
         if not self.subject or not self.position_identity or self.quantile < 1:
@@ -90,8 +96,11 @@ class CrossSectionalPortfolio:
         subjects = tuple(item.subject for item in self.members)
         if not subjects or len(subjects) != len(set(subjects)):
             raise ValueError("P12 members must be non-empty and subject-unique")
-        if sum((item.weight for item in self.members), Decimal(0)) != Decimal(1):
-            raise ValueError("P12 member weights must sum exactly to one")
+        for side in {item.side for item in self.members}:
+            if sum(
+                (item.weight for item in self.members if item.side is side), Decimal(0)
+            ) != Decimal(1):
+                raise ValueError("P12 member weights must sum exactly to one per book side")
 
     @property
     def identity(self) -> str:
@@ -103,7 +112,7 @@ class CrossSectionalPortfolio:
                 self.weight_policy.value,
                 self.quantile_assignment.policy.assumption_id,
                 tuple(
-                    (m.subject, m.position_identity, m.quantile, str(m.weight))
+                    (m.subject, m.position_identity, m.quantile, str(m.weight), m.side.value)
                     for m in self.members
                 ),
             ),
@@ -134,6 +143,7 @@ def build_cross_sectional_portfolio(
     included_quantiles: frozenset[int],
     weight_policy: PortfolioWeightPolicy,
     source_weights: Mapping[str, Decimal] | None = None,
+    short_quantiles: frozenset[int] = frozenset(),
 ) -> CrossSectionalPortfolio | UnknownReason:
     assignment = assign_quantiles(sort_values, quantile_policy)
     if isinstance(assignment, UnknownReason):
@@ -154,20 +164,36 @@ def build_cross_sectional_portfolio(
         ):
             return UnknownReason("missing_source_defined_weight")
         raw_weights = {subject: source_weights[subject] for subject, _ in ordered_selected}
-    raw_total = sum(raw_weights.values(), Decimal(0))
-    if not raw_total.is_finite() or raw_total <= 0:
-        return UnknownReason("invalid_source_defined_weight")
-    residual_subject = max(raw_weights, key=lambda subject: (raw_weights[subject], subject))
-    with localcontext() as context:
-        context.rounding = ROUND_DOWN
-        weights = {
-            subject: raw_weights[subject] / raw_total
-            for subject, _group in ordered_selected
-            if subject != residual_subject
-        }
-    weights[residual_subject] = Decimal(1) - sum(weights.values(), Decimal(0))
+    weights: dict[str, Decimal] = {}
+    sides = {
+        subject: PortfolioBookSide.SHORT if group in short_quantiles else PortfolioBookSide.LONG
+        for subject, group in ordered_selected
+    }
+    for side in sorted(set(sides.values()), key=lambda item: item.value):
+        side_subjects = tuple(
+            subject for subject, _group in ordered_selected if sides[subject] is side
+        )
+        raw_total = sum((raw_weights[subject] for subject in side_subjects), Decimal(0))
+        if not raw_total.is_finite() or raw_total <= 0:
+            return UnknownReason("invalid_source_defined_weight")
+        residual_subject = max(side_subjects, key=lambda subject: (raw_weights[subject], subject))
+        with localcontext() as context:
+            context.rounding = ROUND_DOWN
+            weights.update(
+                {
+                    subject: raw_weights[subject] / raw_total
+                    for subject in side_subjects
+                    if subject != residual_subject
+                }
+            )
+        weights[residual_subject] = Decimal(1) - sum(
+            (weights[subject] for subject in side_subjects if subject != residual_subject),
+            Decimal(0),
+        )
     members = tuple(
-        CrossSectionalMember(subject, positions[subject].identity, group, weights[subject])
+        CrossSectionalMember(
+            subject, positions[subject].identity, group, weights[subject], sides[subject]
+        )
         for subject, group in ordered_selected
     )
     return CrossSectionalPortfolio(as_of, evidence_identity, assignment, weight_policy, members)

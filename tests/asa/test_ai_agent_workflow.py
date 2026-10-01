@@ -277,6 +277,7 @@ def test_ai_agent_workflow_discovers_reads_refreshes_and_briefs(
         "index_short_vol_scs_near_atm_straddle",
         "skew_momentum",
         "spy_put_credit_spread",
+        "xs_option_zhan_neg_lnprice_dn_call",
     }
 
     # Step 2: retrieve_screening_data
