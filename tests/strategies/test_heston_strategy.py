@@ -1,8 +1,8 @@
-from calendar import monthcalendar
 from dataclasses import replace
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, time, timedelta
 from decimal import Decimal
 
+from analytics.calendar_facts import TradingCalendarView, monthly_expiration_day
 from analytics.derived_fact_materialization import materialize_derived_fact
 from analytics.derived_facts import DERIVED_FACT_REGISTRY
 from analytics.features import DerivedFactSet
@@ -10,6 +10,10 @@ from domain import (
     CanonicalFact,
     CanonicalInstrumentIdentity,
     Confidence,
+    EvidenceUsability,
+    ExpirationCollection,
+    ExpirationCycle,
+    FreshnessStatus,
     HistoricalOptionPanel,
     HistoricalOptionSnapshot,
     MarketCapability,
@@ -17,20 +21,26 @@ from domain import (
     OptionChain,
     OptionType,
     Provenance,
+    ResolvedCapabilityEvidence,
     UnknownReason,
 )
+from market_data.session_calendar import UsEquitySessionCalendar
 from screening.live_context import build_capability_subject
 from strategies.heston_knowledge import build_heston_knowledge_mapping, formation_from_panel
 from strategies.heston_manifest import HESTON_MANIFEST, STRATEGY_ID
-from strategies.heston_planning import historical_panel_demand
+from strategies.heston_planning import expand_demands, expirations_demand, historical_panel_demand
 from strategies.heston_portfolio import HestonSubjectCandidate
+from strategies.heston_selection import HestonPairSelection, select_heston_pair
 from strategies.manifest_version_pins import version_pin_violations
 from strategy_runtime.adapters.heston import HESTON_CONTRACT
 from strategy_runtime.adapters.heston_portfolio import (
     HestonSubjectMaterialization,
     materialize_heston_family,
 )
-from strategy_runtime.adapters.heston_subject_first import build_heston_subject_first_adapter
+from strategy_runtime.adapters.heston_subject_first import (
+    _formation_state,
+    build_heston_subject_first_adapter,
+)
 from strategy_runtime.context import RuntimeContext
 from strategy_runtime.cross_sectional_portfolio import PortfolioBookSide
 from strategy_runtime.knowledge import ReadOnlyStrategyInput
@@ -139,61 +149,112 @@ def test_insufficient_history_is_typed_unknown() -> None:
     )
 
 
-def _third_friday(year: int, month: int) -> date:
-    fridays = [week[4] for week in monthcalendar(year, month) if week[4]]
-    return date(year, month, fridays[2])
+def _calendar() -> TradingCalendarView:
+    sessions = UsEquitySessionCalendar()
+    return TradingCalendarView(
+        lambda day: sessions.session(day) is not None, date(2024, 1, 1), date(2027, 12, 31)
+    )
 
 
-def test_historical_panel_materializes_complete_lags_two_through_twelve() -> None:
+def _monthly(year: int, month: int) -> date:
+    value = monthly_expiration_day(_calendar(), year, month)
+    assert isinstance(value, date)
+    return value
+
+
+def _after_close(day: date) -> datetime:
+    # 21:00 UTC is after the 16:00 New York close in both EDT and EST.
+    return datetime.combine(day, time(21), tzinfo=UTC)
+
+
+def _month(start: tuple[int, int], offset: int) -> tuple[int, int]:
+    index = start[0] * 12 + start[1] - 1 + offset
+    return index // 12, index % 12 + 1
+
+
+def _panel(
+    *,
+    start: tuple[int, int] = (2024, 12),
+    months: int = 13,
+    skip: frozenset[int] = frozenset(),
+    weekly_decoys: bool = False,
+) -> HistoricalOptionPanel:
+    """Monthly-expiration A08 panel; the return held from entry i is i/100."""
     snapshots = []
     prior_entry = None
-    for offset in range(13):
-        year = 2024 + (11 + offset) // 12
-        month = (11 + offset) % 12 + 1
-        observed_date = _third_friday(year, month)
-        observed_at = datetime.combine(observed_date, datetime.min.time(), tzinfo=UTC)
-        following_year = year + (month == 12)
-        following_month = month % 12 + 1
-        expiration = _third_friday(following_year, following_month)
-        template = _candidate(offset).contracts
-        call = replace(
-            template[0],
-            option_contract_id=CanonicalInstrumentIdentity("occ", f"M{offset}-C"),
-            expiration=expiration,
-            observed_at=observed_at,
-            bid=Decimal("1"),
-            ask=Decimal("1"),
-        )
-        put = replace(
-            template[1],
-            option_contract_id=CanonicalInstrumentIdentity("occ", f"M{offset}-P"),
-            expiration=expiration,
-            observed_at=observed_at,
-            bid=Decimal("1"),
-            ask=Decimal("1"),
-        )
-        contracts = [call, put]
-        if prior_entry is not None:
+    template = _candidate(0).contracts
+    for offset in range(months):
+        if offset in skip:
+            prior_entry = None
+            continue
+        observed_date = _monthly(*_month(start, offset))
+        observed_at = _after_close(observed_date)
+        expiration = _monthly(*_month(start, offset + 1))
+        legs = []
+        for option_type, delta in ((OptionType.CALL, "0.49"), (OptionType.PUT, "-0.51")):
+            source = template[0] if option_type is OptionType.CALL else template[1]
+            legs.append(
+                replace(
+                    source,
+                    option_contract_id=CanonicalInstrumentIdentity(
+                        "occ", f"M{offset}-{option_type.value}"
+                    ),
+                    expiration=expiration,
+                    observed_at=observed_at,
+                    bid=Decimal("1"),
+                    ask=Decimal("1"),
+                    delta=Decimal(delta),
+                )
+            )
+        contracts = list(legs)
+        if weekly_decoys:
+            # A weekly expiring one week later with a call delta of exactly 0.5.
+            weekly = observed_date + timedelta(days=7)
             contracts.extend(
-                replace(item, observed_at=observed_at, bid=Decimal("1.1"), ask=Decimal("1.1"))
+                replace(
+                    leg,
+                    option_contract_id=CanonicalInstrumentIdentity(
+                        "occ", f"W{offset}-{leg.option_type.value}"
+                    ),
+                    expiration=weekly,
+                    delta=Decimal("0.5") if leg.option_type is OptionType.CALL else Decimal("-0.5"),
+                    bid=Decimal("9"),
+                    ask=Decimal("9"),
+                )
+                for leg in legs
+            )
+        if prior_entry is not None:
+            exit_mid = Decimal(1) + Decimal(offset - 1) / 100
+            contracts.extend(
+                replace(item, observed_at=observed_at, bid=exit_mid, ask=exit_mid)
                 for item in prior_entry
             )
         snapshots.append(
             HistoricalOptionSnapshot(
-                call.underlying.instrument,
+                legs[0].underlying.instrument,
                 observed_at,
                 observed_at,
                 f"snapshot-{offset}",
                 tuple(contracts),
             )
         )
-        prior_entry = (call, put)
-    panel = HistoricalOptionPanel(
+        prior_entry = tuple(legs)
+    return HistoricalOptionPanel(
         snapshots[0].subject,
         snapshots[-1].observed_at,
         tuple(snapshots),
     )
-    assert formation_from_panel(panel) == Decimal("0.1")
+
+
+# Entries 0..10 are lags 12..2 (mean of 0.00..0.10 = 0.05); entry 11 is lag 1 (0.11).
+LAG_TWO_TO_TWELVE_MEAN = Decimal("0.05")
+
+
+def test_historical_panel_materializes_complete_lags_two_through_twelve() -> None:
+    panel = _panel()
+    # Good Friday 2025-04-18 rolls the April monthly expiration to 2025-04-17.
+    assert any(snapshot.observed_at.date() == date(2025, 4, 17) for snapshot in panel.snapshots)
+    assert formation_from_panel(panel, _calendar()) == LAG_TWO_TO_TWELVE_MEAN
 
     mapping = build_heston_knowledge_mapping(
         subject="H0",
@@ -210,6 +271,7 @@ def test_historical_panel_materializes_complete_lags_two_through_twelve() -> Non
         ),
         selected_expiration=EXPIRY,
         formation_date_state="PASS",
+        calendar=_calendar(),
     )
     facts = tuple(
         CanonicalFact(
@@ -223,10 +285,10 @@ def test_historical_panel_materializes_complete_lags_two_through_twelve() -> Non
                 ("fixture",),
                 "fixture",
                 (),
-                snapshots[-1].observed_at,
+                panel.snapshots[-1].observed_at,
             ),
-            snapshots[-1].observed_at,
-            snapshots[-1].observed_at,
+            panel.snapshots[-1].observed_at,
+            panel.snapshots[-1].observed_at,
         )
         for request in mapping.canonical_fact_requests
     )
@@ -240,7 +302,7 @@ def test_historical_panel_materializes_complete_lags_two_through_twelve() -> Non
             "sealed-a08",
             value=request.value,
             unit=request.unit,
-            effective_time=snapshots[-1].observed_at,
+            effective_time=panel.snapshots[-1].observed_at,
             input_evidence=request.input_evidence,
             quality_status=request.quality_status,
             parameters=request.parameters,
@@ -248,12 +310,12 @@ def test_historical_panel_materializes_complete_lags_two_through_twelve() -> Non
         for request in derived_requests
     )
     replayed = mapping.build_payload(facts, DerivedFactSet(derived))
-    assert replayed.formation_momentum == Decimal("0.1")
+    assert replayed.formation_momentum == LAG_TWO_TO_TWELVE_MEAN
 
 
 def test_historical_panel_rejects_gap_and_lag_one_only_history() -> None:
-    observed = datetime(2025, 1, 17, tzinfo=UTC)
-    later = datetime(2025, 3, 21, tzinfo=UTC)
+    observed = _after_close(date(2025, 1, 17))
+    later = _after_close(date(2025, 3, 21))
     call, put = _candidate(1).contracts
     call = replace(call, expiration=later.date(), observed_at=observed)
     put = replace(put, expiration=later.date(), observed_at=observed)
@@ -273,7 +335,9 @@ def test_historical_panel_rejects_gap_and_lag_one_only_history() -> None:
             ),
         ),
     )
-    assert formation_from_panel(panel) == UnknownReason("invalid_straddle_formation_calendar")
+    assert formation_from_panel(panel, _calendar()) == UnknownReason(
+        "invalid_straddle_formation_calendar"
+    )
 
 
 def test_missing_live_open_interest_and_market_are_unknown_not_excluded() -> None:
@@ -282,15 +346,11 @@ def test_missing_live_open_interest_and_market_are_unknown_not_excluded() -> Non
     result = materialize_heston_family(
         {"H0": replace(candidate, contracts=(replace(call, open_interest=None), put))}
     )
-    assert result["H0"] == HestonSubjectMaterialization(
-        "UNKNOWN", "G_HES_LOWCOST_PAIR_UNKNOWN"
-    )
+    assert result["H0"] == HestonSubjectMaterialization("UNKNOWN", "G_HES_LOWCOST_PAIR_UNKNOWN")
     result = materialize_heston_family(
         {"H0": replace(candidate, contracts=(replace(call, bid=None), put))}
     )
-    assert result["H0"] == HestonSubjectMaterialization(
-        "UNKNOWN", "G_HES_LOWCOST_PAIR_UNKNOWN"
-    )
+    assert result["H0"] == HestonSubjectMaterialization("UNKNOWN", "G_HES_LOWCOST_PAIR_UNKNOWN")
 
 
 def test_subject_first_adapter_replays_without_acquisition() -> None:
@@ -312,3 +372,106 @@ def test_subject_first_adapter_replays_without_acquisition() -> None:
     adapter = build_heston_subject_first_adapter({subject: knowledge})
     assert adapter(context) == adapter(context)
     assert adapter(context).evaluation_state.value == "pass"
+
+
+def test_weekly_expirations_are_never_held_in_formation() -> None:
+    assert formation_from_panel(_panel(weekly_decoys=True), _calendar()) == (LAG_TWO_TO_TWELVE_MEAN)
+
+
+def test_missing_interior_month_and_stale_anchor_are_unknown() -> None:
+    gap = formation_from_panel(_panel(skip=frozenset({5})), _calendar())
+    assert isinstance(gap, UnknownReason)
+    stale = _panel(months=12)
+    stale = replace(stale, as_of=_after_close(_monthly(2025, 12)))
+    assert formation_from_panel(stale, _calendar()) == UnknownReason(
+        "invalid_straddle_formation_calendar"
+    )
+
+
+def test_juneteenth_2026_monthly_expiration_rolls_to_thursday() -> None:
+    assert _monthly(2026, 6) == date(2026, 6, 18)
+    assert formation_from_panel(_panel(start=(2025, 6)), _calendar()) == (LAG_TWO_TO_TWELVE_MEAN)
+    assert _formation_state(_after_close(date(2026, 6, 18))) == "PASS"
+    assert _formation_state(_after_close(date(2026, 6, 19))) == "FAIL"
+    assert _formation_state(datetime(2026, 6, 18, 19, tzinfo=UTC)) == "FAIL"  # before close
+
+
+def _pair(strike: str, call_delta: str | None, open_interest: int | None = 10) -> tuple:
+    call, put = _candidate(0).contracts
+    return (
+        replace(
+            call,
+            option_contract_id=CanonicalInstrumentIdentity("occ", f"K{strike}-C"),
+            strike=Decimal(strike),
+            delta=None if call_delta is None else Decimal(call_delta),
+            open_interest=open_interest,
+        ),
+        replace(
+            put,
+            option_contract_id=CanonicalInstrumentIdentity("occ", f"K{strike}-P"),
+            strike=Decimal(strike),
+            delta=None if call_delta is None else Decimal(call_delta) - 1,
+            open_interest=open_interest,
+        ),
+    )
+
+
+def _select(*pairs: tuple) -> object:
+    contracts = tuple(contract for pair in pairs for contract in pair)
+    return select_heston_pair(contracts, expiration=EXPIRY, require_open_interest=True)
+
+
+def test_unknown_open_interest_on_a_closer_pair_is_unknown_not_skipped() -> None:
+    assert _select(_pair("100", "0.50", None), _pair("105", "0.45")) == UnknownReason(
+        "G_HES_LOWCOST_PAIR_UNKNOWN"
+    )
+    selected = _select(_pair("90", "0.70", None), _pair("105", "0.45"))
+    assert isinstance(selected, HestonPairSelection)
+    assert selected.call.strike == Decimal(105)
+    # Resolved zero open interest is a failed gate: the next pair is eligible.
+    zero = _select(_pair("100", "0.50", 0), _pair("105", "0.45"))
+    assert isinstance(zero, HestonPairSelection) and zero.call.strike == Decimal(105)
+
+
+def test_missing_delta_that_could_be_closest_is_unknown() -> None:
+    assert _select(_pair("95", "0.60"), _pair("100", None), _pair("105", "0.45")) == (
+        UnknownReason("G_HES_LOWCOST_PAIR_UNKNOWN")
+    )
+    selected = _select(
+        _pair("95", "0.55"), _pair("100", "0.50"), _pair("105", "0.45"), _pair("150", None)
+    )
+    assert isinstance(selected, HestonPairSelection)
+    assert selected.call.strike == Decimal(100)
+
+
+def test_portfolio_and_formation_share_one_selection_owner() -> None:
+    import strategies.heston_knowledge as knowledge
+    import strategy_runtime.adapters.heston_portfolio as portfolio
+
+    assert knowledge.select_heston_pair is select_heston_pair
+    assert portfolio.select_heston_pair is select_heston_pair
+    assert not hasattr(knowledge, "_select_pair")
+
+
+def test_planning_selects_next_month_monthly_expiration_not_a_weekly() -> None:
+    now = _after_close(date(2026, 10, 16))
+    cycles = (
+        ExpirationCycle(date(2026, 10, 23), 7, False, True, now.date(), EVIDENCE),
+        ExpirationCycle(date(2026, 11, 13), 28, False, True, now.date(), EVIDENCE),
+        ExpirationCycle(date(2026, 11, 20), 35, True, False, now.date(), EVIDENCE),
+        ExpirationCycle(date(2026, 12, 18), 63, True, False, now.date(), EVIDENCE),
+    )
+    resolved = ResolvedCapabilityEvidence(
+        expirations_demand(now).demand_id,
+        MarketCapability.OPTION_CHAIN_V1,
+        EvidenceUsability.RESOLVED,
+        ExpirationCollection(now.date(), cycles),
+        ("heston-expirations",),
+        FreshnessStatus.FRESH,
+    )
+    result = expand_demands({resolved.demand_id: resolved}, now=now)
+    assert result.selections == (("expiration", "2026-11-20"),)
+    weeklies_only = replace(resolved, value=ExpirationCollection(now.date(), cycles[:2]))
+    assert expand_demands({resolved.demand_id: weeklies_only}, now=now).unknown_reasons == (
+        UnknownReason("G_HES_FORMATION_DATE_UNKNOWN"),
+    )

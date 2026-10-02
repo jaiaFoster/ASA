@@ -3,6 +3,7 @@
 from datetime import date, datetime, timedelta
 from typing import Mapping  # noqa: UP035
 
+from analytics.calendar_facts import new_york_time
 from domain import (
     CapabilityDemand,
     DemandExpansion,
@@ -53,14 +54,20 @@ def expand_demands(
         or not isinstance(resolved.value, ExpirationCollection)
     ):
         return DemandExpansion(unknown_reasons=(UnknownReason("G_HES_FORMATION_DATE_UNKNOWN"),))
+    local = new_york_time(now).date()
+    target = (local.year + (local.month == 12), local.month % 12 + 1)
+    # Source rule: hold the next *monthly* expiration; weeklies are never selected.
     candidates = tuple(
         sorted(
-            cycle.expiration_date
-            for cycle in resolved.value.cycles
-            if cycle.expiration_date > now.date()
+            {
+                cycle.expiration_date
+                for cycle in resolved.value.cycles
+                if cycle.monthly
+                and (cycle.expiration_date.year, cycle.expiration_date.month) == target
+            }
         )
     )
-    if not candidates:
+    if len(candidates) != 1:
         return DemandExpansion(unknown_reasons=(UnknownReason("G_HES_FORMATION_DATE_UNKNOWN"),))
     selected = candidates[0]
     return DemandExpansion(
