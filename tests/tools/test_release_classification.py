@@ -20,6 +20,10 @@ SHA = "a" * 40
 START = datetime(2026, 10, 5, 13, 30, tzinfo=UTC)
 END = datetime(2026, 10, 5, 21, 50, tzinfo=UTC)
 IN_WINDOW = "2026-10-05T15:00:00Z"
+CLEAN_CRON = [
+    '{"artifact_type": "bounded_run_cohort", "results": '
+    '[{"signal_id": "index_putwrite_cboe_put", "error": null}]}'
+]
 
 
 def _row(strategy: str, symbol: str = "SPX", **fields: object) -> JsonObject:
@@ -88,7 +92,12 @@ def test_release_passes_only_when_all_seven_classified_without_exceptions() -> N
         _row("event_vol_gxz_preea_straddle_to_expiry", "AAPL", verdict="NO_ACTION")
     ]
     artifact = classify_release(
-        _fetcher(rows), production_sha=SHA, window_start=START, window_end=END, captured_at=END
+        _fetcher(rows),
+        production_sha=SHA,
+        window_start=START,
+        window_end=END,
+        captured_at=END,
+        cron_lines=CLEAN_CRON,
     )
     assert artifact["verdict"] == "pass", artifact["failures"]
     classes = {name: item["classification"] for name, item in artifact["strategies"].items()}
@@ -120,6 +129,7 @@ def test_stale_rows_wrong_sha_and_exceptions_fail_closure() -> None:
         window_start=START,
         window_end=END,
         captured_at=END,
+        cron_lines=CLEAN_CRON,
     )
     assert artifact["verdict"] == "fail"
     assert artifact["strategies"]["index_buywrite_cboe_bxm"]["classification"] == UNOBSERVED
@@ -139,7 +149,12 @@ def test_complete_family_without_rows_is_not_due_only_off_formation() -> None:
         rows[family] = []
     # 2026-10-05 is neither a month-end nor a monthly-expiration session.
     artifact = classify_release(
-        _fetcher(rows), production_sha=SHA, window_start=START, window_end=END, captured_at=END
+        _fetcher(rows),
+        production_sha=SHA,
+        window_start=START,
+        window_end=END,
+        captured_at=END,
+        cron_lines=CLEAN_CRON,
     )
     assert artifact["verdict"] == "pass", artifact["failures"]
     assert artifact["strategies"]["xs_option_zhan_neg_lnprice_dn_call"]["classification"] == NOT_DUE
@@ -150,7 +165,62 @@ def test_complete_family_without_rows_is_not_due_only_off_formation() -> None:
         window_start=datetime(2026, 10, 16, 13, 30, tzinfo=UTC),
         window_end=datetime(2026, 10, 16, 21, 50, tzinfo=UTC),
         captured_at=END,
+        cron_lines=CLEAN_CRON,
     )
     heston = formation["strategies"]["xs_option_heston_straddle_momentum_lowcost"]
     assert heston["classification"] == UNOBSERVED
     assert "unobserved:xs_option_heston_straddle_momentum_lowcost" in formation["failures"]
+
+
+def test_knowledge_construction_failure_is_an_exception_not_a_data_blocker() -> None:
+    row = _row(
+        SELECTED_STRATEGIES[0],
+        evaluation_state="missing_data",
+        verdict=None,
+        blockers=[
+            "typed unknown evidence gap: strategy_knowledge_construction_failed "
+            "(failure_class=unexpected_runtime_exception;exception_type=KeyError)"
+        ],
+    )
+    assert classify_row(row) == "EXCEPTION"
+
+
+def test_window_ending_before_the_formation_close_is_never_not_due() -> None:
+    rows = {
+        strategy: [_row(strategy, updated_at="2026-10-30T15:00:00Z")]
+        for strategy in SELECTED_STRATEGIES
+    }
+    rows["xs_option_zhan_neg_lnprice_dn_call"] = []
+    artifact = classify_release(
+        _fetcher(rows),
+        production_sha=SHA,
+        window_start=datetime(2026, 10, 30, 13, 30, tzinfo=UTC),
+        window_end=datetime(2026, 10, 30, 20, 0, tzinfo=UTC),  # at the EDT close
+        captured_at=END,
+        cron_lines=CLEAN_CRON,
+    )
+    zhan = artifact["strategies"]["xs_option_zhan_neg_lnprice_dn_call"]
+    assert zhan["classification"] == UNOBSERVED
+    assert artifact["verdict"] == "fail"
+
+
+def test_missing_or_failing_cron_evidence_fails_closure() -> None:
+    rows = {strategy: [_row(strategy)] for strategy in SELECTED_STRATEGIES}
+    for family in (
+        "xs_option_zhan_neg_lnprice_dn_call",
+        "xs_option_heston_straddle_momentum_lowcost",
+    ):
+        rows[family] = []
+    kwargs = dict(production_sha=SHA, window_start=START, window_end=END, captured_at=END)
+    assert classify_release(_fetcher(rows), **kwargs)["failures"] == ["cron_evidence_missing"]
+    failing = [
+        'INFO {"artifact_type": "bounded_run_cohort", "results": ['
+        '{"signal_id": "index_buywrite_cboe_bxm", "error": "boom"}, '
+        '{"signal_id": "forward_factor", "error": "ignored: not selected"}]}',
+        "WARNING fixed_subject_option_refresh_failed failure_class=RuntimeError",
+    ]
+    artifact = classify_release(_fetcher(rows), cron_lines=failing, **kwargs)
+    assert artifact["failures"] == [
+        "cron_pair_failures:index_buywrite_cboe_bxm:1",
+        "cron_refresh_failures:1",
+    ]

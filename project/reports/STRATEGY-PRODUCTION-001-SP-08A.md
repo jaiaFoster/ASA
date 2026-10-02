@@ -9,9 +9,11 @@
 
 | PR | Ticket | Production effect |
 |---|---|---|
+| #524 | SP-04B | Santa-Clara/Saretto short SPX straddle (SCS) registered and scheduled on the fixed-SPX path |
 | #527 | SP-05C | Zhan cross-sectional strategy registered, cataloged, cut over |
 | #528 | SP-05D | Heston straddle-momentum strategy registered, cataloged, cut over |
 | #529 | SP-07A | Seven-strategy convergence: GXZ on the production claim path; complete-family (Zhan/Heston) atomic scheduling with persisted typed deferral; SCS cut over; cron covers after-close formation ticks |
+| #531 | OI-07 | Session capture and regenerated reports (documentation only) |
 | #530 | SP-07B | Cycle and complete-family capacity summaries; measured release gate |
 | this PR | SP-08A | Read-only release classification tool and this packet |
 
@@ -49,9 +51,12 @@ All seven are visible in `/api/v1/capabilities`:
    the 16:00 EST close, and Zhan (last session of the month) and Heston
    (monthly expiration) could never form on EST dates.
 3. Set `ASA_US_TREASURY_ENABLED=true` on both services. This enables the
-   public, credential-free US Treasury bill-rate provider (no vendor, no cost)
-   that PUT, PUTY and BXM need. While it is unset, those strategies report a
-   typed rate blocker.
+   public, credential-free US Treasury bill-rate provider (no vendor, no
+   cost). Its consumers at this release are Zhan (risk-free series) and SCS
+   (optional risk-free input). While it is unset, those inputs are typed
+   UNKNOWN. PUT/PUTY sizing stays typed
+   `UNKNOWN_CROSS_SUBJECT_TREASURY_RATE_NOT_MATERIALIZED` whether or not the
+   flag is set, and BXM does not use rates.
 
 ## Health and readiness after deploy
 
@@ -62,18 +67,30 @@ All seven are visible in `/api/v1/capabilities`:
 
 ## Real-session observation (worker, after deploy)
 
-Run after the first full post-deploy session:
+Run after the first full post-deploy session, from a checkout at
+`RELEASE_SHA`. `cron.log` holds the cron service's log lines for the window
+(each tick's `--json` `bounded_run_cohort` artifact):
 
 ```
 python -m tools.strategy_production.release_classification \
   --base-url <prod> --production-sha RELEASE_SHA \
-  --window-start <session open, ISO-8601> --window-end <session close + 1h> \
+  --window-start <session open, ISO-8601> --window-end <after 21:50 UTC> \
+  --cron-output cron.log \
   --output project/reports/STRATEGY-PRODUCTION-001-SP-08A-session.json
 ```
 
-Closure requires all seven classified `LIVE_EVALUABLE`,
-`LIVE_TYPED_DATA_BLOCKER` or `NOT_DUE`, zero exceptions, and the deployed SHA
-equal to the release.
+Closure requires:
+- all seven classified `LIVE_EVALUABLE`, `LIVE_TYPED_DATA_BLOCKER` or `NOT_DUE`;
+- no ASA-defect code in the latest rows;
+- every selected-strategy result in the cron artifacts with `error == null`;
+- no fixed-subject or complete-family refresh failure line;
+- the deployed SHA equal to the release.
+
+Latest-state rows alone cannot prove zero exceptions: a raising pair writes
+no row, and a later row overwrites an earlier one. That is why the cron
+artifacts are required. Reading the cron service logs needs Railway access,
+which the worker does not currently have; the Founder supplies the log
+export, or authorizes the Railway connector.
 
 Expected outcomes, stated before observation:
 
@@ -82,7 +99,7 @@ Expected outcomes, stated before observation:
 | GXZ | `NOT_DUE` or `LIVE_TYPED_DATA_BLOCKER` | Event strategy, due only inside its pre-earnings window |
 | PUT / PUTY / BXM | `NOT_DUE` off roll dates; `LIVE_EVALUABLE` or typed blocker on roll | Monthly roll strategies |
 | SCS | `NOT_DUE` or `LIVE_EVALUABLE` | Monthly fixed-SPX |
-| Zhan | `LIVE_TYPED_DATA_BLOCKER` on month-end formation (`CAPACITY_DEFERRED_INCOMPLETE_COHORT`); otherwise not written | 503 members > ceiling of 30 |
+| Zhan | `LIVE_TYPED_DATA_BLOCKER` on month-end formation (`CAPACITY_DEFERRED_INCOMPLETE_COHORT`); `NOT_DUE` (no rows, due callback false on every tick) otherwise | 503 members > ceiling of 30 |
 | Heston | Same as Zhan on monthly-expiration formation; also lacks 12 months of A08 history | Same |
 
 **Material disclosure.** Under the current ceiling of 30 subjects, Zhan and
@@ -101,7 +118,9 @@ Redeploy `1efac180b66d2c521b22058e10cc74c2939a29f2` to both services. Restore
 the cron schedule to `*/10 13-20 * * 1-5` if the dashboard value was replaced.
 No migration or data rollback is needed: the release only adds rows, and the
 deferral rows are ordinary typed latest-state rows that the previous release
-reads without change.
+reads without change. Rows already written for strategies the previous
+release does not register (Zhan, Heston, SCS) remain in latest state; this
+is harmless.
 
 ## Residuals (disclosed, not blocking)
 

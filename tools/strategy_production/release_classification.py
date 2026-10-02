@@ -16,11 +16,23 @@ strategy for one observed session window:
 - ``UNOBSERVED``: no row was written in the window. This is never a closure
   class; it means the strategy was not observed and the proof fails.
 
-A row whose typed reason is the generic subject-preparation failure is an
-unexplained exception, never a data blocker. The proof passes only when the
-deployed SHA equals the expected release, every strategy is classified into
-one of the three closure classes, and there are zero exceptions. It never
-refreshes, tracks, acquires or mutates anything.
+A row whose typed reason is an ASA defect code (subject preparation or
+strategy knowledge construction failure, strategy exception, malformed
+output) is an exception, never a data blocker.
+
+Latest-state rows alone cannot prove zero exceptions over a session: a pair
+that raises persists no row, and a later row overwrites an earlier one. The
+proof therefore also requires the scheduler's own per-tick ``--json``
+artifacts (``bounded_run_cohort``) for the window, read from the cron
+service logs: every selected-strategy result must have ``error == null``
+and no fixed-subject or complete-family refresh failure line may appear.
+Without that evidence the verdict is ``fail`` (``cron_evidence_missing``).
+
+The proof passes only when the deployed SHA equals the expected release,
+every strategy is classified into one of the three closure classes, the
+latest rows show no exceptions, and the cron evidence shows no failures. It
+never refreshes, tracks, acquires or mutates anything. Run it from a
+checkout at the release SHA (family due callbacks come from the registry).
 """
 
 from __future__ import annotations
@@ -29,9 +41,10 @@ import argparse
 import json
 import os
 from collections import Counter
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, time, timedelta
 from pathlib import Path
 from urllib.parse import urlencode
+from zoneinfo import ZoneInfo
 
 from tools.options_product.founder_utility import Fetch, JsonObject, http_fetcher
 
@@ -54,7 +67,25 @@ NOT_DUE = "NOT_DUE"
 UNOBSERVED = "UNOBSERVED"
 CLOSURE_CLASSES = frozenset({LIVE_EVALUABLE, LIVE_TYPED_DATA_BLOCKER, NOT_DUE})
 
-_EXCEPTION_REASONS = frozenset({"subject_preparation_failed"})
+# ASA defect codes (same set as tools/options_truth/earnings_cohort.py and
+# strategy_runtime/reliability_census.py's ASA-owned classes).
+_EXCEPTION_REASONS = frozenset(
+    {
+        "subject_preparation_failed",
+        "strategy_knowledge_construction_failed",
+        "unexpected_runtime_exception",
+        "malformed_output",
+        "strategy_exception",
+    }
+)
+# Isolated scheduler invocations that carry selected strategies.
+_SELECTED_REFRESH_FAILURES = (
+    "fixed_subject_option_refresh_failed",
+    "complete_family_refresh_failed",
+)
+_LAST_CRON_TICK_UTC = (21, 50)
+_FIRST_CRON_TICK_UTC = (13, 0)
+_NEW_YORK = ZoneInfo("America/New_York")
 _TYPED_GAP_PREFIX = "typed unknown evidence gap: "
 _PAGE_LIMIT = 500
 
@@ -92,23 +123,55 @@ def classify_strategy(rows: list[JsonObject]) -> str:
 
 
 def family_due_in_window(strategy_id: str, window_start: datetime, window_end: datetime) -> bool:
-    """Whether a registered complete-family due callback fires inside the window.
+    """Whether a registered complete-family due callback fires on any session date of the window.
 
-    Strategies without a family-due callback are always considered due here
-    (their absence of rows is then UNOBSERVED, never NOT_DUE).
+    Evaluated over every configured cron tick (13:00-21:50 UTC) of each
+    New York date the window touches, not only inside the window, so a
+    window that ends before the after-close formation ticks can never turn a
+    formation day into NOT_DUE. Strategies without a family-due callback are
+    always considered due here (absence of rows is then UNOBSERVED).
     """
     from strategy_runtime.adapters import build_migrated_shadow_registry
 
-    instant = window_start
-    while instant <= window_end:
-        registry = build_migrated_shadow_registry(instant)
-        if not registry.is_registered(strategy_id):
-            return True
-        due = getattr(registry.binding_for(strategy_id), "cross_subject_family_due", None)
-        if due is None or due(instant):
-            return True
-        instant += timedelta(minutes=10)
+    day = window_start.astimezone(_NEW_YORK).date()
+    last_day = window_end.astimezone(_NEW_YORK).date()
+    while day <= last_day:
+        instant = datetime.combine(day, time(*_FIRST_CRON_TICK_UTC), tzinfo=UTC)
+        last = datetime.combine(day, time(*_LAST_CRON_TICK_UTC), tzinfo=UTC)
+        while instant <= last:
+            registry = build_migrated_shadow_registry(instant)
+            if not registry.is_registered(strategy_id):
+                return True
+            due = getattr(registry.binding_for(strategy_id), "cross_subject_family_due", None)
+            if due is None or due(instant):
+                return True
+            instant += timedelta(minutes=10)
+        day += timedelta(days=1)
     return False
+
+
+def cron_failures(lines: list[str]) -> tuple[int, dict[str, int], int]:
+    """(artifact count, failed results per selected strategy, refresh-failure lines)."""
+    artifacts = 0
+    failed: Counter[str] = Counter()
+    refresh_failures = 0
+    for line in lines:
+        if any(marker in line for marker in _SELECTED_REFRESH_FAILURES):
+            refresh_failures += 1
+        start = line.find("{")
+        if start < 0:
+            continue
+        try:
+            payload = json.loads(line[start:])
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(payload, dict) or payload.get("artifact_type") != "bounded_run_cohort":
+            continue
+        artifacts += 1
+        for result in payload.get("results") or ():
+            if result.get("signal_id") in SELECTED_STRATEGIES and result.get("error") is not None:
+                failed[str(result["signal_id"])] += 1
+    return artifacts, dict(sorted(failed.items())), refresh_failures
 
 
 def _parse(value: str) -> datetime:
@@ -147,9 +210,12 @@ def classify_release(
     window_start: datetime,
     window_end: datetime,
     captured_at: datetime,
+    cron_lines: list[str] | None = None,
 ) -> JsonObject:
     if window_start.tzinfo is None or window_end.tzinfo is None:
         raise ValueError("session window bounds must be timezone-aware")
+    if window_start >= window_end:
+        raise ValueError("session window must have start < end")
     status, version = fetch("/api/v1/version")
     deployed = str(version.get("release_sha") or "") if status == 200 else ""
     status, capabilities = fetch("/api/v1/capabilities")
@@ -184,7 +250,14 @@ def classify_release(
             ),
             "blocker_codes": dict(sorted(blocker_codes.items())),
         }
+    artifacts, cron_failed, refresh_failures = cron_failures(cron_lines or [])
     failures: list[str] = []
+    if artifacts == 0:
+        failures.append("cron_evidence_missing")
+    for strategy_id, count in cron_failed.items():
+        failures.append(f"cron_pair_failures:{strategy_id}:{count}")
+    if refresh_failures:
+        failures.append(f"cron_refresh_failures:{refresh_failures}")
     if deployed != production_sha:
         failures.append(f"deployed_sha_mismatch:{deployed or 'unset'}")
     for strategy_id, item in strategies.items():
@@ -205,6 +278,11 @@ def classify_release(
         "window_end": window_end.astimezone(UTC).isoformat(),
         "captured_at": captured_at.astimezone(UTC).isoformat(),
         "strategies": strategies,
+        "cron_evidence": {
+            "bounded_run_artifacts": artifacts,
+            "selected_strategy_pair_failures": cron_failed,
+            "refresh_failure_lines": refresh_failures,
+        },
         "failures": failures,
         "verdict": "pass" if not failures else "fail",
     }
@@ -217,6 +295,12 @@ def main() -> int:
     parser.add_argument("--window-start", required=True, help="ISO-8601 with offset")
     parser.add_argument("--window-end", required=True, help="ISO-8601 with offset")
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument(
+        "--cron-output",
+        type=Path,
+        required=True,
+        help="cron service log lines for the window (scheduler --json artifacts)",
+    )
     parser.add_argument("--token-env", default="ASA_AGENT_API_TOKEN")
     args = parser.parse_args()
     token = os.environ.get(args.token_env)
@@ -228,6 +312,7 @@ def main() -> int:
         window_start=_parse(args.window_start),
         window_end=_parse(args.window_end),
         captured_at=datetime.now(UTC),
+        cron_lines=args.cron_output.read_text().splitlines(),
     )
     args.output.write_text(json.dumps(artifact, indent=2, sort_keys=True) + "\n")
     return 0 if artifact["verdict"] == "pass" else 1
