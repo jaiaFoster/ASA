@@ -105,10 +105,25 @@ def compose_cross_subject_knowledge(
         entries = family_entries[family_id]
         first_binding = registry.binding_for(entries[0][0])
         if first_binding.requires_complete_cross_subject_universe:
+            # A complete family is ranked only over its whole declared
+            # universe. Subjects never admitted to this cycle defer the
+            # family (capacity); admitted subjects whose preparation failed
+            # keep their own typed reason, and the prepared remainder is
+            # typed as an incomplete cohort. Never a partial ranking.
             expected = set(expected_complete_subjects or ())
-            actual = {subject for _strategy_id, subject, _knowledge in entries}
-            if not expected or actual != expected:
-                reason = UnknownReason("CAPACITY_DEFERRED_INCOMPLETE_COHORT")
+            family_strategy_ids = {strategy_id for strategy_id, _subject, _k in entries}
+            admitted = {
+                subject
+                for subject, by_strategy in result.items()
+                if family_strategy_ids & set(by_strategy)
+            }
+            prepared = {subject for _strategy_id, subject, _knowledge in entries}
+            if not expected or prepared != expected:
+                reason = UnknownReason(
+                    "INCOMPLETE_COHORT_PREPARATION"
+                    if expected and admitted >= expected
+                    else "CAPACITY_DEFERRED_INCOMPLETE_COHORT"
+                )
                 for strategy_id, subject, _knowledge in entries:
                     result[subject][strategy_id] = reason
                 counts.append((family_id, 0))

@@ -11,6 +11,7 @@ import pytest
 from asa.scheduled_screening import (
     PRODUCTION_SCREENING_UNIVERSE,
     SP500_COHORT_MAXIMUM_SUBJECTS,
+    SP500_COHORT_STRATEGY_IDS,
     main,
     run_scheduled_refresh,
     scheduled_sp500_universe,
@@ -256,9 +257,16 @@ def test_default_scheduled_cycle_uses_bounded_sp500_cohort(
         now=slot.scheduled_at,
     )
 
-    assert len(outcomes) == 3 * SP500_COHORT_MAXIMUM_SUBJECTS
+    assert len(outcomes) == len(SP500_COHORT_STRATEGY_IDS) * SP500_COHORT_MAXIMUM_SUBJECTS
+    # The production claim path and the slot projection share one strategy set.
+    assert {item.signal_id for item in outcomes} == set(SP500_COHORT_STRATEGY_IDS)
+    assert "event_vol_gxz_preea_straddle_to_expiry" in SP500_COHORT_STRATEGY_IDS
     assert all(item.error is None for item in outcomes)
-    assert all(item.outcome != "missing_data" for item in outcomes)
+    assert all(
+        item.outcome != "missing_data"
+        for item in outcomes
+        if item.signal_id != "event_vol_gxz_preea_straddle_to_expiry"
+    )
     selection = next(
         record
         for record in caplog.records
@@ -267,7 +275,11 @@ def test_default_scheduled_cycle_uses_bounded_sp500_cohort(
     assert selection.source_revision_id == 1369213082
     assert selection.subject_count == 30
     assert subject_claims.batch_attempted_at == slot.scheduled_at
-    assert subject_claims.batch_result == (90, 0, 0)
+    assert subject_claims.batch_result == (
+        len(SP500_COHORT_STRATEGY_IDS) * SP500_COHORT_MAXIMUM_SUBJECTS,
+        0,
+        0,
+    )
     expanded_symbol = next(
         symbol for symbol in subject_claims.last_claimed if symbol not in APPROVED_LIVE_UNIVERSE
     )

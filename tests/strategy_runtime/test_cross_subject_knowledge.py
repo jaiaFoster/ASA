@@ -278,3 +278,26 @@ def test_complete_family_never_materializes_partial_cohort() -> None:
         "CAPACITY_DEFERRED_INCOMPLETE_COHORT"
     )
     assert result.materialization_count_by_family == (("zhan-v1", 0),)
+
+
+def test_complete_family_admitted_but_partially_prepared_is_typed_separately() -> None:
+    registry = SubjectPreparationRegistry(
+        (("zhan", _generic_binding("zhan", "zhan-v1", complete=True)),)
+    )
+    knowledge: dict[str, dict[str, ReadOnlyStrategyInput[object] | UnknownReason]] = {
+        "A": {"zhan": _candidate_knowledge("A", "1")},
+        "B": {"zhan": UnknownReason("G_ZHAN_PRICE_MIN_UNKNOWN")},
+    }
+    result = compose_cross_subject_knowledge(
+        knowledge,
+        registry,
+        asset_types={},
+        sectors={},
+        expected_complete_subjects=("A", "B"),
+    )
+    assert result.knowledge_by_subject["A"]["zhan"] == UnknownReason(
+        "INCOMPLETE_COHORT_PREPARATION"
+    )
+    # The failed subject keeps its own typed evidence reason.
+    assert result.knowledge_by_subject["B"]["zhan"] == UnknownReason("G_ZHAN_PRICE_MIN_UNKNOWN")
+    assert result.materialization_count_by_family == (("zhan-v1", 0),)

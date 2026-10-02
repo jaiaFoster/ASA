@@ -43,6 +43,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from types import MappingProxyType
 from typing import Protocol
+from zoneinfo import ZoneInfo
 
 from asa.application.portfolio_use_cases import RunPortfolioIntelligence, RunPortfolioResult
 from asa.application.ports.portfolio_lifecycle import PortfolioLifecycleRepository
@@ -177,6 +178,16 @@ SCHEDULED_FIXED_SUBJECT_PAIRS: tuple[tuple[str, str], ...] = (
 # UNI-01's current proven live capacity. Increasing this is a measured
 # capacity decision, never a CLI/environment override.
 SP500_COHORT_MAXIMUM_SUBJECTS = 30
+
+# Per-subject strategies evaluated on every claimed S&P cohort subject. One
+# declaration shared by the claim path and the slot-cohort projection so the
+# two can never drift (GXZ was previously absent from the claim path).
+SP500_COHORT_STRATEGY_IDS: tuple[str, ...] = (
+    "forward_factor",
+    "skew_momentum",
+    "earnings_calendar",
+    "event_vol_gxz_preea_straddle_to_expiry",
+)
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -236,12 +247,7 @@ def scheduled_sp500_universe(slot: ScheduledRefreshSlot) -> tuple[tuple[str, str
     return tuple(
         (strategy_id, symbol)
         for symbol in cohort.symbols
-        for strategy_id in (
-            "forward_factor",
-            "skew_momentum",
-            "earnings_calendar",
-            "event_vol_gxz_preea_straddle_to_expiry",
-        )
+        for strategy_id in SP500_COHORT_STRATEGY_IDS
     )
 
 
@@ -442,7 +448,7 @@ def run_scheduled_refresh(
             resolved_universe = tuple(
                 (strategy_id, symbol)
                 for symbol in claimed_symbols
-                for strategy_id in ("forward_factor", "skew_momentum", "earnings_calendar")
+                for strategy_id in SP500_COHORT_STRATEGY_IDS
             )
             _LOGGER.info(
                 "scheduled_oldest_subjects_selected",
@@ -946,6 +952,61 @@ def run_scheduled_fixed_subject_option_refresh(
     )
 
 
+COMPLETE_FAMILY_CAPACITY_DEFERRED = "CAPACITY_DEFERRED_INCOMPLETE_COHORT"
+
+
+def _persist_typed_family_deferral(
+    pairs: tuple[tuple[str, str], ...],
+    reason: UnknownReason,
+    *,
+    repository: LatestResultRepository,
+    run_at: datetime,
+) -> tuple[PairOutcome, ...]:
+    """Persist one typed MISSING_DATA row per deferred pair, provider-free.
+
+    The generic cut-over seam projects the seeded UnknownReason exactly as it
+    projects any other typed preparation gap, so the API/UI show the
+    deferral instead of a stale or absent row. No transport, plan or
+    fulfillment service is constructed: zero provider requests by
+    construction.
+    """
+    clock = _FrozenCycleClock(run_at)
+    shadow_registry = build_migrated_shadow_registry(run_at)
+    cutover_policy = build_migrated_cutover_policy(os.environ)
+    pair_registry = build_migrated_strategy_registry()
+    outcomes: list[PairOutcome] = []
+    for strategy_id, symbol in pairs:
+        try:
+            result, _diagnostic = refresh_with_shadow(
+                pair_registry,
+                repository,
+                clock,
+                strategy_id=strategy_id,
+                symbol=symbol,
+                observations=tuple,
+                shadow_registry=shadow_registry,
+                shadow_knowledge_by_subject={strategy_id: reason},
+                cutover_policy=cutover_policy,
+            )
+            outcomes.append(
+                PairOutcome(
+                    strategy_id,
+                    symbol,
+                    result.evaluation_state.value,
+                    0,
+                    None,
+                    True,
+                    result.observation_id,
+                    reason=reason.code,
+                )
+            )
+        except Exception as exc:
+            outcomes.append(
+                PairOutcome(strategy_id, symbol, None, 0, str(exc), False, reason=reason.code)
+            )
+    return tuple(outcomes)
+
+
 def run_scheduled_complete_family_refresh(
     *,
     repository: LatestResultRepository | None = None,
@@ -953,41 +1014,68 @@ def run_scheduled_complete_family_refresh(
     acquisition_attempt_repository: AcquisitionAttemptRepository | None = None,
     historical_skew_repository: HistoricalSkewRepository | None = None,
     portfolio_lifecycle_repository: PortfolioLifecycleRepository | None = None,
+    claim_repository: RefreshScheduleClaimRepository | None = None,
     transport_factory: Callable[[str], object] = build_live_transport,
     now: datetime | None = None,
     maximum_subjects: int = SP500_COHORT_MAXIMUM_SUBJECTS,
 ) -> tuple[PairOutcome, ...]:
-    """Atomically admit complete cross-subject families or defer before acquisition."""
+    """Atomically admit complete cross-subject families or defer before acquisition.
+
+    A due family is processed once per formation date: the claim id is
+    (family, New York formation date), so overlapping or repeated cron
+    ticks after the close neither re-defer nor re-acquire. When the whole
+    declared universe exceeds the proven per-cycle capacity, every member is
+    persisted as typed CAPACITY_DEFERRED_INCOMPLETE_COHORT and nothing is
+    acquired or ranked; a partial cohort is never materialized.
+    """
     run_at = now or datetime.now(UTC)
     registry = build_migrated_shadow_registry(run_at)
-    due_strategy_ids = tuple(
-        strategy_id
-        for strategy_id in registry.strategy_ids()
+    due: dict[str, list[str]] = {}
+    for strategy_id in registry.strategy_ids():
+        binding = registry.binding_for(strategy_id)
         if (
-            (binding := registry.binding_for(strategy_id)).requires_complete_cross_subject_universe
+            binding.requires_complete_cross_subject_universe
+            and binding.cross_subject_family_id is not None
             and binding.cross_subject_family_due is not None
             and binding.cross_subject_family_due(run_at)
-        )
+        ):
+            due.setdefault(binding.cross_subject_family_id, []).append(strategy_id)
+    if not due:
+        return ()
+    resolved_claim_repository = claim_repository or PostgresRefreshScheduleClaimRepository(
+        create_postgres_engine(Settings().database_url)
+    )
+    formation_date = run_at.astimezone(ZoneInfo("America/New_York")).date().isoformat()
+    due_strategy_ids = tuple(
+        strategy_id
+        for family_id in sorted(due)
+        if resolved_claim_repository.claim(f"complete-family:{family_id}:{formation_date}", run_at)
+        for strategy_id in due[family_id]
     )
     if not due_strategy_ids:
         return ()
     subjects = SP500_MEMBERSHIP.symbols
+    pairs = tuple((strategy_id, symbol) for strategy_id in due_strategy_ids for symbol in subjects)
     if len(subjects) > maximum_subjects:
-        return tuple(
-            PairOutcome(
-                strategy_id,
-                symbol,
-                "capacity_deferred",
-                0,
-                None,
-                True,
-                reason="CAPACITY_DEFERRED_INCOMPLETE_COHORT",
-            )
-            for strategy_id in due_strategy_ids
-            for symbol in subjects
+        _LOGGER.info(
+            "complete_family_capacity_deferred",
+            extra={
+                "strategy_ids": due_strategy_ids,
+                "formation_date": formation_date,
+                "universe_subject_count": len(subjects),
+                "maximum_subjects": maximum_subjects,
+                "provider_requests": 0,
+            },
+        )
+        return _persist_typed_family_deferral(
+            pairs,
+            UnknownReason(COMPLETE_FAMILY_CAPACITY_DEFERRED),
+            repository=repository
+            or PostgresLatestResultRepository(create_postgres_engine(Settings().database_url)),
+            run_at=run_at,
         )
     return run_scheduled_refresh(
-        tuple((strategy_id, symbol) for strategy_id in due_strategy_ids for symbol in subjects),
+        pairs,
         repository=repository,
         history_repository=history_repository,
         acquisition_attempt_repository=acquisition_attempt_repository,
