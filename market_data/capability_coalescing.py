@@ -43,9 +43,7 @@ from market_data.fulfillment import (
 from market_data.providers import CapabilityRequest
 
 
-def combine_option_chains(
-    chains: tuple[OptionChain, ...], observed_at: datetime
-) -> OptionChain:
+def combine_option_chains(chains: tuple[OptionChain, ...], observed_at: datetime) -> OptionChain:
     """Combine one or more per-expiration OptionChain acquisitions into a
     single OptionChain a strategy manifest can query across all of them
     (TRADIER-PATCH-003).
@@ -77,9 +75,7 @@ def combine_option_chains(
             deduplicated[normalized.identity] = normalized
     evidence = tuple(dict.fromkeys(item for chain in chains for item in chain.evidence))
     chain_id = "combined:" + ":".join(chain.option_chain_id for chain in chains)
-    return OptionChain(
-        chain_id, underlying, observed_at, tuple(deduplicated.values()), evidence
-    )
+    return OptionChain(chain_id, underlying, observed_at, tuple(deduplicated.values()), evidence)
 
 
 def coalesce_option_chain_results(
@@ -411,8 +407,7 @@ def reduce_rate_observation_results(
     series from the per-demand projected evidence, never from this representative.
     """
     if not results or any(
-        item.request.capability is not MarketCapability.RATE_OBSERVATION_V1
-        for item in results
+        item.request.capability is not MarketCapability.RATE_OBSERVATION_V1 for item in results
     ):
         raise ValueError("reduce_rate_observation_results requires RATE_OBSERVATION_V1")
     attempts = tuple(attempt for item in results for attempt in item.attempts)
@@ -438,3 +433,44 @@ def reduce_rate_observation_results(
         attempts,
         True,
     )
+
+
+def reduce_index_settlement_results(
+    results: tuple[CapabilityFulfillmentResult, ...],
+) -> CapabilityFulfillmentResult:
+    """Seal distinct index-settlement lookback windows under one capability.
+
+    Strategies sharing an index subject legitimately declare different
+    settlement lookbacks (for example BXM's prior-roll window and SCS's
+    prior-expiration window). The sealed representative is the successful
+    result with the widest window (earliest start, then latest end), so it
+    is deterministic and a superset request; every attempt is retained.
+    Consumers that need their own window bind their per-demand projected
+    evidence; a canonical-fact request still names the sealed selection.
+    No successful result seals as FAILED with every attempt, a typed
+    UNKNOWN for each consumer.
+    """
+    if not results or any(
+        item.request.capability is not MarketCapability.INDEX_SETTLEMENT_VALUE_V1
+        for item in results
+    ):
+        raise ValueError("reduce_index_settlement_results requires INDEX_SETTLEMENT_VALUE_V1")
+    attempts = tuple(attempt for item in results for attempt in item.attempts)
+
+    def _window(item: CapabilityFulfillmentResult) -> tuple[datetime, float, tuple[str, ...]]:
+        return (
+            item.request.effective_start,
+            -item.request.effective_end.timestamp(),
+            tuple(subject.subject_identity for subject in item.request.subjects),
+        )
+
+    successful = tuple(item for item in results if item.observations)
+    if not successful:
+        return dataclasses.replace(min(results, key=_window), attempts=attempts)
+    primary = min(successful, key=_window)
+    status = (
+        FulfillmentStatus.FULFILLED
+        if len(successful) == len(results)
+        else FulfillmentStatus.DEGRADED
+    )
+    return dataclasses.replace(primary, status=status, attempts=attempts)

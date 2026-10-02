@@ -16,6 +16,7 @@ from domain import MarketCapability
 from market_data import CapabilityRegistry
 from market_data.capability_coalescing import (
     reduce_historical_bar_results,
+    reduce_index_settlement_results,
     reduce_option_chain_results,
     reduce_rate_observation_results,
 )
@@ -271,7 +272,8 @@ def migrated_shadow_capability_reducers() -> dict[MarketCapability, CapabilityRe
 
     OPTION_CHAIN_V1 combines discovery/per-expiration requests. Historical
     bars combine the distinct lookback windows declared by Skew Momentum
-    and Earnings Calendar. Both are forwarded unchanged into
+    and Earnings Calendar. Index settlement values combine BXM's and SCS's
+    distinct lookbacks on the shared SPX subject. All are forwarded unchanged into
     strategy_runtime.orchestration.prepare_subject_shadow_knowledge by
     both production roots.
     """
@@ -279,6 +281,7 @@ def migrated_shadow_capability_reducers() -> dict[MarketCapability, CapabilityRe
         MarketCapability.HISTORICAL_BARS_V1: reduce_historical_bar_results,
         MarketCapability.OPTION_CHAIN_V1: reduce_option_chain_results,
         MarketCapability.RATE_OBSERVATION_V1: reduce_rate_observation_results,
+        MarketCapability.INDEX_SETTLEMENT_VALUE_V1: reduce_index_settlement_results,
     }
 
 

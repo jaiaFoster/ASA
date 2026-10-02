@@ -268,3 +268,50 @@ def test_seven_strategy_composition_root_replay_matrix(monkeypatch: pytest.Monke
     }
     assert all(row.evaluation_state for row in first.get_all())
     assert _projection(first) == _projection(second)
+
+
+def test_fixed_spx_subject_prepares_all_four_index_strategies_together(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Production regression (SP-08A real session, 2026-10-02).
+
+    BXM and SCS declare distinct INDEX_SETTLEMENT_VALUE_V1 lookbacks on the
+    shared SPX subject. Without a registered reducer the seal raised, so the
+    whole SPX subject failed preparation and PUT, PUTY, BXM and SCS all
+    persisted ``subject_preparation_failed``. With every provider unreachable
+    each strategy must instead persist its own typed evidence reason.
+    """
+    import logging
+
+    import asa.scheduled_screening as scheduled
+    from market_data.transport import ReadOnlyTransportError
+
+    class _Down:
+        def get(self, request: object) -> object:
+            raise ReadOnlyTransportError("provider unreachable")
+
+    caplog.set_level(logging.WARNING)
+    os_env = {"ASA_TRADIER_ENABLED": "true", "ASA_TRADIER_ACCESS_TOKEN": "fixture-token"}
+    with pytest.MonkeyPatch.context() as patch:
+        for key, value in os_env.items():
+            patch.setenv(key, value)
+        patch.setenv("ASA_US_TREASURY_ENABLED", "true")
+        repository = InMemoryLatestResultRepository()
+        pairs = tuple(pair for pair in FIXED_SUBJECT_OPTION_UNIVERSE if pair[1] == "SPX")
+        outcomes = scheduled.run_scheduled_refresh(
+            pairs,
+            repository=repository,
+            history_repository=InMemoryObservationHistoryRepository(),
+            acquisition_attempt_repository=InMemoryAcquisitionAttemptRepository(),
+            transport_factory=lambda _provider: _Down(),
+        )
+    assert {item.signal_id for item in outcomes} == {pair[0] for pair in pairs}
+    assert all(item.error is None for item in outcomes)
+    assert not any(
+        record.message == "shadow_subject_preparation_failed" for record in caplog.records
+    )
+    rows = repository.get_all()
+    assert {row.signal_id for row in rows} == {pair[0] for pair in pairs}
+    for row in rows:
+        assert row.evaluation_state == "missing_data"
+        assert row.blockers and all("subject_preparation_failed" not in b for b in row.blockers)
