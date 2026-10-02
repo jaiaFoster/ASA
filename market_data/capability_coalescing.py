@@ -443,8 +443,11 @@ def reduce_index_settlement_results(
     Strategies sharing an index subject legitimately declare different
     settlement lookbacks (for example BXM's prior-roll window and SCS's
     prior-expiration window). The sealed representative is the successful
-    result with the widest window (earliest start, then latest end), so it
-    is deterministic and a superset request; every attempt is retained.
+    result with the earliest start, then the latest end, which is
+    deterministic; when every lookback ends at the same instant it is the
+    widest request. If only a narrower lookback succeeds, that result is the
+    representative and the status is DEGRADED; consumers validate the
+    settlement date they need. Every attempt is retained.
     Consumers that need their own window bind their per-demand projected
     evidence; a canonical-fact request still names the sealed selection.
     No successful result seals as FAILED with every attempt, a typed
