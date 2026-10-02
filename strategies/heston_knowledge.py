@@ -40,18 +40,22 @@ def _month_distance(later: date, earlier: date) -> int:
 
 
 def formation_from_panel(
-    panel: HistoricalOptionPanel, calendar: TradingCalendarView
+    panel: HistoricalOptionPanel, calendar: TradingCalendarView, formation_date: date
 ) -> Decimal | UnknownReason:
     """A17 over A08: straddle returns keyed by exact monthly-expiration anchors.
 
     Each monthly return is held from one monthly expiration (DF-MONTHLY-
     EXPIRATION-DAY, holiday-adjusted) to the next, in the pair expiring at the
     exit date. Weekly expirations are never held. Lag 1 is skipped; lags 2-12
-    must all be present or the formation is UNKNOWN.
+    must all be present or the formation is UNKNOWN. Lags are anchored to the
+    current `formation_date`; a panel that ends on an earlier expiration is
+    stale and typed UNKNOWN, never re-labelled as lags 2-12.
     """
     monthly: dict[int, MonthlyOptionReturn] = {}
     snapshots = panel.snapshots
     formation_anchor = _local_date(panel.as_of)
+    if formation_anchor != formation_date:
+        return UnknownReason("stale_straddle_formation_history")
     if (
         not snapshots
         or _local_date(snapshots[-1].observed_at) != formation_anchor
@@ -122,6 +126,7 @@ def build_heston_knowledge_mapping(
     selected_expiration: date,
     formation_date_state: str,
     calendar: TradingCalendarView,
+    formation_date: date,
 ) -> KnowledgeMapping[HestonSubjectCandidate]:
     panel_fact_id = canonical_fact_id(FACT_PANEL, subject, snapshot_digest)
     requests = (
@@ -142,7 +147,7 @@ def build_heston_knowledge_mapping(
     )
 
     def _compute(facts: tuple[CanonicalFact, ...]) -> tuple[DerivedFactRequest, ...]:
-        value = formation_from_panel(panel, calendar)
+        value = formation_from_panel(panel, calendar, formation_date)
         if isinstance(value, UnknownReason):
             return ()
         return (

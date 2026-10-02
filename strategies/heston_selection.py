@@ -12,6 +12,8 @@ ASA implementation assumptions, disclosed and not source rules:
   If that bound admits a delta at least as close to 0.5 as the best fully
   observed pair, the selection is UNKNOWN rather than silently skipping the
   strike.
+* A strike with a missing leg or a colliding series (more than one call or
+  put at the same expiration and strike) is unresolved in the same way.
 * When open interest is required, a pair with unknown open interest whose
   delta distance is no worse than the best eligible pair makes the selection
   UNKNOWN. Resolved non-positive open interest is a failed gate, not UNKNOWN.
@@ -71,27 +73,49 @@ def select_heston_pair(
     lower = _decimal_parameter("minimum_call_delta")
     upper = _decimal_parameter("maximum_call_delta")
     spread_max = _decimal_parameter("maximum_leg_relative_spread")
-    by_strike: dict[Decimal, dict[OptionType, OptionContract]] = {}
+    by_strike: dict[Decimal, dict[OptionType, list[OptionContract]]] = {}
     for contract in contracts:
         if contract.expiration == expiration:
-            by_strike.setdefault(contract.strike, {})[contract.option_type] = contract
-    pairs = sorted(
-        (strike, sides[OptionType.CALL], sides[OptionType.PUT])
-        for strike, sides in by_strike.items()
-        if OptionType.CALL in sides and OptionType.PUT in sides
-    )
+            by_strike.setdefault(contract.strike, {}).setdefault(contract.option_type, []).append(
+                contract
+            )
+    # A strike is a usable pair only with exactly one call and one put; a
+    # missing leg or a colliding series (another root at the same strike) is
+    # unresolved evidence, bounded like a missing delta below.
+    pairs: list[tuple[Decimal, OptionContract, OptionContract]] = []
+    incomplete: list[tuple[Decimal, Decimal | None]] = []
+    for strike in sorted(by_strike):
+        calls = by_strike[strike].get(OptionType.CALL, [])
+        puts = by_strike[strike].get(OptionType.PUT, [])
+        if len(calls) == 1 and len(puts) == 1:
+            pairs.append((strike, calls[0], puts[0]))
+        else:
+            deltas = {call.delta for call in calls if call.delta is not None}
+            incomplete.append((strike, deltas.pop() if len(deltas) == 1 else None))
     known = [(strike, call.delta) for strike, call, _ in pairs if call.delta is not None]
+    known += [(strike, delta) for strike, delta in incomplete if delta is not None]
+    known.sort()
     eligible: list[tuple[Decimal, OptionContract, OptionContract]] = []
     unresolved: list[Decimal] = []
+
+    def _unresolved(strike: Decimal, delta: Decimal | None) -> None:
+        if delta is not None:
+            if lower <= delta <= upper:
+                unresolved.append(abs(delta - HALF))
+            return
+        # Monotone bound from the nearest known-delta neighbours.
+        below = [value for known_strike, value in known if known_strike < strike]
+        above = [value for known_strike, value in known if known_strike > strike]
+        high = below[-1] if below else Decimal(1)
+        low = above[0] if above else Decimal(0)
+        if low <= upper and high >= lower:
+            unresolved.append(_distance_bound(max(low, lower), min(high, upper)))
+
+    for strike, delta in incomplete:
+        _unresolved(strike, delta)
     for strike, call, put in pairs:
         if call.delta is None:
-            # Monotone bound from the nearest known-delta neighbours.
-            below = [delta for known_strike, delta in known if known_strike < strike]
-            above = [delta for known_strike, delta in known if known_strike > strike]
-            high = below[-1] if below else Decimal(1)
-            low = above[0] if above else Decimal(0)
-            if low <= upper and high >= lower:
-                unresolved.append(_distance_bound(max(low, lower), min(high, upper)))
+            _unresolved(strike, None)
             continue
         if not lower <= call.delta <= upper:
             continue
