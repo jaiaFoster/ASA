@@ -29,7 +29,7 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 from enum import Enum
 
 from strategy_runtime.contract import LifecycleModel, StrategyContract
@@ -57,7 +57,24 @@ def compute_opportunity_id(strategy_id: str, symbol: str, *identity_components: 
     return hashlib.sha256(encoded).hexdigest()
 
 
-class RecommendedAction(str, Enum):
+def select_lifecycle_exit_date(
+    policy: str, candidate_dates: tuple[date, ...]
+) -> date:
+    """Apply one manifest-authored ordering policy to caller-owned exit candidates.
+
+    The runtime knows neither strategy identity nor what a candidate date means;
+    it only provides reusable deterministic ordering semantics.
+    """
+    if not candidate_dates:
+        raise ValueError("lifecycle exit selection requires candidates")
+    if policy == "earliest_candidate_date":
+        return min(candidate_dates)
+    if policy == "latest_candidate_date":
+        return max(candidate_dates)
+    raise ValueError(f"unsupported lifecycle exit policy: {policy}")
+
+
+class RecommendedAction(str, Enum):  # noqa: UP042 -- persisted wire values predate StrEnum
     """The vocabulary strategy_runtime.result.UniversalScreeningResult's
     own recommendation_state field holds as a string
     (RecommendedAction.MONITOR.value, etc.) -- kept as a real enum here,

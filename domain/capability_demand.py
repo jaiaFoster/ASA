@@ -68,6 +68,7 @@ class CapabilityDemand:
     require_open_session: bool = False
     allow_prior_session: bool = True
     maximum_age_seconds: int | None = None
+    subject_symbol: str | None = None
     contract_identity: str | None = None
 
     def __post_init__(self) -> None:
@@ -85,6 +86,10 @@ class CapabilityDemand:
             type(self.maximum_age_seconds) is not int or self.maximum_age_seconds < 0
         ):
             raise DomainInvariantError("CapabilityDemand.maximum_age_seconds must be non-negative")
+        if self.subject_symbol is not None and (
+            not self.subject_symbol or self.subject_symbol != self.subject_symbol.strip()
+        ):
+            raise DomainInvariantError("CapabilityDemand.subject_symbol must be normalized")
         if self.contract_identity is not None and (
             not self.contract_identity or self.contract_identity != self.contract_identity.strip()
         ):
@@ -110,6 +115,7 @@ class CapabilityDemand:
             "require_open_session": self.require_open_session,
             "allow_prior_session": self.allow_prior_session,
             "maximum_age_seconds": self.maximum_age_seconds,
+            "subject_symbol": self.subject_symbol,
             "contract_identity": self.contract_identity,
         }
         encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()

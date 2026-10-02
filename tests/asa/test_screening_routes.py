@@ -110,6 +110,7 @@ def test_strategy_health_exposes_all_registered_production_funnels() -> None:
         "index_buywrite_cboe_bxm",
         "index_putwrite_cboe_put",
         "index_putwrite_cboe_puty",
+        "index_short_vol_scs_near_atm_straddle",
         "skew_momentum",
         "spy_put_credit_spread",
     }
@@ -240,6 +241,7 @@ class TestCapabilities:
             "index_buywrite_cboe_bxm",
             "index_putwrite_cboe_put",
             "index_putwrite_cboe_puty",
+            "index_short_vol_scs_near_atm_straddle",
             "skew_momentum",
             "spy_put_credit_spread",
         }

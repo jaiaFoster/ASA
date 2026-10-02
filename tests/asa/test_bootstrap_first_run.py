@@ -103,6 +103,7 @@ def test_bootstrap_first_run_from_a_genuinely_empty_deployment(
         "index_buywrite_cboe_bxm",
         "index_putwrite_cboe_put",
         "index_putwrite_cboe_puty",
+        "index_short_vol_scs_near_atm_straddle",
         "skew_momentum",
         "spy_put_credit_spread",
     }

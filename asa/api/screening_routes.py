@@ -106,6 +106,7 @@ from strategy_runtime.persistence import (
     LatestResultRepository,
     ObservationHistoryRepository,
     lifecycle_position_identities,
+    lifecycle_position_states,
     replay_opportunity_history,
 )
 from strategy_runtime.preparation_diagnostics import classify_subject_preparation_exception
@@ -762,6 +763,7 @@ def build_screening_router(
             lifecycle_identity_by_strategy_subject=lifecycle_position_identities(
                 repository.get_all()
             ),
+            lifecycle_state_by_strategy_subject=lifecycle_position_states(repository.get_all()),
         )
         # SPRINT-014 S14-PR-05, Architect checkpoint: nineteenth review,
         # "one shared cutover policy owner used identically by scheduled

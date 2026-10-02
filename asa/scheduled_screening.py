@@ -118,6 +118,7 @@ from strategy_runtime.persistence import (
     LatestResultRepository,
     ObservationHistoryRepository,
     lifecycle_position_identities,
+    lifecycle_position_states,
 )
 from strategy_runtime.preparation_diagnostics import classify_subject_preparation_exception
 from strategy_runtime.service import record_opportunity_observation
@@ -165,6 +166,7 @@ FIXED_SUBJECT_OPTION_UNIVERSE: tuple[tuple[str, str], ...] = (("spy_put_credit_s
 FIXED_SUBJECT_OPTION_UNIVERSE += (("index_putwrite_cboe_put", "SPX"),)
 FIXED_SUBJECT_OPTION_UNIVERSE += (("index_putwrite_cboe_puty", "SPX"),)
 FIXED_SUBJECT_OPTION_UNIVERSE += (("index_buywrite_cboe_bxm", "SPX"),)
+FIXED_SUBJECT_OPTION_UNIVERSE += (("index_short_vol_scs_near_atm_straddle", "SPX"),)
 
 # Every scheduler-declared pair outside the membership universe; the API's
 # active scope is derived from this one declaration.
@@ -601,6 +603,7 @@ def run_scheduled_refresh(
         clock.now(),
         resolved_historical_skew_repository,
         lifecycle_position_identities(resolved_repository.get_all()),
+        lifecycle_position_states(resolved_repository.get_all()),
     )
     shadow_capability_reducers = migrated_shadow_capability_reducers()
     # SPRINT-014 S14-PR-05, Architect checkpoint: nineteenth review, "one

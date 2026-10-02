@@ -145,7 +145,7 @@ def _to_capability_request(
     symbol: str, demand: CapabilityDemand, *, now: datetime
 ) -> CapabilityRequest:
     subject = build_capability_subject(
-        symbol,
+        demand.subject_symbol or symbol,
         demand.capability,
         now,
         effective_start=demand.effective_start,
