@@ -317,7 +317,18 @@ def test_fixed_spx_subject_prepares_all_four_index_strategies_together(
         assert row.blockers and all("subject_preparation_failed" not in b for b in row.blockers)
 
 
-def test_fixed_spx_root_persists_a_row_for_every_index_strategy() -> None:
+@pytest.mark.parametrize(
+    ("instant", "expected"),
+    [
+        # Not-due session (after the close): every index strategy is NO_ACTION.
+        (datetime(2026, 10, 2, 22, 50, tzinfo=UTC), {"no_signal"}),
+        # PUT/PUTY/BXM roll date before 11:00 ET: an evaluated PASS/no_signal row.
+        (datetime(2026, 10, 16, 14, 30, tzinfo=UTC), {"pass", "no_signal"}),
+    ],
+)
+def test_fixed_spx_root_persists_a_row_for_every_index_strategy(
+    instant: datetime, expected: set[str]
+) -> None:
     """Production regression (SP-08A, release 244b9aa, 2026-10-02).
 
     Once SPX preparation succeeded, every not-due index strategy returned
@@ -326,14 +337,21 @@ def test_fixed_spx_root_persists_a_row_for_every_index_strategy() -> None:
     Through the real root with provider-shaped Tradier data, every index
     pair must complete without error and persist its own evaluated row. The
     rate provider is disabled here: SCS's optional rate demands must degrade
-    to typed evidence, not fail the shared SPX subject.
+    to typed evidence, not fail the shared SPX subject. Time is pinned for
+    both the fixture and the scheduler's cycle clock.
     """
     import asa.scheduled_screening as scheduled
     from market_data.live_transport import build_live_transport
     from tests.asa._fixture_index_tradier import IndexTradierFixture
 
-    fixture = IndexTradierFixture()
+    class _PinnedDatetime(datetime):
+        @classmethod
+        def now(cls, tz: object = None) -> datetime:  # type: ignore[override]
+            return instant
+
+    fixture = IndexTradierFixture(instant)
     with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(scheduled, "datetime", _PinnedDatetime)
         patch.setenv("ASA_TRADIER_ENABLED", "true")
         patch.setenv("ASA_TRADIER_ACCESS_TOKEN", "fixture-token")
         patch.setenv("ASA_US_TREASURY_ENABLED", "false")
@@ -347,12 +365,20 @@ def test_fixed_spx_root_persists_a_row_for_every_index_strategy() -> None:
             transport_factory=lambda provider: (
                 fixture if provider == "tradier" else build_live_transport(provider)
             ),
+            now=instant,
         )
     assert fixture.requests  # real acquisition path exercised
     assert [item.error for item in outcomes] == [None] * len(pairs)
     rows = {row.signal_id: row for row in repository.get_all()}
     assert set(rows) == {pair[0] for pair in pairs}
+    index_rows = {
+        name: row for name, row in rows.items() if name != "index_short_vol_scs_near_atm_straddle"
+    }
+    for row in index_rows.values():
+        assert row.evaluation_state in expected, (row.signal_id, row.blockers)
     for row in rows.values():
-        # A complete evaluation, never the shared-subject preparation failure.
-        assert row.evaluation_state in {"pass", "no_signal"}, (row.signal_id, row.blockers)
-        assert row.opportunity_id is not None and row.lifecycle_stage is not None
+        # Never the shared-subject preparation failure; lifecycle fields on
+        # every completed evaluation.
+        assert all("subject_preparation_failed" not in item for item in row.blockers)
+        if row.evaluation_state in {"pass", "no_signal"}:
+            assert row.opportunity_id is not None and row.lifecycle_stage is not None

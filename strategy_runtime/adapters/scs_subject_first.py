@@ -311,8 +311,8 @@ def build_scs_subject_first_adapter(
             metrics["lifecycle.position_closed"] = TypedValue.of_boolean(True)
             metrics["lifecycle.exited_position_identity"] = TypedValue.of_string(previous_identity)
         if lifecycle_stage is None and state is not EvaluationState.MISSING_DATA:
-            # A completed evaluation of a lifecycle strategy is an identified
-            # opportunity (the GXZ / Earnings Calendar convention).
+            # A completed evaluation of a lifecycle strategy carries its subject
+            # opportunity (as GXZ and Earnings Calendar do); stage "identified".
             lifecycle_stage = "identified"
             opportunity_id = compute_opportunity_id(SCS_CONTRACT.strategy_id, context.subject)
         return UniversalScreeningResult(

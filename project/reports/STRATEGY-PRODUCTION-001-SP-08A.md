@@ -168,7 +168,7 @@ exposed two further ASA defects that #533's fix had unmasked:
    - PUT, PUTY, BXM and SCS returned not-due `NO_SIGNAL` without `opportunity_id`/`lifecycle_stage`, though each declares `OutputKind.LIFECYCLE`.
    - `validate_result` raised, so every pair failed and persisted no row.
    - Zhan and Heston had the same latent gap on their non-pass paths.
-   - Fixed at the adapters with the established GXZ / Earnings Calendar convention: a completed evaluation carries the subject opportunity and lifecycle stage `identified`.
+   - Fixed at the adapters. As GXZ and Earnings Calendar already do, a completed evaluation now carries the subject opportunity; the lifecycle stage is `identified`, as in GXZ.
 2. **Optional rate demand.**
    - SCS's rate demands defaulted to `required=True`.
    - With no enabled rate provider, the registry raised and failed the whole SPX subject.
