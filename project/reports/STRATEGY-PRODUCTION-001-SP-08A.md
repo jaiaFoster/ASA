@@ -1,7 +1,7 @@
 # STRATEGY-PRODUCTION-001 — SP-08A Founder deployment packet
 
 - Ticket: `SP-08A` (Founder-only action: production deployment)
-- Release: exact `main` at `RELEASE_SHA` (filled in when SP-07B merges)
+- Release: exact `main` at the merge commit of this SP-08A PR (`RELEASE_SHA`, reported on the PR and in the Founder handoff). SP-08A adds only a read-only tool and this packet; runtime content is identical to `e987af9` (SP-07B).
 - Currently deployed: `1efac180b66d2c521b22058e10cc74c2939a29f2` (SP-06B, #522)
 - Database migrations between deployed and release: none
 
@@ -12,13 +12,13 @@
 | #527 | SP-05C | Zhan cross-sectional strategy registered, cataloged, cut over |
 | #528 | SP-05D | Heston straddle-momentum strategy registered, cataloged, cut over |
 | #529 | SP-07A | Seven-strategy convergence: GXZ on the production claim path; complete-family (Zhan/Heston) atomic scheduling with persisted typed deferral; SCS cut over; cron covers after-close formation ticks |
-| #530 | SP-07B | Cycle capacity summary logging; measured release gate |
+| #530 | SP-07B | Cycle and complete-family capacity summaries; measured release gate |
 | this PR | SP-08A | Read-only release classification tool and this packet |
 
 ## Pre-deployment evidence (worker-verified)
 
 - Every ticket merged under delegation, with an exact-head review and CI green.
-- Full suite at release: see the PR. The only failure is the pre-existing
+- Full suite at release: 4049 passed / 50 skipped. The only failure is the pre-existing
   Finnhub provider-compliance test, which also fails on the deployed SHA.
 - Architecture validation is green. No strategy-ID branch exists in generic
   runtime, acquisition, API or UI code.
