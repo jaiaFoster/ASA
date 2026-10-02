@@ -934,15 +934,11 @@ def run_scheduled_refresh(
             "unique_capability_requests_by_type": dict(
                 sorted(unique_capability_requests_by_type.items())
             ),
-            "option_chain_requests": unique_capability_requests_by_type.get(
-                "option_chain_v1", 0
-            ),
+            "option_chain_requests": unique_capability_requests_by_type.get("option_chain_v1", 0),
             "historical_panel_requests": unique_capability_requests_by_type.get(
                 "historical_option_panel_v1", 0
             ),
-            "cycle_duration_ms": round(
-                (time.monotonic() - cycle_started_monotonic) * 1000, 3
-            ),
+            "cycle_duration_ms": round((time.monotonic() - cycle_started_monotonic) * 1000, 3),
         },
     )
     if resolved_subject_repository is not None:
