@@ -43,14 +43,25 @@ def _next_month(value: date) -> date:
 
 def _eligible_pairs(
     candidate: ZhanSubjectCandidate,
-) -> tuple[dict[date, tuple[tuple[OptionContract, OptionContract], ...]], bool]:
+) -> tuple[dict[date, tuple[tuple[OptionContract, OptionContract], ...]], bool, bool]:
     if candidate.spot is None:
-        return {}, False
+        return {}, False, True
     threshold = _next_month(candidate.as_of.date())
     by_key: dict[tuple[date, Decimal], dict[OptionType, OptionContract]] = {}
     ambiguous_moneyness = False
+    incomplete_market = False
     for contract in candidate.contracts:
         mid = option_mid(contract.bid, contract.ask)
+        if (
+            contract.expiration > threshold
+            and (
+                isinstance(mid, UnknownReason)
+                or contract.volume is None
+                or contract.bid is None
+                or contract.ask is None
+            )
+        ):
+            incomplete_market = True
         if (
             contract.expiration <= threshold
             or isinstance(mid, UnknownReason)
@@ -91,7 +102,11 @@ def _eligible_pairs(
         )
         if candidate.spot >= call_mid >= lower_bound:
             result.setdefault(expiration, []).append((call, sides[OptionType.PUT]))
-    return {key: tuple(value) for key, value in result.items()}, ambiguous_moneyness
+    return (
+        {key: tuple(value) for key, value in result.items()},
+        ambiguous_moneyness,
+        incomplete_market,
+    )
 
 
 def _parameters() -> tuple[int, int, int]:
@@ -136,11 +151,15 @@ def materialize_zhan_family(values: Mapping[str, object]) -> Mapping[str, object
         ):
             output[subject] = ZhanSubjectMaterialization("EXCLUDED", "G_ZHAN_STOCK_GATE_FAIL")
             continue
-        pairs, ambiguous = _eligible_pairs(candidate)
+        pairs, ambiguous, incomplete_market = _eligible_pairs(candidate)
         if not pairs:
             output[subject] = ZhanSubjectMaterialization(
-                "UNKNOWN" if ambiguous else "EXCLUDED",
-                "G_ZHAN_MONEYNESS_UNKNOWN" if ambiguous else "G_ZHAN_OPTION_QUOTE_FAIL",
+                "UNKNOWN" if ambiguous or incomplete_market else "EXCLUDED",
+                "G_ZHAN_MONEYNESS_UNKNOWN"
+                if ambiguous
+                else "G_ZHAN_OPTION_QUOTE_UNKNOWN"
+                if incomplete_market
+                else "G_ZHAN_OPTION_QUOTE_FAIL",
             )
             continue
         expiration = min(pairs)

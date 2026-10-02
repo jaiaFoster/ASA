@@ -1,6 +1,7 @@
 from dataclasses import replace
 from datetime import UTC, date, datetime
 from decimal import Decimal
+from pathlib import Path
 
 from analytics.features import DerivedFactSet
 from domain import (
@@ -17,7 +18,10 @@ from strategy_runtime.adapters.zhan_portfolio import (
     ZhanSubjectMaterialization,
     materialize_zhan_family,
 )
-from strategy_runtime.adapters.zhan_subject_first import build_zhan_subject_first_adapter
+from strategy_runtime.adapters.zhan_subject_first import (
+    _last_session_of_month,
+    build_zhan_subject_first_adapter,
+)
 from strategy_runtime.context import RuntimeContext
 from strategy_runtime.cross_sectional_portfolio import PortfolioBookSide
 from strategy_runtime.knowledge import ReadOnlyStrategyInput
@@ -136,6 +140,31 @@ def test_disagreeing_moneyness_ratios_remain_typed_unknown() -> None:
     )
     assert result["S0"].state == "UNKNOWN"
     assert result["S0"].reason == "G_ZHAN_MONEYNESS_UNKNOWN"
+
+
+def test_missing_quote_or_liquidity_evidence_is_unknown_but_valid_failure_is_excluded() -> None:
+    candidate = _candidate(0)
+    call, put = candidate.contracts
+    missing = materialize_zhan_family(
+        {"S0": replace(candidate, contracts=(replace(call, volume=None), put))}
+    )
+    assert missing["S0"].state == "UNKNOWN"
+    assert missing["S0"].reason == "G_ZHAN_OPTION_QUOTE_UNKNOWN"
+
+    invalid = materialize_zhan_family(
+        {"S0": replace(candidate, contracts=(replace(call, volume=0), replace(put, volume=0)))}
+    )
+    assert invalid["S0"].state == "EXCLUDED"
+    assert invalid["S0"].reason == "G_ZHAN_OPTION_QUOTE_FAIL"
+
+
+def test_monthly_formation_cadence_and_dividend_inclusive_variant_are_explicit() -> None:
+    assert _last_session_of_month(AS_OF)
+    assert not _last_session_of_month(AS_OF.replace(day=29))
+    source = Path(
+        "research/sprints/ASA-RES-STRATEGY-QUALIFICATION-002/gate-registry.yaml"
+    ).read_text()
+    assert "footnote-8 variant that includes dividend payers" in source
 
 
 def test_subject_first_adapter_replays_materialized_portfolio_without_acquisition() -> None:
