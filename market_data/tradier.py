@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import logging
 from collections.abc import Mapping, Sequence
-from datetime import UTC, date, datetime, time, timedelta
+from datetime import UTC, date, datetime
 from decimal import Decimal, InvalidOperation
 from typing import cast
 
@@ -57,7 +57,11 @@ from market_data.providers import (
     normalized_provider_error,
 )
 from market_data.rolling_window import RollingWindowPolicy
-from market_data.session_calendar import classify_market_data_freshness, median_observed_at
+from market_data.session_calendar import (
+    classify_market_data_freshness,
+    median_observed_at,
+    us_equity_daily_bar_window,
+)
 from market_data.transport import (
     ReadOnlyHttpRequest,
     ReadOnlyHttpResponse,
@@ -587,12 +591,12 @@ def _quote(subject: MarketDataSubject, row: Mapping[str, object]) -> Quote:
 
 def _bar(subject: MarketDataSubject, row: Mapping[str, object]) -> OHLCVBar:
     day = _date(row["date"])
-    start = datetime.combine(day, time.min, tzinfo=UTC)
+    start, end = us_equity_daily_bar_window(day)
     return OHLCVBar(
         subject.canonical_instrument,
         86400,
         start,
-        start + timedelta(days=1),
+        end,
         _decimal(row["open"]),
         _decimal(row["high"]),
         _decimal(row["low"]),

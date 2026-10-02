@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hashlib
 from collections.abc import Mapping, Sequence
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
 from typing import cast
 
@@ -51,7 +51,10 @@ from market_data.providers import (
     normalized_provider_error,
 )
 from market_data.rolling_window import RollingWindowPolicy
-from market_data.session_calendar import classify_market_data_freshness
+from market_data.session_calendar import (
+    classify_market_data_freshness,
+    us_equity_daily_bar_window,
+)
 from market_data.transport import (
     ReadOnlyHttpRequest,
     ReadOnlyHttpResponse,
@@ -316,8 +319,8 @@ class FinnhubProvider:
                 OHLCVBar(
                     subject.canonical_instrument,
                     86400,
-                    _timestamp(arrays[5][index]),
-                    _timestamp(arrays[5][index]) + timedelta(days=1),
+                    us_equity_daily_bar_window(_timestamp(arrays[5][index]).date())[0],
+                    us_equity_daily_bar_window(_timestamp(arrays[5][index]).date())[1],
                     _decimal(arrays[0][index]),
                     _decimal(arrays[1][index]),
                     _decimal(arrays[2][index]),

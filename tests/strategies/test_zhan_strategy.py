@@ -199,7 +199,7 @@ def test_monthly_formation_cadence_and_dividend_inclusive_variant_are_explicit()
 
 def test_formation_price_requires_exact_session_and_security_master_is_point_in_time() -> None:
     instrument = AAPL
-    exact_end = AS_OF + timedelta(hours=4)
+    exact_end = AS_OF
     exact_bar = OHLCVBar(
         AAPL,
         86400,
@@ -213,6 +213,9 @@ def test_formation_price_requires_exact_session_and_security_master_is_point_in_
     )
     exact_series = OHLCVSeries(instrument, 86400, exact_end, (exact_bar,))
     assert _formation_close(exact_end, exact_series) == Decimal("10")
+    assert _formation_close(AS_OF - timedelta(minutes=1), exact_series) == UnknownReason(
+        "G_ZHAN_PRICE_MIN_UNKNOWN"
+    )
 
     prior_bar = replace(
         exact_bar,
@@ -234,6 +237,15 @@ def test_formation_price_requires_exact_session_and_security_master_is_point_in_
     assert not _security_master_is_effective(
         exact_end, replace(security, effective_date=AS_OF.date() + timedelta(days=1))
     )
+
+    early_end = datetime(2024, 11, 29, 18, tzinfo=UTC)
+    early_start = early_end - timedelta(days=1)
+    early_bar = replace(exact_bar, start_at=early_start, end_at=early_end)
+    early_series = OHLCVSeries(AAPL, 86400, early_end, (early_bar,))
+    assert _formation_close(early_end, early_series) == Decimal("10")
+    assert _formation_close(
+        datetime(2024, 11, 29, 17, 59, tzinfo=UTC), early_series
+    ) == UnknownReason("G_ZHAN_PRICE_MIN_UNKNOWN")
 
 
 def test_subject_first_adapter_replays_materialized_portfolio_without_acquisition() -> None:

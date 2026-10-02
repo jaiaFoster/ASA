@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hashlib
 from collections.abc import Mapping
-from datetime import UTC, datetime, time, timedelta
+from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
 from typing import cast
 
@@ -51,6 +51,7 @@ from market_data.providers import (
     ValidationCheckStatus,
     normalized_provider_error,
 )
+from market_data.session_calendar import us_equity_daily_bar_window
 from market_data.transport import (
     ReadOnlyHttpRequest,
     ReadOnlyHttpResponse,
@@ -268,12 +269,12 @@ class AlphaVantageProvider:
                 if not isinstance(raw_row, Mapping):
                     raise TypeError("daily row must be an object")
                 row = cast(Mapping[str, object], raw_row)
-                start = datetime.combine(day, time.min, tzinfo=UTC)
+                start, end = us_equity_daily_bar_window(day)
                 bar = OHLCVBar(
                     subject.canonical_instrument,
                     86400,
                     start,
-                    start + timedelta(days=1),
+                    end,
                     _decimal(row["1. open"]),
                     _decimal(row["2. high"]),
                     _decimal(row["3. low"]),

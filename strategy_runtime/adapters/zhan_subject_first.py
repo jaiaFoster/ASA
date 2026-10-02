@@ -73,14 +73,20 @@ def _selected(snapshot: MarketSnapshot, capability: MarketCapability) -> MarketO
 
 
 def _formation_close(now: datetime, series: OHLCVSeries) -> Decimal | UnknownReason:
-    if not _last_session_of_month(now) or not series.bars:
-        return UnknownReason("G_ZHAN_PRICE_MIN_UNKNOWN")
     local_date = now.astimezone(NEW_YORK).date()
+    session = UsEquitySessionCalendar().session(local_date)
+    if (
+        not _last_session_of_month(now)
+        or session is None
+        or now < session.closes_at
+        or not series.bars
+    ):
+        return UnknownReason("G_ZHAN_PRICE_MIN_UNKNOWN")
     candidates = tuple(
         bar
         for bar in series.bars
-        if (bar.end_at - timedelta(microseconds=1)).astimezone(NEW_YORK).date() == local_date
-        and bar.end_at <= now
+        if bar.interval_seconds == 86400
+        and bar.end_at == session.closes_at
     )
     if len(candidates) != 1:
         return UnknownReason("G_ZHAN_PRICE_MIN_UNKNOWN")
