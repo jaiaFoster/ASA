@@ -130,3 +130,11 @@ def test_p12_long_short_books_normalize_each_side_and_preserve_direction_in_iden
         (PortfolioBookSide.SHORT, Decimal(1)),
     ]
     assert result.identity != all_long.identity
+    changed_groups = replace(
+        result,
+        quantile_assignment=replace(
+            result.quantile_assignment,
+            policy=QuantilePolicy(groups=3),
+        ),
+    )
+    assert result.identity != changed_groups.identity

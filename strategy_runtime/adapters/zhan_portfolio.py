@@ -43,13 +43,17 @@ def _next_month(value: date) -> date:
 
 def _eligible_pairs(
     candidate: ZhanSubjectCandidate,
-) -> tuple[dict[date, tuple[tuple[OptionContract, OptionContract], ...]], bool, bool]:
+) -> tuple[
+    dict[date, tuple[tuple[OptionContract, OptionContract], ...]], UnknownReason | None
+]:
     if candidate.spot is None:
-        return {}, False, True
+        return {}, UnknownReason("G_ZHAN_PRICE_MIN_UNKNOWN")
     threshold = _next_month(candidate.as_of.date())
     by_key: dict[tuple[date, Decimal], dict[OptionType, OptionContract]] = {}
     ambiguous_moneyness = False
     incomplete_market = False
+    failed_quote = False
+    failed_moneyness = False
     for contract in candidate.contracts:
         mid = option_mid(contract.bid, contract.ask)
         if (
@@ -73,6 +77,8 @@ def _eligible_pairs(
             or contract.bid <= 0
             or contract.bid >= contract.ask
         ):
+            if contract.expiration > threshold and not incomplete_market:
+                failed_quote = True
             continue
         ks = contract.strike / candidate.spot
         sk = candidate.spot / contract.strike
@@ -84,13 +90,17 @@ def _eligible_pairs(
             ambiguous_moneyness = True
             continue
         if not ks_inside:
+            failed_moneyness = True
             continue
         by_key.setdefault((contract.expiration, contract.strike), {})[contract.option_type] = (
             contract
         )
     result: dict[date, list[tuple[OptionContract, OptionContract]]] = {}
+    missing_pair = False
+    failed_no_arbitrage = False
     for (expiration, _strike), sides in by_key.items():
         if OptionType.CALL not in sides or OptionType.PUT not in sides:
+            missing_pair = True
             continue
         call = sides[OptionType.CALL]
         call_mid = option_mid(call.bid, call.ask)
@@ -102,11 +112,24 @@ def _eligible_pairs(
         )
         if candidate.spot >= call_mid >= lower_bound:
             result.setdefault(expiration, []).append((call, sides[OptionType.PUT]))
-    return (
-        {key: tuple(value) for key, value in result.items()},
-        ambiguous_moneyness,
-        incomplete_market,
+        else:
+            failed_no_arbitrage = True
+    reason = (
+        UnknownReason("G_ZHAN_OPTION_QUOTE_UNKNOWN")
+        if incomplete_market
+        else UnknownReason("G_ZHAN_MONEYNESS_UNKNOWN")
+        if ambiguous_moneyness
+        else UnknownReason("G_ZHAN_CALL_AND_PUT_FAIL")
+        if missing_pair
+        else UnknownReason("G_ZHAN_NO_ARBITRAGE_FAIL")
+        if failed_no_arbitrage
+        else UnknownReason("G_ZHAN_MONEYNESS_FAIL")
+        if failed_moneyness
+        else UnknownReason("G_ZHAN_OPTION_QUOTE_FAIL")
+        if failed_quote
+        else None
     )
+    return {key: tuple(value) for key, value in result.items()}, reason
 
 
 def _parameters() -> tuple[int, int, int]:
@@ -133,33 +156,37 @@ def materialize_zhan_family(values: Mapping[str, object]) -> Mapping[str, object
                 else "G_ZHAN_FORMATION_DATE_UNKNOWN",
             )
             continue
-        if any(
-            value is None
-            for value in (
-                candidate.security_type,
-                candidate.spot,
-                candidate.shares_outstanding,
-                candidate.risk_free_rate,
-                candidate.negative_log_price,
+        if candidate.security_type is None:
+            output[subject] = ZhanSubjectMaterialization(
+                "UNKNOWN", "G_ZHAN_COMMON_STOCK_UNKNOWN"
             )
-        ):
+            continue
+        if candidate.spot is None or candidate.negative_log_price is None:
+            output[subject] = ZhanSubjectMaterialization("UNKNOWN", "G_ZHAN_PRICE_MIN_UNKNOWN")
+            continue
+        if candidate.risk_free_rate is None:
+            output[subject] = ZhanSubjectMaterialization(
+                "UNKNOWN", "G_ZHAN_NO_ARBITRAGE_UNKNOWN"
+            )
+            continue
+        if candidate.shares_outstanding is None:
             output[subject] = ZhanSubjectMaterialization("UNKNOWN", "MISSING_CANONICAL_FACT")
             continue
         assert candidate.spot is not None
-        if candidate.security_type is not SecurityType.COMMON_STOCK or candidate.spot < Decimal(
-            str(zhan_parameter("min_price"))
-        ):
-            output[subject] = ZhanSubjectMaterialization("EXCLUDED", "G_ZHAN_STOCK_GATE_FAIL")
-            continue
-        pairs, ambiguous, incomplete_market = _eligible_pairs(candidate)
-        if not pairs:
+        if candidate.security_type is not SecurityType.COMMON_STOCK:
             output[subject] = ZhanSubjectMaterialization(
-                "UNKNOWN" if ambiguous or incomplete_market else "EXCLUDED",
-                "G_ZHAN_MONEYNESS_UNKNOWN"
-                if ambiguous
-                else "G_ZHAN_OPTION_QUOTE_UNKNOWN"
-                if incomplete_market
-                else "G_ZHAN_OPTION_QUOTE_FAIL",
+                "EXCLUDED", "G_ZHAN_COMMON_STOCK_FAIL"
+            )
+            continue
+        if candidate.spot < Decimal(str(zhan_parameter("min_price"))):
+            output[subject] = ZhanSubjectMaterialization("EXCLUDED", "G_ZHAN_PRICE_MIN_FAIL")
+            continue
+        pairs, gate_reason = _eligible_pairs(candidate)
+        if not pairs:
+            assert gate_reason is not None
+            output[subject] = ZhanSubjectMaterialization(
+                "UNKNOWN" if gate_reason.code.endswith("_UNKNOWN") else "EXCLUDED",
+                gate_reason.code,
             )
             continue
         expiration = min(pairs)

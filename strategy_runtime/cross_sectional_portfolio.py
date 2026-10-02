@@ -111,6 +111,9 @@ class CrossSectionalPortfolio:
                 self.evidence_identity,
                 self.weight_policy.value,
                 self.quantile_assignment.policy.assumption_id,
+                self.quantile_assignment.policy.groups,
+                self.quantile_assignment.policy.tie_policy.value,
+                self.quantile_assignment.policy.breakpoint_universe.value,
                 tuple(
                     (m.subject, m.position_identity, m.quantile, str(m.weight), m.side.value)
                     for m in self.members

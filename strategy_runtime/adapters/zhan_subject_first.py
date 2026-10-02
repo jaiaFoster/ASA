@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import replace
 from datetime import datetime, timedelta
+from decimal import Decimal
 from functools import partial
 from types import MappingProxyType
 
@@ -71,6 +72,25 @@ def _selected(snapshot: MarketSnapshot, capability: MarketCapability) -> MarketO
     )
 
 
+def _formation_close(now: datetime, series: OHLCVSeries) -> Decimal | UnknownReason:
+    if not _last_session_of_month(now) or not series.bars:
+        return UnknownReason("G_ZHAN_PRICE_MIN_UNKNOWN")
+    local_date = now.astimezone(NEW_YORK).date()
+    candidates = tuple(
+        bar
+        for bar in series.bars
+        if (bar.end_at - timedelta(microseconds=1)).astimezone(NEW_YORK).date() == local_date
+        and bar.end_at <= now
+    )
+    if len(candidates) != 1:
+        return UnknownReason("G_ZHAN_PRICE_MIN_UNKNOWN")
+    return candidates[0].close
+
+
+def _security_master_is_effective(now: datetime, value: SecurityMasterRecord) -> bool:
+    return value.effective_date <= now.astimezone(NEW_YORK).date()
+
+
 def _prepare(
     now: datetime,
     snapshot: MarketSnapshot,
@@ -93,10 +113,11 @@ def _prepare(
         return UnknownReason("G_ZHAN_RATE_UNKNOWN")
     if chain_observation is None or not isinstance(chain_observation.value, OptionChain):
         return UnknownReason("G_ZHAN_OPTION_QUOTE_UNKNOWN")
-    bars = bars_observation.value.bars
-    if not bars:
-        return UnknownReason("G_ZHAN_PRICE_UNKNOWN")
-    spot = max(bars, key=lambda item: item.end_at).close
+    spot = _formation_close(now, bars_observation.value)
+    if isinstance(spot, UnknownReason):
+        return spot
+    if not _security_master_is_effective(now, security_observation.value):
+        return UnknownReason("G_ZHAN_COMMON_STOCK_UNKNOWN")
     return build_zhan_knowledge_mapping(
         subject=subject,
         snapshot_digest=snapshot.snapshot_digest,

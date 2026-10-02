@@ -1,13 +1,17 @@
 from dataclasses import replace
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 
 from analytics.features import DerivedFactSet
 from domain import (
     CanonicalInstrumentIdentity,
+    OHLCVBar,
+    OHLCVSeries,
     OptionType,
+    SecurityMasterRecord,
     SecurityType,
+    UnknownReason,
 )
 from strategies.manifest_version_pins import version_pin_violations
 from strategies.zhan_manifest import STRATEGY_ID, ZHAN_MANIFEST
@@ -19,13 +23,16 @@ from strategy_runtime.adapters.zhan_portfolio import (
     materialize_zhan_family,
 )
 from strategy_runtime.adapters.zhan_subject_first import (
+    _formation_close,
     _last_session_of_month,
+    _security_master_is_effective,
     build_zhan_subject_first_adapter,
 )
 from strategy_runtime.context import RuntimeContext
 from strategy_runtime.cross_sectional_portfolio import PortfolioBookSide
 from strategy_runtime.knowledge import ReadOnlyStrategyInput
 from strategy_runtime.manifest_contract import validate_manifest_contract
+from tests.market_data.test_index_dividends_security_master_x07 import AAPL
 from tests.strategies.test_cboe_put_strategy import _put
 
 AS_OF = datetime(2026, 9, 30, 20, tzinfo=UTC)
@@ -102,7 +109,30 @@ def test_modal_maturity_tie_and_missing_rate_remain_typed_unknown() -> None:
 
     missing_rate = materialize_zhan_family({"S0": replace(first, risk_free_rate=None)})
     assert missing_rate["S0"].state == "UNKNOWN"
-    assert missing_rate["S0"].reason == "MISSING_CANONICAL_FACT"
+    assert missing_rate["S0"].reason == "G_ZHAN_NO_ARBITRAGE_UNKNOWN"
+
+
+def test_frozen_stock_price_and_pair_gate_reason_codes_remain_distinct() -> None:
+    candidate = _candidate(0)
+    assert materialize_zhan_family(
+        {"S0": replace(candidate, security_type=None)}
+    )["S0"].reason == "G_ZHAN_COMMON_STOCK_UNKNOWN"
+    assert materialize_zhan_family(
+        {"S0": replace(candidate, security_type=SecurityType.ETF)}
+    )["S0"].reason == "G_ZHAN_COMMON_STOCK_FAIL"
+    assert materialize_zhan_family(
+        {"S0": replace(candidate, spot=Decimal("4.99"))}
+    )["S0"].reason == "G_ZHAN_PRICE_MIN_FAIL"
+
+    call, _put_contract = candidate.contracts
+    assert materialize_zhan_family({"S0": replace(candidate, contracts=(call,))})[
+        "S0"
+    ].reason == "G_ZHAN_CALL_AND_PUT_FAIL"
+    no_arb = replace(call, bid=Decimal("20"), ask=Decimal("21"))
+    paired_put = replace(_put_contract, bid=Decimal("1"), ask=Decimal("1.2"))
+    assert materialize_zhan_family(
+        {"S0": replace(candidate, contracts=(no_arb, paired_put))}
+    )["S0"].reason == "G_ZHAN_NO_ARBITRAGE_FAIL"
 
 
 def test_atm_tie_is_ambiguous_not_arbitrarily_selected() -> None:
@@ -165,6 +195,45 @@ def test_monthly_formation_cadence_and_dividend_inclusive_variant_are_explicit()
         "research/sprints/ASA-RES-STRATEGY-QUALIFICATION-002/gate-registry.yaml"
     ).read_text()
     assert "footnote-8 variant that includes dividend payers" in source
+
+
+def test_formation_price_requires_exact_session_and_security_master_is_point_in_time() -> None:
+    instrument = AAPL
+    exact_end = AS_OF + timedelta(hours=4)
+    exact_bar = OHLCVBar(
+        AAPL,
+        86400,
+        exact_end - timedelta(days=1),
+        exact_end,
+        Decimal("10"),
+        Decimal("11"),
+        Decimal("9"),
+        Decimal("10"),
+        Decimal("100"),
+    )
+    exact_series = OHLCVSeries(instrument, 86400, exact_end, (exact_bar,))
+    assert _formation_close(exact_end, exact_series) == Decimal("10")
+
+    prior_bar = replace(
+        exact_bar,
+        start_at=exact_bar.start_at - timedelta(days=1),
+        end_at=exact_bar.end_at - timedelta(days=1),
+    )
+    prior_series = OHLCVSeries(instrument, 86400, prior_bar.end_at, (prior_bar,))
+    assert _formation_close(exact_end, prior_series) == UnknownReason(
+        "G_ZHAN_PRICE_MIN_UNKNOWN"
+    )
+
+    security = SecurityMasterRecord(
+        AAPL,
+        SecurityType.COMMON_STOCK,
+        Decimal("1000000"),
+        AS_OF.date(),
+    )
+    assert _security_master_is_effective(exact_end, security)
+    assert not _security_master_is_effective(
+        exact_end, replace(security, effective_date=AS_OF.date() + timedelta(days=1))
+    )
 
 
 def test_subject_first_adapter_replays_materialized_portfolio_without_acquisition() -> None:
