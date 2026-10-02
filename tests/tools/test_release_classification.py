@@ -128,3 +128,29 @@ def test_stale_rows_wrong_sha_and_exceptions_fail_closure() -> None:
         "unobserved:index_buywrite_cboe_bxm",
         "exceptions:index_putwrite_cboe_puty:1",
     }
+
+
+def test_complete_family_without_rows_is_not_due_only_off_formation() -> None:
+    rows = {strategy: [_row(strategy)] for strategy in SELECTED_STRATEGIES}
+    for family in (
+        "xs_option_zhan_neg_lnprice_dn_call",
+        "xs_option_heston_straddle_momentum_lowcost",
+    ):
+        rows[family] = []
+    # 2026-10-05 is neither a month-end nor a monthly-expiration session.
+    artifact = classify_release(
+        _fetcher(rows), production_sha=SHA, window_start=START, window_end=END, captured_at=END
+    )
+    assert artifact["verdict"] == "pass", artifact["failures"]
+    assert artifact["strategies"]["xs_option_zhan_neg_lnprice_dn_call"]["classification"] == NOT_DUE
+    # On the Heston formation date the absence of rows is UNOBSERVED, never NOT_DUE.
+    formation = classify_release(
+        _fetcher(rows),
+        production_sha=SHA,
+        window_start=datetime(2026, 10, 16, 13, 30, tzinfo=UTC),
+        window_end=datetime(2026, 10, 16, 21, 50, tzinfo=UTC),
+        captured_at=END,
+    )
+    heston = formation["strategies"]["xs_option_heston_straddle_momentum_lowcost"]
+    assert heston["classification"] == UNOBSERVED
+    assert "unobserved:xs_option_heston_straddle_momentum_lowcost" in formation["failures"]

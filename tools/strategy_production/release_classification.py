@@ -10,6 +10,9 @@ strategy for one observed session window:
   carries a typed evidence blocker (MISSING_DATA with a named reason).
 - ``NOT_DUE``: every row in the window is an explicit not-due decision
   (``decision.state == NO_ACTION`` or verdict ``NO_ACTION``).
+  A complete cross-subject family whose registered due callback is false
+  at every 10-minute instant of the window is also ``NOT_DUE`` without rows:
+  its scheduler writes nothing on non-formation days.
 - ``UNOBSERVED``: no row was written in the window. This is never a closure
   class; it means the strategy was not observed and the proof fails.
 
@@ -26,7 +29,7 @@ import argparse
 import json
 import os
 from collections import Counter
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from urllib.parse import urlencode
 
@@ -88,6 +91,26 @@ def classify_strategy(rows: list[JsonObject]) -> str:
     return UNOBSERVED
 
 
+def family_due_in_window(strategy_id: str, window_start: datetime, window_end: datetime) -> bool:
+    """Whether a registered complete-family due callback fires inside the window.
+
+    Strategies without a family-due callback are always considered due here
+    (their absence of rows is then UNOBSERVED, never NOT_DUE).
+    """
+    from strategy_runtime.adapters import build_migrated_shadow_registry
+
+    instant = window_start
+    while instant <= window_end:
+        registry = build_migrated_shadow_registry(instant)
+        if not registry.is_registered(strategy_id):
+            return True
+        due = getattr(registry.binding_for(strategy_id), "cross_subject_family_due", None)
+        if due is None or due(instant):
+            return True
+        instant += timedelta(minutes=10)
+    return False
+
+
 def _parse(value: str) -> datetime:
     return datetime.fromisoformat(value.replace("Z", "+00:00"))
 
@@ -144,10 +167,17 @@ def classify_release(
         blocker_codes = Counter(
             blocker_code(str(item)) for row in in_window for item in row.get("blockers") or ()
         )
+        classification = classify_strategy(in_window)
+        family_not_due = not in_window and not family_due_in_window(
+            strategy_id, window_start, window_end
+        )
+        if family_not_due:
+            classification = NOT_DUE
         strategies[strategy_id] = {
             "registered": strategy_id in registered,
             "rows_in_window": len(in_window),
-            "classification": classify_strategy(in_window),
+            "classification": classification,
+            "family_not_due_in_window": family_not_due,
             "row_classes": dict(sorted(row_classes.items())),
             "exception_rows": sorted(
                 str(row["symbol"]) for row in in_window if classify_row(row) == "EXCEPTION"
