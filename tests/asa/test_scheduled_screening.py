@@ -13,6 +13,7 @@ from asa.scheduled_screening import (
     SP500_COHORT_MAXIMUM_SUBJECTS,
     SP500_COHORT_STRATEGY_IDS,
     main,
+    run_scheduled_complete_family_refresh,
     run_scheduled_refresh,
     scheduled_sp500_universe,
 )
@@ -24,6 +25,7 @@ from market_data.session_calendar import UsEquitySessionCalendar
 from market_data.session_schedule import SessionRefreshSchedule
 from market_data.transport import ReadOnlyHttpResponse
 from screening import APPROVED_LIVE_UNIVERSE, EARNINGS_CALENDAR_UNIVERSE
+from screening.universe_membership import SP500_MEMBERSHIP
 from strategy_runtime.orchestration import ShadowParityDiagnostic
 from tests.asa._fixture_market_data_access import (
     DuplicateEarningsFixtureProvider,
@@ -194,6 +196,32 @@ def test_production_universe_covers_all_migrated_cohort_strategies() -> None:
     expected = 2 * len(APPROVED_LIVE_UNIVERSE) + 2 * len(EARNINGS_CALENDAR_UNIVERSE)
     assert len(PRODUCTION_SCREENING_UNIVERSE) == expected
     assert len(set(PRODUCTION_SCREENING_UNIVERSE)) == expected  # no duplicate pairs
+
+
+def test_complete_family_capacity_gate_defers_before_provider_calls(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    caplog.set_level(logging.INFO)
+    repository = InMemoryLatestResultRepository()
+    outcomes = run_scheduled_complete_family_refresh(
+        repository=repository,
+        claim_repository=_SingleUseClaimRepository(),
+        now=datetime(2026, 9, 30, 21, tzinfo=UTC),
+    )
+    assert outcomes
+    assert all(item.reason == "CAPACITY_DEFERRED_INCOMPLETE_COHORT" for item in outcomes)
+    assert all(item.request_count == 0 for item in outcomes)
+    summary = next(
+        record
+        for record in caplog.records
+        if record.message == "complete_family_capacity_release_summary"
+    )
+    assert summary.expected_subject_count == len(SP500_MEMBERSHIP.symbols)
+    assert summary.admitted_subject_count == 0
+    assert summary.deferred_pair_count == len(SP500_MEMBERSHIP.symbols)
+    assert summary.provider_request_count == 0
+    assert summary.partial_family_materializations == 0
+    assert len(repository.get_all()) == len(SP500_MEMBERSHIP.symbols)
 
 
 def test_earnings_calendar_pairs_use_the_single_name_subset_only() -> None:
@@ -1481,7 +1509,7 @@ def test_production_root_prepares_all_three_strategies_from_one_subject_snapshot
     monkeypatch.setenv("ASA_TRADIER_ENABLED", "true")
     monkeypatch.setenv("ASA_TRADIER_ACCESS_TOKEN", "sandbox-secret-token")
     repository = InMemoryLatestResultRepository()
-    caplog.set_level(logging.WARNING)
+    caplog.set_level(logging.INFO)
 
     outcomes = run_scheduled_refresh(
         (
@@ -1626,7 +1654,7 @@ def test_production_universe_topology_has_no_universal_preparation_failure(
     monkeypatch.setenv("ASA_TRADIER_ENABLED", "true")
     monkeypatch.setenv("ASA_TRADIER_ACCESS_TOKEN", "sandbox-secret-token")
     repository = InMemoryLatestResultRepository()
-    caplog.set_level(logging.WARNING)
+    caplog.set_level(logging.INFO)
 
     outcomes = run_scheduled_refresh(
         PRODUCTION_SCREENING_UNIVERSE,
@@ -1651,6 +1679,18 @@ def test_production_universe_topology_has_no_universal_preparation_failure(
     assert not any(
         record.message == "shadow_subject_preparation_failed" for record in caplog.records
     )
+    capacity = next(
+        record for record in caplog.records if record.message == "cycle_capacity_release_summary"
+    )
+    assert capacity.due_strategy_subject_pairs == len(PRODUCTION_SCREENING_UNIVERSE)
+    assert capacity.attempted_pairs == len(PRODUCTION_SCREENING_UNIVERSE)
+    assert capacity.completed_pairs == len(PRODUCTION_SCREENING_UNIVERSE)
+    assert capacity.failed_pairs == 0
+    assert capacity.provider_request_count >= 1
+    assert capacity.strategy_capability_demands > capacity.unique_fact_requests
+    assert capacity.deduplicated_fact_demands > 0
+    assert capacity.option_chain_requests >= 1
+    assert capacity.cycle_duration_ms >= 0
     skew = repository.get_one("skew_momentum", "AAPL")
     assert skew is not None
     assert skew.metrics["derived_fact.cross_sectional_percentile"].native() != "UNKNOWN"
