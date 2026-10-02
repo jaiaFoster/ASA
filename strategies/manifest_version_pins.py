@@ -37,6 +37,10 @@ MANIFEST_VERSION_PINS: Mapping[tuple[str, str], str] = {
         "xs_option_zhan_neg_lnprice_dn_call",
         "1.0.0",
     ): "7165bd8dbc016b566826171202b9aaf23995d359014f6a614928fcc30b160a41",
+    (
+        "xs_option_heston_straddle_momentum_lowcost",
+        "1.0.0-research",
+    ): "a7f8ac3321d0747a43a05cba7d35ad640e76a10c3285891ac830b9b23dc267c0",
 }
 
 

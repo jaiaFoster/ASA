@@ -40,6 +40,10 @@ from strategies.forward_factor_planning import (
 )
 from strategies.gxz_manifest import GXZ_MANIFEST
 from strategies.gxz_planning import resolved_field_requirements as gxz_resolved_field_requirements
+from strategies.heston_manifest import HESTON_MANIFEST
+from strategies.heston_planning import (
+    resolved_field_requirements as heston_resolved_field_requirements,
+)
 from strategies.manifest_version_pins import version_pin_violations
 from strategies.put_credit_spread_manifest import SPY_PUT_CREDIT_SPREAD_MANIFEST
 from strategies.put_credit_spread_planning import (
@@ -81,6 +85,8 @@ from strategy_runtime.adapters.forward_factor_subject_first import (
 )
 from strategy_runtime.adapters.gxz import GXZ_CONTRACT
 from strategy_runtime.adapters.gxz_subject_first import build_gxz_subject_preparation_binding
+from strategy_runtime.adapters.heston import HESTON_CONTRACT
+from strategy_runtime.adapters.heston_subject_first import build_heston_subject_preparation_binding
 from strategy_runtime.adapters.put_credit_spread import SPY_PUT_CREDIT_SPREAD_CONTRACT
 from strategy_runtime.adapters.put_credit_spread_subject_first import (
     build_put_credit_spread_subject_preparation_binding,
@@ -140,6 +146,7 @@ def build_migrated_strategy_registry() -> StrategyRegistry[UniversalScreeningRes
         (BXM_MANIFEST, BXM_CONTRACT),
         (SCS_MANIFEST, SCS_CONTRACT),
         (ZHAN_MANIFEST, ZHAN_CONTRACT),
+        (HESTON_MANIFEST, HESTON_CONTRACT),
     )
     for manifest, contract in pairs:
         validate_manifest_contract(manifest, contract)
@@ -160,6 +167,7 @@ def build_migrated_strategy_registry() -> StrategyRegistry[UniversalScreeningRes
             (BXM_CONTRACT, _subject_first_only),
             (SCS_CONTRACT, _subject_first_only),
             (ZHAN_CONTRACT, _subject_first_only),
+            (HESTON_CONTRACT, _subject_first_only),
         )
     )
 
@@ -253,6 +261,7 @@ def build_migrated_shadow_registry(
                 ),
             ),
             (ZHAN_CONTRACT.strategy_id, build_zhan_subject_preparation_binding(now)),
+            (HESTON_CONTRACT.strategy_id, build_heston_subject_preparation_binding(now)),
         )
     )
 
@@ -300,6 +309,7 @@ def migrated_shadow_resolution_policy(
             BXM_CONTRACT.strategy_id,
             SCS_CONTRACT.strategy_id,
             ZHAN_CONTRACT.strategy_id,
+            HESTON_CONTRACT.strategy_id,
         )
     )
     requirements: dict[MarketCapability, tuple[tuple[str, ...], int]] = {}
@@ -327,6 +337,8 @@ def migrated_shadow_resolution_policy(
         requirements.update(scs_resolved_field_requirements())
     if ZHAN_CONTRACT.strategy_id in selected:
         requirements.update(zhan_resolved_field_requirements())
+    if HESTON_CONTRACT.strategy_id in selected:
+        requirements.update(heston_resolved_field_requirements())
     return resolution_policy_for_capabilities(capability_registry, requirements)
 
 
@@ -361,6 +373,7 @@ def build_migrated_signal_catalog() -> tuple[SignalCatalogEntry, ...]:
         SignalCatalogEntry.from_contract(BXM_CONTRACT, manifest_id=BXM_MANIFEST.manifest_id),
         SignalCatalogEntry.from_contract(SCS_CONTRACT, manifest_id=SCS_MANIFEST.manifest_id),
         SignalCatalogEntry.from_contract(ZHAN_CONTRACT, manifest_id=ZHAN_MANIFEST.manifest_id),
+        SignalCatalogEntry.from_contract(HESTON_CONTRACT, manifest_id=HESTON_MANIFEST.manifest_id),
     )
     return tuple(sorted(entries, key=lambda item: item.signal_id))
 
@@ -389,5 +402,6 @@ def build_migrated_cutover_policy(values: Mapping[str, str]) -> CutoverPolicy:
             CBOE_PUTY_CONTRACT.strategy_id: True,
             BXM_CONTRACT.strategy_id: True,
             ZHAN_CONTRACT.strategy_id: True,
+            HESTON_CONTRACT.strategy_id: True,
         }
     )

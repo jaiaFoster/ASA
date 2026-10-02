@@ -113,6 +113,7 @@ def test_strategy_health_exposes_all_registered_production_funnels() -> None:
         "index_short_vol_scs_near_atm_straddle",
         "skew_momentum",
         "spy_put_credit_spread",
+        "xs_option_heston_straddle_momentum_lowcost",
         "xs_option_zhan_neg_lnprice_dn_call",
     }
     seeded_funnels = {signal_id: funnels[signal_id] for signal_id in seeded_signals}
@@ -245,6 +246,7 @@ class TestCapabilities:
             "index_short_vol_scs_near_atm_straddle",
             "skew_momentum",
             "spy_put_credit_spread",
+            "xs_option_heston_straddle_momentum_lowcost",
             "xs_option_zhan_neg_lnprice_dn_call",
         }
 

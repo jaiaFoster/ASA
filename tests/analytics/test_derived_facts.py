@@ -196,7 +196,7 @@ def test_named_momentum_dimensions_are_replay_stable() -> None:
 
 
 def test_initial_registry_is_closed_versioned_and_complete() -> None:
-    assert len(DERIVED_FACT_REGISTRY.registered_ids()) == 29
+    assert len(DERIVED_FACT_REGISTRY.registered_ids()) == 30
     assert DERIVED_FACT_REGISTRY.get("DF-CBOE-BUYWRITE-DAILY-RETURN").feature_version == "1.0.0"
     assert DERIVED_FACT_REGISTRY.get("DF-THIRD-FRIDAY-ROLL-DATE").feature_version == "1.0.0"
     assert DERIVED_FACT_REGISTRY.get("forward_factor").feature_version == "1.0.0"

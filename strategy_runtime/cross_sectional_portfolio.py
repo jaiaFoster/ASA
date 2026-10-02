@@ -64,6 +64,37 @@ class DeltaHedgedOptionPosition:
 
 
 @dataclass(frozen=True, slots=True)
+class ZeroDeltaStraddlePosition:
+    """P03 exact same-strike straddle with non-unit zero-delta quantities."""
+
+    subject: str
+    call_leg: OptionLeg
+    put_leg: OptionLeg
+
+    def __post_init__(self) -> None:
+        if not self.subject or self.subject != self.subject.strip():
+            raise ValueError("P03 subject must be normalized")
+        if (
+            self.call_leg.contract.option_type.value != "call"
+            or self.put_leg.contract.option_type.value != "put"
+        ):
+            raise ValueError("P03 requires call and put legs")
+        if (
+            self.call_leg.contract.expiration != self.put_leg.contract.expiration
+            or self.call_leg.contract.strike != self.put_leg.contract.strike
+            or self.call_leg.position is not self.put_leg.position
+        ):
+            raise ValueError("P03 legs must share expiration, strike, and direction")
+
+    @property
+    def identity(self) -> str:
+        return _identity(
+            "asa.p03.zero_delta_straddle",
+            (self.subject, self.call_leg.identity, self.put_leg.identity),
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class CrossSectionalMember:
     subject: str
     position_identity: str
