@@ -41,16 +41,24 @@ def _select(
             contract
         )
     eligible = []
+    incomplete_open_interest = False
     for sides in by_key.values():
         call = sides.get(OptionType.CALL)
         put = sides.get(OptionType.PUT)
         if call is None or put is None or call.delta is None or not lower <= call.delta <= upper:
             continue
         if any(value is None or value <= 0 for value in (call.open_interest, put.open_interest)):
+            incomplete_open_interest = incomplete_open_interest or (
+                call.open_interest is None or put.open_interest is None
+            )
             continue
         eligible.append((abs(call.delta - Decimal("0.5")), call, put))
     if not eligible:
-        return UnknownReason("G_HES_LOWCOST_PAIR_FAIL")
+        return UnknownReason(
+            "G_HES_LOWCOST_PAIR_UNKNOWN"
+            if incomplete_open_interest
+            else "G_HES_LOWCOST_PAIR_FAIL"
+        )
     minimum = min(item[0] for item in eligible)
     nearest = tuple(item for item in eligible if item[0] == minimum)
     if len(nearest) != 1:
@@ -59,9 +67,9 @@ def _select(
     call_mid = option_mid(call.bid, call.ask)
     put_mid = option_mid(put.bid, put.ask)
     if isinstance(call_mid, UnknownReason) or isinstance(put_mid, UnknownReason):
-        return UnknownReason("G_HES_LOWCOST_PAIR_FAIL")
+        return UnknownReason("G_HES_LOWCOST_PAIR_UNKNOWN")
     if call.bid is None or call.ask is None or put.bid is None or put.ask is None:
-        return UnknownReason("G_HES_LOWCOST_PAIR_FAIL")
+        return UnknownReason("G_HES_LOWCOST_PAIR_UNKNOWN")
     if (call.ask - call.bid) / call_mid > maximum_spread or (
         put.ask - put.bid
     ) / put_mid > maximum_spread:
@@ -88,7 +96,10 @@ def materialize_heston_family(values: Mapping[str, object]) -> Mapping[str, obje
         selected = _select(candidate)
         if isinstance(selected, UnknownReason):
             output[subject] = HestonSubjectMaterialization(
-                "UNKNOWN" if selected.code == "AMBIGUOUS_SELECTION" else "EXCLUDED", selected.code
+                "UNKNOWN"
+                if selected.code in {"AMBIGUOUS_SELECTION", "G_HES_LOWCOST_PAIR_UNKNOWN"}
+                else "EXCLUDED",
+                selected.code,
             )
             continue
         selections[subject] = selected

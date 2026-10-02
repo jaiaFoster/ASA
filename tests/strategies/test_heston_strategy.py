@@ -141,16 +141,18 @@ def _third_friday(year: int, month: int) -> date:
 def test_historical_panel_materializes_complete_lags_two_through_twelve() -> None:
     snapshots = []
     prior_entry = None
-    for month in range(1, 13):
-        observed_date = _third_friday(2025, month)
+    for offset in range(13):
+        year = 2024 + (11 + offset) // 12
+        month = (11 + offset) % 12 + 1
+        observed_date = _third_friday(year, month)
         observed_at = datetime.combine(observed_date, datetime.min.time(), tzinfo=UTC)
-        following_year = 2025 + (month == 12)
+        following_year = year + (month == 12)
         following_month = month % 12 + 1
         expiration = _third_friday(following_year, following_month)
-        template = _candidate(month).contracts
+        template = _candidate(offset).contracts
         call = replace(
             template[0],
-            option_contract_id=CanonicalInstrumentIdentity("occ", f"M{month}-C"),
+            option_contract_id=CanonicalInstrumentIdentity("occ", f"M{offset}-C"),
             expiration=expiration,
             observed_at=observed_at,
             bid=Decimal("1"),
@@ -158,7 +160,7 @@ def test_historical_panel_materializes_complete_lags_two_through_twelve() -> Non
         )
         put = replace(
             template[1],
-            option_contract_id=CanonicalInstrumentIdentity("occ", f"M{month}-P"),
+            option_contract_id=CanonicalInstrumentIdentity("occ", f"M{offset}-P"),
             expiration=expiration,
             observed_at=observed_at,
             bid=Decimal("1"),
@@ -175,7 +177,7 @@ def test_historical_panel_materializes_complete_lags_two_through_twelve() -> Non
                 call.underlying.instrument,
                 observed_at,
                 observed_at,
-                f"snapshot-{month}",
+                f"snapshot-{offset}",
                 tuple(contracts),
             )
         )
@@ -186,6 +188,48 @@ def test_historical_panel_materializes_complete_lags_two_through_twelve() -> Non
         tuple(snapshots),
     )
     assert formation_from_panel(panel) == Decimal("0.1")
+
+
+def test_historical_panel_rejects_gap_and_lag_one_only_history() -> None:
+    observed = datetime(2025, 1, 17, tzinfo=UTC)
+    later = datetime(2025, 3, 21, tzinfo=UTC)
+    call, put = _candidate(1).contracts
+    call = replace(call, expiration=later.date(), observed_at=observed)
+    put = replace(put, expiration=later.date(), observed_at=observed)
+    exit_contracts = tuple(
+        replace(item, observed_at=later, bid=Decimal("1.1"), ask=Decimal("1.1"))
+        for item in (call, put)
+    )
+    panel = HistoricalOptionPanel(
+        call.underlying.instrument,
+        later,
+        (
+            HistoricalOptionSnapshot(
+                call.underlying.instrument, observed, observed, "entry", (call, put)
+            ),
+            HistoricalOptionSnapshot(
+                call.underlying.instrument, later, later, "exit", exit_contracts
+            ),
+        ),
+    )
+    assert formation_from_panel(panel) == UnknownReason("invalid_straddle_formation_calendar")
+
+
+def test_missing_live_open_interest_and_market_are_unknown_not_excluded() -> None:
+    candidate = _candidate(0)
+    call, put = candidate.contracts
+    result = materialize_heston_family(
+        {"H0": replace(candidate, contracts=(replace(call, open_interest=None), put))}
+    )
+    assert result["H0"] == HestonSubjectMaterialization(
+        "UNKNOWN", "G_HES_LOWCOST_PAIR_UNKNOWN"
+    )
+    result = materialize_heston_family(
+        {"H0": replace(candidate, contracts=(replace(call, bid=None), put))}
+    )
+    assert result["H0"] == HestonSubjectMaterialization(
+        "UNKNOWN", "G_HES_LOWCOST_PAIR_UNKNOWN"
+    )
 
 
 def test_subject_first_adapter_replays_without_acquisition() -> None:

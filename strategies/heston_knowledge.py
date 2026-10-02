@@ -1,5 +1,6 @@
 """Immutable canonical/derived knowledge mapping for Heston SP-05D."""
 
+from calendar import monthcalendar
 from datetime import date
 from decimal import Decimal
 
@@ -61,6 +62,7 @@ def _select_pair(
             contract
         )
     candidates: list[tuple[Decimal, OptionContract, OptionContract]] = []
+    incomplete_open_interest = False
     lower = Decimal(str(heston_parameter("minimum_call_delta")))
     upper = Decimal(str(heston_parameter("maximum_call_delta")))
     spread_max = Decimal(str(heston_parameter("maximum_leg_relative_spread")))
@@ -75,10 +77,17 @@ def _select_pair(
             or call.open_interest <= 0
             or put.open_interest <= 0
         ):
+            incomplete_open_interest = incomplete_open_interest or (
+                call.open_interest is None or put.open_interest is None
+            )
             continue
         candidates.append((abs(call.delta - Decimal("0.5")), call, put))
     if not candidates:
-        return UnknownReason("G_HES_LOWCOST_PAIR_FAIL")
+        return UnknownReason(
+            "G_HES_LOWCOST_PAIR_UNKNOWN"
+            if incomplete_open_interest
+            else "G_HES_LOWCOST_PAIR_FAIL"
+        )
     minimum = min(item[0] for item in candidates)
     nearest = tuple(item for item in candidates if item[0] == minimum)
     if len(nearest) != 1:
@@ -88,14 +97,40 @@ def _select_pair(
     if any(isinstance(item, UnknownReason) for item in spreads) or any(
         item > spread_max for item in spreads if isinstance(item, Decimal)
     ):
+        if any(isinstance(item, UnknownReason) for item in spreads):
+            return UnknownReason("G_HES_LOWCOST_PAIR_UNKNOWN")
         return UnknownReason("G_HES_LOWCOST_PAIR_FAIL")
     return call, put
 
 
+def _third_friday(year: int, month: int) -> date:
+    fridays = [week[4] for week in monthcalendar(year, month) if week[4]]
+    return date(year, month, fridays[2])
+
+
+def _month_distance(later: date, earlier: date) -> int:
+    return (later.year - earlier.year) * 12 + later.month - earlier.month
+
+
 def formation_from_panel(panel: HistoricalOptionPanel) -> Decimal | UnknownReason:
-    monthly: list[MonthlyOptionReturn] = []
+    monthly: dict[int, MonthlyOptionReturn] = {}
     snapshots = panel.snapshots
+    formation_anchor = panel.as_of.date()
+    if (
+        not snapshots
+        or snapshots[-1].observed_at.date() != formation_anchor
+        or formation_anchor != _third_friday(formation_anchor.year, formation_anchor.month)
+    ):
+        return UnknownReason("invalid_straddle_formation_calendar")
     for entry, exit_snapshot in zip(snapshots, snapshots[1:], strict=False):
+        entry_day = entry.observed_at.date()
+        exit_day = exit_snapshot.observed_at.date()
+        if (
+            entry_day != _third_friday(entry_day.year, entry_day.month)
+            or exit_day != _third_friday(exit_day.year, exit_day.month)
+            or _month_distance(exit_day, entry_day) != 1
+        ):
+            return UnknownReason("invalid_straddle_formation_calendar")
         pair = _select_pair(
             entry.contracts,
             require_open_interest=False,
@@ -104,6 +139,8 @@ def formation_from_panel(panel: HistoricalOptionPanel) -> Decimal | UnknownReaso
         if isinstance(pair, UnknownReason):
             continue
         call, put = pair
+        if call.expiration != exit_day or put.expiration != exit_day:
+            return UnknownReason("invalid_straddle_holding_period")
         exit_by_identity = {contract.identity: contract for contract in exit_snapshot.contracts}
         exit_call = exit_by_identity.get(call.identity)
         exit_put = exit_by_identity.get(put.identity)
@@ -134,20 +171,15 @@ def formation_from_panel(panel: HistoricalOptionPanel) -> Decimal | UnknownReaso
         )
         if isinstance(value, UnknownReason):
             continue
-        monthly.append(
-            MonthlyOptionReturn(
-                entry.observed_at.date().replace(day=1),
+        lag = _month_distance(formation_anchor, entry_day)
+        if 2 <= lag <= 12:
+            monthly[lag] = MonthlyOptionReturn(
+                entry_day.replace(day=1),
                 value,
                 panel.identity,
                 f"{call.identity}|{put.identity}",
             )
-        )
-    if len(monthly) < 11:
-        return UnknownReason("insufficient_straddle_return_history")
-    latest = monthly[-11:]
-    return straddle_momentum_formation(
-        {lag: item for lag, item in zip(range(2, 13), latest, strict=True)}
-    )
+    return straddle_momentum_formation(monthly)
 
 
 def build_heston_knowledge_mapping(
