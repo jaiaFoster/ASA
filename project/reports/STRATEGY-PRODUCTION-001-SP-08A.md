@@ -131,3 +131,26 @@ is harmless.
    is not written as a typed row. The previous rows simply age.
 3. The complete-family claim is taken before the rows are written. A
    persistence failure part-way is not retried that day.
+
+## Post-deploy observation 1 — 2026-10-02 (release `392948d`)
+
+Verified live (read-only API):
+- `/api/v1/version` `release_sha` = `392948d546bc76237ddd4e07c0cd41a96f361805`.
+- `/api/v1/health` returns ok, and `/api/v1/capabilities` lists all seven strategies.
+- The cron service is on the release. GXZ, now on the claim path, wrote 414 typed rows today alongside the cohort strategies.
+
+**Defect found (ASA-owned, fixed in the follow-up corrective PR).** PUT, PUTY,
+BXM and SCS on SPX all persisted `subject_preparation_failed`:
+- BXM (35-day) and SCS (7-day) declare distinct `INDEX_SETTLEMENT_VALUE_V1` lookbacks on the shared SPX subject.
+- No reducer was registered for that capability, so sealing raised and the whole SPX subject failed preparation.
+- This was reproduced in-process with the production composition root. It is independent of provider responses; no provider serves settlement values today.
+- Fix: a generic `reduce_index_settlement_results` (widest-window deterministic representative, all attempts retained), registered with the shadow capability reducers.
+- Regression: the fixed-SPX root with every provider unreachable persists typed per-strategy reasons, never `subject_preparation_failed`. It fails without the fix.
+
+Session 2026-10-02 therefore does **not** satisfy closure: four strategies show an ASA defect. Closure requires redeploying `main` with the fix, then observing one complete session on that release.
+
+Zhan and Heston: 2026-10-02 is neither a month-end nor a monthly-expiration session, so both families are correctly not due and write no rows.
+
+Residual noted: BXM's expansion reuses the PUT expiration-selection helper, so
+an expiration-evidence gap carries the PUT gate code `G_PUT_STRIKE_EXISTS_UNKNOWN`
+on BXM rows. This is typed and pre-existing (released with #522), not a runtime leak.
