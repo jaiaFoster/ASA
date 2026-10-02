@@ -1,8 +1,9 @@
 """Immutable canonical/derived knowledge mapping for Heston SP-05D."""
 
-from datetime import date, timedelta
+from datetime import date, datetime
 from decimal import Decimal
 
+from analytics.calendar_facts import TradingCalendarView, monthly_expiration_day, new_york_time
 from analytics.derived_facts import STRADDLE_MOMENTUM_FORMATION
 from analytics.features import DerivedFactQualityStatus, DerivedFactRequest, DerivedFactSet
 from analytics.option_facts import option_mid
@@ -15,137 +16,72 @@ from domain import (
     HistoricalOptionPanel,
     MarketCapability,
     OptionChain,
-    OptionContract,
-    OptionType,
     UnknownReason,
 )
 from facts.canonical_projection import CanonicalFactRequest, canonical_fact_id
-from strategies.heston_manifest import heston_parameter
 from strategies.heston_portfolio import HestonSubjectCandidate
+from strategies.heston_selection import select_heston_pair
 from strategies.knowledge_contracts import KnowledgeMapping
 
 FACT_PANEL = "historical_option_panel_identity"
 FACT_CHAIN = "option_chain_identity"
 
 
-def _relative_spread(contract: OptionContract) -> Decimal | UnknownReason:
-    mid = option_mid(contract.bid, contract.ask)
-    if isinstance(mid, UnknownReason) or contract.bid is None or contract.ask is None or mid <= 0:
-        return UnknownReason("missing_option_market")
-    return (contract.ask - contract.bid) / mid
+def _local_date(value: datetime) -> date:
+    return new_york_time(value).date()
 
 
-def _select_pair(
-    contracts: tuple[OptionContract, ...],
-    *,
-    require_open_interest: bool,
-    after_date: date | None = None,
-) -> tuple[OptionContract, OptionContract] | UnknownReason:
-    future_expirations = tuple(
-        sorted(
-            {
-                contract.expiration
-                for contract in contracts
-                if after_date is None or contract.expiration > after_date
-            }
-        )
-    )
-    selected_expiration = future_expirations[0] if future_expirations else None
-    grouped: dict[tuple[object, Decimal], dict[OptionType, OptionContract]] = {}
-    for contract in contracts:
-        if contract.delta is None or (
-            selected_expiration is not None and contract.expiration != selected_expiration
-        ):
-            continue
-        grouped.setdefault((contract.expiration, contract.strike), {})[contract.option_type] = (
-            contract
-        )
-    candidates: list[tuple[Decimal, OptionContract, OptionContract]] = []
-    incomplete_open_interest = False
-    lower = Decimal(str(heston_parameter("minimum_call_delta")))
-    upper = Decimal(str(heston_parameter("maximum_call_delta")))
-    spread_max = Decimal(str(heston_parameter("maximum_leg_relative_spread")))
-    for sides in grouped.values():
-        call = sides.get(OptionType.CALL)
-        put = sides.get(OptionType.PUT)
-        if call is None or put is None or call.delta is None or not lower <= call.delta <= upper:
-            continue
-        if require_open_interest and (
-            call.open_interest is None
-            or put.open_interest is None
-            or call.open_interest <= 0
-            or put.open_interest <= 0
-        ):
-            incomplete_open_interest = incomplete_open_interest or (
-                call.open_interest is None or put.open_interest is None
-            )
-            continue
-        candidates.append((abs(call.delta - Decimal("0.5")), call, put))
-    if not candidates:
-        return UnknownReason(
-            "G_HES_LOWCOST_PAIR_UNKNOWN"
-            if incomplete_open_interest
-            else "G_HES_LOWCOST_PAIR_FAIL"
-        )
-    minimum = min(item[0] for item in candidates)
-    nearest = tuple(item for item in candidates if item[0] == minimum)
-    if len(nearest) != 1:
-        return UnknownReason("AMBIGUOUS_SELECTION")
-    call, put = nearest[0][1], nearest[0][2]
-    spreads = (_relative_spread(call), _relative_spread(put))
-    if any(isinstance(item, UnknownReason) for item in spreads) or any(
-        item > spread_max for item in spreads if isinstance(item, Decimal)
-    ):
-        if any(isinstance(item, UnknownReason) for item in spreads):
-            return UnknownReason("G_HES_LOWCOST_PAIR_UNKNOWN")
-        return UnknownReason("G_HES_LOWCOST_PAIR_FAIL")
-    return call, put
-
-
-def _third_friday(year: int, month: int) -> date:
-    first = date(year, month, 1)
-    first_friday = first + timedelta(days=(4 - first.weekday()) % 7)
-    return first_friday + timedelta(days=14)
+def _is_monthly_expiration(calendar: TradingCalendarView, day: date) -> bool:
+    return monthly_expiration_day(calendar, day.year, day.month) == day
 
 
 def _month_distance(later: date, earlier: date) -> int:
     return (later.year - earlier.year) * 12 + later.month - earlier.month
 
 
-def formation_from_panel(panel: HistoricalOptionPanel) -> Decimal | UnknownReason:
+def formation_from_panel(
+    panel: HistoricalOptionPanel, calendar: TradingCalendarView
+) -> Decimal | UnknownReason:
+    """A17 over A08: straddle returns keyed by exact monthly-expiration anchors.
+
+    Each monthly return is held from one monthly expiration (DF-MONTHLY-
+    EXPIRATION-DAY, holiday-adjusted) to the next, in the pair expiring at the
+    exit date. Weekly expirations are never held. Lag 1 is skipped; lags 2-12
+    must all be present or the formation is UNKNOWN.
+    """
     monthly: dict[int, MonthlyOptionReturn] = {}
     snapshots = panel.snapshots
-    formation_anchor = panel.as_of.date()
+    formation_anchor = _local_date(panel.as_of)
     if (
         not snapshots
-        or snapshots[-1].observed_at.date() != formation_anchor
-        or formation_anchor != _third_friday(formation_anchor.year, formation_anchor.month)
+        or _local_date(snapshots[-1].observed_at) != formation_anchor
+        or not _is_monthly_expiration(calendar, formation_anchor)
     ):
         return UnknownReason("invalid_straddle_formation_calendar")
     for entry, exit_snapshot in zip(snapshots, snapshots[1:], strict=False):
-        entry_day = entry.observed_at.date()
-        exit_day = exit_snapshot.observed_at.date()
+        entry_day = _local_date(entry.observed_at)
+        exit_day = _local_date(exit_snapshot.observed_at)
         if (
-            entry_day != _third_friday(entry_day.year, entry_day.month)
-            or exit_day != _third_friday(exit_day.year, exit_day.month)
+            not _is_monthly_expiration(calendar, entry_day)
+            or not _is_monthly_expiration(calendar, exit_day)
             or _month_distance(exit_day, entry_day) != 1
         ):
             return UnknownReason("invalid_straddle_formation_calendar")
-        pair = _select_pair(
+        pair = select_heston_pair(
             entry.contracts,
+            expiration=exit_day,
             require_open_interest=False,
-            after_date=entry.observed_at.date(),
+            apply_spread_screen=False,
         )
         if isinstance(pair, UnknownReason):
             continue
-        call, put = pair
+        call, put = pair.call, pair.put
         if call.expiration != exit_day or put.expiration != exit_day:
             return UnknownReason("invalid_straddle_holding_period")
         exit_by_identity = {contract.identity: contract for contract in exit_snapshot.contracts}
         exit_call = exit_by_identity.get(call.identity)
         exit_put = exit_by_identity.get(put.identity)
-        call_mid = option_mid(call.bid, call.ask)
-        put_mid = option_mid(put.bid, put.ask)
+        call_mid, put_mid = pair.call_mid, pair.put_mid
         exit_call_mid = option_mid(
             None if exit_call is None else exit_call.bid,
             None if exit_call is None else exit_call.ask,
@@ -154,15 +90,8 @@ def formation_from_panel(panel: HistoricalOptionPanel) -> Decimal | UnknownReaso
             None if exit_put is None else exit_put.bid,
             None if exit_put is None else exit_put.ask,
         )
-        if any(
-            isinstance(item, UnknownReason)
-            for item in (call_mid, put_mid, exit_call_mid, exit_put_mid)
-        ):
+        if isinstance(exit_call_mid, UnknownReason) or isinstance(exit_put_mid, UnknownReason):
             continue
-        assert isinstance(call_mid, Decimal)
-        assert isinstance(put_mid, Decimal)
-        assert isinstance(exit_call_mid, Decimal)
-        assert isinstance(exit_put_mid, Decimal)
         weights = zero_delta_straddle_weights(call_mid, put_mid, call.delta, put.delta)
         value = straddle_return(
             weights,
@@ -192,6 +121,7 @@ def build_heston_knowledge_mapping(
     chain: OptionChain,
     selected_expiration: date,
     formation_date_state: str,
+    calendar: TradingCalendarView,
 ) -> KnowledgeMapping[HestonSubjectCandidate]:
     panel_fact_id = canonical_fact_id(FACT_PANEL, subject, snapshot_digest)
     requests = (
@@ -212,7 +142,7 @@ def build_heston_knowledge_mapping(
     )
 
     def _compute(facts: tuple[CanonicalFact, ...]) -> tuple[DerivedFactRequest, ...]:
-        value = formation_from_panel(panel)
+        value = formation_from_panel(panel, calendar)
         if isinstance(value, UnknownReason):
             return ()
         return (
