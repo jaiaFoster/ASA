@@ -3,18 +3,24 @@ from dataclasses import replace
 from datetime import UTC, date, datetime
 from decimal import Decimal
 
+from analytics.derived_fact_materialization import materialize_derived_fact
+from analytics.derived_facts import DERIVED_FACT_REGISTRY
 from analytics.features import DerivedFactSet
 from domain import (
+    CanonicalFact,
     CanonicalInstrumentIdentity,
+    Confidence,
     HistoricalOptionPanel,
     HistoricalOptionSnapshot,
     MarketCapability,
     MarketDataSubjectType,
+    OptionChain,
     OptionType,
+    Provenance,
     UnknownReason,
 )
 from screening.live_context import build_capability_subject
-from strategies.heston_knowledge import formation_from_panel
+from strategies.heston_knowledge import build_heston_knowledge_mapping, formation_from_panel
 from strategies.heston_manifest import HESTON_MANIFEST, STRATEGY_ID
 from strategies.heston_planning import historical_panel_demand
 from strategies.heston_portfolio import HestonSubjectCandidate
@@ -29,7 +35,7 @@ from strategy_runtime.context import RuntimeContext
 from strategy_runtime.cross_sectional_portfolio import PortfolioBookSide
 from strategy_runtime.knowledge import ReadOnlyStrategyInput
 from strategy_runtime.manifest_contract import validate_manifest_contract
-from tests.strategies.test_cboe_put_strategy import _put
+from tests.strategies.test_cboe_put_strategy import EVIDENCE, _put
 
 AS_OF = datetime(2026, 10, 16, 21, tzinfo=UTC)
 EXPIRY = date(2026, 11, 20)
@@ -188,6 +194,61 @@ def test_historical_panel_materializes_complete_lags_two_through_twelve() -> Non
         tuple(snapshots),
     )
     assert formation_from_panel(panel) == Decimal("0.1")
+
+    mapping = build_heston_knowledge_mapping(
+        subject="H0",
+        snapshot_digest="sealed-a08",
+        panel_observation_id="a08-observation",
+        panel=panel,
+        chain_observation_id="chain-observation",
+        chain=OptionChain(
+            "heston-chain",
+            _candidate(0).contracts[0].underlying,
+            AS_OF,
+            tuple(replace(item, observed_at=AS_OF) for item in _candidate(0).contracts),
+            EVIDENCE,
+        ),
+        selected_expiration=EXPIRY,
+        formation_date_state="PASS",
+    )
+    facts = tuple(
+        CanonicalFact(
+            f"{request.fact_type}:H0:sealed-a08",
+            1,
+            request.fact_type,
+            request.value,
+            Confidence(1.0),
+            Provenance(
+                (request.observation_id,),
+                ("fixture",),
+                "fixture",
+                (),
+                snapshots[-1].observed_at,
+            ),
+            snapshots[-1].observed_at,
+            snapshots[-1].observed_at,
+        )
+        for request in mapping.canonical_fact_requests
+    )
+    derived_requests = mapping.compute_derived_fact_requests(facts)
+    assert not isinstance(derived_requests, UnknownReason)
+    derived = tuple(
+        materialize_derived_fact(
+            DERIVED_FACT_REGISTRY,
+            request.feature_id,
+            request.subject,
+            "sealed-a08",
+            value=request.value,
+            unit=request.unit,
+            effective_time=snapshots[-1].observed_at,
+            input_evidence=request.input_evidence,
+            quality_status=request.quality_status,
+            parameters=request.parameters,
+        )
+        for request in derived_requests
+    )
+    replayed = mapping.build_payload(facts, DerivedFactSet(derived))
+    assert replayed.formation_momentum == Decimal("0.1")
 
 
 def test_historical_panel_rejects_gap_and_lag_one_only_history() -> None:
