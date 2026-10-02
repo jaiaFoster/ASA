@@ -40,7 +40,7 @@ MANIFEST_VERSION_PINS: Mapping[tuple[str, str], str] = {
     (
         "xs_option_heston_straddle_momentum_lowcost",
         "1.0.0-research",
-    ): "19cce07f5af801f2f253fc2222c57d61299618f122cf266af5bbb2155994a9f5",
+    ): "a7f8ac3321d0747a43a05cba7d35ad640e76a10c3285891ac830b9b23dc267c0",
 }
 
 

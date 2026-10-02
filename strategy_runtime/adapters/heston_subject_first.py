@@ -2,7 +2,7 @@
 
 from collections.abc import Mapping
 from dataclasses import replace
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from functools import partial
 from types import MappingProxyType
 
@@ -53,20 +53,29 @@ def _selected(snapshot: MarketSnapshot, capability: MarketCapability) -> MarketO
     )
 
 
+_HISTORY_DAYS = 400
+
+
+def _calendar_view(now: datetime) -> TradingCalendarView:
+    """Exchange calendar covering the A08 history window through next month."""
+    calendar = UsEquitySessionCalendar()
+    local = new_york_time(now).date()
+    following = date(local.year + (local.month == 12), local.month % 12 + 1, 1)
+    coverage_end = date(following.year + (following.month == 12), following.month % 12 + 1, 1)
+    return TradingCalendarView(
+        lambda day: calendar.session(day) is not None,
+        (local - timedelta(days=_HISTORY_DAYS)).replace(day=1),
+        coverage_end - timedelta(days=1),
+    )
+
+
 def _formation_state(now: datetime) -> str:
     local = new_york_time(now)
-    calendar = UsEquitySessionCalendar()
-    view = TradingCalendarView(
-        lambda day: calendar.session(day) is not None,
-        local.date().replace(day=1),
-        local.date().replace(
-            year=local.year + (local.month == 12), month=local.month % 12 + 1, day=1
-        ),
-    )
+    view = _calendar_view(now)
     expiration = monthly_expiration_day(view, local.year, local.month)
     if isinstance(expiration, UnknownReason):
         return "UNKNOWN"
-    session = calendar.session(expiration)
+    session = UsEquitySessionCalendar().session(expiration)
     if local.date() != expiration or session is None or now < session.closes_at:
         return "FAIL"
     return "PASS"
@@ -74,6 +83,13 @@ def _formation_state(now: datetime) -> str:
 
 def _formation_due(now: datetime) -> bool:
     return _formation_state(now) == "PASS"
+
+
+def _next_monthly_expiration(now: datetime) -> date | UnknownReason:
+    local = new_york_time(now).date()
+    return monthly_expiration_day(
+        _calendar_view(now), local.year + (local.month == 12), local.month % 12 + 1
+    )
 
 
 def _prepare(
@@ -94,6 +110,9 @@ def _prepare(
     if not isinstance(expiration_value, str):
         return UnknownReason("G_HES_FORMATION_DATE_UNKNOWN")
     selected_expiration = date.fromisoformat(expiration_value)
+    formation_state = _formation_state(now)
+    if formation_state == "PASS" and selected_expiration != _next_monthly_expiration(now):
+        return UnknownReason("G_HES_FORMATION_DATE_UNKNOWN")
     return build_heston_knowledge_mapping(
         subject=subject,
         snapshot_digest=snapshot.snapshot_digest,
@@ -102,7 +121,9 @@ def _prepare(
         chain_observation_id=chain_observation.observation_id,
         chain=chain_observation.value,
         selected_expiration=selected_expiration,
-        formation_date_state=_formation_state(now),
+        formation_date_state=formation_state,
+        calendar=_calendar_view(now),
+        formation_date=new_york_time(now).date(),
     )
 
 
@@ -140,6 +161,9 @@ def _result(
         "decision.state": TypedValue.of_string(payload.state),
         "assumption.RA-XR-03": TypedValue.of_string(
             "low_cost_pair_failure_excludes_without_replacement"
+        ),
+        "assumption.RA-XS-01": TypedValue.of_string(
+            "equal_count_deciles_ties_share_lowest_rank_unknown_sort_values_excluded"
         ),
     }
     if payload.quantile is not None:

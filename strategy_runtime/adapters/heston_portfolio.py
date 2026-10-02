@@ -4,12 +4,16 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from decimal import Decimal
 
-from analytics.option_facts import option_mid
 from analytics.option_returns import zero_delta_straddle_weights
 from analytics.quantile_assignment import QuantilePolicy, assign_quantiles
-from domain import OptionContract, OptionLeg, OptionLegPosition, OptionType, UnknownReason
+from domain import OptionLeg, OptionLegPosition, UnknownReason
 from strategies.heston_manifest import heston_parameter
 from strategies.heston_portfolio import HestonSubjectCandidate
+from strategies.heston_selection import (
+    UNKNOWN_SELECTION_CODES,
+    HestonPairSelection,
+    select_heston_pair,
+)
 from strategy_runtime.cross_sectional_portfolio import (
     CrossSectionalPortfolio,
     PortfolioWeightPolicy,
@@ -27,54 +31,12 @@ class HestonSubjectMaterialization:
     portfolio: CrossSectionalPortfolio | None = None
 
 
-def _select(
-    candidate: HestonSubjectCandidate,
-) -> tuple[OptionContract, OptionContract, Decimal, Decimal] | UnknownReason:
-    lower = Decimal(str(heston_parameter("minimum_call_delta")))
-    upper = Decimal(str(heston_parameter("maximum_call_delta")))
-    maximum_spread = Decimal(str(heston_parameter("maximum_leg_relative_spread")))
-    by_key: dict[tuple[object, Decimal], dict[OptionType, OptionContract]] = {}
-    for contract in candidate.contracts:
-        if contract.expiration != candidate.selected_expiration:
-            continue
-        by_key.setdefault((contract.expiration, contract.strike), {})[contract.option_type] = (
-            contract
-        )
-    eligible = []
-    incomplete_open_interest = False
-    for sides in by_key.values():
-        call = sides.get(OptionType.CALL)
-        put = sides.get(OptionType.PUT)
-        if call is None or put is None or call.delta is None or not lower <= call.delta <= upper:
-            continue
-        if any(value is None or value <= 0 for value in (call.open_interest, put.open_interest)):
-            incomplete_open_interest = incomplete_open_interest or (
-                call.open_interest is None or put.open_interest is None
-            )
-            continue
-        eligible.append((abs(call.delta - Decimal("0.5")), call, put))
-    if not eligible:
-        return UnknownReason(
-            "G_HES_LOWCOST_PAIR_UNKNOWN"
-            if incomplete_open_interest
-            else "G_HES_LOWCOST_PAIR_FAIL"
-        )
-    minimum = min(item[0] for item in eligible)
-    nearest = tuple(item for item in eligible if item[0] == minimum)
-    if len(nearest) != 1:
-        return UnknownReason("AMBIGUOUS_SELECTION")
-    call, put = nearest[0][1:]
-    call_mid = option_mid(call.bid, call.ask)
-    put_mid = option_mid(put.bid, put.ask)
-    if isinstance(call_mid, UnknownReason) or isinstance(put_mid, UnknownReason):
-        return UnknownReason("G_HES_LOWCOST_PAIR_UNKNOWN")
-    if call.bid is None or call.ask is None or put.bid is None or put.ask is None:
-        return UnknownReason("G_HES_LOWCOST_PAIR_UNKNOWN")
-    if (call.ask - call.bid) / call_mid > maximum_spread or (
-        put.ask - put.bid
-    ) / put_mid > maximum_spread:
-        return UnknownReason("G_HES_LOWCOST_PAIR_FAIL")
-    return call, put, call_mid, put_mid
+def _select(candidate: HestonSubjectCandidate) -> HestonPairSelection | UnknownReason:
+    return select_heston_pair(
+        candidate.contracts,
+        expiration=candidate.selected_expiration,
+        require_open_interest=True,
+    )
 
 
 def materialize_heston_family(values: Mapping[str, object]) -> Mapping[str, object]:
@@ -82,8 +44,8 @@ def materialize_heston_family(values: Mapping[str, object]) -> Mapping[str, obje
         key: value for key, value in values.items() if isinstance(value, HestonSubjectCandidate)
     }
     output: dict[str, HestonSubjectMaterialization] = {}
-    selections = {}
-    sort_values = {}
+    selections: dict[str, HestonPairSelection] = {}
+    sort_values: dict[str, Decimal | UnknownReason] = {}
     for subject, candidate in candidates.items():
         if candidate.formation_date_state != "PASS":
             output[subject] = HestonSubjectMaterialization("NO_ACTION", "G_HES_FORMATION_DATE_FAIL")
@@ -96,9 +58,7 @@ def materialize_heston_family(values: Mapping[str, object]) -> Mapping[str, obje
         selected = _select(candidate)
         if isinstance(selected, UnknownReason):
             output[subject] = HestonSubjectMaterialization(
-                "UNKNOWN"
-                if selected.code in {"AMBIGUOUS_SELECTION", "G_HES_LOWCOST_PAIR_UNKNOWN"}
-                else "EXCLUDED",
+                "UNKNOWN" if selected.code in UNKNOWN_SELECTION_CODES else "EXCLUDED",
                 selected.code,
             )
             continue
@@ -121,7 +81,9 @@ def materialize_heston_family(values: Mapping[str, object]) -> Mapping[str, obje
         }
     groups = dict(assignment.groups)
     positions = {}
-    for subject, (call, put, call_mid, put_mid) in selections.items():
+    for subject, selection in selections.items():
+        call, put = selection.call, selection.put
+        call_mid, put_mid = selection.call_mid, selection.put_mid
         group = groups[subject]
         if group not in (long_group, short_group):
             output[subject] = HestonSubjectMaterialization(
