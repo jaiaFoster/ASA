@@ -1045,6 +1045,17 @@ def run_scheduled_complete_family_refresh(
         return ()
     subjects = SP500_MEMBERSHIP.symbols
     if len(subjects) > maximum_subjects:
+        _LOGGER.info(
+            "complete_family_capacity_release_summary",
+            extra={
+                "due_family_count": len(due_strategy_ids),
+                "expected_subject_count": len(subjects),
+                "admitted_subject_count": 0,
+                "deferred_pair_count": len(subjects) * len(due_strategy_ids),
+                "provider_request_count": 0,
+                "reason": "CAPACITY_DEFERRED_INCOMPLETE_COHORT",
+            },
+        )
         return tuple(
             PairOutcome(
                 strategy_id,

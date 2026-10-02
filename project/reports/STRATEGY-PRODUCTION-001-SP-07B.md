@@ -5,45 +5,40 @@
   composition root and the complete configured seven-strategy topology.
 - Safety: no live provider calls, credentials, payload retention, or deployment.
 
-## Measured cycle
+## Atomic complete-family gate
 
 | Measure | Result |
 |---|---:|
-| Due strategy/subject pairs | 164 |
-| Attempted / completed / failed | 164 / 164 / 0 |
-| Declared strategy capability demands | 738 |
-| Unique planned fact requests | 382 |
-| Deduplicated equivalent demands | 356 |
-| Provider requests | 292 |
-| Provider capacity deferrals | 0 |
-| Unique option-chain requests | 150 |
-| Unique historical-panel requests | 30 |
-| Local fixture cycle duration | 2.802 seconds |
+| Active point-in-time membership | 503 subjects |
+| Safe per-cycle admission ceiling | 30 subjects |
+| Zhan formation pairs admitted / deferred | 0 / 503 |
+| Heston formation pairs admitted / deferred | 0 / 503 |
+| Provider requests before typed deferral | 0 |
+| Partial family materializations | 0 |
 
-The duration is local fixture evidence, not a claim about provider latency.
-The remaining difference between unique planned requests and provider requests
-is typed unsupported optional capability evidence; it is not silently dropped.
+The gate compares the complete effective-dated membership before acquisition.
+It never combines rotating cohorts or claims source-faithful deciles over a
+partial universe. Increasing the ceiling remains a measured capacity decision.
 
 ## Release findings
 
-- One subject plan owns acquisition for all strategies sharing that subject.
-- Exact equivalent demands are deduplicated before provider acquisition.
-- Provider budgets and rolling-window refusals remain generic and typed.
-- Every due pair is attempted or receives an explicit typed evidence blocker.
+- Complete cross-sectional families are admitted atomically or deferred atomically.
+- Capacity refusal occurs before any provider request.
+- Every deferred pair carries `CAPACITY_DEFERRED_INCOMPLETE_COHORT`.
 - One sibling's missing optional evidence does not abort another strategy.
-- No strategy-specific throttling, hidden strategy drop, or universal preparation
-  exception is present.
+- Ordinary rotating strategies continue; no hidden family drop or partial ranking occurs.
 
 ## Automated proof
 
-`test_production_universe_topology_has_no_universal_preparation_failure`
-exercises the full configured topology and asserts the sanitized
-`cycle_capacity_release_summary`. Existing rolling-window tests prove generic
-capacity refusal and later-window recovery. The summary records per-capability
-demand and unique-request counts without symbols, payloads, or secrets.
+`test_complete_family_capacity_gate_defers_before_provider_calls` proves the
+503-member point-in-time requirement, zero admission under the safe ceiling,
+503 typed Zhan deferrals, and zero provider requests. The Heston due-date path
+uses the same registry-driven gate. Existing rolling-window tests still prove
+generic request-level refusal and recovery for admitted work.
 
 ## Disposition
 
-SP-07B release gate passes for the configured cohort under production-equivalent
-transport. Real provider/session behavior remains the Founder-only SP-08A
-deployment proof.
+SP-07B safety gate passes. Current capacity does not authorize a source-invalid
+partial cross-sectional result: Zhan/Heston truthfully defer until an atomic
+full-membership run is admitted. Real provider/session behavior and any raised
+atomic ceiling remain part of the Founder-only SP-08A production proof.

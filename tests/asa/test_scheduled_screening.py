@@ -12,6 +12,7 @@ from asa.scheduled_screening import (
     PRODUCTION_SCREENING_UNIVERSE,
     SP500_COHORT_MAXIMUM_SUBJECTS,
     main,
+    run_scheduled_complete_family_refresh,
     run_scheduled_refresh,
     scheduled_sp500_universe,
 )
@@ -23,6 +24,7 @@ from market_data.session_calendar import UsEquitySessionCalendar
 from market_data.session_schedule import SessionRefreshSchedule
 from market_data.transport import ReadOnlyHttpResponse
 from screening import APPROVED_LIVE_UNIVERSE, EARNINGS_CALENDAR_UNIVERSE
+from screening.universe_membership import SP500_MEMBERSHIP
 from strategy_runtime.orchestration import ShadowParityDiagnostic
 from tests.asa._fixture_market_data_access import (
     DuplicateEarningsFixtureProvider,
@@ -193,6 +195,27 @@ def test_production_universe_covers_all_migrated_cohort_strategies() -> None:
     expected = 2 * len(APPROVED_LIVE_UNIVERSE) + 2 * len(EARNINGS_CALENDAR_UNIVERSE)
     assert len(PRODUCTION_SCREENING_UNIVERSE) == expected
     assert len(set(PRODUCTION_SCREENING_UNIVERSE)) == expected  # no duplicate pairs
+
+
+def test_complete_family_capacity_gate_defers_before_provider_calls(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    caplog.set_level(logging.INFO)
+    outcomes = run_scheduled_complete_family_refresh(
+        now=datetime(2026, 9, 30, 21, tzinfo=UTC)
+    )
+    assert outcomes
+    assert all(item.reason == "CAPACITY_DEFERRED_INCOMPLETE_COHORT" for item in outcomes)
+    assert all(item.request_count == 0 for item in outcomes)
+    summary = next(
+        record
+        for record in caplog.records
+        if record.message == "complete_family_capacity_release_summary"
+    )
+    assert summary.expected_subject_count == len(SP500_MEMBERSHIP.symbols)
+    assert summary.admitted_subject_count == 0
+    assert summary.deferred_pair_count == len(SP500_MEMBERSHIP.symbols)
+    assert summary.provider_request_count == 0
 
 
 def test_earnings_calendar_pairs_use_the_single_name_subset_only() -> None:
