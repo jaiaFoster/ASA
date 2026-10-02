@@ -513,3 +513,29 @@ def test_missing_leg_or_colliding_series_near_the_money_is_unknown() -> None:
     far_call_only = _pair("150", "0.10")[0]
     selected = _select(_pair("100", "0.50"), (far_call_only,))
     assert isinstance(selected, HestonPairSelection) and selected.call.strike == Decimal(100)
+
+
+def test_non_pass_rows_satisfy_the_lifecycle_output_contract() -> None:
+    from strategy_runtime.validation import validate_result
+
+    class Clock:
+        def now(self) -> datetime:
+            return AS_OF
+
+    for state, reason in (
+        ("NO_ACTION", "G_HES_FORMATION_DATE_FAIL"),
+        ("EXCLUDED", "G_HES_LOWCOST_PAIR_FAIL"),
+        ("NO_POSITION", "HESTON_MIDDLE_DECILE"),
+    ):
+        knowledge: ReadOnlyStrategyInput[object] = ReadOnlyStrategyInput(
+            "snapshot",
+            "digest",
+            AS_OF,
+            (),
+            DerivedFactSet(()),
+            HestonSubjectMaterialization(state, reason),
+        )
+        context = RuntimeContext(HESTON_CONTRACT, "H0", Clock(), "run")
+        result = build_heston_subject_first_adapter({"H0": knowledge})(context)
+        validate_result(HESTON_CONTRACT, result)
+        assert result.lifecycle_stage == "identified" and result.opportunity_id is not None

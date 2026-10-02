@@ -181,11 +181,14 @@ def _result(
             _STRATEGY_ID, context.subject, payload.position.identity
         )
         if success and payload.position is not None
-        else None,
+        else None
+        if unknown
+        else compute_opportunity_id(_STRATEGY_ID, context.subject),
         row_type=RowType.RESULT,
         verdict="PASS" if success else None if unknown else "FAIL",
         evaluation_state=state,
-        lifecycle_stage="entered" if success else None,
+        # A completed non-pass evaluation is an identified opportunity.
+        lifecycle_stage="entered" if success else None if unknown else "identified",
         recommendation_state=None,
         data_quality=None,
         metrics=metrics,

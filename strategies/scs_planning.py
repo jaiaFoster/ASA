@@ -37,6 +37,10 @@ def rate_demand(now: datetime, parameter_name: str) -> CapabilityDemand:
         ("value",),
         now - timedelta(days=7),
         now,
+        # Optional input (the SCS evaluation types a missing rate); with no
+        # enabled rate provider the demand must degrade to typed
+        # UNSUPPORTED_CAPABILITY, never fail the shared SPX subject.
+        required=False,
         subject_symbol=str(scs_parameter(parameter_name)),
         maximum_age_seconds=86400 * 7,
     )

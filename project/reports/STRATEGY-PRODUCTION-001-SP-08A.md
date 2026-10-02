@@ -154,3 +154,26 @@ Zhan and Heston: 2026-10-02 is neither a month-end nor a monthly-expiration sess
 Residual noted: BXM's expansion reuses the PUT expiration-selection helper, so
 an expiration-evidence gap carries the PUT gate code `G_PUT_STRIKE_EXISTS_UNKNOWN`
 on BXM rows. This is typed and pre-existing (released with #522), not a runtime leak.
+
+## Post-deploy observation 2 — 2026-10-02 (release `244b9aa`, #533)
+
+The Founder redeployed `244b9aa` the same day. From then on, the SPX latest
+rows stopped updating (last write 18:23 UTC), while the SPY fixed pairs kept
+writing through the 21:53 UTC tick.
+
+A run of the real fixed-subject root with provider-shaped Tradier SPX data
+exposed two further ASA defects that #533's fix had unmasked:
+
+1. **Lifecycle output contract.**
+   - PUT, PUTY, BXM and SCS returned not-due `NO_SIGNAL` without `opportunity_id`/`lifecycle_stage`, though each declares `OutputKind.LIFECYCLE`.
+   - `validate_result` raised, so every pair failed and persisted no row.
+   - Zhan and Heston had the same latent gap on their non-pass paths.
+   - Fixed at the adapters. As GXZ and Earnings Calendar already do, a completed evaluation now carries the subject opportunity; the lifecycle stage is `identified`, as in GXZ.
+2. **Optional rate demand.**
+   - SCS's rate demands defaulted to `required=True`.
+   - With no enabled rate provider, the registry raised and failed the whole SPX subject.
+   - They are now `required=False`, matching Zhan and SCS's own typed-missing evaluation.
+
+Regressions: the fixed-SPX root with provider-shaped data, run with the rate provider disabled, must persist an evaluated row with lifecycle fields for every index strategy. It fails without either fix. Zhan and Heston non-pass rows must satisfy `validate_result`.
+
+Closure therefore requires another redeploy and one complete session on that release.

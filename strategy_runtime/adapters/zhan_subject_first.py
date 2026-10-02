@@ -85,8 +85,7 @@ def _formation_close(now: datetime, series: OHLCVSeries) -> Decimal | UnknownRea
     candidates = tuple(
         bar
         for bar in series.bars
-        if bar.interval_seconds == 86400
-        and bar.end_at == session.closes_at
+        if bar.interval_seconds == 86400 and bar.end_at == session.closes_at
     )
     if len(candidates) != 1:
         return UnknownReason("G_ZHAN_PRICE_MIN_UNKNOWN")
@@ -191,11 +190,14 @@ def _result(
             )
             if success
             else None
+            if unknown
+            else compute_opportunity_id(_STRATEGY_ID, context.subject)
         ),
         row_type=RowType.RESULT,
         verdict="PASS" if success else None if unknown else "FAIL",
         evaluation_state=state,
-        lifecycle_stage="entered" if success else None,
+        # A completed non-pass evaluation is an identified opportunity.
+        lifecycle_stage="entered" if success else None if unknown else "identified",
         recommendation_state=None,
         data_quality=None,
         metrics=metrics,
