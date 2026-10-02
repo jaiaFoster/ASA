@@ -1,7 +1,6 @@
 """Immutable canonical/derived knowledge mapping for Heston SP-05D."""
 
-from calendar import monthcalendar
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 
 from analytics.derived_facts import STRADDLE_MOMENTUM_FORMATION
@@ -104,8 +103,9 @@ def _select_pair(
 
 
 def _third_friday(year: int, month: int) -> date:
-    fridays = [week[4] for week in monthcalendar(year, month) if week[4]]
-    return date(year, month, fridays[2])
+    first = date(year, month, 1)
+    first_friday = first + timedelta(days=(4 - first.weekday()) % 7)
+    return first_friday + timedelta(days=14)
 
 
 def _month_distance(later: date, earlier: date) -> int:
