@@ -332,6 +332,7 @@ class PairOutcome:
     attempts_recorded: bool
     # The result this tick produced; ND-01 enrolls only this exact observation.
     observation_id: str | None = None
+    reason: str | None = None
 
 
 class RefreshScheduleClaimRepository(Protocol):
@@ -679,6 +680,7 @@ def run_scheduled_refresh(
         shadow_registry,
         asset_types=classifications.asset_types,
         sectors=classifications.sectors,
+        expected_complete_subjects=SP500_MEMBERSHIP.symbols,
     ).knowledge_by_subject
     outcomes: list[PairOutcome] = []
     for signal_id, symbol in universe:
@@ -944,6 +946,59 @@ def run_scheduled_fixed_subject_option_refresh(
     )
 
 
+def run_scheduled_complete_family_refresh(
+    *,
+    repository: LatestResultRepository | None = None,
+    history_repository: ObservationHistoryRepository | None = None,
+    acquisition_attempt_repository: AcquisitionAttemptRepository | None = None,
+    historical_skew_repository: HistoricalSkewRepository | None = None,
+    portfolio_lifecycle_repository: PortfolioLifecycleRepository | None = None,
+    transport_factory: Callable[[str], object] = build_live_transport,
+    now: datetime | None = None,
+    maximum_subjects: int = SP500_COHORT_MAXIMUM_SUBJECTS,
+) -> tuple[PairOutcome, ...]:
+    """Atomically admit complete cross-subject families or defer before acquisition."""
+    run_at = now or datetime.now(UTC)
+    registry = build_migrated_shadow_registry(run_at)
+    due_strategy_ids = tuple(
+        strategy_id
+        for strategy_id in registry.strategy_ids()
+        if (
+            (binding := registry.binding_for(strategy_id)).requires_complete_cross_subject_universe
+            and binding.cross_subject_family_due is not None
+            and binding.cross_subject_family_due(run_at)
+        )
+    )
+    if not due_strategy_ids:
+        return ()
+    subjects = SP500_MEMBERSHIP.symbols
+    if len(subjects) > maximum_subjects:
+        return tuple(
+            PairOutcome(
+                strategy_id,
+                symbol,
+                "capacity_deferred",
+                0,
+                None,
+                True,
+                reason="CAPACITY_DEFERRED_INCOMPLETE_COHORT",
+            )
+            for strategy_id in due_strategy_ids
+            for symbol in subjects
+        )
+    return run_scheduled_refresh(
+        tuple((strategy_id, symbol) for strategy_id in due_strategy_ids for symbol in subjects),
+        repository=repository,
+        history_repository=history_repository,
+        acquisition_attempt_repository=acquisition_attempt_repository,
+        historical_skew_repository=historical_skew_repository,
+        portfolio_lifecycle_repository=portfolio_lifecycle_repository,
+        transport_factory=transport_factory,
+        enforce_schedule=False,
+        now=run_at,
+    )
+
+
 def run_scheduled_portfolio_refresh(
     *,
     settings: Settings | None = None,
@@ -1004,6 +1059,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     except Exception as exc:
         _LOGGER.warning(
             "fixed_subject_option_refresh_failed",
+            extra={"failure_class": type(exc).__name__, "detail": str(exc)[:500]},
+            exc_info=True,
+        )
+    try:
+        outcomes = outcomes + run_scheduled_complete_family_refresh()
+    except Exception as exc:
+        _LOGGER.warning(
+            "complete_family_refresh_failed",
             extra={"failure_class": type(exc).__name__, "detail": str(exc)[:500]},
             exc_info=True,
         )
@@ -1087,6 +1150,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                         "request_count": item.request_count,
                         "error": item.error,
                         "attempts_recorded": item.attempts_recorded,
+                        "reason": item.reason,
                     }
                     for item in outcomes
                 ],

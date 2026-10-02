@@ -76,6 +76,7 @@ def compose_cross_subject_knowledge(
     *,
     asset_types: Mapping[CanonicalInstrumentIdentity, SecurityAssetType],
     sectors: Mapping[CanonicalInstrumentIdentity, SectorClassification],
+    expected_complete_subjects: tuple[str, ...] | None = None,
 ) -> CrossSubjectKnowledgeResult:
     """Materialize each declared family once from injected canonical classifications."""
 
@@ -103,6 +104,15 @@ def compose_cross_subject_knowledge(
     for family_id in sorted(family_entries):
         entries = family_entries[family_id]
         first_binding = registry.binding_for(entries[0][0])
+        if first_binding.requires_complete_cross_subject_universe:
+            expected = set(expected_complete_subjects or ())
+            actual = {subject for _strategy_id, subject, _knowledge in entries}
+            if not expected or actual != expected:
+                reason = UnknownReason("CAPACITY_DEFERRED_INCOMPLETE_COHORT")
+                for strategy_id, subject, _knowledge in entries:
+                    result[subject][strategy_id] = reason
+                counts.append((family_id, 0))
+                continue
         candidate_extractor = first_binding.extract_cross_subject_candidate
         family_materializer = first_binding.materialize_cross_subject_family
         if candidate_extractor is not None and family_materializer is not None:

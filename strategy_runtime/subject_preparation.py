@@ -85,6 +85,7 @@ ExtractCrossSubjectReturn = Callable[
 ]
 ExtractCrossSubjectCandidate = Callable[["ReadOnlyStrategyInput[TPayload]"], object]
 MaterializeCrossSubjectFamily = Callable[[Mapping[str, object]], Mapping[str, object]]
+CrossSubjectFamilyDue = Callable[[datetime], bool]
 BindCrossSubjectFacts = Callable[
     ["ReadOnlyStrategyInput[TPayload]", object],
     "ReadOnlyStrategyInput[TPayload]",
@@ -112,6 +113,8 @@ class SubjectPreparationBinding(Generic[TPayload]):  # noqa: UP046
     bind_cross_subject_facts: BindCrossSubjectFacts[TPayload] | None = None
     extract_cross_subject_candidate: ExtractCrossSubjectCandidate[TPayload] | None = None
     materialize_cross_subject_family: MaterializeCrossSubjectFamily | None = None
+    requires_complete_cross_subject_universe: bool = False
+    cross_subject_family_due: CrossSubjectFamilyDue | None = None
     build_execution_assessment: BuildExecutionAssessment[TPayload] | None = None
 
     def __post_init__(self) -> None:
@@ -123,6 +126,10 @@ class SubjectPreparationBinding(Generic[TPayload]):  # noqa: UP046
         )
         if self.cross_subject_family_id is None and any(item is not None for item in callbacks):
             raise ValueError("cross-subject callbacks require a family id")
+        if self.requires_complete_cross_subject_universe and (
+            self.cross_subject_family_id is None or self.cross_subject_family_due is None
+        ):
+            raise ValueError("complete cross-subject universe requires family id and due callback")
         if self.cross_subject_family_id is not None:
             legacy = self.extract_cross_subject_return is not None
             generic = (

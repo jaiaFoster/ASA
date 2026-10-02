@@ -220,7 +220,9 @@ def _bind_candidate(
     )
 
 
-def _generic_binding(consumer_id: str, family_id: str) -> SubjectPreparationBinding[object]:
+def _generic_binding(
+    consumer_id: str, family_id: str, *, complete: bool = False
+) -> SubjectPreparationBinding[object]:
     return SubjectPreparationBinding(
         consumer=SubjectPlanConsumer(consumer_id, (), lambda _evidence: None),  # type: ignore[arg-type,return-value]
         prepare_knowledge_mapping=lambda *_args: None,  # type: ignore[arg-type]
@@ -229,6 +231,8 @@ def _generic_binding(consumer_id: str, family_id: str) -> SubjectPreparationBind
         bind_cross_subject_facts=_bind_candidate,
         extract_cross_subject_candidate=_extract_candidate,
         materialize_cross_subject_family=_materialize_candidates,
+        requires_complete_cross_subject_universe=complete,
+        cross_subject_family_due=(lambda _now: True) if complete else None,
     )
 
 
@@ -256,3 +260,21 @@ def test_generic_family_contract_is_reusable_for_heston_shape() -> None:
     }
     result = compose_cross_subject_knowledge(knowledge, registry, asset_types={}, sectors={})
     assert result.materialization_count_by_family == (("heston-v1", 1),)
+
+
+def test_complete_family_never_materializes_partial_cohort() -> None:
+    registry = SubjectPreparationRegistry(
+        (("zhan", _generic_binding("zhan", "zhan-v1", complete=True)),)
+    )
+    knowledge = {"A": {"zhan": _candidate_knowledge("A", "1")}}
+    result = compose_cross_subject_knowledge(
+        knowledge,
+        registry,
+        asset_types={},
+        sectors={},
+        expected_complete_subjects=("A", "B"),
+    )
+    assert result.knowledge_by_subject["A"]["zhan"] == UnknownReason(
+        "CAPACITY_DEFERRED_INCOMPLETE_COHORT"
+    )
+    assert result.materialization_count_by_family == (("zhan-v1", 0),)

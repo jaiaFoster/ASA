@@ -232,4 +232,6 @@ def build_zhan_subject_preparation_binding(
         bind_cross_subject_facts=_bind,
         extract_cross_subject_candidate=_extract,
         materialize_cross_subject_family=materialize_zhan_family,
+        requires_complete_cross_subject_universe=True,
+        cross_subject_family_due=_last_session_of_month,
     )

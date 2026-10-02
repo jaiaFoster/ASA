@@ -189,10 +189,8 @@ def test_production_universe_covers_all_migrated_cohort_strategies() -> None:
         "skew_momentum",
         "earnings_calendar",
         "event_vol_gxz_preea_straddle_to_expiry",
-        "xs_option_zhan_neg_lnprice_dn_call",
-        "xs_option_heston_straddle_momentum_lowcost",
     }
-    expected = 4 * len(APPROVED_LIVE_UNIVERSE) + 2 * len(EARNINGS_CALENDAR_UNIVERSE)
+    expected = 2 * len(APPROVED_LIVE_UNIVERSE) + 2 * len(EARNINGS_CALENDAR_UNIVERSE)
     assert len(PRODUCTION_SCREENING_UNIVERSE) == expected
     assert len(set(PRODUCTION_SCREENING_UNIVERSE)) == expected  # no duplicate pairs
 
@@ -1631,12 +1629,7 @@ def test_production_universe_topology_has_no_universal_preparation_failure(
     assert all(
         item.outcome != "missing_data"
         for item in outcomes
-        if item.signal_id
-        not in {
-            "event_vol_gxz_preea_straddle_to_expiry",
-            "xs_option_zhan_neg_lnprice_dn_call",
-            "xs_option_heston_straddle_momentum_lowcost",
-        }
+        if item.signal_id != "event_vol_gxz_preea_straddle_to_expiry"
     )
     assert {
         item.outcome
