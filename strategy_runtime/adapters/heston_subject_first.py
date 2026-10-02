@@ -81,6 +81,10 @@ def _formation_state(now: datetime) -> str:
     return "PASS"
 
 
+def _formation_due(now: datetime) -> bool:
+    return _formation_state(now) == "PASS"
+
+
 def _next_monthly_expiration(now: datetime) -> date | UnknownReason:
     local = new_york_time(now).date()
     return monthly_expiration_day(
@@ -214,4 +218,6 @@ def build_heston_subject_preparation_binding(now: datetime) -> SubjectPreparatio
         bind_cross_subject_facts=_bind,
         extract_cross_subject_candidate=_extract,
         materialize_cross_subject_family=materialize_heston_family,
+        requires_complete_cross_subject_universe=True,
+        cross_subject_family_due=_formation_due,
     )

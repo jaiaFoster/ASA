@@ -401,6 +401,7 @@ def build_migrated_cutover_policy(values: Mapping[str, str]) -> CutoverPolicy:
             CBOE_PUT_CONTRACT.strategy_id: True,
             CBOE_PUTY_CONTRACT.strategy_id: True,
             BXM_CONTRACT.strategy_id: True,
+            SCS_CONTRACT.strategy_id: True,
             ZHAN_CONTRACT.strategy_id: True,
             HESTON_CONTRACT.strategy_id: True,
         }
