@@ -146,12 +146,12 @@ def build_cboe_put_subject_first_adapter(
             context.subject,
             compute_observation_id(context.run_id, CBOE_PUT_CONTRACT.strategy_id, context.subject),
             compute_opportunity_id(CBOE_PUT_CONTRACT.strategy_id, context.subject)
-            if state is EvaluationState.PASS
+            if state is not EvaluationState.MISSING_DATA
             else None,
             RowType.RESULT,
             None if state is EvaluationState.MISSING_DATA else decision.verdict,
             state,
-            "identified" if state is EvaluationState.PASS else None,
+            "identified" if state is not EvaluationState.MISSING_DATA else None,
             None,
             None,
             {
@@ -212,11 +212,11 @@ def build_cboe_putwrite_subject_first_adapter(
                 context.run_id, contract.strategy_id, context.subject
             ),
             opportunity_id=compute_opportunity_id(contract.strategy_id, context.subject)
-            if state is EvaluationState.PASS
+            if state is not EvaluationState.MISSING_DATA
             else None,
             verdict=None if state is EvaluationState.MISSING_DATA else decision.verdict,
             evaluation_state=state,
-            lifecycle_stage="identified" if state is EvaluationState.PASS else None,
+            lifecycle_stage="identified" if state is not EvaluationState.MISSING_DATA else None,
             metrics=original.metrics | {"decision.reason": TypedValue.of_string(decision.reason)},
             blockers=() if decision.verdict != UNKNOWN else (decision.reason,),
         )

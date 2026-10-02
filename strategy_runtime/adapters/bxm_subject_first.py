@@ -245,12 +245,12 @@ def build_bxm_subject_first_adapter(
             context.subject,
             compute_observation_id(context.run_id, BXM_CONTRACT.strategy_id, context.subject),
             compute_opportunity_id(BXM_CONTRACT.strategy_id, context.subject)
-            if state is EvaluationState.PASS
+            if state is not EvaluationState.MISSING_DATA
             else None,
             RowType.RESULT,
             None if state is EvaluationState.MISSING_DATA else decision.verdict,
             state,
-            "identified" if state is EvaluationState.PASS else None,
+            "identified" if state is not EvaluationState.MISSING_DATA else None,
             None,
             None,
             metrics,

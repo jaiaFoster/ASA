@@ -315,3 +315,44 @@ def test_fixed_spx_subject_prepares_all_four_index_strategies_together(
     for row in rows:
         assert row.evaluation_state == "missing_data"
         assert row.blockers and all("subject_preparation_failed" not in b for b in row.blockers)
+
+
+def test_fixed_spx_root_persists_a_row_for_every_index_strategy() -> None:
+    """Production regression (SP-08A, release 244b9aa, 2026-10-02).
+
+    Once SPX preparation succeeded, every not-due index strategy returned
+    NO_SIGNAL without opportunity_id/lifecycle_stage, violating its declared
+    OutputKind.LIFECYCLE contract; each pair raised and persisted no row.
+    Through the real root with provider-shaped Tradier data, every index
+    pair must complete without error and persist its own evaluated row. The
+    rate provider is disabled here: SCS's optional rate demands must degrade
+    to typed evidence, not fail the shared SPX subject.
+    """
+    import asa.scheduled_screening as scheduled
+    from market_data.live_transport import build_live_transport
+    from tests.asa._fixture_index_tradier import IndexTradierFixture
+
+    fixture = IndexTradierFixture()
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setenv("ASA_TRADIER_ENABLED", "true")
+        patch.setenv("ASA_TRADIER_ACCESS_TOKEN", "fixture-token")
+        patch.setenv("ASA_US_TREASURY_ENABLED", "false")
+        repository = InMemoryLatestResultRepository()
+        pairs = tuple(pair for pair in FIXED_SUBJECT_OPTION_UNIVERSE if pair[1] == "SPX")
+        outcomes = scheduled.run_scheduled_refresh(
+            pairs,
+            repository=repository,
+            history_repository=InMemoryObservationHistoryRepository(),
+            acquisition_attempt_repository=InMemoryAcquisitionAttemptRepository(),
+            transport_factory=lambda provider: (
+                fixture if provider == "tradier" else build_live_transport(provider)
+            ),
+        )
+    assert fixture.requests  # real acquisition path exercised
+    assert [item.error for item in outcomes] == [None] * len(pairs)
+    rows = {row.signal_id: row for row in repository.get_all()}
+    assert set(rows) == {pair[0] for pair in pairs}
+    for row in rows.values():
+        # A complete evaluation, never the shared-subject preparation failure.
+        assert row.evaluation_state in {"pass", "no_signal"}, (row.signal_id, row.blockers)
+        assert row.opportunity_id is not None and row.lifecycle_stage is not None

@@ -215,9 +215,7 @@ def build_scs_subject_first_adapter(
             if isinstance(next_entry, UnknownReason):
                 decision = SCSDecision("UNKNOWN", "G_SCS_EXIT_DATE_UNKNOWN")
                 next_entry = prior.expires_on
-            exit_day = select_lifecycle_exit_date(
-                exit_policy, (prior.expires_on, next_entry)
-            )
+            exit_day = select_lifecycle_exit_date(exit_policy, (prior.expires_on, next_entry))
             exit_session = calendar.session(exit_day)
             exit_due = local_now.date() > exit_day or (
                 local_now.date() == exit_day
@@ -259,9 +257,7 @@ def build_scs_subject_first_adapter(
         economics = {
             "margin.call.formula": TypedValue.of_string("DF-CBOE-NAKED-MARGIN@1.1.0"),
             "margin.put.formula": TypedValue.of_string("DF-CBOE-NAKED-MARGIN@1.1.0"),
-            "margin.straddle.formula": TypedValue.of_string(
-                "DF-CBOE-STRADDLE-MARGIN@1.0.0"
-            ),
+            "margin.straddle.formula": TypedValue.of_string("DF-CBOE-STRADDLE-MARGIN@1.0.0"),
         }
         for name, value in (
             ("margin.call", decision.call_naked_margin),
@@ -314,6 +310,11 @@ def build_scs_subject_first_adapter(
             opportunity_id = compute_opportunity_id(SCS_CONTRACT.strategy_id, context.subject)
             metrics["lifecycle.position_closed"] = TypedValue.of_boolean(True)
             metrics["lifecycle.exited_position_identity"] = TypedValue.of_string(previous_identity)
+        if lifecycle_stage is None and state is not EvaluationState.MISSING_DATA:
+            # A completed evaluation of a lifecycle strategy is an identified
+            # opportunity (the GXZ / Earnings Calendar convention).
+            lifecycle_stage = "identified"
+            opportunity_id = compute_opportunity_id(SCS_CONTRACT.strategy_id, context.subject)
         return UniversalScreeningResult(
             SCS_CONTRACT.strategy_id,
             SCS_CONTRACT.version,

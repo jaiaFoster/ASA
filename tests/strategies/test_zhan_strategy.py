@@ -114,25 +114,34 @@ def test_modal_maturity_tie_and_missing_rate_remain_typed_unknown() -> None:
 
 def test_frozen_stock_price_and_pair_gate_reason_codes_remain_distinct() -> None:
     candidate = _candidate(0)
-    assert materialize_zhan_family(
-        {"S0": replace(candidate, security_type=None)}
-    )["S0"].reason == "G_ZHAN_COMMON_STOCK_UNKNOWN"
-    assert materialize_zhan_family(
-        {"S0": replace(candidate, security_type=SecurityType.ETF)}
-    )["S0"].reason == "G_ZHAN_COMMON_STOCK_FAIL"
-    assert materialize_zhan_family(
-        {"S0": replace(candidate, spot=Decimal("4.99"))}
-    )["S0"].reason == "G_ZHAN_PRICE_MIN_FAIL"
+    assert (
+        materialize_zhan_family({"S0": replace(candidate, security_type=None)})["S0"].reason
+        == "G_ZHAN_COMMON_STOCK_UNKNOWN"
+    )
+    assert (
+        materialize_zhan_family({"S0": replace(candidate, security_type=SecurityType.ETF)})[
+            "S0"
+        ].reason
+        == "G_ZHAN_COMMON_STOCK_FAIL"
+    )
+    assert (
+        materialize_zhan_family({"S0": replace(candidate, spot=Decimal("4.99"))})["S0"].reason
+        == "G_ZHAN_PRICE_MIN_FAIL"
+    )
 
     call, _put_contract = candidate.contracts
-    assert materialize_zhan_family({"S0": replace(candidate, contracts=(call,))})[
-        "S0"
-    ].reason == "G_ZHAN_CALL_AND_PUT_FAIL"
+    assert (
+        materialize_zhan_family({"S0": replace(candidate, contracts=(call,))})["S0"].reason
+        == "G_ZHAN_CALL_AND_PUT_FAIL"
+    )
     no_arb = replace(call, bid=Decimal("20"), ask=Decimal("21"))
     paired_put = replace(_put_contract, bid=Decimal("1"), ask=Decimal("1.2"))
-    assert materialize_zhan_family(
-        {"S0": replace(candidate, contracts=(no_arb, paired_put))}
-    )["S0"].reason == "G_ZHAN_NO_ARBITRAGE_FAIL"
+    assert (
+        materialize_zhan_family({"S0": replace(candidate, contracts=(no_arb, paired_put))})[
+            "S0"
+        ].reason
+        == "G_ZHAN_NO_ARBITRAGE_FAIL"
+    )
 
 
 def test_atm_tie_is_ambiguous_not_arbitrarily_selected() -> None:
@@ -223,9 +232,7 @@ def test_formation_price_requires_exact_session_and_security_master_is_point_in_
         end_at=exact_bar.end_at - timedelta(days=1),
     )
     prior_series = OHLCVSeries(instrument, 86400, prior_bar.end_at, (prior_bar,))
-    assert _formation_close(exact_end, prior_series) == UnknownReason(
-        "G_ZHAN_PRICE_MIN_UNKNOWN"
-    )
+    assert _formation_close(exact_end, prior_series) == UnknownReason("G_ZHAN_PRICE_MIN_UNKNOWN")
 
     security = SecurityMasterRecord(
         AAPL,
@@ -271,3 +278,25 @@ def test_subject_first_adapter_replays_materialized_portfolio_without_acquisitio
     assert first.lifecycle_stage == "entered"
     assert payload.portfolio is not None
     assert first.metrics["portfolio.identity"].native() == payload.portfolio.identity
+
+
+def test_non_pass_rows_satisfy_the_lifecycle_output_contract() -> None:
+    from strategy_runtime.validation import validate_result
+
+    class Clock:
+        def now(self) -> datetime:
+            return AS_OF
+
+    for state, reason in (("NO_ACTION", "G_ZHAN_FORMATION_DATE_FAIL"), ("EXCLUDED", "X")):
+        knowledge = ReadOnlyStrategyInput(
+            "snapshot",
+            "digest",
+            AS_OF,
+            (),
+            DerivedFactSet(()),
+            ZhanSubjectMaterialization(state, reason),
+        )
+        context = RuntimeContext(ZHAN_CONTRACT, "S0", Clock(), "run")
+        result = build_zhan_subject_first_adapter({"S0": knowledge})(context)
+        validate_result(ZHAN_CONTRACT, result)
+        assert result.lifecycle_stage == "identified" and result.opportunity_id is not None
