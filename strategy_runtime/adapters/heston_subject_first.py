@@ -123,6 +123,7 @@ def _prepare(
         selected_expiration=selected_expiration,
         formation_date_state=formation_state,
         calendar=_calendar_view(now),
+        formation_date=new_york_time(now).date(),
     )
 
 

@@ -52,6 +52,12 @@ HESTON_MANIFEST = StrategyManifest(
     assumptions=(
         AssumptionReference("RA-XS-01", "research", ("quantiles",)),
         AssumptionReference("RA-XR-03", "research", ("replacement_policy",)),
+        # Monotone call-delta bound: an unresolved strike that could be closest
+        # to 0.5 makes the selection UNKNOWN (strategies/heston_selection.py).
+        AssumptionReference("IA-HES-DELTA-BOUND", "implementation"),
+        # Formation-period (lags 2-12) pairs use the closest-to-0.5 rule without
+        # the low-cost spread screen, OI gate or spread-based replacement.
+        AssumptionReference("IA-HES-FORMATION-UNSCREENED", "implementation"),
     ),
 )
 

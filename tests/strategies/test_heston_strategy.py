@@ -94,6 +94,8 @@ def test_manifest_contract_and_assumption_pin_are_complete() -> None:
     assert {item.assumption_id for item in HESTON_MANIFEST.assumptions} == {
         "RA-XS-01",
         "RA-XR-03",
+        "IA-HES-DELTA-BOUND",
+        "IA-HES-FORMATION-UNSCREENED",
     }
 
 
@@ -172,6 +174,10 @@ def _month(start: tuple[int, int], offset: int) -> tuple[int, int]:
     return index // 12, index % 12 + 1
 
 
+def _anchor(panel: HistoricalOptionPanel) -> date:
+    return panel.as_of.date()
+
+
 def _panel(
     *,
     start: tuple[int, int] = (2024, 12),
@@ -246,6 +252,10 @@ def _panel(
     )
 
 
+def _formation(panel: HistoricalOptionPanel) -> object:
+    return formation_from_panel(panel, _calendar(), _anchor(panel))
+
+
 # Entries 0..10 are lags 12..2 (mean of 0.00..0.10 = 0.05); entry 11 is lag 1 (0.11).
 LAG_TWO_TO_TWELVE_MEAN = Decimal("0.05")
 
@@ -254,7 +264,7 @@ def test_historical_panel_materializes_complete_lags_two_through_twelve() -> Non
     panel = _panel()
     # Good Friday 2025-04-18 rolls the April monthly expiration to 2025-04-17.
     assert any(snapshot.observed_at.date() == date(2025, 4, 17) for snapshot in panel.snapshots)
-    assert formation_from_panel(panel, _calendar()) == LAG_TWO_TO_TWELVE_MEAN
+    assert formation_from_panel(panel, _calendar(), _anchor(panel)) == LAG_TWO_TO_TWELVE_MEAN
 
     mapping = build_heston_knowledge_mapping(
         subject="H0",
@@ -272,6 +282,7 @@ def test_historical_panel_materializes_complete_lags_two_through_twelve() -> Non
         selected_expiration=EXPIRY,
         formation_date_state="PASS",
         calendar=_calendar(),
+        formation_date=_anchor(panel),
     )
     facts = tuple(
         CanonicalFact(
@@ -335,7 +346,7 @@ def test_historical_panel_rejects_gap_and_lag_one_only_history() -> None:
             ),
         ),
     )
-    assert formation_from_panel(panel, _calendar()) == UnknownReason(
+    assert formation_from_panel(panel, _calendar(), _anchor(panel)) == UnknownReason(
         "invalid_straddle_formation_calendar"
     )
 
@@ -375,22 +386,22 @@ def test_subject_first_adapter_replays_without_acquisition() -> None:
 
 
 def test_weekly_expirations_are_never_held_in_formation() -> None:
-    assert formation_from_panel(_panel(weekly_decoys=True), _calendar()) == (LAG_TWO_TO_TWELVE_MEAN)
+    assert _formation(_panel(weekly_decoys=True)) == (LAG_TWO_TO_TWELVE_MEAN)
 
 
 def test_missing_interior_month_and_stale_anchor_are_unknown() -> None:
-    gap = formation_from_panel(_panel(skip=frozenset({5})), _calendar())
+    gap = _formation(_panel(skip=frozenset({5})))
     assert isinstance(gap, UnknownReason)
     stale = _panel(months=12)
     stale = replace(stale, as_of=_after_close(_monthly(2025, 12)))
-    assert formation_from_panel(stale, _calendar()) == UnknownReason(
+    assert formation_from_panel(stale, _calendar(), _anchor(stale)) == UnknownReason(
         "invalid_straddle_formation_calendar"
     )
 
 
 def test_juneteenth_2026_monthly_expiration_rolls_to_thursday() -> None:
     assert _monthly(2026, 6) == date(2026, 6, 18)
-    assert formation_from_panel(_panel(start=(2025, 6)), _calendar()) == (LAG_TWO_TO_TWELVE_MEAN)
+    assert _formation(_panel(start=(2025, 6))) == LAG_TWO_TO_TWELVE_MEAN
     assert _formation_state(_after_close(date(2026, 6, 18))) == "PASS"
     assert _formation_state(_after_close(date(2026, 6, 19))) == "FAIL"
     assert _formation_state(datetime(2026, 6, 18, 19, tzinfo=UTC)) == "FAIL"  # before close
@@ -475,3 +486,30 @@ def test_planning_selects_next_month_monthly_expiration_not_a_weekly() -> None:
     assert expand_demands({resolved.demand_id: weeklies_only}, now=now).unknown_reasons == (
         UnknownReason("G_HES_FORMATION_DATE_UNKNOWN"),
     )
+
+
+def test_panel_ending_before_the_formation_date_is_stale_not_relabelled() -> None:
+    # A complete panel through 2026-09-18 evaluated on the 2026-10-16 formation
+    # date would otherwise shift the window to lags 3-13.
+    panel = _panel(start=(2025, 9))
+    assert _anchor(panel) == date(2026, 9, 18)
+    assert formation_from_panel(panel, _calendar(), date(2026, 10, 16)) == UnknownReason(
+        "stale_straddle_formation_history"
+    )
+
+
+def test_missing_leg_or_colliding_series_near_the_money_is_unknown() -> None:
+    call_only = _pair("100", "0.50")[0]
+    assert _select(_pair("105", "0.45"), (call_only,)) == UnknownReason(
+        "G_HES_LOWCOST_PAIR_UNKNOWN"
+    )
+    duplicate = replace(
+        _pair("100", "0.50")[0],
+        option_contract_id=CanonicalInstrumentIdentity("occ", "K100-C-adjusted"),
+    )
+    assert _select(_pair("100", "0.50"), (duplicate,), _pair("105", "0.45")) == UnknownReason(
+        "G_HES_LOWCOST_PAIR_UNKNOWN"
+    )
+    far_call_only = _pair("150", "0.10")[0]
+    selected = _select(_pair("100", "0.50"), (far_call_only,))
+    assert isinstance(selected, HestonPairSelection) and selected.call.strike == Decimal(100)
