@@ -71,6 +71,14 @@ class UsEquitySessionCalendar:
         raise DomainInvariantError("no completed US equity session found in bounded lookback")
 
 
+def us_equity_daily_bar_window(trading_date: date) -> tuple[datetime, datetime]:
+    """Canonical daily-bar window ending at official US equity close."""
+    session = UsEquitySessionCalendar().session(trading_date)
+    if session is None:
+        raise DomainInvariantError("daily bar trading date must be a US equity session")
+    return session.closes_at - timedelta(days=1), session.closes_at
+
+
 def classify_market_data_freshness(
     as_of: datetime,
     effective_time: datetime,

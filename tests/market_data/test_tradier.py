@@ -299,7 +299,7 @@ def test_multi_day_history_normalizes_into_one_series_observation() -> None:
                     "history": {
                         "day": [
                             {
-                                "date": "2026-07-19",
+                                "date": "2026-07-17",
                                 "open": "200.00",
                                 "high": "206",
                                 "low": "199",
@@ -373,7 +373,7 @@ def test_daily_history_excludes_current_incomplete_row_without_discarding_comple
     assert result.error is None
     series = result.observations[0].value
     assert isinstance(series, OHLCVSeries)
-    assert [bar.start_at.date() for bar in series.bars] == [date(2026, 7, 20)]
+    assert [bar.end_at for bar in series.bars] == [datetime(2026, 7, 20, 20, tzinfo=UTC)]
     assert "excluded 1 incomplete historical bar row" in caplog.text
 
 

@@ -106,6 +106,7 @@ def test_bootstrap_first_run_from_a_genuinely_empty_deployment(
         "index_short_vol_scs_near_atm_straddle",
         "skew_momentum",
         "spy_put_credit_spread",
+        "xs_option_zhan_neg_lnprice_dn_call",
     }
 
     # Step 2: confirm the empty state is 200 + empty list, never 404.

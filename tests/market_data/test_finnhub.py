@@ -174,7 +174,7 @@ def test_weekend_quote_from_friday_session_is_prior_session() -> None:
 
 
 def test_candle_success_validates_status_arrays_and_utc_timestamps() -> None:
-    stamp = int((NOW - timedelta(days=2)).timestamp())
+    stamp = int(datetime(2026, 7, 17, tzinfo=UTC).timestamp())
     body = {
         "s": "ok",
         "o": [205],

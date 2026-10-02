@@ -11,7 +11,16 @@ from market_data.session_calendar import (
     UsEquitySessionCalendar,
     classify_market_data_freshness,
     median_observed_at,
+    us_equity_daily_bar_window,
 )
+
+
+def test_daily_bar_window_ends_at_regular_and_early_session_close() -> None:
+    regular_start, regular_end = us_equity_daily_bar_window(date(2026, 9, 30))
+    early_start, early_end = us_equity_daily_bar_window(date(2024, 11, 29))
+    assert regular_end == _utc(2026, 9, 30, 20)
+    assert early_end == _utc(2024, 11, 29, 18)
+    assert regular_end - regular_start == early_end - early_start
 
 
 def _utc(year: int, month: int, day: int, hour: int, minute: int = 0) -> datetime:

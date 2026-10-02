@@ -46,6 +46,7 @@ WINDOWED_OPTION_TRADE_VWAP = "windowed_option_trade_vwap"
 CBOE_BUYWRITE_DAILY_RETURN = "DF-CBOE-BUYWRITE-DAILY-RETURN"
 THIRD_FRIDAY_ROLL_DATE = "DF-THIRD-FRIDAY-ROLL-DATE"
 GXZ_PAIR_VOLUME = "gxz_pair_volume"
+NEGATIVE_LOG_PRICE = "negative_log_price"
 
 
 class AdjustedCloseBarLike(Protocol):
@@ -339,6 +340,14 @@ def compute_bid_ask_spread_ratio(bid: Decimal | None, ask: Decimal | None) -> De
     return (ask - bid) / midpoint
 
 
+def compute_negative_log_price(price: Decimal) -> Decimal:
+    """Natural-log price characteristic; interpretation remains strategy-owned."""
+
+    if not price.is_finite() or price <= 0:
+        raise ValueError("price must be positive and finite")
+    return -price.ln()
+
+
 def compute_option_volume_band(volume: int | None) -> int:
     """Raw coarse order-of-magnitude band; interpretation belongs to strategy."""
 
@@ -381,6 +390,11 @@ def _definition(
 
 
 DERIVED_FACT_DEFINITIONS = (
+    _definition(
+        NEGATIVE_LOG_PRICE,
+        "Negative natural logarithm of one canonical security price.",
+        MarketCapability.HISTORICAL_BARS_V1,
+    ),
     _definition(
         TRAILING_12M_TOTAL_RETURN,
         "Trailing return across thirteen completed month-end split-and-dividend-adjusted closes.",
