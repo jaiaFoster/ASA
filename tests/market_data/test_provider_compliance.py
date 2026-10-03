@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import UTC, datetime
 
 import pytest
 
@@ -124,7 +124,8 @@ def test_tradier_passes_shared_supported_capability_suite() -> None:
 
 
 def test_finnhub_passes_shared_supported_capability_suite() -> None:
-    stamp = int((finnhub.NOW - timedelta(days=2)).timestamp())
+    # Daily bars must start on a US equity session; NOW - 2 days is a Sunday.
+    stamp = int(datetime(2026, 7, 17, tzinfo=UTC).timestamp())
     quote, _ = finnhub.provider(
         finnhub.Transport((finnhub.response({"c": 210, "t": int(finnhub.NOW.timestamp())}),))
     )
