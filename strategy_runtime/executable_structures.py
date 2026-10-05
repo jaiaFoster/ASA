@@ -223,6 +223,32 @@ class ExecutableStructureAssessment:
         return hashlib.sha256(encoded).hexdigest()
 
 
+def structure_not_selected_assessment(
+    *,
+    originating_result_identity: str,
+    subject: str,
+    intended_structure_kind: StructureKind,
+    evidence_snapshot_identity: str,
+    assessed_at: datetime,
+) -> ExecutableStructureAssessment:
+    """Typed UNKNOWN projection for a result whose strategy selected no structure.
+
+    Not-due and no-action results are valid outcomes, not projection failures.
+    """
+    return ExecutableStructureAssessment(
+        originating_result_identity=originating_result_identity,
+        subject=subject,
+        intended_structure_kind=intended_structure_kind,
+        status=ExecutableStructureStatus.UNKNOWN,
+        exact_legs=(),
+        selection_diagnostics=(),
+        modeled_entry_economics=None,
+        evidence_snapshot_identity=evidence_snapshot_identity,
+        assessed_at=assessed_at,
+        reason_code="strategy_did_not_select_structure",
+    )
+
+
 def execution_assessment_to_data(
     assessment: ExecutableStructureAssessment,
 ) -> dict[str, object]:

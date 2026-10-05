@@ -224,3 +224,13 @@ def test_missing_or_failing_cron_evidence_fails_closure() -> None:
         "cron_pair_failures:index_buywrite_cboe_bxm:1",
         "cron_refresh_failures:1",
     ]
+    # SP-08A 2026-10-05: a clean cohort artifact does not hide an exception
+    # the scheduler caught and logged (execution_readiness_projection_failed).
+    swallowed = [
+        'INFO {"artifact_type": "bounded_run_cohort", "results": []}',
+        "ERROR execution_readiness_projection_failed",
+        "ERROR Traceback (most recent call last):",
+    ]
+    artifact = classify_release(_fetcher(rows), cron_lines=swallowed, **kwargs)
+    assert artifact["failures"] == ["cron_tracebacks:1"]
+    assert artifact["cron_evidence"]["traceback_lines"] == 1

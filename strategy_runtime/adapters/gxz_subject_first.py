@@ -27,7 +27,10 @@ from strategies.knowledge_contracts import KnowledgeMapping
 from strategy_runtime.adapters.gxz import GXZ_CONTRACT
 from strategy_runtime.context import RuntimeContext
 from strategy_runtime.contract import StructureKind
-from strategy_runtime.executable_structures import ExecutableStructureAssessment
+from strategy_runtime.executable_structures import (
+    ExecutableStructureAssessment,
+    structure_not_selected_assessment,
+)
 from strategy_runtime.knowledge import ReadOnlyStrategyInput
 from strategy_runtime.lifecycle import compute_opportunity_id
 from strategy_runtime.option_structure_resolver import (
@@ -209,6 +212,14 @@ def _assessment(
     assessed_at: datetime,
 ) -> ExecutableStructureAssessment:
     decision = _decision(knowledge.payload)
+    if decision.verdict != PASS or not decision.pairs:
+        return structure_not_selected_assessment(
+            originating_result_identity=result.observation_id,
+            subject=result.symbol,
+            intended_structure_kind=StructureKind.STRADDLE,
+            evidence_snapshot_identity=knowledge.snapshot_digest,
+            assessed_at=assessed_at,
+        )
     return resolve_option_structure(
         intent=build_gxz_structure_intent(result.symbol, decision),
         chain=knowledge.payload.chain,

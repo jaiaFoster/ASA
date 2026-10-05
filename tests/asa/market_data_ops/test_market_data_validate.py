@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
 
 from asa.bootstrap import DependencyOverrides, build_application
 from asa.config import Settings
+from market_data.session_calendar import UsEquitySessionCalendar
 from market_data.transport import ReadOnlyHttpResponse
 from tests.asa.fakes import InMemoryObservationRepository
 from tests.asa.market_data_ops.fakes import ScriptedTransport
@@ -99,6 +100,15 @@ def _raise_if_called(_provider_id: str) -> None:
     raise AssertionError("dry_run must never construct a live transport")
 
 
+def _previous_session_date() -> date:
+    """Latest US equity session before today; daily bars fail closed on non-session dates."""
+    calendar = UsEquitySessionCalendar()
+    day = datetime.now(UTC).date() - timedelta(days=1)
+    while calendar.session(day) is None:
+        day -= timedelta(days=1)
+    return day
+
+
 def test_tradier_option_chain_live_run_completes_instead_of_crashing(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -133,9 +143,7 @@ def test_tradier_option_chain_live_run_completes_instead_of_crashing(
                 "history": {
                     "day": [
                         {
-                            "date": (
-                                datetime.now(UTC) - timedelta(days=1)
-                            ).date().isoformat(),
+                            "date": _previous_session_date().isoformat(),
                             "open": "205.00",
                             "high": "212",
                             "low": "204",

@@ -33,7 +33,10 @@ from strategies.tristate_components import PASS, UNKNOWN
 from strategy_runtime.adapters.cboe_put import CBOE_PUT_CONTRACT
 from strategy_runtime.context import RuntimeContext
 from strategy_runtime.contract import StrategyContract, StructureKind
-from strategy_runtime.executable_structures import ExecutableStructureAssessment
+from strategy_runtime.executable_structures import (
+    ExecutableStructureAssessment,
+    structure_not_selected_assessment,
+)
 from strategy_runtime.knowledge import ReadOnlyStrategyInput
 from strategy_runtime.lifecycle import compute_opportunity_id
 from strategy_runtime.option_structure_resolver import (
@@ -233,7 +236,13 @@ def _assessment(
 ) -> ExecutableStructureAssessment:
     decision = _decision(knowledge.payload, assessed_at, strike_policy=strike_policy)
     if decision.verdict != PASS or decision.selected_put is None:
-        raise ValueError("Cboe PUT assessment requires a passing exact selection")
+        return structure_not_selected_assessment(
+            originating_result_identity=result.observation_id,
+            subject=result.symbol,
+            intended_structure_kind=StructureKind.SINGLE_LEG,
+            evidence_snapshot_identity=knowledge.snapshot_digest,
+            assessed_at=assessed_at,
+        )
     return resolve_option_structure(
         intent=build_cboe_put_structure_intent(result.symbol, decision),
         chain=knowledge.payload.chain,

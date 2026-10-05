@@ -26,6 +26,8 @@ proof therefore also requires the scheduler's own per-tick ``--json``
 artifacts (``bounded_run_cohort``) for the window, read from the cron
 service logs: every selected-strategy result must have ``error == null``
 and no fixed-subject or complete-family refresh failure line may appear.
+Any logged ``Traceback`` is an exception the scheduler swallowed (for
+example a failed execution-readiness projection) and also fails the proof.
 Without that evidence the verdict is ``fail`` (``cron_evidence_missing``).
 
 The proof passes only when the deployed SHA equals the expected release,
@@ -49,7 +51,7 @@ from zoneinfo import ZoneInfo
 from tools.options_product.founder_utility import Fetch, JsonObject, http_fetcher
 
 ARTIFACT_KIND = "strategy_production_release_classification"
-ARTIFACT_VERSION = "1.0.0"
+ARTIFACT_VERSION = "1.1.0"
 
 SELECTED_STRATEGIES: tuple[str, ...] = (
     "event_vol_gxz_preea_straddle_to_expiry",
@@ -83,6 +85,7 @@ _SELECTED_REFRESH_FAILURES = (
     "fixed_subject_option_refresh_failed",
     "complete_family_refresh_failed",
 )
+_TRACEBACK_MARKER = "Traceback (most recent call last)"
 _LAST_CRON_TICK_UTC = (21, 50)
 _FIRST_CRON_TICK_UTC = (13, 0)
 _NEW_YORK = ZoneInfo("America/New_York")
@@ -174,6 +177,11 @@ def cron_failures(lines: list[str]) -> tuple[int, dict[str, int], int]:
     return artifacts, dict(sorted(failed.items())), refresh_failures
 
 
+def cron_tracebacks(lines: list[str]) -> int:
+    """Logged tracebacks: exceptions the scheduler caught and survived."""
+    return sum(1 for line in lines if _TRACEBACK_MARKER in line)
+
+
 def _parse(value: str) -> datetime:
     return datetime.fromisoformat(value.replace("Z", "+00:00"))
 
@@ -258,6 +266,9 @@ def classify_release(
         failures.append(f"cron_pair_failures:{strategy_id}:{count}")
     if refresh_failures:
         failures.append(f"cron_refresh_failures:{refresh_failures}")
+    tracebacks = cron_tracebacks(cron_lines or [])
+    if tracebacks:
+        failures.append(f"cron_tracebacks:{tracebacks}")
     if deployed != production_sha:
         failures.append(f"deployed_sha_mismatch:{deployed or 'unset'}")
     for strategy_id, item in strategies.items():
@@ -282,6 +293,7 @@ def classify_release(
             "bounded_run_artifacts": artifacts,
             "selected_strategy_pair_failures": cron_failed,
             "refresh_failure_lines": refresh_failures,
+            "traceback_lines": tracebacks,
         },
         "failures": failures,
         "verdict": "pass" if not failures else "fail",
