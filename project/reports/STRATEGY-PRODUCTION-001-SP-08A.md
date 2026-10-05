@@ -177,3 +177,42 @@ exposed two further ASA defects that #533's fix had unmasked:
 Regressions: the fixed-SPX root with provider-shaped data, run with the rate provider disabled, must persist an evaluated row with lifecycle fields for every index strategy. It fails without either fix. Zhan and Heston non-pass rows must satisfy `validate_result`.
 
 Closure therefore requires another redeploy and one complete session on that release.
+
+## Post-deploy observation 3 — 2026-10-05 (release `b87fbf7`)
+
+`b87fbf7` (#537, test-only) is runtime-identical to `2dfaa2d` (#534).
+
+Railway read-only checks:
+- Both services ran `b87fbf7` all session, matching `/api/v1/version`.
+- The cron service uses `/railway.cron.json` with `*/10 13-21 * * 1-5`.
+- `ASA_US_TREASURY_ENABLED=true` is set on both services.
+
+Cron evidence: all 54 ticks from 13:01 to 21:51 UTC emitted a `bounded_run_cohort` artifact.
+- No selected-strategy result has a non-null `error`.
+- No `*_refresh_failed` warning appears.
+- The SPX pairs for PUT, PUTY, BXM and SCS appear on every tick with `error: null`:
+  - `no_signal` in 50 ticks;
+  - typed `missing_data` in 4 ticks.
+
+The session still fails closure because of one ASA defect: 150 tracebacks.
+
+- **Symptom.** Every tick logged `execution_readiness_projection_failed` with a traceback three times:
+  - twice from the Cboe PUT adapter (PUT and PUTY);
+  - once from SCS.
+- **Root cause.** The not-due SPX results reached the execution-readiness projection. Their assessment builders raised `ValueError` on a non-passing decision. The scheduler caught and logged the error, so no row was lost, but this is an unexplained strategy exception.
+- **Fix.** For a result that selected no structure, the PUT/PUTY, SCS and GXZ builders now return a typed `UNKNOWN` assessment with `reason_code=strategy_did_not_select_structure`. Skew Momentum already does the same.
+- **Regression.** The fixed-SPX root with provider-shaped Tradier data, run with a lifecycle repository, must project typed readiness for PUT, PUTY and SCS and log no projection failure. Before the fix it reproduces exactly the three production warnings.
+
+Classifier (`45e5c1c`, the #538 capture commit, which leaves runtime identical; window 13:30 to 21:55 UTC):
+
+| Strategy | Class |
+|---|---|
+| GXZ | `LIVE_TYPED_DATA_BLOCKER` (503 rows) |
+| PUT, PUTY, BXM, SCS | `LIVE_TYPED_DATA_BLOCKER` (`G_CBOE_SPX_REF_BEFORE_1100_UNKNOWN`) |
+| Zhan, Heston | `NOT_DUE` |
+
+There are no exception rows. The 1.0.0 classifier returned `pass` because it never read `Traceback` lines, the hardening follow-up the hand-off listed. Version 1.1.0, in the same PR, fails the proof on any logged traceback, so this session now classifies as `fail` (`cron_tracebacks:150`).
+
+Same PR: `test_tradier_option_chain_live_run_completes_instead_of_crashing` used "yesterday" as a daily-bar date. That date is not a session on a Monday, so the test failed. It now uses the previous session date, which keeps `full_suite_green`.
+
+Closure requires deploying this fix and observing one complete session on that release.

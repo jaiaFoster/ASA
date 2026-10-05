@@ -382,3 +382,77 @@ def test_fixed_spx_root_persists_a_row_for_every_index_strategy(
         assert all("subject_preparation_failed" not in item for item in row.blockers)
         if row.evaluation_state in {"pass", "no_signal"}:
             assert row.opportunity_id is not None and row.lifecycle_stage is not None
+
+
+def test_fixed_spx_root_projects_typed_readiness_for_not_due_index_strategies(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Production regression (SP-08A, release b87fbf7, session 2026-10-05).
+
+    Every tick, the not-due PUT, PUTY and SCS SPX results reached the
+    execution-readiness projection, whose builders raised on a non-passing
+    decision; the scheduler logged execution_readiness_projection_failed
+    with a traceback each time. A result that selected no structure must
+    project a typed UNKNOWN assessment instead of raising.
+    """
+    import logging
+
+    import asa.scheduled_screening as scheduled
+    from market_data.live_transport import build_live_transport
+    from strategy_runtime.executable_structures import (
+        ExecutableStructureStatus,
+        deserialize_execution_assessment,
+    )
+    from tests.asa._fixture_index_tradier import IndexTradierFixture
+
+    instant = datetime(2026, 10, 2, 22, 50, tzinfo=UTC)
+
+    class _PinnedDatetime(datetime):
+        @classmethod
+        def now(cls, tz: object = None) -> datetime:  # type: ignore[override]
+            return instant
+
+    class _CaptureReadiness:
+        def __init__(self) -> None:
+            self.artifacts: list[object] = []
+
+        def put_execution_readiness(self, artifact: object) -> None:
+            self.artifacts.append(artifact)
+
+    readiness = _CaptureReadiness()
+    fixture = IndexTradierFixture(instant)
+    caplog.set_level(logging.WARNING)
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(scheduled, "datetime", _PinnedDatetime)
+        patch.setenv("ASA_TRADIER_ENABLED", "true")
+        patch.setenv("ASA_TRADIER_ACCESS_TOKEN", "fixture-token")
+        patch.setenv("ASA_US_TREASURY_ENABLED", "false")
+        pairs = tuple(pair for pair in FIXED_SUBJECT_OPTION_UNIVERSE if pair[1] == "SPX")
+        outcomes = scheduled.run_scheduled_refresh(
+            pairs,
+            repository=InMemoryLatestResultRepository(),
+            history_repository=InMemoryObservationHistoryRepository(),
+            acquisition_attempt_repository=InMemoryAcquisitionAttemptRepository(),
+            portfolio_lifecycle_repository=readiness,  # type: ignore[arg-type]
+            transport_factory=lambda provider: (
+                fixture if provider == "tradier" else build_live_transport(provider)
+            ),
+            now=instant,
+        )
+    assert [item.error for item in outcomes] == [None] * len(pairs)
+    assert not any(
+        record.message == "execution_readiness_projection_failed" for record in caplog.records
+    )
+    projected = {
+        artifact.strategy_id: deserialize_execution_assessment(artifact.assessment_json)  # type: ignore[attr-defined]
+        for artifact in readiness.artifacts
+    }
+    for strategy_id in (
+        "index_putwrite_cboe_put",
+        "index_putwrite_cboe_puty",
+        "index_short_vol_scs_near_atm_straddle",
+    ):
+        assessment = projected[strategy_id]
+        assert assessment.status is ExecutableStructureStatus.UNKNOWN
+        assert assessment.reason_code == "strategy_did_not_select_structure"
+        assert assessment.subject == "SPX"
