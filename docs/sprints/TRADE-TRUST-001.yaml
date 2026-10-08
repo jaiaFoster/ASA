@@ -1,0 +1,387 @@
+---
+id: TRADE-TRUST-001
+name: Canonical Trade Trust and Execution Awareness
+version: 0.1-draft
+status: DRAFT
+type: IMPLEMENTATION_SPRINT
+priority: P0
+
+draft_state:
+  founder_authorized: false
+  activation_effect: none
+  purpose: >
+    Full execution prompt for phase 3 of ASA's production-to-decision program.
+    This sprint verifies and extends the existing canonical proposal path rather
+    than creating a parallel trade model.
+  baseline:
+    branch: main
+    observed_at_authoring: 2026-10-08
+    authoring_main_sha: c11eca8c6bfb570895727dc6dc36de2c14213daa
+    rule: rehydrate_current_main_before_execution
+
+activation:
+  governance_amendment: GOV-AMD-001-013
+  founder_authorized: false
+  delegate:
+    role: ROLE-WORKER
+    instance: trade-trust-worker
+  limited_to_sprint: TRADE-TRUST-001
+  effective_when: >
+    Founder explicitly activates this sprint under current governance and
+    personally merges any required activation change.
+  expires:
+    - sprint_complete
+    - sprint_stopped
+    - Founder_revokes_delegation
+    - scope_or_authority_changes
+
+program_position:
+  program: ASA-PRODUCTION-TO-DECISION-2026Q4
+  phase: 3
+  depends_on:
+    - SYSTEM-UNDERSTANDING-001_core_canonical_composition_merged
+  may_overlap_with:
+    - SYSTEM-UNDERSTANDING-001_observation
+    - OUTCOME_VALUE_001_passive_collection
+  precedes:
+    - OUTCOME-VALUE-001
+    - SCALE-READINESS-001
+
+objective: >
+  Make every ASA option proposal mechanically faithful, broker-reproducible,
+  and execution-aware. The sprint must preserve the existing authority chain
+  from screening result to execution assessment to canonical trade proposal,
+  eliminate consumer reconstruction, expose package execution quality, and
+  represent execution-sensitive event evidence with explicit authority.
+
+north_star:
+  statement: If ASA shows a trade, the Founder can trust that this is the exact trade.
+  founder_experience: >
+    A proposal can be reproduced at a broker from ASA's exact legs without
+    interpretation, and the Founder can see whether the current market is
+    narrow, wide, stale, or otherwise poor for execution.
+  invariants:
+    - no_trade_reconstruction_from_provenance_fragments
+    - no_silent_structure_substitution
+    - modeled_midpoint_is_never_claimed_as_fill
+    - no_live_broker_mutation
+    - signal_validity_and_execution_readiness_remain_separate
+    - estimated_event_date_is_never_presented_as_company_confirmed
+    - execution_quality_measurement_does_not_silently_become_strategy_policy
+
+existing_context:
+  issues:
+    - 541
+    - 542
+    - 543
+    - 437
+  canonical_chain:
+    - UniversalScreeningResult
+    - ExecutableStructureAssessment
+    - OptionTradeProposal
+    - product_and_tracking_projection
+  manual_Founder_observations:
+    GIS:
+      observed_structure: double_calendar
+      concern: brief_reduced_multi_leg_structure_to_one_provenance_strike
+    FDXF:
+      observed_structure: call_diagonal_plus_put_calendar
+      concern: large_natural_vs_visible_midpoint_gap
+    RMD:
+      observed_structure: double_calendar
+      concern: brief_provenance_strike_did_not_describe_all_legs
+    TXN:
+      observed_structure: call_diagonal_plus_put_calendar
+      concern: brief_provenance_representation_differed_materially
+  interpretation_rule: >
+    These observations prove the brief representation was non-authoritative.
+    They do not prove ASA selected the same manually assembled broker structure
+    unless exact proposal identities and legs are compared from the same result.
+
+scope:
+  in:
+    - exact_result_to_assessment_to_proposal_identity_chain
+    - consumer migration to exact proposal legs
+    - broker reproduction proof
+    - package natural_vs_mid analytics
+    - quote_age_and_spread_width
+    - typed_execution_quality_unknowns
+    - earnings_event_authority_taxonomy
+    - readiness integrity for confirmed_inside_unknown_and_confirmed_outside
+    - proposal consistency across API_brief_tracking_and_outcomes
+  out:
+    - live_order_submission
+    - broker_authentication_expansion
+    - automatic_execution
+    - execution_algo
+    - new_unvalidated_slippage_rejection_threshold
+    - strategy_parameter_tuning
+    - broad_corporate_event_policy
+    - paid_provider_procurement_without_Founder_decision
+
+architecture_contract:
+  authority: ROLE-ARCH
+  canonical_owners:
+    signal_and_financial_judgment: strategies
+    constructibility_and_exact_selected_legs: executable_structure_assessment
+    product_trade_projection: strategy_runtime_trade_proposal
+    reusable_execution_quality_math: analytics_or_trade_projection_owner_as_decided_by_ARCH
+    earnings_fact_authority: market_data
+    readiness_policy: strategy_owned_or_existing_execution_readiness_boundary
+  hard_rules:
+    - trade_proposal_copies_exact_selected_positions_only
+    - no_consumer_infers_missing_legs
+    - provider_payload_never_becomes_product_authority
+    - no_midpoint_or_natural_price_claimed_as_actual_fill
+    - no_strategy_ID_branch_in_generic_trade_projection
+    - UNKNOWN_remains_UNKNOWN
+    - exact_event_source_authority_and_strategy_readiness_policy_remain_separate
+
+tickets:
+  TT-00:
+    title: Exact-main proposal authority audit
+    priority: P0
+    acceptance:
+      - trace_result_to_assessment_to_proposal_for_representative_option_strategies
+      - verify_identity_linkage_and_exact_leg_preservation
+      - identify_every_consumer_that_reconstructs_or_summarizes_from_non_authoritative_fields
+      - identify_existing_execution_quality_fields_before_adding_new_ones
+      - no_parallel_trade_contract_planned
+
+  TT-01:
+    title: Eliminate non-authoritative trade reconstruction
+    priority: P0
+    depends_on: [TT-00]
+    scope:
+      - issue_541
+      - daily_brief_and_other_consumers
+    acceptance:
+      - exact_legs_side_type_strike_expiration_quantity_from_OptionTradeProposal
+      - unavailable_proposal_shows_typed_reason
+      - no_single_provenance_strike_masquerades_as_multi_leg_trade
+      - proposal_identity_and_originating_result_identity_exposed_where_needed
+
+  TT-02:
+    title: Broker reproduction proof harness
+    priority: P0
+    depends_on: [TT-00, TT-01]
+    proof_contract:
+      inputs:
+        - originating_result_identity
+        - structure_assessment_identity
+        - proposal_identity
+        - exact_legs
+      compare:
+        - underlying
+        - buy_or_sell
+        - call_or_put
+        - strike
+        - expiration
+        - quantity
+      manual_deviation_rule: >
+        If Founder changes a leg at the broker, the deviation must be labeled
+        user_modified and must not be attributed to ASA's proposal.
+    acceptance:
+      - at_least_four_real_or_equivalent_production_proposals_reproduced
+      - exact_structural_match_or_explicitly_explained_deviation
+      - no_manual_leg_inference_required
+
+  TT-03:
+    title: Package execution-quality analytics
+    priority: P0
+    depends_on: [TT-00]
+    scope:
+      - issue_542
+      - per_leg_bid_ask_mid
+      - package_natural_debit_or_credit
+      - package_modeled_midpoint
+      - natural_to_mid_absolute_gap
+      - natural_to_mid_relative_gap
+      - spread_width
+      - quote_age
+      - typed_unknown_when_calculation_not_supported
+    semantics:
+      midpoint: modeled_reference_only
+      natural: quote_derived_reference_not_fill
+      blocking_policy: none_in_this_ticket
+    acceptance:
+      - deterministic_package_math
+      - one_sided_or_missing_quote_fails_typed
+      - stale_quote_flag_preserved
+      - FDXF_like_wide_market_is_obvious_without_manual_arithmetic
+      - no_strategy_signal_change
+
+  TT-04:
+    title: Earnings event authority taxonomy
+    priority: P0
+    depends_on: [TT-00]
+    scope:
+      - issue_543
+      - reconcile_issue_437_REL_03
+    required_distinctions_or_equivalent:
+      - COMPANY_CONFIRMED
+      - EXCHANGE_OR_CALENDAR_SCHEDULED
+      - THIRD_PARTY_ESTIMATE
+      - UNANNOUNCED
+      - UNKNOWN
+    acceptance:
+      - authority_class_is_canonical_evidence_not_brief_inference
+      - source_and_observed_time_preserved
+      - estimate_never_presented_as_confirmed
+      - conflicting_sources_fail_closed_or_surface_conflict
+      - no_strategy_local_scraper
+
+  TT-05:
+    title: Readiness integrity across earnings states
+    priority: P0
+    depends_on: [TT-04]
+    truth_table:
+      confirmed_inside_protected_window: NOT_CONSTRUCTIBLE
+      unknown_or_unconfirmed: UNKNOWN
+      stale_unusable: UNKNOWN
+      confirmed_outside_protected_window: eligible_for_structure_resolution
+    acceptance:
+      - signal_PASS_can_coexist_with_NONCONSTRUCTIBLE_or_UNKNOWN_readiness
+      - no_legacy_gate_boolean_claimed_as_clearance
+      - tests_cover_all_truth_table_rows
+      - exact_leg_resolution_only_occurs_when_policy_allows
+
+  TT-06:
+    title: Proposal consistency across product and lifecycle surfaces
+    priority: P0
+    depends_on: [TT-01, TT-03]
+    surfaces:
+      - API
+      - daily_brief
+      - trade_card
+      - tracking_enrollment
+      - outcome_lineage
+    acceptance:
+      - same_proposal_identity_or_explicit_unavailable_state
+      - same_exact_legs
+      - same_entry_model_semantics
+      - no_surface_specific_trade_reconstruction
+
+  TT-07:
+    title: Real-market trade trust proof
+    priority: P0
+    depends_on: [TT-02, TT-03, TT-05, TT-06]
+    required_observations:
+      minimum_proposals: 5
+      include_if_available:
+        - calendar_or_double_calendar
+        - diagonal
+        - vertical
+        - single_leg_or_other_supported_structure
+    acceptance:
+      - proposal_exactly_reproducible
+      - quote_age_visible
+      - modeled_midpoint_visible
+      - natural_reference_visible_when_supported
+      - no_hidden_leg_substitution
+      - event_clearance_authority_truthful
+      - no_live_broker_mutation
+
+deferred_product_decision:
+  execution_quality_as_blocker:
+    state: NOT_DECIDED_IN_THIS_SPRINT
+    rationale: >
+      First collect real execution-quality observations. A future Founder
+      product decision may authorize a slippage/readiness threshold only with
+      empirical evidence and an explicit ownership contract.
+
+operating_model:
+  no_lull: >
+    Continue dependency-safe work during reviews, CI, broker-observation waits,
+    or market-session waits.
+  WIP:
+    implementation_or_correction_streams: 2
+    observation_streams: unbounded
+  root_cause_policy:
+    - preserve_existing_trade_authority
+    - fix_consumer_if_consumer_reconstructs
+    - fix_assessment_or_strategy_owner_if_exact_selected_legs_are_wrong
+    - fix_market_data_owner_if_event_authority_is_wrong
+  token_efficiency:
+    - audit_existing_trade_contract_before_design
+    - targeted_tests_during_iteration
+    - reuse_existing_option_product_tests
+    - no_duplicate_trade_docs
+    - one_concise_PR_evidence_packet
+    - full_suite_at_required_gates_only
+
+autonomous_role_gates:
+  rule: >
+    Non-Founder architecture and independent review gates are instantiated
+    autonomously and never treated as a reason to stop the sprint.
+  architect:
+    instance: fresh_ROLE_ARCH
+    exact_head_required: true
+    required_for:
+      - new_canonical_evidence_taxonomy
+      - new_package_analytics_owner
+      - public_trade_contract_change
+      - readiness_policy_boundary_change
+  independent_R3:
+    instance: fresh_temporary_independent_reviewer
+    exact_head_required: true
+    read_only: true
+    disposition: [PASS, HOLD]
+  worker_rule: >
+    Request the required review and continue dependency-safe work.
+
+merge_policy:
+  default_authority: Founder_only
+  delegated_mechanical_merge: >
+    Allowed only if an active Founder Sprint Delegation covers this sprint.
+  auto_merge:
+    permitted_when_delegated: true
+    requires:
+      - enumerated_ticket
+      - dependencies_satisfied
+      - focused_and_required_CI_green
+      - exact_identity_and_replay_tests_green
+      - architecture_checks_green
+      - self_review_complete
+      - required_exact_head_reviews_PASS
+      - no_true_Founder_blocker
+  deployment_authority: Founder_only
+  branch_protection_bypass: prohibited
+
+true_Founder_blockers:
+  - material_product_direction_change
+  - decision_to_make_execution_quality_a_blocking_policy
+  - paid_vendor_or_data_commitment
+  - live_broker_mutation_or_permission_expansion
+  - protected_breaking_contract_outside_scope
+  - Founder_only_deployment_or_destructive_action
+  - material_scope_expansion
+  - irreconcilable_governance_conflict
+
+validation:
+  per_PR:
+    - exact_proposal_identity_tests
+    - exact_leg_projection_tests
+    - execution_quality_math_tests
+    - event_authority_truth_table_tests
+    - provider_free_replay_where_applicable
+    - no_strategy_ID_branch_architecture_check
+    - Ruff_changed_scope
+    - mypy_changed_scope
+    - repository_required_CI
+    - self_review
+  closure:
+    - canonical_trade_reconstruction_removed
+    - package_execution_quality_available
+    - event_authority_taxonomy_live
+    - readiness_truth_table_green
+    - proposal_consistency_proved
+    - real_broker_reproduction_proof_complete
+
+completion:
+  success: >
+    ASA option proposals are exact, identity-linked, reproducible from canonical
+    legs, and accompanied by truthful execution-quality context. Event evidence
+    authority is explicit, readiness remains fail-closed, and no consumer
+    reconstructs a trade from provenance fragments.
+  next_sprint: OUTCOME-VALUE-001
