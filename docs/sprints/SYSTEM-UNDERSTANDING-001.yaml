@@ -316,10 +316,11 @@ operating_model:
 
 autonomous_role_gates:
   rule: >
-    Mandatory non-Founder architecture and independent review gates are
-    fulfilled autonomously and never treated as Founder blockers.
+    After GOV-AMD-018 and its operational reconciliation are effective, mandatory
+    non-Founder architecture and independent-review gates are fulfilled through
+    the authorized hydration/profile mechanisms and are not Founder blockers.
   architect:
-    instance: fresh_ROLE_ARCH
+    instance: fresh_ROLE_ARCH_under_effective_GOV_AMD_018
     exact_head_required: true
     required_for:
       - new_public_projection_contract
@@ -327,7 +328,7 @@ autonomous_role_gates:
       - ownership_change
       - schema_or_identity_change
   independent_R3:
-    instance: fresh_temporary_independent_reviewer
+    execution_profile: governance/execution-profiles/INDEPENDENT-REVIEWER-v1.md
     exact_head_required: true
     read_only: true
     disposition: [PASS, HOLD]
