@@ -73,6 +73,7 @@ activation:
 
 program_position:
   program: ASA-PRODUCTION-TO-DECISION-2026Q4
+  program_contract: docs/sprints/ASA-PRODUCTION-TO-DECISION-2026Q4.md
   phase: 1
   precedes:
     - SYSTEM-UNDERSTANDING-001
