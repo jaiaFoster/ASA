@@ -1,0 +1,370 @@
+---
+id: OUTCOME-VALUE-001
+name: Outcome Value and Evidence-Disciplined Effectiveness
+version: 0.1-draft
+status: DRAFT
+type: IMPLEMENTATION_AND_OBSERVATION_SPRINT
+priority: P1
+
+draft_state:
+  founder_authorized: false
+  activation_effect: none
+  purpose: >
+    Full execution prompt for phase 4 of ASA's production-to-decision program.
+    This sprint is a bounded successor/extension to OUTCOME-INTELLIGENCE-001.
+    It must not create a second outcome ledger, duplicate opportunity identity,
+    or reinterpret sparse production observations as proof of strategy alpha.
+  baseline:
+    branch: main
+    observed_at_authoring: 2026-10-08
+    authoring_main_sha: c11eca8c6bfb570895727dc6dc36de2c14213daa
+    rule: rehydrate_current_main_and_current_OI_state_before_execution
+
+activation:
+  governance_amendment: GOV-AMD-001-013
+  founder_authorized: false
+  delegate:
+    role: ROLE-WORKER
+    instance: outcome-value-worker
+  limited_to_sprint: OUTCOME-VALUE-001
+  effective_when: >
+    Founder explicitly activates this sprint under current governance and
+    personally merges any required activation change.
+  expires:
+    - sprint_complete
+    - sprint_stopped
+    - Founder_revokes_delegation
+    - scope_or_authority_changes
+
+program_position:
+  program: ASA-PRODUCTION-TO-DECISION-2026Q4
+  phase: 4
+  depends_on:
+    - OUTCOME_INTELLIGENCE_001_current_owner_and_ledger_rehydrated
+    - TRADE_TRUST_001_core_proposal_identity_stable_or_equivalent_current_main
+  may_collect_during:
+    - PRODUCTION-TRUST-001
+    - SYSTEM-UNDERSTANDING-001
+    - TRADE-TRUST-001
+  precedes:
+    - SCALE-READINESS-001_value_decisions
+
+objective: >
+  Extend ASA's existing outcome-intelligence system from basic forward
+  observation into disciplined product-value measurement. Quantify where
+  opportunities are created, blocked, constructible, and subsequently observed
+  while preserving exact lineage and explicit evidence sufficiency. The sprint
+  must help prioritize product and infrastructure investment without claiming
+  that small or selected samples prove external strategy performance.
+
+north_star:
+  statement: ASA can quantify usefulness without pretending sparse observations prove alpha.
+  founder_experience: >
+    The Founder can see which strategy/product paths produce usable
+    opportunities, where value is lost, which blockers dominate, and whether
+    there is enough evidence to make a decision.
+  invariants:
+    - one_outcome_ledger_authority
+    - user_tracked_and_system_actionable_populations_remain_separate
+    - no_hindsight_rewrites_of_original_signal_or_proposal
+    - no_parameter_tuning_from_production_outcomes_in_this_sprint
+    - no_strategy_alpha_claim_without_explicit_research_process
+    - no_pooling_incompatible_horizons
+    - insufficient_evidence_remains_insufficient
+
+existing_context:
+  program: ASA-OPTIONS-TO-OUTCOMES-2026Q4
+  current_owner: OUTCOME-INTELLIGENCE-001
+  current_metrics_already_available:
+    - actionable_opportunity_yield
+    - evaluation_coverage
+    - strategy_evaluation_completion_rate
+    - constructible_rate_after_qualifying_signal
+    - trade_card_completeness
+    - provider_limited_rates
+    - forward_outcome_ledgers
+    - user_tracked_population
+    - system_actionable_population
+  current_known_state_at_authoring:
+    outcome_intelligence: in_progress
+    OI_07: evidence_insufficient
+    forward_outcome_observed: true
+    zero_unexplained_drops: true
+  implication: >
+    This sprint begins by reusing and extending existing owners. It does not
+    recreate AOY, outcome enrollment, or forward ledgers.
+
+scope:
+  in:
+    - exact_signal_readiness_proposal_outcome_lineage
+    - outcome_coverage_and_missingness
+    - product_funnel_measurement
+    - blocker_distribution_and_followup
+    - execution_quality_distribution_when_trade_trust_data_exists
+    - strategy_level_opportunity_frequency
+    - constructibility_frequency
+    - descriptive_forward_outcome_statistics
+    - evidence_sufficiency_classification
+    - decision_reports_for_product_and_scale_prioritization
+  out:
+    - backtesting
+    - parameter_optimization
+    - automatic_strategy_ranking_as_product_policy
+    - claims_of_proven_alpha_from_production_sample
+    - blending_user_tracked_and_system_actionable_without_stratification
+    - new_outcome_persistence_authority
+    - live_broker_fill_assumptions
+    - paid_data_purchase
+
+architecture_contract:
+  authority: ROLE-ARCH
+  canonical_owners:
+    opportunity_identity: strategy_runtime_and_existing_tracking_contract
+    proposal_identity: strategy_runtime_trade_proposal
+    outcome_ledger: existing_outcome_intelligence_owner
+    market_observations: market_data
+    reusable_statistics: analytics_or_existing_OI_owner
+    research_evidence_claims: ROLE_RESEARCH_not_this_sprint
+  hard_rules:
+    - historical_observation_never_mutates_original_decision_artifact
+    - sample_membership_is_explicit
+    - observation_horizon_is_explicit
+    - missing_outcome_is_not_zero_return
+    - modeled_PnL_is_not_realized_broker_PnL
+    - selection_bias_is_disclosed
+    - no_strategy_ID_branch_in_generic_outcome_pipeline
+
+tickets:
+  OV-00:
+    title: Rehydrate and reconcile OUTCOME-INTELLIGENCE-001
+    priority: P0
+    acceptance:
+      - current_OI_sprint_and_closure_state_read_from_main
+      - current_ledgers_and_identity_contracts_mapped
+      - duplicate_metrics_removed_from_plan
+      - issue_551_mapping_state_reconciled
+      - exact_gaps_for_value_measurement_identified
+
+  OV-01:
+    title: Canonical end-to-end lineage audit
+    priority: P0
+    depends_on: [OV-00]
+    lineage:
+      - screening_result_identity
+      - execution_readiness_identity_when_applicable
+      - proposal_identity_when_applicable
+      - enrollment_identity
+      - outcome_observation_identity
+    acceptance:
+      - deterministic_join_path
+      - no_symbol_date_heuristic_when_canonical_identity_exists
+      - proposal_changes_remain_distinct_observations
+      - missing_link_is_typed_and_measured
+
+  OV-02:
+    title: Opportunity and constructibility funnel metrics
+    priority: P0
+    depends_on: [OV-00]
+    required_by_strategy:
+      - eligible_or_due_population
+      - evaluated
+      - signal_or_strategy_pass
+      - readiness_resolved
+      - constructible
+      - proposal_available
+      - system_actionable_enrolled
+      - user_tracked
+      - forward_outcome_observed
+    acceptance:
+      - each_denominator_explicit
+      - no_hidden_drop
+      - populations_not_double_counted
+      - time_window_and_session_count_explicit
+
+  OV-03:
+    title: Evidence sufficiency policy
+    priority: P0
+    depends_on: [OV-00]
+    required_states:
+      - INSUFFICIENT
+      - DESCRIPTIVE_ONLY
+      - DECISION_SUPPORTING
+    rule: >
+      Exact numerical thresholds must be evidence- and use-case-appropriate,
+      documented, and reviewed. This sprint must not invent a universal
+      significance threshold that implies strategy validation.
+    acceptance:
+      - sample_size_visible
+      - horizon_completeness_visible
+      - selection_bias_visible
+      - no_performance_claim_when_state_INSUFFICIENT
+      - confidence_or_uncertainty_reported_where_mathematically_supported
+
+  OV-04:
+    title: Blocker follow-up analysis
+    priority: P1
+    depends_on: [OV-02, OV-03]
+    scope:
+      - earnings_readiness_blockers
+      - liquidity_or_execution_quality_blockers
+      - provider_data_blockers
+      - capacity_deferrals
+      - missing_history
+    methodology: >
+      Compare subsequent observable behavior only as descriptive product
+      diagnostics. Do not infer that a blocker should be loosened merely
+      because a small blocked sample later performed well.
+    acceptance:
+      - blocker_population_identity_preserved
+      - no_lookahead_in_original_decision
+      - descriptive_results_clearly_labeled
+      - insufficient_sample_remains_insufficient
+
+  OV-05:
+    title: Execution-quality value bridge
+    priority: P1
+    depends_on:
+      - OV-02
+      - TRADE_TRUST_001_execution_quality_available
+    scope:
+      - natural_to_mid_distribution
+      - spread_width_distribution
+      - quote_age_distribution
+      - constructible_but_poor_execution_quality_frequency
+    acceptance:
+      - modeled_reference_not_fill
+      - no_execution_threshold_selected_here
+      - enough_data_or_explicit_INSUFFICIENT_state
+
+  OV-06:
+    title: Strategy/product value report
+    priority: P0
+    depends_on: [OV-02, OV-03]
+    required_per_strategy_or_family:
+      - sessions_observed
+      - opportunity_frequency
+      - constructibility_rate
+      - proposal_availability_rate
+      - dominant_typed_blockers
+      - outcome_coverage
+      - descriptive_outcome_distribution_if_sufficient
+      - evidence_sufficiency_state
+      - known_selection_bias
+    acceptance:
+      - no_alpha_claim_language
+      - user_tracked_and_system_actionable_reported_separately
+      - no_cross_strategy_ranking_without_comparable_denominators
+      - report_can_feed_SCALE_READINESS_001_prioritization
+
+  OV-07:
+    title: Multi-session observation and closure
+    priority: P0
+    depends_on: [OV-01, OV-02, OV-03, OV-06]
+    observation:
+      minimum_eligible_sessions: 10
+      forward_horizons: >
+        Use the existing strategy/product horizon contract. Do not delay
+        implementation work while horizons mature; keep collecting until the
+        minimum required evidence state is reached or explicitly classify it
+        INSUFFICIENT.
+    acceptance:
+      - exact_release_identity_captured
+      - zero_unexplained_outcome_lineage_drop
+      - evidence_sufficiency_state_for_each_reported_conclusion
+      - no_unqualified_performance_claim
+      - value_report_generated_from_canonical_ledgers
+
+operating_model:
+  no_lull: >
+    Outcome observation is naturally time-dependent. Observation wait never
+    idles implementation capacity. Continue independent work and accumulate
+    forward observations automatically.
+  WIP:
+    implementation_or_correction_streams: 2
+    observation_streams: unbounded
+  correction_rule: >
+    If a lineage or persistence defect is found, reopen the owning earlier
+    boundary rather than patching analysis around corrupt data.
+  token_efficiency:
+    - reuse_existing_OI_reports_and_collectors
+    - query_canonical_ledgers_not_raw_duplicate_exports
+    - no_duplicate_metrics_docs
+    - concise_evidence_packets
+    - targeted_tests_first
+    - full_suite_at_required_gates_only
+
+autonomous_role_gates:
+  rule: >
+    Non-Founder review and architecture consultation are autonomously
+    instantiated and never treated as Founder blockers.
+  architect:
+    instance: fresh_ROLE_ARCH
+    exact_head_required: true
+    required_for:
+      - outcome_identity_change
+      - persistence_contract_change
+      - new_canonical_metric_owner
+      - public_API_contract_change
+  independent_R3:
+    instance: fresh_temporary_independent_reviewer
+    exact_head_required: true
+    read_only: true
+    disposition: [PASS, HOLD]
+  worker_rule: >
+    Continue dependency-safe work while exact-head review runs.
+
+merge_policy:
+  default_authority: Founder_only
+  delegated_mechanical_merge: >
+    Allowed only under an active Founder Sprint Delegation covering this sprint.
+  auto_merge:
+    permitted_when_delegated: true
+    requires:
+      - enumerated_ticket
+      - dependencies_satisfied
+      - required_CI_green
+      - lineage_integrity_tests_green
+      - no_lookahead_tests_green
+      - self_review_complete
+      - required_exact_head_reviews_PASS
+      - no_true_Founder_blocker
+  deployment_authority: Founder_only
+  branch_protection_bypass: prohibited
+
+true_Founder_blockers:
+  - material_product_direction_choice
+  - paid_vendor_or_money_commitment
+  - decision_to_change_strategy_or_execution_threshold_based_on_outcomes
+  - live_broker_authority_change
+  - Founder_only_deployment_or_destructive_action
+  - protected_breaking_contract_outside_scope
+  - material_scope_expansion
+  - irreconcilable_governance_conflict
+
+validation:
+  per_PR:
+    - deterministic_lineage_tests
+    - no_lookahead_tests
+    - sample_population_separation_tests
+    - missing_outcome_semantics_tests
+    - provider_free_replay_where_applicable
+    - Ruff_changed_scope
+    - mypy_changed_scope
+    - repository_required_CI
+    - self_review
+  closure:
+    - canonical_outcome_owner_reused
+    - zero_unexplained_lineage_drop
+    - evidence_sufficiency_policy_applied
+    - strategy_value_report_generated
+    - no_unqualified_alpha_claim
+    - observation_window_complete_or_explicitly_INSUFFICIENT
+
+completion:
+  success: >
+    ASA can quantify opportunity frequency, constructibility, blocker burden,
+    outcome coverage, and descriptive forward behavior from canonical ledgers,
+    with exact lineage and explicit evidence sufficiency. The resulting report
+    supports product and scale decisions without overstating what production
+    observations prove.
+  next_sprint: SCALE-READINESS-001
