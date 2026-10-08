@@ -383,10 +383,11 @@ operating_model:
 
 autonomous_role_gates:
   rule: >
-    Required non-Founder architecture and independent review gates are fulfilled
-    autonomously while dependency-safe work continues.
+    After GOV-AMD-018 and its operational reconciliation are effective, required
+    non-Founder architecture and independent-review gates use its authorized
+    hydration/profile mechanisms while dependency-safe work continues.
   architect:
-    instance: fresh_ROLE_ARCH
+    instance: fresh_ROLE_ARCH_under_effective_GOV_AMD_018
     exact_head_required: true
     required_for:
       - capacity_contract_change
@@ -394,7 +395,7 @@ autonomous_role_gates:
       - historical_evidence_schema_change
       - concurrency_or_persistence_model_change
   independent_R3:
-    instance: fresh_temporary_independent_reviewer
+    execution_profile: governance/execution-profiles/INDEPENDENT-REVIEWER-v1.md
     exact_head_required: true
     read_only: true
     disposition: [PASS, HOLD]
