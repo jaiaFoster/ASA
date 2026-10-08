@@ -270,6 +270,7 @@ tickets:
   SU-06:
     title: Outcome Intelligence reason taxonomy reconciliation
     priority: P1
+    depends_on: [SU-00]
     scope:
       - issue_551
       - mechanically_checked_mapping_or_canonical_category_projection
