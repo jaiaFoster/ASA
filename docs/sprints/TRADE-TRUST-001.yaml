@@ -347,10 +347,11 @@ operating_model:
 
 autonomous_role_gates:
   rule: >
-    Non-Founder architecture and independent review gates are instantiated
-    autonomously and never treated as a reason to stop the sprint.
+    After GOV-AMD-018 and its operational reconciliation are effective,
+    non-Founder architecture and independent-review gates use the authorized
+    hydration/profile mechanisms and are not reasons to stop unrelated work.
   architect:
-    instance: fresh_ROLE_ARCH
+    instance: fresh_ROLE_ARCH_under_effective_GOV_AMD_018
     exact_head_required: true
     required_for:
       - new_canonical_evidence_taxonomy
@@ -358,7 +359,7 @@ autonomous_role_gates:
       - public_trade_contract_change
       - readiness_policy_boundary_change
   independent_R3:
-    instance: fresh_temporary_independent_reviewer
+    execution_profile: governance/execution-profiles/INDEPENDENT-REVIEWER-v1.md
     exact_head_required: true
     read_only: true
     disposition: [PASS, HOLD]
