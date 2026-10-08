@@ -72,6 +72,7 @@ activation:
 
 program_position:
   program: ASA-PRODUCTION-TO-DECISION-2026Q4
+  program_contract: docs/sprints/ASA-PRODUCTION-TO-DECISION-2026Q4.md
   phase: 3
   depends_on:
     - SYSTEM-UNDERSTANDING-001_core_canonical_composition_merged
