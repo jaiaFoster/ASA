@@ -1,0 +1,354 @@
+---
+id: SYSTEM-UNDERSTANDING-001
+name: Founder System Understanding and Canonical Briefing
+version: 0.1-draft
+status: DRAFT
+type: IMPLEMENTATION_SPRINT
+priority: P0
+
+draft_state:
+  founder_authorized: false
+  activation_effect: none
+  purpose: >
+    Full execution prompt for phase 2 of ASA's production-to-decision program.
+    This sprint composes existing canonical product/runtime truth into a
+    Founder-legible daily operating view. It must not create a second strategy,
+    health, due-state, or trade authority.
+  baseline:
+    branch: main
+    observed_at_authoring: 2026-10-08
+    authoring_main_sha: c11eca8c6bfb570895727dc6dc36de2c14213daa
+    rule: rehydrate_current_main_before_execution
+
+activation:
+  governance_amendment: GOV-AMD-001-013
+  founder_authorized: false
+  delegate:
+    role: ROLE-WORKER
+    instance: system-understanding-worker
+  limited_to_sprint: SYSTEM-UNDERSTANDING-001
+  effective_when: >
+    Founder explicitly activates this sprint under current governance and
+    personally merges any required activation change.
+  expires:
+    - sprint_complete
+    - sprint_stopped
+    - Founder_revokes_delegation
+    - scope_or_authority_changes
+
+program_position:
+  program: ASA-PRODUCTION-TO-DECISION-2026Q4
+  phase: 2
+  depends_on:
+    - PRODUCTION-TRUST-001_implementation_complete_or_observation_only
+  may_overlap_with:
+    - PRODUCTION-TRUST-001_observation
+    - OUTCOME_VALUE_001_passive_collection
+  precedes:
+    - TRADE-TRUST-001
+    - OUTCOME-VALUE-001
+    - SCALE-READINESS-001
+
+objective: >
+  Make ASA legible to the Founder without manual reconstruction. The daily
+  brief and related Founder-facing summaries must discover the production
+  strategy roster from canonical authorities and compose due state, production
+  health, typed blockers, option-funnel terminal state, readiness, and proposal
+  availability without inventing independent business logic.
+
+north_star:
+  statement: The Founder never has to ask what ASA is actually doing.
+  founder_experience: >
+    One pass through the daily brief explains whether ASA ran correctly, which
+    strategies exist, which were due, what state each reached, what changed,
+    and which opportunities deserve attention.
+  invariants:
+    - no_hard_coded_recognized_strategy_list
+    - no_brief_side_due_logic
+    - no_brief_side_freshness_logic
+    - no_brief_side_trade_reconstruction
+    - no_PASS_absence_equals_broken_heuristic
+    - typed_UNKNOWN_and_NOT_DUE_remain_distinct
+    - existing_canonical_owners_are_composed_not_duplicated
+
+existing_context:
+  issues:
+    - 404
+    - 540
+    - 551
+  relevant_surfaces:
+    - /api/v1/capabilities
+    - /api/v1/screening
+    - strategy_health_projection
+    - /option-funnel
+    - execution_readiness
+    - trade_proposal
+    - scheduler_due_metadata
+    - production_release_classifier
+  known_failure_modes:
+    - first_page_or_partial_result_set_presented_as_complete
+    - first_class_strategies_called_unrecognized_or_experimental
+    - typed_blockers_described_as_dark_or_broken
+    - gate_boolean_interpreted_as_execution_clearance
+    - provenance_strike_presented_as_exact_trade
+    - stale_strategy_inventory_in_brief_logic
+
+scope:
+  in:
+    - canonical_strategy_discovery
+    - canonical_per_strategy_operational_summary
+    - daily_brief_v2_composition
+    - typed_reason_and_terminal_state_presentation
+    - meaningful_state_transition_detection
+    - complete_pagination_or_server_side_summary_truth
+    - option_funnel_summary_for_option_strategies
+    - deterministic_reconciliation_tests
+  out:
+    - new_strategy_financial_logic
+    - new_strategy_health_taxonomy_if_existing_projection_is_sufficient
+    - general_purpose_event_bus
+    - broad_UI_redesign
+    - live_broker_mutation
+    - new_execution_slippage_thresholds
+    - corporate_event_policy
+    - paid_provider_procurement
+
+preflight_rule: >
+  Before adding any new endpoint or model, map every Founder question required
+  by this sprint to current canonical artifacts. Add a projection only when the
+  composition cannot be represented truthfully and stably from existing public
+  or internal canonical owners.
+
+architecture_contract:
+  authority: ROLE-ARCH
+  canonical_owners:
+    strategy_inventory: strategy_runtime_catalog_and_capabilities
+    screening_state: strategy_runtime_result_projection
+    acquisition_and_terminal_diagnostics: option_funnel
+    execution_constructibility: executable_structure_assessment
+    exact_option_trade: option_trade_proposal
+    due_state: registered_scheduler_or_strategy_schedule_metadata
+    freshness: canonical_result_freshness_projection
+  hard_rules:
+    - presentation_does_not_reinterpret_strategy_semantics
+    - UI_or_brief_does_not_branch_on_strategy_ID_for_financial_meaning
+    - no_duplicate_reason_classifier_when_canonical_typed_reason_exists
+    - no_hidden_partial_pagination
+    - no_unlabeled_stale_state
+    - exact_trade_data_only_from_canonical_proposal
+
+tickets:
+  SU-00:
+    title: Founder-question to canonical-authority map
+    priority: P0
+    acceptance:
+      - map_strategy_exists_to_authority
+      - map_due_state_to_authority
+      - map_health_to_authority
+      - map_primary_blocker_to_authority
+      - map_option_terminal_state_to_authority
+      - map_proposal_availability_to_authority
+      - identify_only_true_projection_gaps
+      - no_new_endpoint_approved_without_gap_evidence
+
+  SU-01:
+    title: Canonical strategy roster and complete-state composition
+    priority: P0
+    depends_on: [SU-00]
+    scope:
+      - issue_540
+      - issue_404_reconciliation
+      - capabilities_discovery
+      - complete_current_state_cardinality
+    acceptance:
+      - newly_registered_strategy_appears_without_brief_config_change
+      - product_counts_do_not_depend_on_first_page_only
+      - retained_nonactive_and_active_scope_are_labeled
+      - no_unrecognized_label_for_registered_strategy
+
+  SU-02:
+    title: Canonical strategy status summary
+    priority: P0
+    depends_on: [SU-00, SU-01]
+    required_fields_or_equivalent:
+      - strategy_id
+      - production_registration_state
+      - due_state
+      - evaluation_or_production_health_state
+      - primary_typed_reason
+      - freshness
+      - actionable_proposal_count_or_availability
+      - last_meaningful_transition
+    acceptance:
+      - every_registered_strategy_has_one_truthful_summary
+      - NOT_DUE_is_distinct_from_blocked_error_and_unobserved
+      - state_is_composed_from_existing_authorities
+      - no_strategy_specific_product_branch
+
+  SU-03:
+    title: Daily Brief v2 canonical migration
+    priority: P0
+    depends_on: [SU-02]
+    structure:
+      - system_health
+      - all_registered_strategies
+      - current_opportunities
+      - typed_blockers
+      - meaningful_changes
+      - items_requiring_Founder_attention
+    acceptance:
+      - no_manual_recognized_strategy_list
+      - no_broken_claim_from_zero_PASS_WATCH_alone
+      - no_execution_clearance_inferred_from_legacy_gate_boolean
+      - no_single_provenance_strike_presented_as_exact_trade
+      - every_claim_traceable_to_canonical_artifact
+
+  SU-04:
+    title: Option funnel summary for brief diagnostics
+    priority: P1
+    depends_on: [SU-00]
+    acceptance:
+      - candidate_acquisition_gate_verdict_readiness_terminal_path_available
+      - terminal_state_and_reason_preserved
+      - option_strategy_diagnostics_use_funnel_before_manual_inference
+      - no_provider_payload_exposure
+
+  SU-05:
+    title: Minimal meaningful-change detection
+    priority: P1
+    depends_on: [SU-02]
+    allowed_transitions:
+      - production_health_class_changed
+      - primary_typed_blocker_changed
+      - due_state_changed
+      - readiness_state_changed
+      - actionable_proposal_added_or_removed
+      - proposal_identity_changed
+    prohibitions:
+      - general_event_sourcing_framework
+      - noisy_diff_of_every_metric
+    acceptance:
+      - changes_are_deterministic
+      - unchanged_state_does_not_generate_noise
+      - proposal_change_uses_proposal_identity_not_reconstructed_leg_diff
+
+  SU-06:
+    title: Outcome Intelligence reason taxonomy reconciliation
+    priority: P1
+    scope:
+      - issue_551
+      - mechanically_checked_mapping_or_canonical_category_projection
+    acceptance:
+      - unknown_reason_code_never_guessed
+      - new_production_reason_triggers_validation_failure_or_explicit_unclassified_state
+      - OI_does_not_own_strategy_reason_semantics
+
+  SU-07:
+    title: Founder understanding proof
+    priority: P0
+    depends_on: [SU-03, SU-04, SU-05]
+    required_real_briefs: 3
+    proof:
+      - reconcile_brief_to_capabilities
+      - reconcile_brief_to_complete_screening_state
+      - reconcile_option_claims_to_option_funnel
+      - reconcile_readiness_claims_to_execution_assessment
+      - reconcile_trade_availability_to_trade_proposal
+      - reconcile_due_state_to_scheduler_authority
+    acceptance:
+      - zero_unexplained_mismatch
+      - zero_manual_strategy_inventory_patch
+      - Founder_can_determine_system_state_without_raw_row_reconstruction
+
+operating_model:
+  no_lull: >
+    Continue dependency-safe work while waiting for reviews, CI, or real-session
+    brief observations.
+  WIP:
+    implementation_or_correction_streams: 2
+    observation_streams: unbounded
+  root_cause_policy:
+    - fix_canonical_owner_if_source_projection_is_wrong
+    - fix_consumer_if_canonical_truth_is_correct_but_brief_is_wrong
+    - never_patch_text_to_hide_a_runtime_truth_defect
+  token_efficiency:
+    - start_with_authority_map
+    - inspect_existing_response_models_before_adding_new_ones
+    - targeted_tests_during_iteration
+    - no_duplicate_status_documents
+    - one_concise_PR_evidence_packet
+    - full_suite_only_at_required_gates
+
+autonomous_role_gates:
+  rule: >
+    Mandatory non-Founder architecture and independent review gates are
+    fulfilled autonomously and never treated as Founder blockers.
+  architect:
+    instance: fresh_ROLE_ARCH
+    exact_head_required: true
+    required_for:
+      - new_public_projection_contract
+      - source_of_truth_change
+      - ownership_change
+      - schema_or_identity_change
+  independent_R3:
+    instance: fresh_temporary_independent_reviewer
+    exact_head_required: true
+    read_only: true
+    disposition: [PASS, HOLD]
+  worker_rule: >
+    Instantiate the required role and continue dependency-safe work rather than
+    idling at a review boundary.
+
+merge_policy:
+  default_authority: Founder_only
+  delegated_mechanical_merge: >
+    Allowed only under an active Founder Sprint Delegation covering this sprint.
+  auto_merge:
+    permitted_when_delegated: true
+    requires:
+      - ticket_enumerated
+      - dependencies_satisfied
+      - required_CI_green
+      - consumer_and_projection_contract_tests_green
+      - self_review_complete
+      - required_architect_and_independent_reviews_pass
+      - no_true_Founder_blocker
+  deployment_authority: Founder_only
+  branch_protection_bypass: prohibited
+
+true_Founder_blockers:
+  - material_product_direction_choice
+  - paid_vendor_or_money_commitment
+  - live_broker_authority_change
+  - protected_breaking_public_contract_outside_scope
+  - Founder_only_deployment_or_destructive_action
+  - material_scope_expansion
+  - irreconcilable_governance_conflict
+
+validation:
+  per_PR:
+    - focused_projection_tests
+    - >500_row_multi_strategy_test_where_relevant
+    - deterministic_summary_tests
+    - no_strategy_ID_branch_architecture_check
+    - Ruff_changed_scope
+    - mypy_changed_scope
+    - repository_required_CI
+    - self_review
+  closure:
+    - three_real_briefs_reconciled
+    - all_registered_strategies_accounted_for
+    - no_unrecognized_registered_strategy
+    - no_false_broken_claim
+    - no_partial_pagination_summary
+    - no_manual_trade_reconstruction
+
+completion:
+  success: >
+    ASA's Founder-facing daily understanding is a faithful composition of
+    canonical production truth. Every registered strategy is accounted for,
+    due and blocker semantics are explicit, option diagnostics use the canonical
+    funnel/readiness path, and multiple real briefs reconcile mechanically with
+    the underlying system.
+  next_sprint: TRADE-TRUST-001

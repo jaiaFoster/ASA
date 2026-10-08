@@ -1,0 +1,395 @@
+---
+id: PRODUCTION-TRUST-001
+name: Production Trust and Operational Truth
+version: 0.1-draft
+status: DRAFT
+type: IMPLEMENTATION_SPRINT
+priority: P0
+
+draft_state:
+  founder_authorized: false
+  activation_effect: none
+  purpose: >
+    Full execution prompt for the first phase of ASA's production-to-decision
+    program. This document does not itself grant merge or deployment authority.
+    Activation requires a later Founder action consistent with current governance.
+  baseline:
+    branch: main
+    observed_at_authoring: 2026-10-08
+    authoring_main_sha: c11eca8c6bfb570895727dc6dc36de2c14213daa
+    rule: >
+      Workers must rehydrate from current main at execution time and must not
+      treat this authoring SHA as an implementation baseline if main has advanced.
+
+activation:
+  governance_amendment: GOV-AMD-001-013
+  founder_authorized: false
+  delegate:
+    role: ROLE-WORKER
+    instance: production-trust-worker
+  limited_to_sprint: PRODUCTION-TRUST-001
+  effective_when: >
+    Founder explicitly activates this sprint under the then-current governance
+    and personally merges any required activation change.
+  expires:
+    - sprint_complete
+    - sprint_stopped
+    - Founder_revokes_delegation
+    - scope_or_authority_changes
+
+program_position:
+  program: ASA-PRODUCTION-TO-DECISION-2026Q4
+  phase: 1
+  precedes:
+    - SYSTEM-UNDERSTANDING-001
+    - TRADE-TRUST-001
+    - OUTCOME-VALUE-001
+    - SCALE-READINESS-001
+  principle: >
+    This sprint establishes operational truth. Later phases may begin when this
+    sprint is implementation-complete and only real-session observation remains,
+    provided they do not depend on a falsified assumption.
+
+objective: >
+  Make every production run attributable and mechanically trustworthy. ASA must
+  distinguish a successfully completed bounded run, an isolated pair-level
+  failure, a missed due formation, a typed strategy/data blocker, and a true
+  process-level crash without relying on Founder reconstruction from logs.
+
+north_star:
+  statement: No unexplained operational state.
+  founder_experience: >
+    If ASA did not produce an expected result, the Founder can determine from
+    canonical operational evidence whether the strategy was not due, was
+    truthfully blocked, was not observed, failed in an isolated pair, or the
+    process itself failed.
+  invariants:
+    - no_failure_is_silenced_to_reduce_alert_noise
+    - no_typed_domain_blocker_is_promoted_to_process_failure_without_explicit_policy
+    - no_due_strategy_silently_disappears
+    - no_partial_complete_family_publication_masquerades_as_complete
+    - no_strategy_ID_branch_in_generic_scheduler_or_persistence_logic
+
+existing_context:
+  issues:
+    - 552
+    - 547
+    - 548
+    - 549
+    - 550
+  related_closed_or_prior_work:
+    - 436
+    - STRATEGY-PRODUCTION-001
+    - SP-08A
+    - PR_539_and_followups
+    - SPRINT-013_operator_observability
+  known_findings:
+    - >
+      asa.scheduled_screening currently exits non-zero when any PairOutcome has
+      error != null, even if sibling work completed and a bounded_run_cohort
+      artifact was emitted.
+    - >
+      Railway may therefore report an isolated pair failure as a deployment
+      crash. This must be proven against real crash notifications before any
+      exit semantics are changed.
+    - >
+      A due complete-family formation may currently be absent from latest-state
+      rows if the required run never successfully publishes, making missed due
+      work harder to distinguish from NOT_DUE.
+    - >
+      Complete-family persistence must not leave an unlabeled partial formation
+      that downstream consumers can mistake for a complete family.
+
+scope:
+  in:
+    - production cron process exit semantics
+    - bounded-run terminal artifacts
+    - canonical scheduler and operations state
+    - due/not-due/missed-run observability
+    - isolated pair failure attribution
+    - top-level process crash attribution
+    - complete-family publication integrity
+    - source-faithful scheduler cadence where required to remove operational ambiguity
+    - production-shaped regression coverage
+    - real-session observation and release proof
+  out:
+    - new strategies
+    - strategy parameter changes
+    - strategy research reinterpretation
+    - live broker mutation
+    - new execution-quality policy thresholds
+    - daily-brief presentation redesign except minimally required operational fields
+    - paid provider procurement
+    - broad UI redesign
+
+architecture_contract:
+  authority: ROLE-ARCH
+  canonical_owners:
+    scheduler_due_semantics: screening_and_registered_schedule_metadata
+    runtime_execution_isolation: strategy_runtime
+    operational_run_artifacts: scheduled_screening_and_ops_projection
+    latest_result_persistence: strategy_runtime_persistence
+    provider_evidence: market_data
+  hard_rules:
+    - typed_missing_data_is_not_infrastructure_failure
+    - strategy_no_signal_is_not_process_failure
+    - UNKNOWN_remains_UNKNOWN
+    - sibling_failure_isolation_remains_generic
+    - no_strategy_specific_exception_swallowing
+    - no_strategy_ID_conditionals_in_generic_scheduler_persistence_or_API
+    - exact_process_exit_contract_must_be_documented_and_tested
+    - release_proof_uses_exact_deployed_SHA
+
+tickets:
+  PT-00:
+    title: Exact-main preflight and operational ownership map
+    priority: P0
+    acceptance:
+      - current_main_rehydrated
+      - issues_547_548_549_550_552_reconciled_against_current_code
+      - every_failure_class_mapped_to_one_canonical_owner
+      - no_duplicate_operations_state_authority_created
+      - current_Railway_and_scheduler_config_verified_from_repo_and_production_evidence
+
+  PT-01:
+    title: Reproduce Railway crash notifications and freeze exit semantics
+    priority: P0
+    depends_on: [PT-00]
+    scope:
+      - issue_552
+      - correlate_real_Railway_notifications_to_exact_cron_run
+      - classify_final_artifact_present_or_absent
+      - classify_pair_failure_vs_top_level_failure
+      - freeze_intended_exit_code_contract
+    decision_tree:
+      completed_with_pair_failures: >
+        bounded_run_cohort exists and failed > 0. Root-cause pair errors and
+        decide whether process exit remains non-zero or an explicit operations
+        health channel owns alert severity.
+      top_level_process_failure: >
+        no final bounded_run_cohort exists. Find earliest uncaught exception and
+        fix the canonical owner.
+      zero_failed_but_nonzero_process: >
+        investigate wrapper/process/Railway semantics.
+    acceptance:
+      - at_least_one_real_notification_reproduced_or_equivalent_production_shaped_fixture
+      - exact_failure_class_identified
+      - underlying_ASA_defect_fixed_when_present
+      - exit_semantics_tested
+      - no_alert_suppression_without_preserved_failure_visibility
+
+  PT-02:
+    title: Canonical due, missed, and unobserved operational state
+    priority: P0
+    depends_on: [PT-00]
+    scope:
+      - issue_548
+      - due_and_evaluated
+      - due_and_typed_deferred
+      - due_but_not_observed
+      - due_and_ASA_exception
+      - genuinely_not_due
+    acceptance:
+      - due_state_is_not_inferred_from_stale_latest_rows_alone
+      - missed_due_work_is_explicitly_observable
+      - not_due_remains_distinct_from_unobserved
+      - state_is_generic_and_strategy_neutral
+
+  PT-03:
+    title: Complete-family publication integrity
+    priority: P0
+    depends_on: [PT-00]
+    scope:
+      - issue_549
+      - atomic_or_resumable_family_publication
+      - deterministic_family_observation_identity
+      - idempotent_retry
+      - explicit_incomplete_publication_state_if_atomicity_is_impossible
+    acceptance:
+      - injected_failure_after_partial_member_write_cannot_appear_as_complete_family
+      - retry_is_deterministic_and_replay_safe
+      - no_Zhan_or_Heston_specific_persistence_path
+      - downstream_consumers_can_distinguish_complete_from_incomplete_publication
+
+  PT-04:
+    title: Source-faithful after-close scheduler cadence
+    priority: P1
+    depends_on: [PT-00]
+    scope:
+      - issue_547
+      - measure_unnecessary_after_close_runs
+      - preserve_required_formation_slots
+      - use_generic_due_cadence_metadata
+    acceptance:
+      - required_after_close_formations_still_run
+      - unrelated_fixed_subject_work_is_not_repeated_without_need
+      - no_strategy_ID_branch
+      - provider_request_effect_measured_before_and_after
+    stop_rule: >
+      If measurement shows negligible operational cost and no trust ambiguity,
+      document and downgrade rather than performing cosmetic scheduler churn.
+
+  PT-05:
+    title: Operational reason-code hygiene required for failure attribution
+    priority: P1
+    depends_on: [PT-00]
+    scope:
+      - issue_550_only_where_it_affects_operational_attribution
+      - shared_expiration_reason_semantics
+    acceptance:
+      - BXM_does_not_emit_misleading_PUT_named_operational_reason
+      - shared_owner_remains_single
+      - no_duplicate_financial_logic
+
+  PT-06:
+    title: Production trust classifier and multi-session proof
+    priority: P0
+    depends_on: [PT-01, PT-02, PT-03]
+    scope:
+      - exact_release_identity
+      - cron_terminal_state
+      - scheduler_due_observation
+      - unexplained_exception_detection
+      - publication_completeness
+    required_real_session_evidence:
+      minimum_complete_sessions: 3
+      each_session:
+        - deployed_SHA_matches_expected_release
+        - every_cron_invocation_has_attributable_terminal_state
+        - zero_unexplained_process_crashes
+        - zero_unexplained_strategy_exceptions
+        - due_work_evaluated_deferred_or_explicitly_unobserved
+        - no_partial_family_presented_as_complete
+    acceptance:
+      - three_clean_complete_sessions_or_documented_reopen_correction_cycle
+      - zero_unexplained_operational_states
+      - Founder_does_not_need_manual_log_reconstruction
+
+operating_model:
+  no_lull: >
+    Never stop at CI, review, provider wait, or observation wait while
+    dependency-safe authorized work exists.
+  WIP:
+    implementation_or_correction_streams: 2
+    observation_streams: unbounded_within_sprint
+  root_cause_policy:
+    first_failure:
+      - reproduce_exact_failure
+      - identify_earliest_shared_owner
+      - fix_owner_not_downstream_symptom
+      - add_production_shaped_regression
+      - rerun_same_proof
+    repeated_failure:
+      - stop_micro_patching
+      - restate_violated_acceptance
+      - challenge_contract_or_assumption
+      - invoke_ROLE_ARCH_if_boundary_is_unclear
+  token_efficiency:
+    - inspect_current_owner_before_design
+    - use_targeted_tests_during_iteration
+    - avoid_duplicate_status_docs
+    - one_concise_evidence_packet_per_PR
+    - do_not_restate_historical_context_unless_needed_for_acceptance
+    - run_expensive_full_suite_only_at_required_merge_or_release_gates
+
+autonomous_role_gates:
+  rule: >
+    Required non-Founder consultation, verification, and review gates trigger
+    autonomous role instantiation rather than Founder interruption.
+  architect:
+    trigger:
+      - architecture_boundary_question
+      - source_of_truth_change
+      - canonical_identity_or_schema_change
+      - ownership_transfer
+      - risk_class_change
+    instance: fresh_ROLE_ARCH
+    rehydrate_from:
+      - current_main
+      - governance_frozen_ARCH_SPEC
+      - roles_shared_authority_and_GitHub_acceptance_docs
+      - relevant_ADRs
+      - this_sprint
+      - exact_PR_and_head_SHA
+  independent_R3:
+    trigger: current_governance_requires_R3
+    instance: fresh_temporary_independent_reviewer
+    independence:
+      - not_author
+      - not_assigner
+      - not_same_role_instance_as_architect_or_worker
+    permissions:
+      - read_only
+      - no_edits
+      - no_merge
+      - no_deploy
+    disposition:
+      - PASS
+      - HOLD
+    exact_head_required: true
+  worker_rule: >
+    Never idle on a required non-Founder role gate. Instantiate the required
+    authorized role, request exact-head review, and continue dependency-safe work.
+
+merge_policy:
+  default_authority: Founder_only
+  delegated_mechanical_merge: >
+    Allowed only if and when the Founder activates a valid Amendment 013 sprint
+    delegation covering this exact sprint and ticket.
+  auto_merge:
+    permitted_when_delegated: true
+    requires:
+      - ticket_is_enumerated
+      - dependencies_satisfied
+      - exact_scope_only
+      - required_CI_green
+      - relevant_architecture_checks_green
+      - production_shaped_regressions_green
+      - Worker_self_review_complete
+      - required_ROLE_ARCH_gate_PASS
+      - required_independent_R3_PASS
+      - no_unresolved_blocking_review
+      - no_true_Founder_blocker
+  deployment_authority: Founder_only
+  prohibited:
+    - branch_protection_bypass
+    - merge_on_stale_review_SHA
+    - scope_expansion_under_corrective_PR
+    - deployment_by_worker
+
+true_Founder_blockers:
+  - material_product_direction_choice
+  - money_vendor_or_legal_commitment
+  - live_broker_authority_expansion
+  - Founder_only_deployment_or_destructive_action
+  - protected_breaking_contract_outside_approved_scope
+  - material_scope_expansion
+  - irreconcilable_governance_conflict
+
+validation:
+  per_PR:
+    - focused_unit_and_integration_tests
+    - production_shaped_failure_fixture
+    - deterministic_replay_where_applicable
+    - architecture_boundary_tests
+    - Ruff_changed_scope
+    - mypy_changed_scope
+    - repository_required_CI
+    - self_review
+  closure:
+    - all_required_tickets_merged
+    - exact_main_full_suite_green
+    - exact_main_architecture_checks_green
+    - real_session_proof_complete
+    - no_known_P0_operational_truth_defect
+    - no_unexplained_cron_crash
+    - no_unexplained_due_work_absence
+
+completion:
+  success: >
+    ASA production operation is mechanically attributable: every due strategy
+    is evaluated, truthfully deferred, explicitly unobserved, or failed with a
+    canonical cause; cron/process failures are distinguishable from isolated
+    pair failures; partial family publication cannot appear complete; and at
+    least three real sessions show zero unexplained operational state.
+  next_sprint: SYSTEM-UNDERSTANDING-001

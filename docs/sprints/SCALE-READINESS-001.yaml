@@ -1,0 +1,427 @@
+---
+id: SCALE-READINESS-001
+name: Scale Readiness and Blocker Investment Decision
+version: 0.1-draft
+status: DRAFT
+type: PREFLIGHT_AND_IMPLEMENTATION_SPRINT
+priority: P1
+
+draft_state:
+  founder_authorized: false
+  activation_effect: none
+  purpose: >
+    Full execution prompt for phase 5 of ASA's production-to-decision program.
+    This sprint begins as a measured preflight. It does not assume every known
+    scale blocker should be removed. Engineering or vendor investment proceeds
+    only where evidence justifies it and current governance permits it.
+  baseline:
+    branch: main
+    observed_at_authoring: 2026-10-08
+    authoring_main_sha: c11eca8c6bfb570895727dc6dc36de2c14213daa
+    rule: rehydrate_current_main_before_execution
+
+activation:
+  governance_amendment: GOV-AMD-001-013
+  founder_authorized: false
+  delegate:
+    role: ROLE-WORKER
+    instance: scale-readiness-worker
+  limited_to_sprint: SCALE-READINESS-001
+  effective_when: >
+    Founder explicitly activates this sprint under current governance and
+    personally merges any required activation change.
+  expires:
+    - sprint_complete
+    - sprint_stopped
+    - Founder_revokes_delegation
+    - scope_or_authority_changes
+
+program_position:
+  program: ASA-PRODUCTION-TO-DECISION-2026Q4
+  phase: 5
+  depends_on:
+    - production_trust_baseline_available
+    - outcome_value_report_available_or_explicitly_insufficient
+  may_overlap_with:
+    - OUTCOME-VALUE-001_observation
+  principle: >
+    Scale work is justified by measured capability need and expected product
+    value, not by the mere existence of a blocker.
+
+objective: >
+  Quantify the real technical, data, provider, time, storage, and financial
+  constraints preventing source-faithful strategies from operating at intended
+  scale, then remove only those blockers that are justified by evidence and
+  current authority. Zhan and Heston are primary current probes because they
+  require complete cross-sectional universes and, for Heston, deep historical
+  option evidence, but all improvements must remain generic and reusable.
+
+north_star:
+  statement: Know exactly what blocks intended scale, what removing it costs, and whether it is worth doing.
+  founder_experience: >
+    Before committing engineering effort or vendor spend, the Founder receives
+    a measured packet showing the blocked capability, affected strategies,
+    expected opportunity/observation value, implementation alternatives, and
+    recurring cost or risk.
+  invariants:
+    - no_partial_universe_substituted_for_complete_cross_section
+    - no_synthetic_historical_option_backfill
+    - no_proxy_instrument_or_provider_semantics_without_source_authority
+    - no_paid_vendor_commitment_without_Founder
+    - no_strategy_ID_specific_scaling_path_in_generic_runtime
+    - no_capacity_ceiling_increase_without_measurement
+    - UNKNOWN_and_typed_capacity_deferral_remain_truthful
+
+existing_context:
+  known_scale_constraints:
+    complete_cross_section:
+      approximate_members: 503
+      current_atomic_ceiling: 30
+      affected:
+        - xs_option_zhan_neg_lnprice_dn_call
+        - xs_option_heston_straddle_momentum_lowcost
+      current_behavior: CAPACITY_DEFERRED_INCOMPLETE_COHORT_on_due_formation
+    historical_option_depth:
+      affected:
+        - xs_option_heston_straddle_momentum_lowcost
+      requirement: source_faithful_12_month_historical_option_formation_window
+      current_behavior: typed_missing_history_or_NOT_DUE
+  prior_architecture:
+    - P12_cross_sectional_portfolio
+    - A08_historical_option_panel
+    - A17_option_return_history
+    - SP-07A_complete_family_atomic_scheduling
+    - SP-07B_capacity_release_gate
+  program_policy:
+    - usefulness_before_research_breadth
+    - paid_historical_data_not_default_prerequisite
+    - procurement_only_for_quantified_product_or_coverage_blocker
+
+scope:
+  in:
+    - production_equivalent_full_family_capacity_measurement
+    - provider_request_and_rate_limit_measurement
+    - wall_clock_duration_and_memory_measurement
+    - database_and_persistence_load_measurement
+    - deduplication_and_reuse_efficiency
+    - generic_batching_or_concurrency_where_provider_contract_allows
+    - historical_option_capability_gap_analysis
+    - storage_and_retention requirements
+    - current_provider_free_or_existing_tier feasibility
+    - product_value_prioritization using OUTCOME_VALUE_001
+    - bounded implementation of approved no-money scale improvements
+    - Founder decision packet for vendor_or_cost commitments
+  out:
+    - unapproved_paid_provider_purchase
+    - strategy_semantic_changes_to_reduce_data_requirements
+    - partial_universe_ranking
+    - synthetic_option_history
+    - proxy_strategy_substitution
+    - broad_multi_asset_scale_expansion
+    - live_broker_mutation
+
+architecture_contract:
+  authority: ROLE-ARCH
+  canonical_owners:
+    complete_universe_identity: market_data_or_universe_membership_owner
+    acquisition_planning_and_deduplication: screening_shared_acquisition_plan
+    provider_rate_and_budget_semantics: market_data
+    historical_option_evidence: market_data_A08_owner
+    reusable_option_return_history: analytics_A17_owner
+    cross_sectional_composition: generic_P12_owner
+    persistence: strategy_runtime_persistence
+    strategy_financial_policy: strategies_manifest_and_graph
+  hard_rules:
+    - complete_family_is_atomic_or_explicitly_deferred
+    - no_provider_logic_inside_strategy_or_analytics
+    - no_strategy_specific_throttling
+    - no_hidden_subject_drop
+    - no_partial_ranking_masquerading_as_full_ranking
+    - no_history_fabrication
+    - provider_or_vendor_choice_does_not_redefine_strategy_semantics
+
+tickets:
+  SR-00:
+    title: Exact-main scale ownership and blocker map
+    priority: P0
+    acceptance:
+      - current_complete_family_scheduler_and_capacity_code_read
+      - current_A08_A17_implementation_read
+      - current_provider_capabilities_and_limits_measured_or_documented
+      - every_blocker_has_one_canonical_owner
+      - no_assumed_need_for_paid_data
+      - OUTCOME_VALUE_001_or_current_OI_value_context_attached
+
+  SR-01:
+    title: Full-universe production-equivalent capacity benchmark
+    priority: P0
+    depends_on: [SR-00]
+    required_measurements:
+      - expected_subject_count
+      - strategy_subject_pair_count
+      - capability_demands
+      - unique_fact_requests_after_deduplication
+      - provider_requests_by_capability
+      - provider_deferrals_or_rate_limits
+      - wall_clock_cycle_duration
+      - peak_or_bounded_memory
+      - persistence_write_count_and_duration
+      - retry_or_failure_rate
+    rule: >
+      Benchmark first. Do not increase the production ceiling merely to discover
+      whether the system can tolerate it.
+    acceptance:
+      - deterministic_benchmark_artifact
+      - current_limiting_boundary_identified
+      - cost_of_30_vs_full_family_quantified
+      - no_strategy_semantics_changed
+
+  SR-02:
+    title: Generic acquisition scaling opportunities
+    priority: P1
+    depends_on: [SR-01]
+    candidate_mechanisms:
+      - exact_demand_deduplication
+      - provider_supported_batching
+      - stable_fact_reuse
+      - safe_concurrency_within_provider_contract
+      - cache_reuse_with_correct_effective_time_semantics
+    acceptance:
+      - each_change_generic_and_provider_contract_safe
+      - request_reduction_or_duration_improvement_measured
+      - no_staleness_or_lookahead_regression
+      - no_strategy_ID_branch
+
+  SR-03:
+    title: Complete-family safe-ceiling decision
+    priority: P0
+    depends_on: [SR-01, SR-02]
+    decision:
+      - raise_ceiling_if_measured_safe
+      - keep_current_ceiling_if_not_safe
+      - propose_infrastructure_change_if_needed
+    acceptance:
+      - decision_backed_by_production_equivalent_measurement
+      - full_family_never_partially_ranked
+      - due_family_remains_typed_deferred_if_not_admitted
+      - if_raised_complete_family_proof_runs_without_hidden_drop
+
+  SR-04:
+    title: Historical option evidence capability assessment
+    priority: P0
+    depends_on: [SR-00]
+    required_analysis:
+      - exact_Heston_history_requirement
+      - available_current_provider_coverage
+      - expiration_contract_quote_greek_identity_requirements
+      - point_in_time_and_observed_time_requirements
+      - storage_and_retention_volume
+      - backfill_feasibility
+      - licensing_constraints
+      - free_or_existing_tier_options
+      - paid_vendor_options_only_as_decision_candidates
+    acceptance:
+      - no_synthetic_or_reconstructed_fake_history
+      - exact_gap_quantified
+      - paid_data_not_assumed_required
+      - current_provider_solution_attempted_or_truthfully_rejected
+
+  SR-05:
+    title: Scale value and investment decision packet
+    priority: P0
+    depends_on: [SR-01, SR-04]
+    inputs:
+      - OUTCOME_VALUE_001_strategy_family_value_report
+      - due_frequency
+      - blocked_opportunity_frequency
+      - expected_observation_frequency
+      - engineering_effort
+      - provider_or_vendor_cost
+      - recurring_operational_cost
+      - risk_and_reversibility
+    acceptance:
+      - each_candidate_blocker_has_remove_defer_or_reject_recommendation
+      - recommendation_distinguishes_engineering_from_vendor_commitment
+      - evidence_insufficient_is_allowed_outcome
+      - smallest_Founder_decision_identified_when_money_or_scope_required
+
+  SR-06:
+    title: Implement approved no-money generic scale improvements
+    priority: P1
+    depends_on: [SR-05]
+    activation_condition: >
+      Only improvements already inside sprint scope and not requiring Founder
+      money/vendor/product-direction decisions proceed autonomously.
+    acceptance:
+      - reusable_owner_changed_once
+      - production_equivalent_benchmark_rerun
+      - architecture_checks_green
+      - no_partial_family
+      - no_provider_contract_violation
+
+  SR-07:
+    title: Historical option source implementation if authorized
+    priority: P1
+    depends_on: [SR-04, SR-05]
+    conditional: true
+    Founder_gate: >
+      Required if implementation needs a paid vendor, commercial license,
+      materially increased recurring spend, or a provider commitment outside
+      existing authority.
+    acceptance_if_authorized:
+      - canonical_provider_neutral_A08_evidence
+      - exact_option_identity
+      - effective_and_observed_time
+      - no_lookahead
+      - storage_retention_policy
+      - provider_free_replay_after_capture
+      - missing_or_incomplete_history_typed_UNKNOWN
+
+  SR-08:
+    title: Real Zhan full-family formation proof
+    priority: P1
+    depends_on: [SR-03]
+    due_condition: last_session_of_month
+    acceptance:
+      - complete_point_in_time_universe
+      - no_hidden_member_drop
+      - exact_security_master_and_rate_inputs
+      - deterministic_rank_and_quantile
+      - exact_static_delta_hedges
+      - complete_P12_portfolio
+      - provider_free_replay
+      - typed_defer_if_capacity_still_not_safe
+
+  SR-09:
+    title: Real Heston full-family and history proof
+    priority: P1
+    depends_on: [SR-03, SR-07]
+    conditional_on_historical_source: true
+    due_condition: source_faithful_monthly_formation
+    acceptance:
+      - complete_point_in_time_universe
+      - required_12_month_history_available_or_typed_UNKNOWN
+      - exact_lags_preserved
+      - no_invented_replacement_order
+      - complete_cross_sectional_portfolio
+      - provider_free_replay
+      - no_partial_ranking
+
+  SR-10:
+    title: Scale readiness closure and next investment recommendation
+    priority: P0
+    depends_on: [SR-03, SR-05, SR-06]
+    acceptance:
+      - every_known_scale_blocker_classified_remove_defer_or_Founder_decision
+      - production_safe_capacity_bound_documented
+      - historical_option_feasibility_documented
+      - no_unapproved_vendor_commitment
+      - no_claim_that_blocker_is_removed_without_real_proof
+      - next_scale_investment_ranked_by_evidence_not_novelty
+
+operating_model:
+  no_lull: >
+    Capacity benchmarks, vendor research, real formation dates, and forward
+    observation waits do not idle independent authorized work.
+  WIP:
+    implementation_or_correction_streams: 2
+    observation_streams: unbounded
+  decision_discipline:
+    - preflight_before_implementation
+    - measure_before_raising_limits
+    - value_before_vendor_spend
+    - retain_typed_blocker_when_truthful_fix_is_not_authorized
+  root_cause_policy:
+    - optimize_earliest_shared_owner
+    - no_downstream_strategy_workaround_for_shared_capacity_problem
+    - no_micro_patch_loop_when_provider_or_architecture_limit_is_structural
+  token_efficiency:
+    - reuse_SP07B_capacity_measurement_patterns
+    - one_benchmark_artifact_per_scenario
+    - avoid_repeated_full_universe_runs_without_changed_hypothesis
+    - targeted_benchmarks_before_full_suite
+    - concise_decision_packets
+    - do_not_duplicate_provider_research_already_in_repo
+
+autonomous_role_gates:
+  rule: >
+    Required non-Founder architecture and independent review gates are fulfilled
+    autonomously while dependency-safe work continues.
+  architect:
+    instance: fresh_ROLE_ARCH
+    exact_head_required: true
+    required_for:
+      - capacity_contract_change
+      - provider_ownership_change
+      - historical_evidence_schema_change
+      - concurrency_or_persistence_model_change
+  independent_R3:
+    instance: fresh_temporary_independent_reviewer
+    exact_head_required: true
+    read_only: true
+    disposition: [PASS, HOLD]
+  worker_rule: >
+    Do not idle at review gates. Request the appropriate exact-head review and
+    continue independent work.
+
+merge_policy:
+  default_authority: Founder_only
+  delegated_mechanical_merge: >
+    Allowed only under an active Founder Sprint Delegation covering this sprint.
+  auto_merge:
+    permitted_when_delegated: true
+    requires:
+      - enumerated_ticket
+      - dependencies_satisfied
+      - in_scope_no_unapproved_money_commitment
+      - required_CI_green
+      - benchmark_or_provider_shaped_regressions_green
+      - architecture_checks_green
+      - self_review_complete
+      - required_exact_head_reviews_PASS
+      - no_true_Founder_blocker
+  deployment_authority: Founder_only
+  branch_protection_bypass: prohibited
+
+true_Founder_blockers:
+  - paid_vendor_or_commercial_data_commitment
+  - materially_increased_recurring_spend
+  - material_product_direction_choice
+  - strategy_semantic_change_to_avoid_scale_cost
+  - live_broker_authority_change
+  - Founder_only_deployment_or_destructive_action
+  - protected_breaking_contract_outside_scope
+  - material_scope_expansion
+  - irreconcilable_governance_conflict
+
+validation:
+  per_PR:
+    - production_equivalent_capacity_fixture_or_benchmark
+    - deterministic_replay
+    - no_lookahead
+    - complete_family_integrity_tests
+    - provider_contract_and_rate_limit_tests
+    - architecture_boundary_tests
+    - Ruff_changed_scope
+    - mypy_changed_scope
+    - repository_required_CI
+    - self_review
+  closure:
+    - complete_family_capacity_bound_measured
+    - historical_option_gap_measured
+    - every_blocker_classified
+    - no_unapproved_vendor_or_money_commitment
+    - approved_generic_improvements_rebenchmarked
+    - real_formation_proof_completed_when_dependencies_and_dates_allow_or_typed_blocker_retained
+
+completion:
+  success: >
+    ASA has an evidence-backed scale boundary and investment plan. Complete
+    cross-sectional strategies either run over their full required universe or
+    remain truthfully deferred with a measured reason. Historical option needs
+    are quantified without fabrication, and any vendor or cost decision is
+    presented to the Founder as a narrow, evidence-backed choice.
+  next_step: >
+    Implement only the scale investments explicitly justified by this sprint's
+    evidence, then resume strategy/product expansion on the strengthened shared
+    platform.
