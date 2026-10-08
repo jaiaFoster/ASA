@@ -330,10 +330,11 @@ operating_model:
 
 autonomous_role_gates:
   rule: >
-    Non-Founder review and architecture consultation are autonomously
-    instantiated and never treated as Founder blockers.
+    After GOV-AMD-018 and its operational reconciliation are effective,
+    non-Founder review and architecture consultation use its authorized
+    hydration/profile mechanisms and are not Founder blockers.
   architect:
-    instance: fresh_ROLE_ARCH
+    instance: fresh_ROLE_ARCH_under_effective_GOV_AMD_018
     exact_head_required: true
     required_for:
       - outcome_identity_change
@@ -341,7 +342,7 @@ autonomous_role_gates:
       - new_canonical_metric_owner
       - public_API_contract_change
   independent_R3:
-    instance: fresh_temporary_independent_reviewer
+    execution_profile: governance/execution-profiles/INDEPENDENT-REVIEWER-v1.md
     exact_head_required: true
     read_only: true
     disposition: [PASS, HOLD]
