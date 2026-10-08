@@ -399,7 +399,7 @@ merge_policy:
     sprint_specific_additive_requires:
       - ticket_dependencies_satisfied
       - sprint_specific_validation_green
-      - no_true_Founder_blocker
+      - no_confirmed_Founder_blocker_or_pending_protected_candidate
   deployment_authority: Founder_only
   prohibited:
     - branch_protection_bypass
@@ -408,15 +408,20 @@ merge_policy:
     - treating_local_sprint_gate_list_as_exhaustive_governance_floor
     - deployment_by_worker
 
-true_Founder_blockers:
-  - material_product_direction_change
-  - decision_to_make_execution_quality_a_blocking_policy
-  - paid_vendor_or_data_commitment
-  - live_broker_mutation_or_permission_expansion
-  - protected_breaking_contract_outside_scope
-  - Founder_only_deployment_or_destructive_action
-  - material_scope_expansion
-  - irreconcilable_governance_conflict
+founder_blocker_gateway:
+  rule: >
+    These are candidate classes only for the Worker. Under effective GOV-AMD-018,
+    the Worker MUST route a candidate through ROLE-PM or ROLE-ARCH; only those
+    gatekeepers may classify and raise a Confirmed Founder Blocker.
+  candidate_classes:
+    - material_product_direction_change
+    - decision_to_make_execution_quality_a_blocking_policy
+    - paid_vendor_or_data_commitment
+    - live_broker_mutation_or_permission_expansion
+    - protected_breaking_contract_outside_scope
+    - Founder_only_deployment_or_destructive_action
+    - material_scope_expansion
+    - irreconcilable_governance_conflict
 
 validation:
   per_PR:
