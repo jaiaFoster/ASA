@@ -73,6 +73,7 @@ activation:
 
 program_position:
   program: ASA-PRODUCTION-TO-DECISION-2026Q4
+  program_contract: docs/sprints/ASA-PRODUCTION-TO-DECISION-2026Q4.md
   phase: 4
   depends_on:
     - OUTCOME_INTELLIGENCE_001_current_owner_and_ledger_rehydrated
