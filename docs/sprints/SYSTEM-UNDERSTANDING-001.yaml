@@ -73,6 +73,7 @@ activation:
 
 program_position:
   program: ASA-PRODUCTION-TO-DECISION-2026Q4
+  program_contract: docs/sprints/ASA-PRODUCTION-TO-DECISION-2026Q4.md
   phase: 2
   depends_on:
     - PRODUCTION-TRUST-001_implementation_complete_or_observation_only
