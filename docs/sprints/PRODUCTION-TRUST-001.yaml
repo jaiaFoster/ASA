@@ -328,8 +328,9 @@ operating_model:
 
 autonomous_role_gates:
   rule: >
-    Required non-Founder consultation, verification, and review gates trigger
-    autonomous role instantiation rather than Founder interruption.
+    After GOV-AMD-018 and its operational reconciliation are effective, required
+    non-Founder consultation, verification, and review gates use the authorized
+    repository-backed hydration/profile mechanisms rather than Founder interruption.
   architect:
     trigger:
       - architecture_boundary_question
@@ -337,7 +338,7 @@ autonomous_role_gates:
       - canonical_identity_or_schema_change
       - ownership_transfer
       - risk_class_change
-    instance: fresh_ROLE_ARCH
+    instance: fresh_ROLE_ARCH_under_effective_GOV_AMD_018
     rehydrate_from:
       - current_main
       - governance_frozen_ARCH_SPEC
@@ -347,7 +348,7 @@ autonomous_role_gates:
       - exact_PR_and_head_SHA
   independent_R3:
     trigger: current_governance_requires_R3
-    instance: fresh_temporary_independent_reviewer
+    execution_profile: governance/execution-profiles/INDEPENDENT-REVIEWER-v1.md
     independence:
       - not_author
       - not_assigner
