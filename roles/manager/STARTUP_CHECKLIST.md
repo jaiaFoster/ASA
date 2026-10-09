@@ -15,6 +15,8 @@ Run this checklist when the Manager is first instantiated or rehydrated after a 
 - [ ] Read `roles/shared/AUTHORITY_BOUNDARIES.md`
 - [ ] Read `roles/shared/GITHUB_ACCEPTANCE_MODEL.md`
 - [ ] Read `roles/shared/RISK_SCALED_PROCESS.md`
+- [ ] Read accepted `governance/amendments/GOV-AMD-018.md` and verify the bounded hydration trial is effective
+- [ ] Read the bounded hydration packet; missing required fields means fail closed
 
 ## Step 3 — Read Current State
 

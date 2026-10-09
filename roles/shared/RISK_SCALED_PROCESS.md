@@ -56,11 +56,15 @@ Source: RISK-001 §8–§12, ROLE-BOOTSTRAP-01 Founder directions §7–8.
 
 **Required:**
 - Explicit design document (Architect-authored)
-- Independent review where possible
+- Independent Review through an approved profile
 - Substantive evidence (test results, audit output, or equivalent)
 - Rollback or recovery plan
 - Explicit Founder attention before execution or merge
 - For R5: constitutional review process
+
+Independent review is read-only, distinct from author/assigner, and bound to
+one exact head. Any new commit invalidates the disposition. Architect review
+does not substitute for independent review when both are required.
 
 ## Founder Direction on Scale
 

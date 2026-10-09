@@ -38,9 +38,13 @@
 
 <!-- List any required reviewers. -->
 
-## Founder Decision Required
+## Founder-Blocker Gateway
 
-<!-- State whether a Founder decision is required before merge. -->
+<!-- State: none / Candidate Founder Blocker routed to ROLE-PM or ROLE-ARCH / Confirmed Founder Blocker. Include gatekeeper, canonical citation, and affected-path state. -->
+
+## Exact-Head Review Evidence
+
+<!-- For required reviews: reviewer function/instance, exact SHA, independence statement, and durable disposition. -->
 
 ---
 

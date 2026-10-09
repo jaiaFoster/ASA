@@ -6,9 +6,9 @@ This directory contains operational packages for the permanent AI roles in ASA 2
 
 | Role | Status | Source Spec | Instructions |
 |------|--------|-------------|--------------|
-| ASA Manager | Prepared, not instantiated | `governance/frozen/PM-SPEC-v0.2.md` | [manager/INSTRUCTIONS.md](manager/INSTRUCTIONS.md) |
-| ASA System Architect | Prepared, not instantiated | `governance/frozen/ARCH-SPEC-v0.2.md` | [architect/INSTRUCTIONS.md](architect/INSTRUCTIONS.md) |
-| ASA Strategy Researcher | Prepared, not instantiated (effective on Founder merge of GOV-AMD-017) | `governance/amendments/GOV-AMD-017.md` Part A | [researcher/INSTRUCTIONS.md](researcher/INSTRUCTIONS.md) |
+| ASA Manager | Prepared; bounded GOV-AMD-018 hydration trial | `governance/frozen/PM-SPEC-v0.2.md` | [manager/INSTRUCTIONS.md](manager/INSTRUCTIONS.md) |
+| ASA System Architect | Prepared; bounded GOV-AMD-018 hydration trial | `governance/frozen/ARCH-SPEC-v0.2.md` | [architect/INSTRUCTIONS.md](architect/INSTRUCTIONS.md) |
+| ASA Strategy Researcher | Trial under accepted GOV-AMD-017 | `governance/amendments/GOV-AMD-017.md` Part A | [researcher/INSTRUCTIONS.md](researcher/INSTRUCTIONS.md) |
 
 ## Quick Links
 
@@ -44,6 +44,9 @@ Researcher (external strategy evidence in research/; peer role, recommends only)
 - The Researcher may merge only eligible `research/` PRs within an active Research Sprint
   Delegation (GOV-AMD-001 Amendment 017 Part B); research qualification is never strategy selection.
 - The current POS is provisional scaffolding. The Architect's first task is to design Lean POS v1.
+- Under effective GOV-AMD-018, an authorized Worker Engine may hydrate a fresh,
+  bounded eligible role/profile. This is not permanent-role creation. Packets,
+  lifecycle checks, authority limits, durability, and termination remain mandatory.
 
 ## Governance Notes
 

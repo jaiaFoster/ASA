@@ -1,6 +1,28 @@
 # Authority Boundaries
 
-Source: PM-SPEC §2.2, ARCH-SPEC §2.2, GOV-AMD-017 Part A (ROLE-RESEARCH), ROLE-BOOTSTRAP-01 Founder directions.
+Source: PM-SPEC §2.2, ARCH-SPEC §2.2, GOV-AMD-017 Part A (ROLE-RESEARCH), GOV-AMD-018, ROLE-BOOTSTRAP-01 Founder directions.
+
+## Repository-Backed Hydration
+
+When GOV-AMD-018 is effective, an authorized Worker Engine may create a fresh,
+bounded instance of a hydratable repository role or approved Execution Profile.
+Hydration never creates a role or enlarges authority. Every invocation requires
+the GOV-AMD-018 §3.2 packet, canonical rehydration, bounded purpose, and
+termination after output. Registry presence alone grants nothing; lifecycle
+conflict fails closed.
+
+ROLE-PM and ROLE-ARCH have only GOV-AMD-018's bounded trial. ROLE-RESEARCH
+follows GOV-AMD-017's trial lifecycle. ROLE-FOUNDER is never hydratable.
+Independent review uses only `INDEPENDENT-REVIEWER-v1`, remains read-only, and
+is exact-head bound.
+
+## Founder-Blocker Gateway
+
+Workers, researchers, and temporary reviewers identify only Candidate Founder
+Blockers. They stop the protected affected action, continue unaffected work,
+and route a bounded packet to ROLE-PM or ROLE-ARCH. Only those gatekeepers may
+issue a Confirmed Founder Blocker. GOV-AMD-018's challenge, conflict, and
+`FOUNDER_GATEWAY_UNAVAILABLE` fail-safes apply.
 
 ## Authority Matrix
 

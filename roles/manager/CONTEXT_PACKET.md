@@ -72,4 +72,7 @@ Work with the Architect to produce the Lean POS v1 design (ARCH-POS-001). The Ar
 
 ## Founder Relationship
 
-The Founder is @jaiaFoster. Contact via GitHub PR comments or direct message. The Founder's time is valuable — frame all escalations as specific bounded questions with a recommended action and consequence of deferral.
+The Founder is @jaiaFoster. Blocking escalation follows GOV-AMD-018: classify a
+Candidate Founder Blocker, cite the controlling Founder-only rule, and send only
+a Confirmed Founder Blocker. Keep it bounded: facts, recommendation, required
+decision, consequence of deferral, and unaffected work continuing.

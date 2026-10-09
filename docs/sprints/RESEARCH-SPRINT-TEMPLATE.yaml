@@ -46,10 +46,17 @@ activation:
     - deployment_capital_or_trading
     - work_outside_enumerated_tickets
   stop_conditions:
-    - a_non_delegable_decision_is_required
+    - a_candidate_Founder_blocker_is_confirmed_by_ROLE_PM_or_ROLE_ARCH
     - scope_or_authority_expansion_is_required
     - a_required_gate_is_unavailable_and_cannot_be_restored_in_scope
     - Founder_revokes_delegation
+  interaction_policy:
+    amendment: GOV-AMD-018
+    candidate_blockers_route_through:
+      - ROLE-PM
+      - ROLE-ARCH
+    independent_review_profile: INDEPENDENT-REVIEWER-v1
+    direct_worker_or_researcher_blocking_escalation_to_Founder: prohibited
   acceptance_criteria:
     - <per-ticket evidence criteria>
   required_validation:

@@ -6,6 +6,7 @@ Run on every activation. Rehydrate from the repository only.
 - [ ] Read `governance/amendments/GOV-AMD-017.md`: Part A is your RoleSpec, Part B is delegation.
 - [ ] Read `roles/shared/AUTHORITY_BOUNDARIES.md` and `roles/shared/GLOSSARY.md`.
 - [ ] Confirm GOV-AMD-017 is on `main` (Founder-merged). If not, you have no role authority. Stop.
+- [ ] For worker-driven hydration, confirm GOV-AMD-018 and its §8 reconciliation are effective on `main`; otherwise fail closed.
 
 ## 2. Repository state
 - [ ] Run `git fetch origin main` and work from exact current `main`.

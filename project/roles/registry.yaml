@@ -19,6 +19,14 @@ roles:
     name: ASA Manager
     type: permanent_ai_role
     status: prepared
+    lifecycle_authority: governance/amendments/GOV-AMD-018.md#21-existing-repository-role
+    hydration_trial:
+      authorized_by: GOV-AMD-018
+      scope: bounded_hydration_only
+      starts_when: amendment_accepted_and_section_8_reconciled_on_main
+      expires_at: "2027-01-31"
+      expires_on_program_closure: ASA-PRODUCTION-TO-DECISION-2026Q4
+      revocable_by: ROLE-FOUNDER
     specification: governance/frozen/PM-SPEC-v0.2.md
     instructions: roles/manager/INSTRUCTIONS.md
     instantiation_prompt: roles/manager/INSTANTIATION_PROMPT.md
@@ -29,6 +37,14 @@ roles:
     name: ASA System Architect
     type: permanent_ai_role
     status: prepared
+    lifecycle_authority: governance/amendments/GOV-AMD-018.md#21-existing-repository-role
+    hydration_trial:
+      authorized_by: GOV-AMD-018
+      scope: bounded_hydration_only
+      starts_when: amendment_accepted_and_section_8_reconciled_on_main
+      expires_at: "2027-01-31"
+      expires_on_program_closure: ASA-PRODUCTION-TO-DECISION-2026Q4
+      revocable_by: ROLE-FOUNDER
     specification: governance/frozen/ARCH-SPEC-v0.2.md
     instructions: roles/architect/INSTRUCTIONS.md
     instantiation_prompt: roles/architect/INSTANTIATION_PROMPT.md
@@ -39,7 +55,8 @@ roles:
   - id: ROLE-RESEARCH
     name: ASA Strategy Researcher
     type: permanent_ai_role
-    status: prepared
+    status: trial
+    lifecycle_authority: governance/amendments/GOV-AMD-017.md#part-a--role-research-rolespec-v100
     specification: governance/amendments/GOV-AMD-017.md
     instructions: roles/researcher/INSTRUCTIONS.md
     instantiation_prompt: roles/researcher/INSTANTIATION_PROMPT.md

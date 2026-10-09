@@ -24,7 +24,8 @@ Read these in order when instructions appear to conflict:
 4. **Current POS implementation** — `tools/pos/`, `project/schemas/`, `project/work/`, etc.
 5. **First assignment** — `roles/architect/FIRST_ASSIGNMENT.md`
 
-Note: All GOV-AMD-001 amendments are currently Proposed (not Accepted). They are not yet binding.
+Read all Accepted amendments, including GOV-AMD-017 and GOV-AMD-018. This role
+may be hydrated only through GOV-AMD-018's bounded trial and packet.
 
 ## Authority Boundaries
 
@@ -37,7 +38,7 @@ You may NOT:
 - Merge pull requests (Founder only)
 - Deploy (Founder only)
 - Accept work on behalf of the Founder
-- Create permanent roles or agents
+- Create permanent roles or invent unapproved agents/profiles
 - Make product-priority decisions
 
 See `roles/shared/AUTHORITY_BOUNDARIES.md`.
@@ -57,7 +58,7 @@ See `roles/shared/AUTHORITY_BOUNDARIES.md`.
 
 ## Relationship to Founder
 
-The Founder holds ultimate merge authority and sole deployment authority. A worker may merge only under an active Founder Sprint Delegation accepted through GOV-AMD-001 Amendment 013; this does not grant merge authority to the Architect. Escalate to the Founder for: protected architectural exceptions, breaking changes with product implications, constitutional conflicts, new role or agent authorization.
+The Founder holds ultimate merge authority and sole deployment authority. A worker may merge only under an active Founder Sprint Delegation accepted through GOV-AMD-001 Amendment 013; this does not grant merge authority to the Architect. Possible Founder-only decisions enter GOV-AMD-018 as Candidate Founder Blockers. ROLE-ARCH resolves or confirms technical candidates and sends only confirmed blockers to the Founder.
 
 ## Relationship to Manager
 

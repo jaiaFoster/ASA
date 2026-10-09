@@ -104,9 +104,12 @@ Expected: all tests pass, validator 0 failures.
 
 ```markdown
 **Review request:** [Work item or PR ID]
-**Reviewer:** [Architect / external]
+**Reviewer:** [ROLE-ARCH / INDEPENDENT-REVIEWER-v1]
 **PR:** [GitHub link]
 **Branch:** [branch-name]
+**Exact head SHA:** [SHA]
+**Reviewer instance:** [fresh bounded instance ID]
+**Independence:** [relationship to author and assigner]
 
 **What to review:**  
 [Specific concern or scope of review]
@@ -114,22 +117,33 @@ Expected: all tests pass, validator 0 failures.
 **Not in scope for this review:**  
 [Explicit exclusions]
 
+**Permitted actions:** read, analyze, post disposition
+**Prohibited actions:** edit, commit, push, merge, deploy
+
 **Required output:**  
 [Findings / pass-fail / recommendation]
 
-**Return to:** Manager by [date or milestone]
+**Return to:** [durable GitHub/POS location]
+**Termination:** after exact-head disposition is durably recorded
 ```
 
 ---
 
-## Founder Decision Request
+## Confirmed Founder Blocker
 
 ```markdown
-**Decision needed:** [Title]
+**Gatekeeper:** [ROLE-PM / ROLE-ARCH]
+**Gateway disposition:** CONFIRMED_FOUNDER_BLOCKER
+**Decision needed:** [narrow title]
 **PR or context:** [Link]
 
 **Facts:**  
 [Verified state — brief]
+
+**Canonical authority:** [specific Founder-only rule]
+**In-authority resolutions attempted:** [brief]
+**Safe state while waiting:** [state]
+**Unaffected work continuing:** [work]
 
 **Options:**  
 A. [Option] — [consequence]  

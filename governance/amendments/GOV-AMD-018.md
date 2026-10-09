@@ -3,13 +3,21 @@
 | Field | Value |
 |---|---|
 | `amendment_id` | GOV-AMD-018 (register entry: GOV-AMD-001 Amendment 018) |
-| `status` | Founder Approved — **PENDING INDEPENDENT, STRUCTURAL, AND CONSTITUTIONAL REVIEW. Founder approval of the proposed text is recorded, but the amendment is not binding until required reviews PASS and the Founder personally merges the accepted version to the default branch.** |
+| `status` | Accepted — **effective only when exact-head Independent, Structural, and Constitutional reviews PASS and the Founder personally merges the reconciled activation version to the default branch.** |
 | `proposer` | Founder |
 | `date` | 2026-10-08 |
 | `founder_approved_at` | 2026-10-09 |
 | `risk_class` | R5 — Constitutional. This amendment changes agent-instantiation authority and the escalation path to the Founder. |
 | `applies_to` | RES-001, RES-002, PM-SPEC, ARCH-SPEC, ROLE-RESEARCH (GOV-AMD-017), GOV-AMD-001 Amendment 013 operating model, roles/shared/AUTHORITY_BOUNDARIES.md |
 | `binding_scope` | Model A — accepted-on-entry (GOV-AMD-001 §0.1), subject to the effectiveness condition above |
+
+## Activation Record
+
+Founder approval and activation direction were explicitly reconfirmed on
+2026-10-09 for this amendment, its §8 operational reconciliation, and the
+`INDEPENDENT-REVIEWER-v1` profile. This record does not waive the R5 review
+floor or personal-merge requirement. Before the exact reviewed change reaches
+`main`, all mechanisms remain fail-closed.
 
 ## 1. Purpose
 
@@ -452,7 +460,7 @@ This amendment does **not** suppress non-blocking INFORM obligations, routine Fo
 
 ## 8. Required Repository Reconciliation Before Operational Use
 
-This amendment is the normative proposal. The independent-review Execution Profile is proposed in the same change set at `governance/execution-profiles/INDEPENDENT-REVIEWER-v1.md`.
+This amendment is normative upon effectiveness. The independent-review Execution Profile is accepted in the same change set at `governance/execution-profiles/INDEPENDENT-REVIEWER-v1.md`.
 
 Even after Founder acceptance, **worker-driven hydration MUST remain fail-closed until the operational reconciliation below is complete on `main`**:
 
@@ -468,7 +476,7 @@ Even after Founder acceptance, **worker-driven hydration MUST remain fail-closed
 
 Operational reconciliation may be delivered in the same Founder-reviewed governance change or an immediately following governance-compilation PR, but no sprint may claim Amendment 018 hydration authority until both the amendment and reconciliation are effective on `main`.
 
-Do not treat proposed branch content as binding before Founder acceptance.
+Do not treat branch content as binding before the reviewed activation version is Founder-merged to `main`.
 
 ## 9. Regression Scenarios Required Before Acceptance
 
@@ -549,7 +557,7 @@ Reversion of GOV-AMD-018:
 
 ## 13. Founder Direction Captured
 
-The Founder direction motivating this proposal is:
+The Founder direction motivating this amendment is:
 
 - an authorized worker should be able to hydrate and consult any existing repository-backed AI role without stopping to ask the Founder for each invocation;
 - this should apply beyond ROLE-ARCH to every existing repository role whose authority fits the requested interaction;

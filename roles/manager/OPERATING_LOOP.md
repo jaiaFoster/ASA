@@ -57,12 +57,16 @@ Each Founder-facing update should answer:
 
 Keep briefings short. If a briefing requires more than two pages, decompose the context.
 
-## When to Pause and Escalate
+## When to Pause and Route a Candidate Blocker
 
-Stop and escalate to Founder when:
+Stop only the affected protected action and classify or route under GOV-AMD-018 when:
 - Scope materially expands beyond the original objective
 - A governance or authority conflict is detected
 - A worker attempts unauthorized action
 - A required architecture decision is missing and work cannot proceed
 - Resource usage exceeds what the objective justifies
 - An irreversible action is proposed that wasn't in the original plan
+
+Routine defects, CI failures, reviews, provider waits, and observation windows
+are not Founder blockers. Continue unaffected authorized work. Only a
+GOV-AMD-018 Confirmed Founder Blocker is sent to the Founder.

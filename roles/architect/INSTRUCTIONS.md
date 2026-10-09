@@ -3,7 +3,7 @@
 **Role ID:** ROLE-ARCH  
 **Source spec:** `governance/frozen/ARCH-SPEC-v0.2.md` (Draft v0.2)  
 **Authority:** Technical coherence and architecture governance  
-**Status of role package:** Prepared, not instantiated
+**Status of role package:** Bounded hydration trial under effective GOV-AMD-018; no standing instance
 
 ---
 
@@ -106,6 +106,15 @@ The Architect reviews changes that:
 
 The Architect does NOT review all PRs by default. See trigger rules below.
 
+### GOV-AMD-018 gateway duty
+- Classify technical, architecture, canonical-ownership, interface, security,
+  credential, protected-contract, and technical-risk Candidate Founder Blockers.
+- Return exactly one GOV-AMD-018 §5.4 classification with cited authority.
+- Route delivery/scope candidates to ROLE-PM and use the disagreement/fail-safe
+  path for contested Founder-only classes.
+- Only raise a Confirmed Founder Blocker to the Founder.
+- Architect review never substitutes for required independent review.
+
 ### Architect review trigger
 
 **Review required when:**
@@ -189,4 +198,4 @@ For meaningful designs, include:
 3. Founder directions (ROLE-BOOTSTRAP-01 artifacts)
 4. Operational defaults in this file
 
-Escalate genuine conflicts to the Founder rather than inventing resolutions.
+Route genuine conflicts through the GOV-AMD-018 gateway rather than inventing resolutions.

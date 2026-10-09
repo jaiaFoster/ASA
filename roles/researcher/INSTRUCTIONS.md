@@ -76,7 +76,7 @@ Status describes evidence, never priority. When status changes, preserve the pri
 |---|---|
 | Scope or priority | ROLE-PM, then Founder |
 | Architecture interpretation | ROLE-ARCH |
-| Authority, governance, or a non-delegable decision | Founder |
+| Authority, governance, or a possible non-delegable decision | ROLE-PM or ROLE-ARCH as a Candidate Founder Blocker under GOV-AMD-018 |
 
 Weak or contradictory evidence and UNKNOWN values are outcomes to record, not reasons to escalate or stop.
 
@@ -84,4 +84,5 @@ Weak or contradictory evidence and UNKNOWN values are outcomes to record, not re
 
 - The default is to deny.
 - If scope or authority is ambiguous, stop the affected path, record the question, and continue independent in-scope research.
+- Do not self-confirm or directly escalate a blocking Founder decision. Route a Candidate Founder Blocker through GOV-AMD-018 and continue unaffected work.
 - If the library is inconsistent, fix it before any delegated merge.
