@@ -734,19 +734,20 @@ Review records.
 | Field | Value |
 |---|---|
 | `amendment_id` | 018 |
-| `status` | Proposed — **pending Independent, Structural, and Constitutional Review; not binding** |
+| `status` | Founder Approved — **pending Independent, Structural, and Constitutional Review; not binding until required reviews PASS and Founder merge** |
 | `proposer` | Founder |
 | `date` | 2026-10-08 |
+| `founder_approved_at` | 2026-10-09 |
 | `risk_class` | R5 — Constitutional (changes agent-instantiation authority and Founder-escalation routing) |
 | `applies_to` | RES-001, RES-002, PM-SPEC, ARCH-SPEC, ROLE-RESEARCH / GOV-AMD-017, Amendment 013 operating model, shared authority compilations |
 | `binding_scope` | Model A — accepted-on-entry (§0.1); complete proposed text in `GOV-AMD-018.md` |
 
 This proposal creates two organization-wide mechanisms:
 
-1. **Repository-Backed Role Hydration.** An authorized Worker Engine may create a fresh, bounded instance of an already-defined repository-backed AI role without case-by-case Founder authorization. Hydration creates an instance, not a new role, never enlarges authority, preserves review independence, and terminates after the bounded interaction.
-2. **Founder-Blocker Gateway.** Only ROLE-PM or ROLE-ARCH may escalate a work item to the Founder as a confirmed Founder blocker. Workers, researchers, reviewers, and other AI roles submit candidate blockers to ROLE-PM or ROLE-ARCH first. The confirming role either resolves/routes the issue within existing authority and work continues, or confirms the narrow Founder-only decision and raises it.
+1. **Repository-Backed Role Hydration.** An authorized Worker Engine may create a fresh, bounded instance only of a permanent AI role whose governing accepted RoleSpec/amendment permits operational instantiation (`active` or explicit Founder-authorized `trial`), or of an approved temporary Execution Profile. Registry presence is discovery only and lifecycle disagreement fails closed. Amendment 018 itself proposes a bounded hydration trial for ROLE-PM and ROLE-ARCH and a repository-resident independent-review Execution Profile.
+2. **Founder-Blocker Gateway.** Only ROLE-PM or ROLE-ARCH may escalate a work item to the Founder as a confirmed Founder blocker. Workers, researchers, reviewers, and other AI roles submit candidate blockers to ROLE-PM or ROLE-ARCH first. The gateway includes a challenge/disagreement/conflict/unavailability fail-safe so neither role can silently suppress a true Founder-only decision.
 
-ROLE-FOUNDER is human authority and is never hydratable. Hydration grants no merge, deployment, product-direction, governance, or live-broker authority. Protected high-consequence actions remain stopped on the affected path while blocker confirmation is pending. See `governance/amendments/GOV-AMD-018.md` for the normative proposal, hydration packet, routing rules, regression scenarios, acceptance criteria, and reversion model.
+ROLE-FOUNDER is human authority and is never hydratable. Hydration grants no merge, deployment, product-direction, governance, or live-broker authority. Protected high-consequence actions remain stopped on the affected path while blocker confirmation is pending. Blocking direct-Founder escalation routes from non-gatekeeper AI roles are explicitly superseded only to the extent required by the gateway; non-blocking INFORM behavior is preserved. See `governance/amendments/GOV-AMD-018.md` and `governance/execution-profiles/INDEPENDENT-REVIEWER-v1.md` for the normative proposal and temporary-review mechanism.
 
 
 ---
