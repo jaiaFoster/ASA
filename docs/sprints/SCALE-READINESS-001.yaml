@@ -2,13 +2,36 @@
 id: SCALE-READINESS-001
 name: Scale Readiness and Blocker Investment Decision
 version: 0.1-draft
-status: DRAFT
+status: FOUNDER_APPROVED_PENDING_ACTIVATION
 type: PREFLIGHT_AND_IMPLEMENTATION_SPRINT
 priority: P1
 
 draft_state:
-  founder_authorized: false
-  activation_effect: none
+  founder_authorized: true
+  founder_approved_at: "2026-10-09"
+  founder_approval_scope: document_and_enumerated_ticket_set
+  approved_tickets:
+    - SR-00
+    - SR-01
+    - SR-02
+    - SR-03
+    - SR-04
+    - SR-05
+    - SR-06
+    - SR-07
+    - SR-08
+    - SR-09
+    - SR-10
+  approved_ticket_rule: >
+    When the Founder activates this sprint, the approved Amendment 013 ticket
+    set is exactly the keys listed above. No other ticket is implied by scope,
+    corrections, issue references, or this document's prose.
+  activation_prerequisites:
+    - GOV-AMD-018_is_Accepted_on_main
+    - GOV-AMD-018_section_8_operational_reconciliation_is_complete_on_main
+    - INDEPENDENT-REVIEWER-v1_is_effective_on_main
+    - ASA-PRODUCTION-TO-DECISION-2026Q4_program_contract_is_Founder_merged_on_main
+  activation_effect: approval_recorded_no_execution_until_effective_when
   purpose: >
     Full execution prompt for phase 5 of ASA's production-to-decision program.
     This sprint begins as a measured preflight. It does not assume every known
@@ -22,14 +45,32 @@ draft_state:
 
 activation:
   governance_amendment: GOV-AMD-001-013
-  founder_authorized: false
+  founder_authorized: true
+  founder_approved_at: "2026-10-09"
   delegate:
     role: ROLE-WORKER
     instance: scale-readiness-worker
   limited_to_sprint: SCALE-READINESS-001
   effective_when: >
-    Founder explicitly activates this sprint under current governance and
-    personally merges any required activation change.
+    The Founder explicitly activates this sprint after every activation
+    prerequisite above is true on the default branch, and personally merges the
+    activation version. Proposed or partially reconciled GOV-AMD-018 grants no
+    worker hydration or reviewer-instantiation authority.
+  stop_conditions:
+    affected_path:
+      - scope_expands_beyond_approved_ticket
+      - authority_or_risk_class_expands
+      - protected_boundary_or_contract_change_is_required_outside_scope
+      - any_mandatory_Amendment_013_or_RISK_001_gate_is_missing_skipped_unavailable_or_failing
+      - required_exact_head_review_is_invalidated_by_new_SHA
+      - GOV-AMD-018_or_required_role_profile_is_not_effective
+    whole_sprint:
+      - Founder_revokes_delegation
+      - sprint_is_stopped
+      - governance_conflict_makes_authorized_execution_impossible
+    no_lull_rule: >
+      A stop condition blocks only the affected path unless governance requires
+      whole-sprint stop. Continue other dependency-safe authorized work.
   expires:
     - sprint_complete
     - sprint_stopped
@@ -38,6 +79,7 @@ activation:
 
 program_position:
   program: ASA-PRODUCTION-TO-DECISION-2026Q4
+  program_contract: docs/sprints/ASA-PRODUCTION-TO-DECISION-2026Q4.md
   phase: 5
   depends_on:
     - production_trust_baseline_available
@@ -345,10 +387,11 @@ operating_model:
 
 autonomous_role_gates:
   rule: >
-    Required non-Founder architecture and independent review gates are fulfilled
-    autonomously while dependency-safe work continues.
+    After GOV-AMD-018 and its operational reconciliation are effective, required
+    non-Founder architecture and independent-review gates use its authorized
+    hydration/profile mechanisms while dependency-safe work continues.
   architect:
-    instance: fresh_ROLE_ARCH
+    instance: fresh_ROLE_ARCH_under_effective_GOV_AMD_018
     exact_head_required: true
     required_for:
       - capacity_contract_change
@@ -356,7 +399,7 @@ autonomous_role_gates:
       - historical_evidence_schema_change
       - concurrency_or_persistence_model_change
   independent_R3:
-    instance: fresh_temporary_independent_reviewer
+    execution_profile: governance/execution-profiles/INDEPENDENT-REVIEWER-v1.md
     exact_head_required: true
     read_only: true
     disposition: [PASS, HOLD]
@@ -367,32 +410,59 @@ autonomous_role_gates:
 merge_policy:
   default_authority: Founder_only
   delegated_mechanical_merge: >
-    Allowed only under an active Founder Sprint Delegation covering this sprint.
+    Allowed only under an active Founder Sprint Delegation covering this exact
+    sprint and ticket. GOV-AMD-001 Amendment 013 is the normative merge floor.
+  mandatory_governance_floor: >
+    Before every delegated merge, ALL GOV-AMD-001 Amendment 013 pre-merge
+    requirements and ALL applicable RISK-001 gates MUST pass. Missing, skipped,
+    unavailable, stale, or failing mandatory evidence blocks merge. The
+    sprint-specific gates below are additive and never substitute for that floor.
+  required_Amendment_013_evidence_includes:
+    - exact_approved_ticket_and_scope
+    - all_mandatory_CI
+    - architecture_validation_where_applicable
+    - deterministic_replay_where_applicable
+    - immutable_contract_validation_where_applicable
+    - deterministic_identity_validation_where_applicable
+    - integrity_validation_where_applicable
+    - Worker_self_review
+    - no_governance_violation
+    - no_unresolved_blocker
+    - all_applicable_RISK_001_review_approval_and_verification_gates
   auto_merge:
     permitted_when_delegated: true
-    requires:
-      - enumerated_ticket
-      - dependencies_satisfied
-      - in_scope_no_unapproved_money_commitment
-      - required_CI_green
-      - benchmark_or_provider_shaped_regressions_green
-      - architecture_checks_green
-      - self_review_complete
-      - required_exact_head_reviews_PASS
-      - no_true_Founder_blocker
+    exact_head_rule: >
+      GitHub auto-merge may be enabled only after every required non-CI
+      review/authority gate is durably PASS on the exact current head SHA.
+      Any new SHA invalidates those exact-head dispositions and auto-merge must
+      not proceed until the required gates are renewed.
+    sprint_specific_additive_requires:
+      - ticket_dependencies_satisfied
+      - sprint_specific_validation_green
+      - no_confirmed_Founder_blocker_or_pending_protected_candidate
   deployment_authority: Founder_only
-  branch_protection_bypass: prohibited
+  prohibited:
+    - branch_protection_bypass
+    - merge_on_stale_review_SHA
+    - scope_expansion_under_corrective_PR
+    - treating_local_sprint_gate_list_as_exhaustive_governance_floor
+    - deployment_by_worker
 
-true_Founder_blockers:
-  - paid_vendor_or_commercial_data_commitment
-  - materially_increased_recurring_spend
-  - material_product_direction_choice
-  - strategy_semantic_change_to_avoid_scale_cost
-  - live_broker_authority_change
-  - Founder_only_deployment_or_destructive_action
-  - protected_breaking_contract_outside_scope
-  - material_scope_expansion
-  - irreconcilable_governance_conflict
+founder_blocker_gateway:
+  rule: >
+    These are candidate classes only for the Worker. Under effective GOV-AMD-018,
+    the Worker MUST route a candidate through ROLE-PM or ROLE-ARCH; only those
+    gatekeepers may classify and raise a Confirmed Founder Blocker.
+  candidate_classes:
+    - paid_vendor_or_commercial_data_commitment
+    - materially_increased_recurring_spend
+    - material_product_direction_choice
+    - strategy_semantic_change_to_avoid_scale_cost
+    - live_broker_authority_change
+    - Founder_only_deployment_or_destructive_action
+    - protected_breaking_contract_outside_scope
+    - material_scope_expansion
+    - irreconcilable_governance_conflict
 
 validation:
   per_PR:
