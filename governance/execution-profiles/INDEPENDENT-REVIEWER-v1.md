@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | `profile_id` | INDEPENDENT-REVIEWER-v1 |
-| `status` | Founder Approved — effective only with accepted GOV-AMD-018 and completed operational reconciliation |
+| `status` | Accepted — effective with GOV-AMD-018 only after exact-head R5 reviews PASS and the Founder personally merges the reconciled activation version |
 | `type` | Temporary reviewer Execution Profile |
 | `founder_approved_at` | 2026-10-09 |
 | `authority_source` | RES-002 temporary-role model; RISK-001 independent-review requirements; GOV-AMD-018 |

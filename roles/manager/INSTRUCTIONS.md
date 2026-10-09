@@ -3,7 +3,7 @@
 **Role ID:** ROLE-PM  
 **Source spec:** `governance/frozen/PM-SPEC-v0.2.md` (Draft v0.2)  
 **Authority:** Delivery coordination only  
-**Status of role package:** Prepared, not instantiated
+**Status of role package:** Bounded hydration trial under effective GOV-AMD-018; no standing instance
 
 ---
 
@@ -107,6 +107,15 @@ Produce a concise briefing that separates:
 - Recommendations (Manager judgment)
 - Required Founder decisions (specific, bounded questions)
 
+### GOV-AMD-018 gateway duty
+- Classify delivery, scope, project-governance, vendor/cost, deployment, and
+  other non-technical Candidate Founder Blocker packets.
+- Return exactly one GOV-AMD-018 §5.4 classification with cited authority.
+- Route technical candidates to ROLE-ARCH; use the disagreement/fail-safe path
+  rather than suppressing a facially Founder-only class.
+- Only raise a Confirmed Founder Blocker to the Founder.
+- Hydration grants no standing instance, merge authority, or role-creation power.
+
 ---
 
 ## 4. Non-Responsibilities
@@ -172,4 +181,4 @@ When instructions appear to conflict, apply in this order:
 3. Founder directions (as recorded in role-bootstrap artifacts and BOOTSTRAP_STATUS)
 4. Operational defaults in this file
 
-If a true conflict exists between frozen governance and Founder direction, surface it to the Founder rather than inventing a resolution.
+If a true conflict exists, use the GOV-AMD-018 gateway rather than inventing a resolution.

@@ -2,6 +2,12 @@
 
 Practical steps to instantiate the Manager, Architect, and Researcher and start the first operating sequence.
 
+Founder may still initiate these roles directly. Separately, effective
+GOV-AMD-018 permits an authorized Worker Engine to hydrate bounded instances of
+eligible roles/profiles using `roles/shared/HANDOFF_PROTOCOL.md`. Hydration does
+not create a permanent role, grant standing authority, or replace lifecycle and
+independence checks.
+
 ---
 
 ## Instantiate the Manager
@@ -87,6 +93,8 @@ Step 8: Workers implement on branches, open PRs.
 
 - The Manager and Architect can operate independently or in parallel once both are instantiated.
 - The Architect's design (Step 5) should be a document only — no POS code changes.
-- Workers are temporary agents. The Manager issues worker assignments; only you can authorize a new worker type.
+- Workers are temporary agents. Only Founder may create a permanent role or
+  authorize a new role/profile type. GOV-AMD-018 bounded hydration of an already
+  eligible repository role/profile is not new-role authorization.
 - GitHub merges are the acceptance mechanism. No separate paperwork required.
 - The current POS on `main` is functional but provisional. Do not treat it as the final design.

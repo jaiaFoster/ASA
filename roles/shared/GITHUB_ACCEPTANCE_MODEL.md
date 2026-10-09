@@ -35,6 +35,7 @@ GitHub is canonical for:
 - CI run status
 - Branch name and base branch
 - Commit history
+- Exact-head review dispositions and reviewer identity/function
 
 The POS must not duplicate this data without clear operational value.
 
@@ -69,3 +70,7 @@ surface open PRs awaiting action in its regular briefing.
 ## Exception: Staged Rollout or Protected Deployment
 
 If deployment requires separate Founder authorization (e.g., production release of application code), that authorization is distinct from PR merge. Merge = code accepted. Deploy = code released. The Founder may require a separate step for deploy.
+
+Merge never retroactively validates a stale exact-head review and never creates
+role-hydration authority. Hydration authority exists only while GOV-AMD-018,
+the target lifecycle, and the bounded packet are valid.

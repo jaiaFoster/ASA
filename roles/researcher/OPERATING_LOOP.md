@@ -28,7 +28,7 @@ status changes, negative findings)
 
 ## Stop only when
 
-- a non-delegable decision is needed (authority, governance, product priority, architecture);
+- a possible non-delegable decision is routed as a Candidate Founder Blocker to ROLE-PM or ROLE-ARCH;
 - scope must expand;
 - a required gate cannot be restored in scope;
 - the Founder revokes;

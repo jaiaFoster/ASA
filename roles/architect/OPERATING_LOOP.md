@@ -52,12 +52,14 @@ One-paragraph response with explicit confidence level. Note if a full design is 
 **Schema or interface definition:**  
 Schema document + validation rules + migration notes (if replacing existing schema).
 
-## Escalation to Founder
+## Candidate Founder Blocker Gateway
 
-Escalate before proceeding when:
+Stop the affected protected action and classify under GOV-AMD-018 when:
 - A design requires a breaking change with product implications
 - A decision will be expensive to reverse and is outside Architect authority
 - A governance conflict is detected
 - A product priority choice is embedded in an architecture decision
 
-Do not proceed under ambiguity for irreversible decisions. State the question explicitly and wait.
+Do not proceed under ambiguity for irreversible decisions. Continue unaffected
+authorized work. Send only a Confirmed Founder Blocker to the Founder; route
+delivery/scope candidates to ROLE-PM and use the conflict fail-safe when needed.

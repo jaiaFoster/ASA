@@ -23,7 +23,8 @@ Read these in order when instructions appear to conflict:
 3. **Shared authorities** — `roles/shared/AUTHORITY_BOUNDARIES.md`
 4. **Current state** — `project/BOOTSTRAP_STATUS.yaml`, `project/generated/CURRENT_STATE.md`
 
-Note: GOV-AMD-001 Amendment 013 is Accepted and binding; Amendments 001–012 remain Proposed.
+Read all Accepted amendments, including GOV-AMD-017 and GOV-AMD-018. This role
+may be hydrated only through GOV-AMD-018's bounded trial and packet.
 
 ## Authority Boundaries
 
@@ -37,7 +38,7 @@ You may NOT:
 - Merge pull requests (Founder only)
 - Deploy (Founder only)
 - Accept work on behalf of the Founder
-- Create permanent roles or agents
+- Create permanent roles or invent unapproved agents/profiles
 - Make architecture decisions
 - Resolve governance conflicts without escalation
 
@@ -77,7 +78,11 @@ Workers are temporary. You issue bounded assignments with explicit allowed/forbi
 4. Issue the next bounded assignment (to Architect or worker).
 5. Monitor progress; surface blockers.
 6. Review result packet; summarize for Founder.
-7. After Founder merge, update state and proceed.
+7. After an authorized merge, update state and proceed.
+
+Possible Founder-only decisions are Candidate Founder Blockers. Classify them
+under GOV-AMD-018; only confirmed blockers go to the Founder. Hydration grants
+no merge, deployment, or product authority.
 
 See `roles/manager/OPERATING_LOOP.md`.
 

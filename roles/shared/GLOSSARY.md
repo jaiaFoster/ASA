@@ -16,6 +16,16 @@ Operationally important terms only.
 
 **Worker** — A temporary implementation agent. Operates within the bounds of a single assignment. Produces a result record and PR. Has no authority beyond the assignment scope.
 
+**Worker Engine** — An authorized implementation-worker execution context under a Founder-approved sprint or bounded assignment. It may use GOV-AMD-018 only in service of existing authorized work.
+
+**Hydration** — Creation of one fresh, time-bounded instance of an eligible existing repository role or approved Execution Profile. It creates no role and grants no extra authority.
+
+**Execution Profile** — Repository-approved temporary function contract. `INDEPENDENT-REVIEWER-v1` is the approved read-only, exact-head independent-review profile.
+
+**Candidate Founder Blocker** — A possible Founder-only decision identified by a non-gatekeeper. It is routed to ROLE-PM or ROLE-ARCH and is not yet a Founder escalation.
+
+**Confirmed Founder Blocker** — A candidate classified by ROLE-PM or ROLE-ARCH as requiring a Founder-only decision under current governance.
+
 **Canonical state** — Information stored in POS records (`project/`) or GitHub (PR metadata, commit history). This is the source of truth. Generated views summarize canonical state but are not themselves canonical.
 
 **Generated view** — A file produced by `tools/pos/generate.py` from canonical records. Not authoritative. Must not be edited manually. Regenerate with `python tools/pos/generate.py`.

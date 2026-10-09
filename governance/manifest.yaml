@@ -73,10 +73,10 @@ documents:
     filename: governance/amendments/GOV-AMD-001.md
     class: amendment
     status: active
-    version: "0.5.0"
-    sha256: "ce64c1d34227c81ab615ed53832b63dab81c8810a536607801ef15d92f81bad6"
+    version: "0.6.0"
+    sha256: "2b8d97430b989b9c6d80a95a1e043d5de0326d39468c7fd2ab6a393a6e5c97f3"
     original_path: "governance/AMD-001-v0.2-revised.md"
-    notes: "Amendment 013 adds bounded Founder Sprint Delegation; Amendment 014 indexes the Founder-approved analytical execution boundary; Amendment 017 indexes ROLE-RESEARCH and Research Sprint Delegation."
+    notes: "Amendment 013 adds bounded Founder Sprint Delegation; Amendment 014 indexes the analytical execution boundary; Amendment 017 indexes ROLE-RESEARCH and Research Sprint Delegation; Amendment 018 indexes repository-backed hydration and the Founder-blocker gateway."
 
   - id: GOV-AMD-014
     filename: governance/amendments/GOV-AMD-014.md
@@ -95,3 +95,21 @@ documents:
     sha256: "5581d8a745bb1eab8ae400d84c5daed884a437b884a04017b8600755632638b9"
     original_path: "governance/amendments/GOV-AMD-017.md"
     notes: "R5 amendment creating ROLE-RESEARCH (RoleSpec v1.0.0) and bounded Research Sprint Delegation; effective only on Founder merge."
+
+  - id: GOV-AMD-018
+    filename: governance/amendments/GOV-AMD-018.md
+    class: amendment
+    status: active
+    version: "1.0.0"
+    sha256: "60f6e52360216a9a4414ad9abc05af7a024afe9f4e8123603318460045bb1bb9"
+    original_path: "governance/amendments/GOV-AMD-018.md"
+    notes: "R5 amendment authorizing bounded repository-backed role hydration and the Founder-blocker gateway; effective only after exact-head reviews and Founder merge."
+
+  - id: INDEPENDENT-REVIEWER-v1
+    filename: governance/execution-profiles/INDEPENDENT-REVIEWER-v1.md
+    class: execution_profile
+    status: active
+    version: "1.0.0"
+    sha256: "b770e387ca27df6c052b4e7ac45f8396655484b97b62d96414f89accc69f17a9"
+    original_path: "governance/execution-profiles/INDEPENDENT-REVIEWER-v1.md"
+    notes: "Temporary read-only exact-head independent-review profile effective only with GOV-AMD-018 reconciliation."

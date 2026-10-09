@@ -62,8 +62,10 @@ The worker MUST:
 8. Fix root-cause regressions found inside authorized scope without asking the Founder.
 9. Reopen a prior sprint automatically when observation evidence falsifies its acceptance claim.
 10. Keep working on independent later-sprint scope while a prior sprint is observation-only or while a bounded correction proceeds in parallel.
-11. Escalate to Architect, not Founder, for architecture-boundary questions that are within the authorized product direction.
-12. Escalate to Founder only for the genuine Founder blockers below.
+11. Route architecture-boundary questions to ROLE-ARCH under GOV-AMD-018.
+12. Route possible Founder-only decisions as Candidate Founder Blockers to
+    ROLE-PM or ROLE-ARCH. Only those gatekeepers may issue a confirmed blocking
+    escalation to the Founder.
 
 Do not stop merely because:
 - a market session has not yet occurred;
@@ -73,9 +75,9 @@ Do not stop merely because:
 - implementation details require choosing among reversible, architecture-consistent alternatives;
 - a stale issue/document disagrees with current main and the conflict can be resolved by repository evidence.
 
-### Genuine Founder blocker definition
+### Candidate Founder blocker definition
 
-A Founder escalation is permitted only when continuing would require one of these:
+A gatekeeper may confirm a Founder blocker only when continuing would require one of these:
 
 1. **Product-direction choice:** two materially different user-facing products or strategy semantics are both plausible and repository evidence does not select one.
 2. **Money/legal/vendor commitment:** purchase of paid data, a new commercial contract, licensing restriction, or materially increased recurring spend.
@@ -84,7 +86,9 @@ A Founder escalation is permitted only when continuing would require one of thes
 5. **Governance conflict:** accepted/frozen governance genuinely conflicts with this Founder-authorized program and cannot be reconciled by normal architecture interpretation.
 6. **Scope expansion:** the only truthful fix would materially change the end product beyond these five sprints rather than merely implement them.
 
-Before escalating, the worker must write a compact blocker packet containing: verified facts, exact blocked outcome, alternatives, reversible steps already attempted, and the smallest Founder decision required.
+Before routing, the worker must write the Candidate Founder Blocker packet from
+`roles/shared/HANDOFF_PROTOCOL.md`. Protected affected work stops; unaffected
+authorized work continues. ROLE-PM or ROLE-ARCH records the disposition.
 
 “Founder authorization required” is **not** by itself a blocker when this program already authorizes the work.
 
