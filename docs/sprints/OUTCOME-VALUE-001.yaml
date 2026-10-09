@@ -2,12 +2,14 @@
 id: OUTCOME-VALUE-001
 name: Outcome Value and Evidence-Disciplined Effectiveness
 version: 0.1-draft
-status: DRAFT
+status: FOUNDER_APPROVED_PENDING_ACTIVATION
 type: IMPLEMENTATION_AND_OBSERVATION_SPRINT
 priority: P1
 
 draft_state:
-  founder_authorized: false
+  founder_authorized: true
+  founder_approved_at: "2026-10-09"
+  founder_approval_scope: document_and_enumerated_ticket_set
   approved_tickets:
     - OV-00
     - OV-01
@@ -26,7 +28,7 @@ draft_state:
     - GOV-AMD-018_section_8_operational_reconciliation_is_complete_on_main
     - INDEPENDENT-REVIEWER-v1_is_effective_on_main
     - ASA-PRODUCTION-TO-DECISION-2026Q4_program_contract_is_Founder_merged_on_main
-  activation_effect: none
+  activation_effect: approval_recorded_no_execution_until_effective_when
   purpose: >
     Full execution prompt for phase 4 of ASA's production-to-decision program.
     This sprint is a bounded successor/extension to OUTCOME-INTELLIGENCE-001.
@@ -40,7 +42,8 @@ draft_state:
 
 activation:
   governance_amendment: GOV-AMD-001-013
-  founder_authorized: false
+  founder_authorized: true
+  founder_approved_at: "2026-10-09"
   delegate:
     role: ROLE-WORKER
     instance: outcome-value-worker
