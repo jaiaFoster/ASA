@@ -96,6 +96,7 @@ def test_only_approved_exact_head_independent_profile_is_allowed() -> None:
     review = {
         **PACKET,
         "requested_role": "INDEPENDENT-REVIEWER-v1",
+        "repository_ref": f"pr/560@{'a' * 40}",
         "exact_head_sha": "a" * 40,
         "independence_statement": "fresh instance; not author or assigner",
         "prohibited_actions": ["edit", "commit", "push", "merge", "deploy"],
@@ -132,11 +133,12 @@ def test_new_sha_requires_new_independent_review_packet() -> None:
     first = {
         **PACKET,
         "requested_role": "INDEPENDENT-REVIEWER-v1",
+        "repository_ref": f"pr/560@{'a' * 40}",
         "exact_head_sha": "a" * 40,
         "independence_statement": "distinct instance",
         "prohibited_actions": ["edit", "commit", "push", "merge", "deploy"],
     }
-    second = {**first, "exact_head_sha": "b" * 40}
+    second = {**first, "exact_head_sha": "b" * 40, "repository_ref": f"pr/560@{'b' * 40}"}
     assert check(first, current_head_sha="a" * 40) == []
     assert "H017_STALE_EXACT_HEAD" in check(first, current_head_sha="b" * 40)
     assert check(second, current_head_sha="b" * 40) == []
@@ -148,6 +150,19 @@ def test_missing_rehydration_and_canonical_artifacts_fail_closed(tmp_path: Path)
     )
     packet = {**PACKET, "canonical_artifacts": ["does/not/exist.md"]}
     assert "H021_CANONICAL_ARTIFACT_MISSING" in check(packet)
+
+
+def test_repository_paths_cannot_escape_by_traversal_or_symlink(tmp_path: Path) -> None:
+    outside = tmp_path.parent / "outside-role-artifact.md"
+    outside.write_text("outside")
+    packet = {**PACKET, "canonical_artifacts": [f"../{outside.name}"]}
+    assert "H021_CANONICAL_ARTIFACT_MISSING" in check(packet, repo_root=tmp_path)
+    root = tmp_path / "repo"
+    root.mkdir()
+    (root / "escape").symlink_to(outside)
+    assert "H021_CANONICAL_ARTIFACT_MISSING" in check(
+        {**PACKET, "canonical_artifacts": ["escape"]}, repo_root=root
+    )
 
 
 def test_cross_role_authority_requests_are_denied() -> None:
@@ -165,12 +180,14 @@ def test_independent_profile_must_exist_and_sha_must_be_well_formed(tmp_path: Pa
     review = {
         **PACKET,
         "requested_role": "INDEPENDENT-REVIEWER-v1",
+        "repository_ref": "pr/560@x",
         "exact_head_sha": "x",
         "independence_statement": "distinct instance",
         "prohibited_actions": ["edit", "commit", "push", "merge", "deploy"],
     }
     assert "H005_EXACT_HEAD_REQUIRED" in check(review, repo_root=tmp_path, current_head_sha="x")
     review["exact_head_sha"] = "a" * 40
+    review["repository_ref"] = f"pr/560@{'a' * 40}"
     errors = check(review, repo_root=tmp_path, current_head_sha="a" * 40)
     assert "H018_REVIEW_PROFILE_UNAVAILABLE" in errors
 
@@ -179,6 +196,7 @@ def test_gateway_requires_pm_or_arch_and_fixed_disposition() -> None:
     record = {
         "gatekeeper": "ROLE-PM",
         "candidate_id": "CB-1",
+        "candidate_class": "implementation_defect",
         "disposition": "LOCAL_BLOCKER",
         "canonical_authority": "GOV-AMD-018 §5",
         "affected_path_state": "stopped",
@@ -198,6 +216,7 @@ def test_gateway_rejects_routine_failure_as_unconfirmed() -> None:
     record = {
         "gatekeeper": "ROLE-ARCH",
         "candidate_id": "test-failure",
+        "candidate_class": "test_failure",
         "disposition": "NOT_A_FOUNDER_BLOCKER",
         "canonical_authority": "GOV-AMD-018 §5.5",
         "affected_path_state": "correction",
@@ -212,6 +231,9 @@ def test_paid_vendor_or_protected_contract_can_be_confirmed_by_correct_gatekeepe
         record = {
             "gatekeeper": gatekeeper,
             "candidate_id": candidate,
+            "candidate_class": "paid_vendor_or_legal_commitment"
+            if gatekeeper == "ROLE-PM"
+            else "governance_or_constitutional_change",
             "disposition": "CONFIRMED_FOUNDER_BLOCKER",
             "canonical_authority": "GOV-AMD-018 §5.5",
             "affected_path_state": "stopped",
@@ -232,6 +254,7 @@ def test_incomplete_confirmed_blocker_and_unstopped_path_fail_closed() -> None:
     record = {
         "gatekeeper": "ROLE-PM",
         "candidate_id": "paid-vendor",
+        "candidate_class": "paid_vendor_or_legal_commitment",
         "disposition": "CONFIRMED_FOUNDER_BLOCKER",
         "canonical_authority": "GOV-AMD-018 §5.5",
         "affected_path_state": "continuing",
@@ -246,6 +269,7 @@ def test_local_or_not_founder_disposition_requires_continuation_guidance() -> No
     record = {
         "gatekeeper": "ROLE-ARCH",
         "candidate_id": "ordinary-failure",
+        "candidate_class": "test_failure",
         "disposition": "NOT_A_FOUNDER_BLOCKER",
         "canonical_authority": "GOV-AMD-018 §5.5",
         "affected_path_state": "correction",
@@ -254,10 +278,48 @@ def test_local_or_not_founder_disposition_requires_continuation_guidance() -> No
     assert "G012_CONTINUATION_GUIDANCE_REQUIRED" in validate_gateway_disposition(record)
 
 
+def test_routine_failure_cannot_be_confirmed_as_founder_blocker() -> None:
+    record = {
+        "gatekeeper": "ROLE-PM",
+        "candidate_id": "ci",
+        "candidate_class": "test_failure",
+        "disposition": "CONFIRMED_FOUNDER_BLOCKER",
+        "canonical_authority": "GOV-AMD-018 §5.5",
+        "affected_path_state": "stopped",
+        "unaffected_work_state": "continuing",
+        "blocked_action": "merge",
+        "decision_class": "test_failure",
+        "founder_only_reason": "claimed",
+        "verified_evidence": ["ci"],
+        "attempted_resolutions": ["rerun"],
+        "alternatives": ["fix"],
+        "safe_default": "stop",
+        "smallest_founder_decision": "waive",
+    }
+    errors = validate_gateway_disposition(record)
+    assert "G013_ROUTINE_FAILURE_CANNOT_BE_CONFIRMED" in errors
+    assert "G014_UNKNOWN_FOUNDER_ONLY_CLASS" in errors
+
+
+def test_founder_only_class_cannot_be_dismissed_by_arbitrary_citation() -> None:
+    record = {
+        "gatekeeper": "ROLE-PM",
+        "candidate_id": "vendor",
+        "candidate_class": "paid_vendor_or_legal_commitment",
+        "disposition": "NOT_A_FOUNDER_BLOCKER",
+        "canonical_authority": "arbitrary",
+        "affected_path_state": "stopped",
+        "unaffected_work_state": "continuing",
+        "continuation_guidance": "buy it",
+    }
+    assert "G015_FOUNDER_ONLY_CLASS_CANNOT_BE_DISMISSED" in validate_gateway_disposition(record)
+
+
 def test_conflicted_gatekeeper_routes_to_other() -> None:
     base = {
         "gatekeeper": "ROLE-PM",
         "candidate_id": "c",
+        "candidate_class": "implementation_defect",
         "disposition": "LOCAL_BLOCKER",
         "canonical_authority": "GOV-AMD-018 §5.4.1",
         "affected_path_state": "stopped",
@@ -273,6 +335,7 @@ def test_disagreement_stops_path_and_forwards_narrow_conflict() -> None:
     record = {
         "gatekeeper": "ROLE-ARCH",
         "candidate_id": "d",
+        "candidate_class": "implementation_defect",
         "disposition": "LOCAL_BLOCKER",
         "canonical_authority": "GOV-AMD-018 §5.4.1",
         "affected_path_state": "stopped",
@@ -288,6 +351,7 @@ def test_gateway_unavailable_is_durable_and_fail_closed() -> None:
     record = {
         "gatekeeper": "ROLE-PM",
         "candidate_id": "u",
+        "candidate_class": "implementation_defect",
         "disposition": "LOCAL_BLOCKER",
         "canonical_authority": "GOV-AMD-018 §5.4.1",
         "affected_path_state": "stopped",
@@ -303,6 +367,7 @@ def test_repeat_challenge_needs_new_canonical_evidence() -> None:
     record = {
         "gatekeeper": "ROLE-ARCH",
         "candidate_id": "r",
+        "candidate_class": "implementation_defect",
         "disposition": "LOCAL_BLOCKER",
         "canonical_authority": "GOV-AMD-018 §5.4.1",
         "affected_path_state": "stopped",
@@ -318,6 +383,7 @@ def test_both_conflicted_gatekeepers_forward_only_narrow_conflict() -> None:
     record = {
         "gatekeeper": "ROLE-PM",
         "candidate_id": "bc",
+        "candidate_class": "implementation_defect",
         "disposition": "LOCAL_BLOCKER",
         "canonical_authority": "GOV-AMD-018 §5.4.1",
         "affected_path_state": "stopped",
