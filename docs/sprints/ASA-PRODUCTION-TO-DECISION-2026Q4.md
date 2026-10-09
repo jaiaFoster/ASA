@@ -1,8 +1,9 @@
 # ASA PRODUCTION-TO-DECISION PROGRAM — Transition and Execution Contract
 
 **Program ID:** ASA-PRODUCTION-TO-DECISION-2026Q4  
-**Status:** DRAFT / non-binding until Founder activation  
+**Status:** FOUNDER APPROVED / pending activation prerequisites and effective Founder merge  
 **Authoring date:** 2026-10-08  
+**Founder approval recorded:** 2026-10-09  
 **Purpose:** Define the relationship among the five new sprint prompts and the still-open ASA-OPTIONS-TO-OUTCOMES-2026Q4 program so there is one canonical owner for each existing observation, ledger, and closure obligation.
 
 ## 1. Five-phase sequence
