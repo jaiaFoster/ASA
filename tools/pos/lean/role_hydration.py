@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import hashlib
 import re
 from datetime import date
 from pathlib import Path
 from typing import Any
+
+import yaml
 
 REQUIRED_PACKET_FIELDS = frozenset(
     {
@@ -24,46 +27,12 @@ REQUIRED_PACKET_FIELDS = frozenset(
         "termination_condition",
     }
 )
-
 GATEWAY_DISPOSITIONS = frozenset(
-    {
-        "NOT_A_FOUNDER_BLOCKER",
-        "LOCAL_BLOCKER",
-        "CONFIRMED_FOUNDER_BLOCKER",
-    }
+    {"NOT_A_FOUNDER_BLOCKER", "LOCAL_BLOCKER", "CONFIRMED_FOUNDER_BLOCKER"}
 )
-
 PROHIBITED_HYDRATED_ACTIONS = frozenset(
     {"merge", "deploy", "set_product_direction", "modify_governance", "live_broker_mutation"}
 )
-
-ROLE_ACTIONS = {
-    "ROLE-PM": frozenset(
-        {"read", "consult", "classify", "sequence_work", "assign_work", "record_disposition"}
-    ),
-    "ROLE-ARCH": frozenset(
-        {
-            "read",
-            "consult",
-            "classify",
-            "define_architecture",
-            "review_architecture",
-            "set_acceptance_criteria",
-            "record_disposition",
-        }
-    ),
-    "ROLE-RESEARCH": frozenset(
-        {
-            "read",
-            "consult",
-            "research",
-            "characterize_evidence",
-            "manage_research_taxonomy",
-            "record_disposition",
-        }
-    ),
-}
-
 CONFIRMED_BLOCKER_FIELDS = frozenset(
     {
         "blocked_action",
@@ -74,6 +43,27 @@ CONFIRMED_BLOCKER_FIELDS = frozenset(
         "alternatives",
         "safe_default",
         "smallest_founder_decision",
+    }
+)
+FOUNDER_ONLY_CLASSES = frozenset(
+    {
+        "paid_vendor_or_legal_commitment",
+        "live_broker_authority_expansion",
+        "founder_only_deployment",
+        "destructive_irreversible_action",
+        "governance_or_constitutional_change",
+        "material_scope_expansion",
+        "irreconcilable_authority_conflict",
+    }
+)
+ROUTINE_CLASSES = frozenset(
+    {
+        "implementation_defect",
+        "test_failure",
+        "ci_failure",
+        "required_review",
+        "provider_or_data_unknown",
+        "observation_wait",
     }
 )
 
@@ -87,6 +77,47 @@ def _roles_by_id(registry: dict[str, Any]) -> dict[str, dict[str, Any]]:
         for role in roles
         if isinstance(role, dict) and isinstance(role.get("id"), str)
     }
+
+
+def _repo_file(repo_root: Path, value: object) -> Path | None:
+    """Resolve a repository-relative regular file without traversal/symlink escape."""
+    if not isinstance(value, str) or not value or value.startswith("/"):
+        return None
+    root = repo_root.resolve()
+    candidate = (root / value.split("#", maxsplit=1)[0]).resolve()
+    try:
+        candidate.relative_to(root)
+    except ValueError:
+        return None
+    return candidate if candidate.is_file() else None
+
+
+def _profile_is_active(repo_root: Path) -> bool:
+    profile_rel = "governance/execution-profiles/INDEPENDENT-REVIEWER-v1.md"
+    profile = _repo_file(repo_root, profile_rel)
+    manifest = _repo_file(repo_root, "governance/manifest.yaml")
+    if profile is None or manifest is None:
+        return False
+    try:
+        documents = yaml.safe_load(manifest.read_text())["documents"]
+    except (KeyError, TypeError, yaml.YAMLError):
+        return False
+    entry = next(
+        (
+            item
+            for item in documents
+            if isinstance(item, dict) and item.get("id") == "INDEPENDENT-REVIEWER-v1"
+        ),
+        None,
+    )
+    if not isinstance(entry, dict):
+        return False
+    return (
+        entry.get("status") == "active"
+        and entry.get("filename") == profile_rel
+        and entry.get("sha256") == hashlib.sha256(profile.read_bytes()).hexdigest()
+        and "| `status` | Accepted" in profile.read_text()
+    )
 
 
 def validate_hydration_packet(
@@ -104,7 +135,6 @@ def validate_hydration_packet(
     """Return stable error codes. Empty means packet may be executed."""
     if not isinstance(packet, dict):
         return ["H001_INVALID_PACKET"]
-
     errors: list[str] = []
     missing = sorted(
         field
@@ -113,10 +143,8 @@ def validate_hydration_packet(
     )
     if missing:
         errors.append(f"H002_MISSING_FIELDS:{','.join(missing)}")
-
     if not amendment_effective or not reconciliation_complete:
         errors.append("H003_AMENDMENT_NOT_EFFECTIVE")
-
     permitted = set(packet.get("permitted_actions") or [])
     if permitted & PROHIBITED_HYDRATED_ACTIONS:
         errors.append("H015_AUTHORITY_EXPANSION")
@@ -128,20 +156,21 @@ def validate_hydration_packet(
     if target == "ROLE-FOUNDER":
         errors.append("H004_FOUNDER_NOT_HYDRATABLE")
         return errors
-
     if target == "INDEPENDENT-REVIEWER-v1":
         exact_head = packet.get("exact_head_sha")
         if not isinstance(exact_head, str) or re.fullmatch(r"[0-9a-f]{40}", exact_head) is None:
             errors.append("H005_EXACT_HEAD_REQUIRED")
         elif current_head_sha is None or exact_head != current_head_sha:
             errors.append("H017_STALE_EXACT_HEAD")
+        if exact_head != str(packet.get("repository_ref", "")).rsplit("@", maxsplit=1)[-1]:
+            errors.append("H022_REF_HEAD_MISMATCH")
         if not packet.get("independence_statement"):
             errors.append("H006_INDEPENDENCE_REQUIRED")
-        forbidden = set(packet.get("prohibited_actions") or [])
-        if not {"edit", "commit", "push", "merge", "deploy"} <= forbidden:
+        if not {"edit", "commit", "push", "merge", "deploy"} <= set(
+            packet.get("prohibited_actions") or []
+        ):
             errors.append("H007_REVIEWER_PROHIBITIONS_REQUIRED")
-        profile = repo_root / "governance/execution-profiles/INDEPENDENT-REVIEWER-v1.md"
-        if not profile.is_file() or "| `status` | Accepted" not in profile.read_text():
+        if not _profile_is_active(repo_root):
             errors.append("H018_REVIEW_PROFILE_UNAVAILABLE")
         return errors
 
@@ -149,26 +178,27 @@ def validate_hydration_packet(
     if role is None:
         errors.append("H008_UNKNOWN_ROLE_OR_PROFILE")
         return errors
-
-    for field in ("specification", "instructions", "instantiation_prompt"):
-        value = role.get(field)
-        if not isinstance(value, str) or not (repo_root / value).is_file():
-            errors.append(f"H019_REHYDRATION_ARTIFACT_MISSING:{field}")
-
-    allowed_actions = ROLE_ACTIONS.get(str(target), frozenset())
-    if not permitted <= allowed_actions:
-        errors.append("H020_ACTION_OUTSIDE_ROLE_AUTHORITY")
-
-    for artifact in packet.get("canonical_artifacts") or []:
-        if (
-            not isinstance(artifact, str)
-            or artifact.startswith("/")
-            or not (repo_root / artifact).is_file()
-        ):
-            errors.append("H021_CANONICAL_ARTIFACT_MISSING")
-
     if founder_revoked:
         errors.append("H009_TRIAL_REVOKED")
+    for field in ("specification", "instructions", "instantiation_prompt"):
+        if _repo_file(repo_root, role.get(field)) is None:
+            errors.append(f"H019_REHYDRATION_ARTIFACT_MISSING:{field}")
+    if _repo_file(repo_root, role.get("lifecycle_authority")) is None:
+        errors.append("H023_LIFECYCLE_AUTHORITY_MISSING")
+    configured_actions = role.get("hydration_actions")
+    allowed_actions = (
+        frozenset(configured_actions)
+        if isinstance(configured_actions, list)
+        and all(isinstance(x, str) for x in configured_actions)
+        else frozenset()
+    )
+    if not permitted <= allowed_actions:
+        errors.append("H020_ACTION_OUTSIDE_ROLE_AUTHORITY")
+    if any(
+        _repo_file(repo_root, artifact) is None
+        for artifact in packet.get("canonical_artifacts") or []
+    ):
+        errors.append("H021_CANONICAL_ARTIFACT_MISSING")
 
     if target in {"ROLE-PM", "ROLE-ARCH"}:
         trial = role.get("hydration_trial")
@@ -189,7 +219,6 @@ def validate_hydration_packet(
             errors.append("H013_LIFECYCLE_CONFLICT")
     elif role.get("status") != "active":
         errors.append("H014_ROLE_NOT_HYDRATABLE")
-
     return errors
 
 
@@ -200,6 +229,7 @@ def validate_gateway_disposition(record: object) -> list[str]:
     required = {
         "gatekeeper",
         "candidate_id",
+        "candidate_class",
         "disposition",
         "canonical_authority",
         "affected_path_state",
@@ -207,11 +237,13 @@ def validate_gateway_disposition(record: object) -> list[str]:
     }
     missing = sorted(k for k in required if record.get(k) in (None, "", [], {}))
     errors = [f"G002_MISSING_FIELDS:{','.join(missing)}"] if missing else []
+    disposition = record.get("disposition")
+    candidate_class = record.get("candidate_class")
     if record.get("gatekeeper") not in {"ROLE-PM", "ROLE-ARCH"}:
         errors.append("G003_INVALID_GATEKEEPER")
-    if record.get("disposition") not in GATEWAY_DISPOSITIONS:
+    if disposition not in GATEWAY_DISPOSITIONS:
         errors.append("G004_INVALID_DISPOSITION")
-    if record.get("disposition") == "CONFIRMED_FOUNDER_BLOCKER":
+    if disposition == "CONFIRMED_FOUNDER_BLOCKER":
         missing_confirmed = sorted(
             field for field in CONFIRMED_BLOCKER_FIELDS if record.get(field) in (None, "", [], {})
         )
@@ -219,10 +251,17 @@ def validate_gateway_disposition(record: object) -> list[str]:
             errors.append(f"G010_INCOMPLETE_CONFIRMED_PACKET:{','.join(missing_confirmed)}")
         if record.get("affected_path_state") != "stopped":
             errors.append("G011_PROTECTED_PATH_NOT_STOPPED")
-    if record.get("disposition") in {"NOT_A_FOUNDER_BLOCKER", "LOCAL_BLOCKER"} and not record.get(
-        "continuation_guidance"
-    ):
-        errors.append("G012_CONTINUATION_GUIDANCE_REQUIRED")
+        if candidate_class in ROUTINE_CLASSES:
+            errors.append("G013_ROUTINE_FAILURE_CANNOT_BE_CONFIRMED")
+        if candidate_class not in FOUNDER_ONLY_CLASSES:
+            errors.append("G014_UNKNOWN_FOUNDER_ONLY_CLASS")
+    if disposition in {"NOT_A_FOUNDER_BLOCKER", "LOCAL_BLOCKER"}:
+        if not record.get("continuation_guidance"):
+            errors.append("G012_CONTINUATION_GUIDANCE_REQUIRED")
+        if candidate_class in FOUNDER_ONLY_CLASSES:
+            errors.append("G015_FOUNDER_ONLY_CLASS_CANNOT_BE_DISMISSED")
+    if record.get("unaffected_work_state") not in {"continuing", "none_authorized"}:
+        errors.append("G016_UNAFFECTED_WORK_MUST_CONTINUE")
     if record.get("gatekeeper_conflicted") and not record.get("routed_to_other_gatekeeper"):
         errors.append("G005_CONFLICTED_GATEKEEPER")
     if record.get("gatekeepers_disagree") and (
