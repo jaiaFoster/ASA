@@ -3,9 +3,10 @@
 | Field | Value |
 |---|---|
 | `amendment_id` | GOV-AMD-018 (register entry: GOV-AMD-001 Amendment 018) |
-| `status` | Proposed — **PENDING INDEPENDENT, STRUCTURAL, AND CONSTITUTIONAL REVIEW. Not binding until the required reviews complete and the Founder personally merges the accepted version to the default branch.** |
+| `status` | Founder Approved — **PENDING INDEPENDENT, STRUCTURAL, AND CONSTITUTIONAL REVIEW. Founder approval of the proposed text is recorded, but the amendment is not binding until required reviews PASS and the Founder personally merges the accepted version to the default branch.** |
 | `proposer` | Founder |
 | `date` | 2026-10-08 |
+| `founder_approved_at` | 2026-10-09 |
 | `risk_class` | R5 — Constitutional. This amendment changes agent-instantiation authority and the escalation path to the Founder. |
 | `applies_to` | RES-001, RES-002, PM-SPEC, ARCH-SPEC, ROLE-RESEARCH (GOV-AMD-017), GOV-AMD-001 Amendment 013 operating model, roles/shared/AUTHORITY_BOUNDARIES.md |
 | `binding_scope` | Model A — accepted-on-entry (GOV-AMD-001 §0.1), subject to the effectiveness condition above |
