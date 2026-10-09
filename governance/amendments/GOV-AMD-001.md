@@ -734,9 +734,10 @@ Review records.
 | Field | Value |
 |---|---|
 | `amendment_id` | 018 |
-| `status` | Proposed — **pending Independent, Structural, and Constitutional Review; not binding** |
+| `status` | Founder Approved — **pending Independent, Structural, and Constitutional Review; not binding until required reviews PASS and Founder merge** |
 | `proposer` | Founder |
 | `date` | 2026-10-08 |
+| `founder_approved_at` | 2026-10-09 |
 | `risk_class` | R5 — Constitutional (changes agent-instantiation authority and Founder-escalation routing) |
 | `applies_to` | RES-001, RES-002, PM-SPEC, ARCH-SPEC, ROLE-RESEARCH / GOV-AMD-017, Amendment 013 operating model, shared authority compilations |
 | `binding_scope` | Model A — accepted-on-entry (§0.1); complete proposed text in `GOV-AMD-018.md` |
