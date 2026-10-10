@@ -1,0 +1,14 @@
+---
+amendment_id: GOV-AMD-018
+status: effective_on_founder_merge
+requires:
+  exact_head_reviews:
+    - independent
+    - structural
+    - constitutional
+  founder_personal_merge: true
+  operational_reconciliation_complete: true
+default_branch: main
+note: >
+  This record grants no authority on a pull-request branch. The hydration
+  validator requires the checked-out commit to be contained by origin/main.

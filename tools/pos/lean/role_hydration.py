@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import re
+import subprocess
 from datetime import date
 from pathlib import Path
 from typing import Any
@@ -79,6 +80,84 @@ def _roles_by_id(registry: dict[str, Any]) -> dict[str, dict[str, Any]]:
     }
 
 
+def _load_yaml(repo_root: Path, relative_path: str) -> dict[str, Any] | None:
+    path = _repo_file(repo_root, relative_path)
+    if path is None:
+        return None
+    try:
+        value = yaml.safe_load(path.read_text())
+    except yaml.YAMLError:
+        return None
+    return value if isinstance(value, dict) else None
+
+
+def _git(repo_root: Path, *args: str) -> str | None:
+    try:
+        result = subprocess.run(
+            ["git", *args], cwd=repo_root, check=True, capture_output=True, text=True
+        )
+    except (OSError, subprocess.CalledProcessError):
+        return None
+    return result.stdout.strip()
+
+
+def _anchor_exists(path: Path, reference: str) -> bool:
+    if "#" not in reference:
+        return False
+    anchor = reference.split("#", maxsplit=1)[1]
+    headings = re.findall(r"^#{1,6}\s+(.+?)\s*$", path.read_text(), flags=re.MULTILINE)
+    slugs = {
+        re.sub(r"[^a-z0-9 -]", "", heading.lower()).replace(" ", "-")
+        for heading in headings
+    }
+    return anchor in slugs
+
+
+def _canonical_roles(repo_root: Path) -> dict[str, dict[str, Any]]:
+    registry = _load_yaml(repo_root, "project/roles/registry.yaml")
+    return _roles_by_id(registry or {})
+
+
+def _authority_by_role(repo_root: Path) -> dict[str, dict[str, Any]]:
+    authority = _load_yaml(repo_root, "governance/role-hydration-authority.yaml")
+    roles = authority.get("roles") if authority else None
+    if not isinstance(roles, list):
+        return {}
+    return {
+        item["id"]: item
+        for item in roles
+        if isinstance(item, dict) and isinstance(item.get("id"), str)
+    }
+
+
+def _amendment_is_effective(repo_root: Path) -> bool:
+    state = _load_yaml(repo_root, "governance/effectiveness/GOV-AMD-018.yaml")
+    if not state or state.get("status") != "effective_on_founder_merge":
+        return False
+    head = _git(repo_root, "rev-parse", "HEAD")
+    default_head = _git(repo_root, "rev-parse", "refs/remotes/origin/main")
+    if not head or not default_head:
+        return False
+    return _git(repo_root, "merge-base", "--is-ancestor", head, default_head) == ""
+
+
+def _trusted_target_head(repo_root: Path, repository_ref: object) -> str | None:
+    if not isinstance(repository_ref, str) or "@" not in repository_ref:
+        return None
+    target, claimed = repository_ref.rsplit("@", maxsplit=1)
+    if re.fullmatch(r"[0-9a-f]{40}", claimed) is None:
+        return None
+    if target == "main":
+        actual = _git(repo_root, "rev-parse", "refs/remotes/origin/main")
+    elif re.fullmatch(r"pr/[1-9][0-9]*", target):
+        number = target.split("/", maxsplit=1)[1]
+        output = _git(repo_root, "ls-remote", "origin", f"refs/pull/{number}/head")
+        actual = output.split()[0] if output else None
+    else:
+        actual = None
+    return actual if actual == claimed else None
+
+
 def _repo_file(repo_root: Path, value: object) -> Path | None:
     """Resolve a repository-relative regular file without traversal/symlink escape."""
     if not isinstance(value, str) or not value or value.startswith("/"):
@@ -125,10 +204,7 @@ def validate_hydration_packet(
     registry: dict[str, Any],
     *,
     evaluated_on: date,
-    amendment_effective: bool,
-    reconciliation_complete: bool,
     repo_root: Path,
-    current_head_sha: str | None = None,
     program_open: bool = True,
     founder_revoked: bool = False,
 ) -> list[str]:
@@ -143,7 +219,11 @@ def validate_hydration_packet(
     )
     if missing:
         errors.append(f"H002_MISSING_FIELDS:{','.join(missing)}")
-    if not amendment_effective or not reconciliation_complete:
+    canonical_roles = _canonical_roles(repo_root)
+    supplied_roles = _roles_by_id(registry)
+    if supplied_roles != canonical_roles:
+        errors.append("H024_NONCANONICAL_REGISTRY")
+    if not _amendment_is_effective(repo_root):
         errors.append("H003_AMENDMENT_NOT_EFFECTIVE")
     permitted = set(packet.get("permitted_actions") or [])
     if permitted & PROHIBITED_HYDRATED_ACTIONS:
@@ -151,6 +231,11 @@ def validate_hydration_packet(
     purpose = str(packet.get("purpose", "")).lower()
     if "reprioritize" in purpose or "manage permanent role" in purpose:
         errors.append("H016_NOT_BOUNDED_CONSULTATION")
+    if any(
+        _repo_file(repo_root, artifact) is None
+        for artifact in packet.get("canonical_artifacts") or []
+    ):
+        errors.append("H021_CANONICAL_ARTIFACT_MISSING")
 
     target = packet.get("requested_role")
     if target == "ROLE-FOUNDER":
@@ -160,7 +245,7 @@ def validate_hydration_packet(
         exact_head = packet.get("exact_head_sha")
         if not isinstance(exact_head, str) or re.fullmatch(r"[0-9a-f]{40}", exact_head) is None:
             errors.append("H005_EXACT_HEAD_REQUIRED")
-        elif current_head_sha is None or exact_head != current_head_sha:
+        elif _trusted_target_head(repo_root, packet.get("repository_ref")) != exact_head:
             errors.append("H017_STALE_EXACT_HEAD")
         if exact_head != str(packet.get("repository_ref", "")).rsplit("@", maxsplit=1)[-1]:
             errors.append("H022_REF_HEAD_MISMATCH")
@@ -174,7 +259,7 @@ def validate_hydration_packet(
             errors.append("H018_REVIEW_PROFILE_UNAVAILABLE")
         return errors
 
-    role = _roles_by_id(registry).get(target)
+    role = canonical_roles.get(target)
     if role is None:
         errors.append("H008_UNKNOWN_ROLE_OR_PROFILE")
         return errors
@@ -183,9 +268,18 @@ def validate_hydration_packet(
     for field in ("specification", "instructions", "instantiation_prompt"):
         if _repo_file(repo_root, role.get(field)) is None:
             errors.append(f"H019_REHYDRATION_ARTIFACT_MISSING:{field}")
-    if _repo_file(repo_root, role.get("lifecycle_authority")) is None:
+    lifecycle_file = _repo_file(repo_root, role.get("lifecycle_authority"))
+    if lifecycle_file is None or not _anchor_exists(
+        lifecycle_file, str(role.get("lifecycle_authority", ""))
+    ):
         errors.append("H023_LIFECYCLE_AUTHORITY_MISSING")
-    configured_actions = role.get("hydration_actions")
+    authority = _authority_by_role(repo_root).get(str(target), {})
+    if (
+        authority.get("lifecycle_authority") != role.get("lifecycle_authority")
+        or authority.get("required_registry_status") != role.get("status")
+    ):
+        errors.append("H025_LIFECYCLE_AUTHORITY_CONFLICT")
+    configured_actions = authority.get("allowed_actions")
     allowed_actions = (
         frozenset(configured_actions)
         if isinstance(configured_actions, list)
@@ -194,12 +288,6 @@ def validate_hydration_packet(
     )
     if not permitted <= allowed_actions:
         errors.append("H020_ACTION_OUTSIDE_ROLE_AUTHORITY")
-    if any(
-        _repo_file(repo_root, artifact) is None
-        for artifact in packet.get("canonical_artifacts") or []
-    ):
-        errors.append("H021_CANONICAL_ARTIFACT_MISSING")
-
     if target in {"ROLE-PM", "ROLE-ARCH"}:
         trial = role.get("hydration_trial")
         if not isinstance(trial, dict) or trial.get("authorized_by") != "GOV-AMD-018":
