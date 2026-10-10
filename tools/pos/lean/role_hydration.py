@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import re
 import subprocess
 from datetime import date
@@ -80,12 +81,34 @@ def _roles_by_id(registry: dict[str, Any]) -> dict[str, dict[str, Any]]:
     }
 
 
-def _load_yaml(repo_root: Path, relative_path: str) -> dict[str, Any] | None:
-    path = _repo_file(repo_root, relative_path)
-    if path is None:
+def _git_file(repo_root: Path, relative_path: object) -> str | None:
+    if not isinstance(relative_path, str) or not relative_path or relative_path.startswith("/"):
+        return None
+    path = relative_path.split("#", maxsplit=1)[0]
+    if ".." in Path(path).parts:
+        return None
+    tree = _git(repo_root, "ls-tree", "HEAD", "--", path)
+    if not tree or not tree.split(maxsplit=1)[0].startswith("100"):
         return None
     try:
-        value = yaml.safe_load(path.read_text())
+        result = subprocess.run(
+            ["git", "show", f"HEAD:{path}"],
+            cwd=repo_root,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except (OSError, subprocess.CalledProcessError):
+        return None
+    return result.stdout
+
+
+def _load_yaml(repo_root: Path, relative_path: str) -> dict[str, Any] | None:
+    text = _git_file(repo_root, relative_path)
+    if text is None:
+        return None
+    try:
+        value = yaml.safe_load(text)
     except yaml.YAMLError:
         return None
     return value if isinstance(value, dict) else None
@@ -101,11 +124,25 @@ def _git(repo_root: Path, *args: str) -> str | None:
     return result.stdout.strip()
 
 
-def _anchor_exists(path: Path, reference: str) -> bool:
+def _github_json(repo_root: Path, endpoint: str) -> object | None:
+    try:
+        result = subprocess.run(
+            ["gh", "api", endpoint],
+            cwd=repo_root,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        return json.loads(result.stdout)
+    except (OSError, subprocess.CalledProcessError, json.JSONDecodeError):
+        return None
+
+
+def _anchor_exists(text: str, reference: str) -> bool:
     if "#" not in reference:
         return False
     anchor = reference.split("#", maxsplit=1)[1]
-    headings = re.findall(r"^#{1,6}\s+(.+?)\s*$", path.read_text(), flags=re.MULTILINE)
+    headings = re.findall(r"^#{1,6}\s+(.+?)\s*$", text, flags=re.MULTILINE)
     slugs = {
         re.sub(r"[^a-z0-9 -]", "", heading.lower()).replace(" ", "-")
         for heading in headings
@@ -138,7 +175,62 @@ def _amendment_is_effective(repo_root: Path) -> bool:
     default_head = _git(repo_root, "rev-parse", "refs/remotes/origin/main")
     if not head or not default_head:
         return False
-    return _git(repo_root, "merge-base", "--is-ancestor", head, default_head) == ""
+    if _git(repo_root, "merge-base", "--is-ancestor", head, default_head) != "":
+        return False
+    activation_commit = _git(
+        repo_root,
+        "log",
+        "-1",
+        "--format=%H",
+        "--diff-filter=A",
+        "--",
+        "governance/effectiveness/GOV-AMD-018.yaml",
+    )
+    remote = _git(repo_root, "remote", "get-url", "origin") or ""
+    match = re.search(r"github\.com[/:]([^/]+)/([^/.]+)(?:\.git)?$", remote)
+    if not activation_commit or match is None:
+        return False
+    owner, repository = match.groups()
+    pulls = _github_json(repo_root, f"repos/{owner}/{repository}/commits/{activation_commit}/pulls")
+    if not isinstance(pulls, list):
+        return False
+    founder = _canonical_roles(repo_root).get("ROLE-FOUNDER", {}).get("github_login")
+    pull = next(
+        (
+            item
+            for item in pulls
+            if isinstance(item, dict)
+            and item.get("merged_at")
+            and isinstance(item.get("merged_by"), dict)
+            and item["merged_by"].get("login") == founder
+        ),
+        None,
+    )
+    if not isinstance(pull, dict) or not isinstance(pull.get("number"), int):
+        return False
+    pull_head = pull.get("head")
+    reviewed_head = pull_head.get("sha") if isinstance(pull_head, dict) else None
+    if not isinstance(reviewed_head, str):
+        return False
+    comments = _github_json(
+        repo_root, f"repos/{owner}/{repository}/issues/{pull['number']}/comments?per_page=100"
+    )
+    if not isinstance(comments, list):
+        return False
+    bodies = [str(item.get("body", "")) for item in comments if isinstance(item, dict)]
+    required = ("Independent R5", "Structural R5", "Constitutional R5")
+
+    def has_exact_pass(label: str, body: str) -> bool:
+        disposition = re.compile(
+            rf"(?im)^\s*(?:#+\s*)?(?:\*\*)?{re.escape(label)}"
+            r"(?:\s+(?:review|disposition))?(?:\*\*)?\s*[:—-]\s*(?:\*\*)?PASS\b"
+        )
+        return reviewed_head in body and disposition.search(body) is not None
+
+    return all(
+        any(has_exact_pass(label, body) for body in bodies)
+        for label in required
+    )
 
 
 def _trusted_target_head(repo_root: Path, repository_ref: object) -> str | None:
@@ -158,28 +250,15 @@ def _trusted_target_head(repo_root: Path, repository_ref: object) -> str | None:
     return actual if actual == claimed else None
 
 
-def _repo_file(repo_root: Path, value: object) -> Path | None:
-    """Resolve a repository-relative regular file without traversal/symlink escape."""
-    if not isinstance(value, str) or not value or value.startswith("/"):
-        return None
-    root = repo_root.resolve()
-    candidate = (root / value.split("#", maxsplit=1)[0]).resolve()
-    try:
-        candidate.relative_to(root)
-    except ValueError:
-        return None
-    return candidate if candidate.is_file() else None
-
-
 def _profile_is_active(repo_root: Path) -> bool:
     profile_rel = "governance/execution-profiles/INDEPENDENT-REVIEWER-v1.md"
-    profile = _repo_file(repo_root, profile_rel)
-    manifest = _repo_file(repo_root, "governance/manifest.yaml")
+    profile = _git_file(repo_root, profile_rel)
+    manifest = _load_yaml(repo_root, "governance/manifest.yaml")
     if profile is None or manifest is None:
         return False
     try:
-        documents = yaml.safe_load(manifest.read_text())["documents"]
-    except (KeyError, TypeError, yaml.YAMLError):
+        documents = manifest["documents"]
+    except (KeyError, TypeError):
         return False
     entry = next(
         (
@@ -194,8 +273,8 @@ def _profile_is_active(repo_root: Path) -> bool:
     return (
         entry.get("status") == "active"
         and entry.get("filename") == profile_rel
-        and entry.get("sha256") == hashlib.sha256(profile.read_bytes()).hexdigest()
-        and "| `status` | Accepted" in profile.read_text()
+        and entry.get("sha256") == hashlib.sha256(profile.encode()).hexdigest()
+        and "| `status` | Accepted" in profile
     )
 
 
@@ -232,7 +311,7 @@ def validate_hydration_packet(
     if "reprioritize" in purpose or "manage permanent role" in purpose:
         errors.append("H016_NOT_BOUNDED_CONSULTATION")
     if any(
-        _repo_file(repo_root, artifact) is None
+        _git_file(repo_root, artifact) is None
         for artifact in packet.get("canonical_artifacts") or []
     ):
         errors.append("H021_CANONICAL_ARTIFACT_MISSING")
@@ -266,11 +345,11 @@ def validate_hydration_packet(
     if founder_revoked:
         errors.append("H009_TRIAL_REVOKED")
     for field in ("specification", "instructions", "instantiation_prompt"):
-        if _repo_file(repo_root, role.get(field)) is None:
+        if _git_file(repo_root, role.get(field)) is None:
             errors.append(f"H019_REHYDRATION_ARTIFACT_MISSING:{field}")
-    lifecycle_file = _repo_file(repo_root, role.get("lifecycle_authority"))
-    if lifecycle_file is None or not _anchor_exists(
-        lifecycle_file, str(role.get("lifecycle_authority", ""))
+    lifecycle_text = _git_file(repo_root, role.get("lifecycle_authority"))
+    if lifecycle_text is None or not _anchor_exists(
+        lifecycle_text, str(role.get("lifecycle_authority", ""))
     ):
         errors.append("H023_LIFECYCLE_AUTHORITY_MISSING")
     authority = _authority_by_role(repo_root).get(str(target), {})

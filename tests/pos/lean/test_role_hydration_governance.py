@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import copy
+import shutil
+import subprocess
 from datetime import date
 from pathlib import Path
 
@@ -17,6 +19,7 @@ from tools.pos.lean.role_hydration import (
 
 REAL_AMENDMENT_IS_EFFECTIVE = role_hydration._amendment_is_effective
 REAL_TRUSTED_TARGET_HEAD = role_hydration._trusted_target_head
+REAL_GIT = role_hydration._git
 
 ROOT = Path(__file__).resolve().parents[3]
 REGISTRY = yaml.safe_load((ROOT / "project/roles/registry.yaml").read_text())
@@ -37,6 +40,25 @@ PACKET = {
     "expected_output": "GitHub issue comment",
     "termination_condition": "after durable response",
 }
+
+
+def committed_fixture_repo(tmp_path: Path) -> Path:
+    shutil.copytree(ROOT / "governance", tmp_path / "governance")
+    shutil.copytree(ROOT / "project/roles", tmp_path / "project/roles")
+    shutil.copytree(ROOT / "roles", tmp_path / "roles")
+    sprint = tmp_path / "docs/sprints/PRODUCTION-TRUST-001.yaml"
+    sprint.parent.mkdir(parents=True)
+    sprint.write_text((ROOT / "docs/sprints/PRODUCTION-TRUST-001.yaml").read_text())
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    subprocess.run(
+        ["git", "config", "user.email", "test@example.invalid"],
+        cwd=tmp_path,
+        check=True,
+    )
+    subprocess.run(["git", "config", "user.name", "Test"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "add", "."], cwd=tmp_path, check=True)
+    subprocess.run(["git", "commit", "-qm", "fixture"], cwd=tmp_path, check=True)
+    return tmp_path
 
 
 def check(packet=PACKET, registry=REGISTRY, **kwargs):  # type: ignore[no-untyped-def]
@@ -160,11 +182,12 @@ def test_new_sha_requires_new_independent_review_packet(
 
 
 def test_missing_rehydration_and_canonical_artifacts_fail_closed(tmp_path: Path) -> None:
-    registry_path = tmp_path / "project/roles/registry.yaml"
-    registry_path.parent.mkdir(parents=True)
-    registry_path.write_text((ROOT / "project/roles/registry.yaml").read_text())
+    root = committed_fixture_repo(tmp_path)
+    (root / "roles/manager/INSTRUCTIONS.md").unlink()
+    subprocess.run(["git", "add", "-u"], cwd=root, check=True)
+    subprocess.run(["git", "commit", "-qm", "remove artifact"], cwd=root, check=True)
     assert any(
-        error.startswith("H019_REHYDRATION_ARTIFACT_MISSING") for error in check(repo_root=tmp_path)
+        error.startswith("H019_REHYDRATION_ARTIFACT_MISSING") for error in check(repo_root=root)
     )
     packet = {**PACKET, "canonical_artifacts": ["does/not/exist.md"]}
     assert "H021_CANONICAL_ARTIFACT_MISSING" in check(packet)
@@ -206,19 +229,33 @@ def test_caller_cannot_expand_canonical_registry_authority() -> None:
 
 
 def test_nonexistent_lifecycle_anchor_is_denied(tmp_path: Path) -> None:
-    import shutil
-
-    shutil.copytree(ROOT / "governance", tmp_path / "governance")
-    shutil.copytree(ROOT / "project", tmp_path / "project")
-    shutil.copytree(ROOT / "roles", tmp_path / "roles")
-    registry_path = tmp_path / "project/roles/registry.yaml"
+    root = committed_fixture_repo(tmp_path)
+    registry_path = root / "project/roles/registry.yaml"
     registry = yaml.safe_load(registry_path.read_text())
     pm = next(r for r in registry["roles"] if r["id"] == "ROLE-PM")
     pm["lifecycle_authority"] = "governance/amendments/GOV-AMD-018.md#nonexistent"
     registry_path.write_text(yaml.safe_dump(registry, sort_keys=False))
-    errors = check(PACKET, registry, repo_root=tmp_path)
+    subprocess.run(["git", "add", str(registry_path)], cwd=root, check=True)
+    subprocess.run(["git", "commit", "-qm", "bad anchor"], cwd=root, check=True)
+    errors = check(PACKET, registry, repo_root=root)
     assert "H023_LIFECYCLE_AUTHORITY_MISSING" in errors
     assert "H025_LIFECYCLE_AUTHORITY_CONFLICT" in errors
+
+
+def test_uncommitted_authority_mutation_cannot_expand_actions(tmp_path: Path) -> None:
+    root = committed_fixture_repo(tmp_path)
+    registry = yaml.safe_load((root / "project/roles/registry.yaml").read_text())
+    authority_path = root / "governance/role-hydration-authority.yaml"
+    authority = yaml.safe_load(authority_path.read_text())
+    pm = next(r for r in authority["roles"] if r["id"] == "ROLE-PM")
+    pm["allowed_actions"].append("define_architecture")
+    authority_path.write_text(yaml.safe_dump(authority, sort_keys=False))
+    errors = check(
+        {**PACKET, "permitted_actions": ["read", "define_architecture"]},
+        registry,
+        repo_root=root,
+    )
+    assert "H020_ACTION_OUTSIDE_ROLE_AUTHORITY" in errors
 
 
 def test_trusted_target_rejects_nonexistent_or_wrong_ref(
@@ -247,9 +284,31 @@ def test_effectiveness_requires_default_branch_containment(
             return "a" * 40
         if args[:2] == ("merge-base", "--is-ancestor"):
             return ""
-        return None
+        if args[0] == "log":
+            return "c" * 40
+        if args[:3] == ("remote", "get-url", "origin"):
+            return "https://github.com/jaiaFoster/ASA.git"
+        return REAL_GIT(_root, *args)
 
     monkeypatch.setattr(role_hydration, "_git", merged)
+    monkeypatch.setattr(
+        role_hydration,
+        "_github_json",
+        lambda _root, endpoint: (
+            [{
+                "number": 564,
+                "merged_at": "2026-10-10T00:00:00Z",
+                "merged_by": {"login": "jaiaFoster"},
+                "head": {"sha": "d" * 40},
+            }]
+            if endpoint.endswith("/pulls")
+            else [
+                {"body": f"Independent R5: PASS {'d' * 40}"},
+                {"body": f"Structural R5: PASS {'d' * 40}"},
+                {"body": f"Constitutional R5: PASS {'d' * 40}"},
+            ]
+        ),
+    )
     assert REAL_AMENDMENT_IS_EFFECTIVE(ROOT)
 
 
