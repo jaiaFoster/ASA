@@ -19,6 +19,17 @@ Founder approval and activation direction were explicitly reconfirmed on
 floor or personal-merge requirement. Before the exact reviewed change reaches
 `main`, all mechanisms remain fail-closed.
 
+### Lifecycle completion resubmission
+
+The Founder-merged corrective version in PR #561 did not receive the required
+exact-head Independent, Structural, and Constitutional PASS records before it
+was merged. That merge therefore did not satisfy this amendment's explicit
+effectiveness condition. This reconciled version is resubmitted without a
+waiver: GOV-AMD-018, its section 8 reconciliation, and
+`INDEPENDENT-REVIEWER-v1` remain ineffective until this exact version receives
+all three R5 PASS dispositions and the Founder personally merges it to the
+default branch.
+
 ## 1. Purpose
 
 ASA repeatedly needs bounded consultation, review, verification, and decision support from existing organizational roles while an implementation worker is active.

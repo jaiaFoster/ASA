@@ -1,8 +1,8 @@
 ---
 id: PRODUCTION-TRUST-001
 name: Production Trust and Operational Truth
-version: 0.1-activated
-status: ACTIVE
+version: 0.1-founder-approved
+status: FOUNDER_APPROVED_PENDING_ACTIVATION
 type: IMPLEMENTATION_SPRINT
 priority: P0
 
