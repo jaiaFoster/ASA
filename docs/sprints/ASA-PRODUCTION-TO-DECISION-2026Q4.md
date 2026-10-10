@@ -1,7 +1,7 @@
 # ASA PRODUCTION-TO-DECISION PROGRAM — Transition and Execution Contract
 
 **Program ID:** ASA-PRODUCTION-TO-DECISION-2026Q4  
-**Status:** ACTIVE — PRODUCTION-TRUST-001 Founder-activated; later phases remain Founder-approved pending dependency-safe activation
+**Status:** FOUNDER APPROVED — execution pending valid phase activation; PRODUCTION-TRUST-001 activation is fail-closed pending GOV-AMD-018 lifecycle completion
 **Authoring date:** 2026-10-08  
 **Founder approval recorded:** 2026-10-09  
 **Purpose:** Define the relationship among the five new sprint prompts and the still-open ASA-OPTIONS-TO-OUTCOMES-2026Q4 program so there is one canonical owner for each existing observation, ledger, and closure obligation.

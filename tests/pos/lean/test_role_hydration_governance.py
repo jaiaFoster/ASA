@@ -3,15 +3,24 @@
 from __future__ import annotations
 
 import copy
+import json
+import shutil
+import subprocess
 from datetime import date
 from pathlib import Path
 
+import pytest
 import yaml
 
+from tools.pos.lean import role_hydration
 from tools.pos.lean.role_hydration import (
     validate_gateway_disposition,
     validate_hydration_packet,
 )
+
+REAL_AMENDMENT_IS_EFFECTIVE = role_hydration._amendment_is_effective
+REAL_TRUSTED_TARGET_HEAD = role_hydration._trusted_target_head
+REAL_GIT = role_hydration._git
 
 ROOT = Path(__file__).resolve().parents[3]
 REGISTRY = yaml.safe_load((ROOT / "project/roles/registry.yaml").read_text())
@@ -34,16 +43,42 @@ PACKET = {
 }
 
 
+def committed_fixture_repo(tmp_path: Path) -> Path:
+    shutil.copytree(ROOT / "governance", tmp_path / "governance")
+    shutil.copytree(ROOT / "project/roles", tmp_path / "project/roles")
+    shutil.copytree(ROOT / "roles", tmp_path / "roles")
+    sprint = tmp_path / "docs/sprints/PRODUCTION-TRUST-001.yaml"
+    sprint.parent.mkdir(parents=True)
+    sprint.write_text((ROOT / "docs/sprints/PRODUCTION-TRUST-001.yaml").read_text())
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    subprocess.run(
+        ["git", "config", "user.email", "test@example.invalid"],
+        cwd=tmp_path,
+        check=True,
+    )
+    subprocess.run(["git", "config", "user.name", "Test"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "add", "."], cwd=tmp_path, check=True)
+    subprocess.run(["git", "commit", "-qm", "fixture"], cwd=tmp_path, check=True)
+    return tmp_path
+
+
 def check(packet=PACKET, registry=REGISTRY, **kwargs):  # type: ignore[no-untyped-def]
     return validate_hydration_packet(
         packet,
         registry,
         evaluated_on=kwargs.pop("evaluated_on", TODAY),
-        amendment_effective=kwargs.pop("amendment_effective", True),
-        reconciliation_complete=kwargs.pop("reconciliation_complete", True),
         repo_root=kwargs.pop("repo_root", ROOT),
-        current_head_sha=kwargs.pop("current_head_sha", None),
         **kwargs,
+    )
+
+
+@pytest.fixture(autouse=True)
+def trusted_repository_state(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(role_hydration, "_amendment_is_effective", lambda _root: True)
+    monkeypatch.setattr(
+        role_hydration,
+        "_trusted_target_head",
+        lambda _root, ref: str(ref).rsplit("@", maxsplit=1)[-1] if "@" in str(ref) else None,
     )
 
 
@@ -56,9 +91,9 @@ def test_research_governing_trial_is_hydratable() -> None:
     assert check({**PACKET, "requested_role": "ROLE-RESEARCH"}) == []
 
 
-def test_amendment_and_reconciliation_fail_closed() -> None:
-    assert "H003_AMENDMENT_NOT_EFFECTIVE" in check(amendment_effective=False)
-    assert "H003_AMENDMENT_NOT_EFFECTIVE" in check(reconciliation_complete=False)
+def test_amendment_and_reconciliation_fail_closed(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(role_hydration, "_amendment_is_effective", lambda _root: False)
+    assert "H003_AMENDMENT_NOT_EFFECTIVE" in check()
 
 
 def test_founder_unknown_and_future_prepared_roles_are_denied() -> None:
@@ -66,7 +101,7 @@ def test_founder_unknown_and_future_prepared_roles_are_denied() -> None:
     assert "H008_UNKNOWN_ROLE_OR_PROFILE" in check({**PACKET, "requested_role": "ROLE-INVENTED"})
     registry = copy.deepcopy(REGISTRY)
     registry["roles"].append({"id": "ROLE-FUTURE", "status": "prepared"})
-    assert "H014_ROLE_NOT_HYDRATABLE" in check(
+    assert "H024_NONCANONICAL_REGISTRY" in check(
         {**PACKET, "requested_role": "ROLE-FUTURE"}, registry
     )
 
@@ -87,7 +122,7 @@ def test_trial_expiry_program_closure_and_revocation_deny() -> None:
 def test_registry_lifecycle_conflict_denies_research() -> None:
     registry = copy.deepcopy(REGISTRY)
     next(r for r in registry["roles"] if r["id"] == "ROLE-RESEARCH")["status"] = "prepared"
-    assert "H013_LIFECYCLE_CONFLICT" in check(
+    assert "H024_NONCANONICAL_REGISTRY" in check(
         {**PACKET, "requested_role": "ROLE-RESEARCH"}, registry
     )
 
@@ -101,7 +136,7 @@ def test_only_approved_exact_head_independent_profile_is_allowed() -> None:
         "independence_statement": "fresh instance; not author or assigner",
         "prohibited_actions": ["edit", "commit", "push", "merge", "deploy"],
     }
-    assert check(review, current_head_sha="a" * 40) == []
+    assert check(review) == []
     assert "H005_EXACT_HEAD_REQUIRED" in check(
         {k: v for k, v in review.items() if k != "exact_head_sha"}
     )
@@ -129,7 +164,9 @@ def test_hydration_cannot_manage_or_reprioritize_permanent_role() -> None:
         assert "H016_NOT_BOUNDED_CONSULTATION" in check({**PACKET, "purpose": purpose})
 
 
-def test_new_sha_requires_new_independent_review_packet() -> None:
+def test_new_sha_requires_new_independent_review_packet(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     first = {
         **PACKET,
         "requested_role": "INDEPENDENT-REVIEWER-v1",
@@ -139,14 +176,19 @@ def test_new_sha_requires_new_independent_review_packet() -> None:
         "prohibited_actions": ["edit", "commit", "push", "merge", "deploy"],
     }
     second = {**first, "exact_head_sha": "b" * 40, "repository_ref": f"pr/560@{'b' * 40}"}
-    assert check(first, current_head_sha="a" * 40) == []
-    assert "H017_STALE_EXACT_HEAD" in check(first, current_head_sha="b" * 40)
-    assert check(second, current_head_sha="b" * 40) == []
+    assert check(first) == []
+    monkeypatch.setattr(role_hydration, "_trusted_target_head", lambda _root, _ref: "b" * 40)
+    assert "H017_STALE_EXACT_HEAD" in check(first)
+    assert check(second) == []
 
 
 def test_missing_rehydration_and_canonical_artifacts_fail_closed(tmp_path: Path) -> None:
+    root = committed_fixture_repo(tmp_path)
+    (root / "roles/manager/INSTRUCTIONS.md").unlink()
+    subprocess.run(["git", "add", "-u"], cwd=root, check=True)
+    subprocess.run(["git", "commit", "-qm", "remove artifact"], cwd=root, check=True)
     assert any(
-        error.startswith("H019_REHYDRATION_ARTIFACT_MISSING") for error in check(repo_root=tmp_path)
+        error.startswith("H019_REHYDRATION_ARTIFACT_MISSING") for error in check(repo_root=root)
     )
     packet = {**PACKET, "canonical_artifacts": ["does/not/exist.md"]}
     assert "H021_CANONICAL_ARTIFACT_MISSING" in check(packet)
@@ -176,6 +218,206 @@ def test_cross_role_authority_requests_are_denied() -> None:
         assert "H020_ACTION_OUTSIDE_ROLE_AUTHORITY" in check(packet)
 
 
+def test_caller_cannot_expand_canonical_registry_authority() -> None:
+    registry = copy.deepcopy(REGISTRY)
+    pm = next(r for r in registry["roles"] if r["id"] == "ROLE-PM")
+    pm["hydration_actions"].append("define_architecture")
+    errors = check(
+        {**PACKET, "permitted_actions": ["read", "define_architecture"]}, registry
+    )
+    assert "H024_NONCANONICAL_REGISTRY" in errors
+    assert "H020_ACTION_OUTSIDE_ROLE_AUTHORITY" in errors
+
+
+def test_nonexistent_lifecycle_anchor_is_denied(tmp_path: Path) -> None:
+    root = committed_fixture_repo(tmp_path)
+    registry_path = root / "project/roles/registry.yaml"
+    registry = yaml.safe_load(registry_path.read_text())
+    pm = next(r for r in registry["roles"] if r["id"] == "ROLE-PM")
+    pm["lifecycle_authority"] = "governance/amendments/GOV-AMD-018.md#nonexistent"
+    registry_path.write_text(yaml.safe_dump(registry, sort_keys=False))
+    subprocess.run(["git", "add", str(registry_path)], cwd=root, check=True)
+    subprocess.run(["git", "commit", "-qm", "bad anchor"], cwd=root, check=True)
+    errors = check(PACKET, registry, repo_root=root)
+    assert "H023_LIFECYCLE_AUTHORITY_MISSING" in errors
+    assert "H025_LIFECYCLE_AUTHORITY_CONFLICT" in errors
+
+
+def test_uncommitted_authority_mutation_cannot_expand_actions(tmp_path: Path) -> None:
+    root = committed_fixture_repo(tmp_path)
+    registry = yaml.safe_load((root / "project/roles/registry.yaml").read_text())
+    authority_path = root / "governance/role-hydration-authority.yaml"
+    authority = yaml.safe_load(authority_path.read_text())
+    pm = next(r for r in authority["roles"] if r["id"] == "ROLE-PM")
+    pm["allowed_actions"].append("define_architecture")
+    authority_path.write_text(yaml.safe_dump(authority, sort_keys=False))
+    errors = check(
+        {**PACKET, "permitted_actions": ["read", "define_architecture"]},
+        registry,
+        repo_root=root,
+    )
+    assert "H020_ACTION_OUTSIDE_ROLE_AUTHORITY" in errors
+
+
+def test_trusted_target_rejects_nonexistent_or_wrong_ref(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(role_hydration, "_git", lambda *_args: None)
+    assert REAL_TRUSTED_TARGET_HEAD(ROOT, f"pr/999@{'a' * 40}") is None
+    assert REAL_TRUSTED_TARGET_HEAD(ROOT, f"branch/x@{'a' * 40}") is None
+
+
+def test_effectiveness_requires_default_branch_containment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def not_merged(_root: Path, *args: str) -> str | None:
+        if args == ("rev-parse", "HEAD"):
+            return "a" * 40
+        if args == ("rev-parse", "refs/remotes/origin/main"):
+            return "b" * 40
+        return None
+
+    monkeypatch.setattr(role_hydration, "_git", not_merged)
+    assert not REAL_AMENDMENT_IS_EFFECTIVE(ROOT)
+
+    def merged(_root: Path, *args: str) -> str | None:
+        if args[0] == "rev-parse":
+            return "a" * 40
+        if args[:2] == ("merge-base", "--is-ancestor"):
+            return ""
+        if args[0] == "log":
+            return "c" * 40
+        if args[:3] == ("remote", "get-url", "origin"):
+            return "https://github.com/jaiaFoster/ASA.git"
+        return REAL_GIT(_root, *args)
+
+    monkeypatch.setattr(role_hydration, "_git", merged)
+    reviewed_head = "d" * 40
+
+    def review_comment(
+        lens: str,
+        reviewer: str,
+        comment_id: int,
+        *,
+        disposition: str = "PASS",
+        created_at: str = "2026-10-09T23:00:00Z",
+    ) -> dict[str, object]:
+        record: dict[str, object] = {
+            "schema": "asa.r5.review.v1",
+            "lens": lens,
+            "disposition": disposition,
+            "exact_head_sha": reviewed_head,
+            "reviewer_instance": reviewer,
+        }
+        if lens == "independent":
+            record.update(
+                {
+                    "profile": "INDEPENDENT-REVIEWER-v1",
+                    "independence_statement": "distinct from author and assigner",
+                    "author_instance": "/root",
+                    "assigner_instance": "/root",
+                }
+            )
+        return {
+            "id": comment_id,
+            "created_at": created_at,
+            "body": (
+                f"{role_hydration.R5_REVIEW_MARKER}\n```json\n"
+                f"{json.dumps(record, sort_keys=True)}\n```"
+            ),
+        }
+
+    pass_comments = [
+        review_comment("independent", "/root/reviewer-i", 1),
+        review_comment("structural", "/root/reviewer-s", 2),
+        review_comment("constitutional", "/root/reviewer-c", 3),
+    ]
+    monkeypatch.setattr(
+        role_hydration,
+        "_github_json",
+        lambda _root, endpoint: (
+            [{
+                "number": 564,
+                "merged_at": "2026-10-10T00:00:00Z",
+                "merged_by": {"login": "jaiaFoster"},
+                "head": {"sha": reviewed_head},
+            }]
+            if endpoint.endswith("/pulls")
+            else pass_comments
+        ),
+    )
+    assert REAL_AMENDMENT_IS_EFFECTIVE(ROOT)
+
+    quoted = {
+        "id": 4,
+        "created_at": "2026-10-09T23:30:00Z",
+        "body": "HOLD quoting Independent R5: PASS and other desired text",
+    }
+    monkeypatch.setattr(
+        role_hydration,
+        "_github_json",
+        lambda _root, endpoint: (
+            [{
+                "number": 564,
+                "merged_at": "2026-10-10T00:00:00Z",
+                "merged_by": {"login": "jaiaFoster"},
+                "head": {"sha": reviewed_head},
+            }]
+            if endpoint.endswith("/pulls")
+            else [quoted]
+        ),
+    )
+    assert not REAL_AMENDMENT_IS_EFFECTIVE(ROOT)
+
+    superseding_hold = review_comment(
+        "structural",
+        "/root/reviewer-s",
+        5,
+        disposition="HOLD",
+        created_at="2026-10-09T23:45:00Z",
+    )
+    monkeypatch.setattr(
+        role_hydration,
+        "_github_json",
+        lambda _root, endpoint: (
+            [{
+                "number": 564,
+                "merged_at": "2026-10-10T00:00:00Z",
+                "merged_by": {"login": "jaiaFoster"},
+                "head": {"sha": reviewed_head},
+            }]
+            if endpoint.endswith("/pulls")
+            else [*pass_comments, superseding_hold]
+        ),
+    )
+    assert not REAL_AMENDMENT_IS_EFFECTIVE(ROOT)
+
+    post_merge = [
+        review_comment(
+            lens,
+            f"/root/post-{lens}",
+            10 + index,
+            created_at="2026-10-10T00:01:00Z",
+        )
+        for index, lens in enumerate(("independent", "structural", "constitutional"))
+    ]
+    monkeypatch.setattr(
+        role_hydration,
+        "_github_json",
+        lambda _root, endpoint: (
+            [{
+                "number": 564,
+                "merged_at": "2026-10-10T00:00:00Z",
+                "merged_by": {"login": "jaiaFoster"},
+                "head": {"sha": reviewed_head},
+            }]
+            if endpoint.endswith("/pulls")
+            else post_merge
+        ),
+    )
+    assert not REAL_AMENDMENT_IS_EFFECTIVE(ROOT)
+
+
 def test_independent_profile_must_exist_and_sha_must_be_well_formed(tmp_path: Path) -> None:
     review = {
         **PACKET,
@@ -185,10 +427,10 @@ def test_independent_profile_must_exist_and_sha_must_be_well_formed(tmp_path: Pa
         "independence_statement": "distinct instance",
         "prohibited_actions": ["edit", "commit", "push", "merge", "deploy"],
     }
-    assert "H005_EXACT_HEAD_REQUIRED" in check(review, repo_root=tmp_path, current_head_sha="x")
+    assert "H005_EXACT_HEAD_REQUIRED" in check(review, repo_root=tmp_path)
     review["exact_head_sha"] = "a" * 40
     review["repository_ref"] = f"pr/560@{'a' * 40}"
-    errors = check(review, repo_root=tmp_path, current_head_sha="a" * 40)
+    errors = check(review, repo_root=tmp_path)
     assert "H018_REVIEW_PROFILE_UNAVAILABLE" in errors
 
 
