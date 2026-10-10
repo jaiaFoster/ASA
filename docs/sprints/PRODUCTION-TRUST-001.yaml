@@ -1,8 +1,8 @@
 ---
 id: PRODUCTION-TRUST-001
 name: Production Trust and Operational Truth
-version: 0.1-draft
-status: FOUNDER_APPROVED_PENDING_ACTIVATION
+version: 0.1-activated
+status: ACTIVE
 type: IMPLEMENTATION_SPRINT
 priority: P0
 
@@ -41,18 +41,18 @@ draft_state:
       treat this authoring SHA as an implementation baseline if main has advanced.
 
 activation:
+  id: AMD-013-PRODUCTION-TRUST-001-V1
   governance_amendment: GOV-AMD-001-013
   founder_authorized: true
   founder_approved_at: "2026-10-09"
+  founder_activation_directive_at: "2026-10-09"
   delegate:
     role: ROLE-WORKER
     instance: production-trust-worker
   limited_to_sprint: PRODUCTION-TRUST-001
   effective_when: >
-    The Founder explicitly activates this sprint after every activation
-    prerequisite above is true on the default branch, and personally merges the
-    activation version. Proposed or partially reconciled GOV-AMD-018 grants no
-    worker hydration or reviewer-instantiation authority.
+    This activation version is personally merged by the Founder to the default
+    branch after every activation prerequisite is already true there.
   stop_conditions:
     affected_path:
       - scope_expands_beyond_approved_ticket
