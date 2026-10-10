@@ -48,6 +48,7 @@ Source: RISK-001 §8–§12, ROLE-BOOTSTRAP-01 Founder directions §7–8.
 - Explicit implementation plan before execution
 - Risk notes identifying what could go wrong and how to recover
 - Meaningful test coverage for the changed behavior
+- Independent Review mandatory through an approved profile
 - Architect review where the change crosses architectural boundaries
 - PR with CI passing
 - Founder merge

@@ -27,7 +27,7 @@ PACKET = {
     "risk_class": "R2",
     "acceptance_criteria": ["durable disposition"],
     "canonical_artifacts": ["docs/sprints/PRODUCTION-TRUST-001.yaml"],
-    "permitted_actions": ["read", "classify"],
+    "permitted_actions": ["read", "consult"],
     "prohibited_actions": ["edit", "merge", "deploy"],
     "expected_output": "GitHub issue comment",
     "termination_condition": "after durable response",
@@ -41,6 +41,8 @@ def check(packet=PACKET, registry=REGISTRY, **kwargs):  # type: ignore[no-untype
         evaluated_on=kwargs.pop("evaluated_on", TODAY),
         amendment_effective=kwargs.pop("amendment_effective", True),
         reconciliation_complete=kwargs.pop("reconciliation_complete", True),
+        repo_root=kwargs.pop("repo_root", ROOT),
+        current_head_sha=kwargs.pop("current_head_sha", None),
         **kwargs,
     )
 
@@ -94,11 +96,12 @@ def test_only_approved_exact_head_independent_profile_is_allowed() -> None:
     review = {
         **PACKET,
         "requested_role": "INDEPENDENT-REVIEWER-v1",
+        "repository_ref": f"pr/560@{'a' * 40}",
         "exact_head_sha": "a" * 40,
         "independence_statement": "fresh instance; not author or assigner",
         "prohibited_actions": ["edit", "commit", "push", "merge", "deploy"],
     }
-    assert check(review) == []
+    assert check(review, current_head_sha="a" * 40) == []
     assert "H005_EXACT_HEAD_REQUIRED" in check(
         {k: v for k, v in review.items() if k != "exact_head_sha"}
     )
@@ -130,23 +133,75 @@ def test_new_sha_requires_new_independent_review_packet() -> None:
     first = {
         **PACKET,
         "requested_role": "INDEPENDENT-REVIEWER-v1",
+        "repository_ref": f"pr/560@{'a' * 40}",
         "exact_head_sha": "a" * 40,
         "independence_statement": "distinct instance",
         "prohibited_actions": ["edit", "commit", "push", "merge", "deploy"],
     }
-    second = {**first, "exact_head_sha": "b" * 40}
-    assert check(first) == [] and check(second) == []
-    assert first["exact_head_sha"] != second["exact_head_sha"]
+    second = {**first, "exact_head_sha": "b" * 40, "repository_ref": f"pr/560@{'b' * 40}"}
+    assert check(first, current_head_sha="a" * 40) == []
+    assert "H017_STALE_EXACT_HEAD" in check(first, current_head_sha="b" * 40)
+    assert check(second, current_head_sha="b" * 40) == []
+
+
+def test_missing_rehydration_and_canonical_artifacts_fail_closed(tmp_path: Path) -> None:
+    assert any(
+        error.startswith("H019_REHYDRATION_ARTIFACT_MISSING") for error in check(repo_root=tmp_path)
+    )
+    packet = {**PACKET, "canonical_artifacts": ["does/not/exist.md"]}
+    assert "H021_CANONICAL_ARTIFACT_MISSING" in check(packet)
+
+
+def test_repository_paths_cannot_escape_by_traversal_or_symlink(tmp_path: Path) -> None:
+    outside = tmp_path.parent / "outside-role-artifact.md"
+    outside.write_text("outside")
+    packet = {**PACKET, "canonical_artifacts": [f"../{outside.name}"]}
+    assert "H021_CANONICAL_ARTIFACT_MISSING" in check(packet, repo_root=tmp_path)
+    root = tmp_path / "repo"
+    root.mkdir()
+    (root / "escape").symlink_to(outside)
+    assert "H021_CANONICAL_ARTIFACT_MISSING" in check(
+        {**PACKET, "canonical_artifacts": ["escape"]}, repo_root=root
+    )
+
+
+def test_cross_role_authority_requests_are_denied() -> None:
+    cases = (
+        ("ROLE-PM", "define_architecture"),
+        ("ROLE-ARCH", "sequence_work"),
+        ("ROLE-RESEARCH", "set_roadmap_priority"),
+    )
+    for role, action in cases:
+        packet = {**PACKET, "requested_role": role, "permitted_actions": ["read", action]}
+        assert "H020_ACTION_OUTSIDE_ROLE_AUTHORITY" in check(packet)
+
+
+def test_independent_profile_must_exist_and_sha_must_be_well_formed(tmp_path: Path) -> None:
+    review = {
+        **PACKET,
+        "requested_role": "INDEPENDENT-REVIEWER-v1",
+        "repository_ref": "pr/560@x",
+        "exact_head_sha": "x",
+        "independence_statement": "distinct instance",
+        "prohibited_actions": ["edit", "commit", "push", "merge", "deploy"],
+    }
+    assert "H005_EXACT_HEAD_REQUIRED" in check(review, repo_root=tmp_path, current_head_sha="x")
+    review["exact_head_sha"] = "a" * 40
+    review["repository_ref"] = f"pr/560@{'a' * 40}"
+    errors = check(review, repo_root=tmp_path, current_head_sha="a" * 40)
+    assert "H018_REVIEW_PROFILE_UNAVAILABLE" in errors
 
 
 def test_gateway_requires_pm_or_arch_and_fixed_disposition() -> None:
     record = {
         "gatekeeper": "ROLE-PM",
         "candidate_id": "CB-1",
+        "candidate_class": "implementation_defect",
         "disposition": "LOCAL_BLOCKER",
         "canonical_authority": "GOV-AMD-018 §5",
         "affected_path_state": "stopped",
         "unaffected_work_state": "continuing",
+        "continuation_guidance": "correct locally",
     }
     assert validate_gateway_disposition(record) == []
     assert "G003_INVALID_GATEKEEPER" in validate_gateway_disposition(
@@ -161,10 +216,12 @@ def test_gateway_rejects_routine_failure_as_unconfirmed() -> None:
     record = {
         "gatekeeper": "ROLE-ARCH",
         "candidate_id": "test-failure",
+        "candidate_class": "test_failure",
         "disposition": "NOT_A_FOUNDER_BLOCKER",
         "canonical_authority": "GOV-AMD-018 §5.5",
         "affected_path_state": "correction",
         "unaffected_work_state": "continuing",
+        "continuation_guidance": "fix test and continue",
     }
     assert validate_gateway_disposition(record) == []
 
@@ -174,23 +231,101 @@ def test_paid_vendor_or_protected_contract_can_be_confirmed_by_correct_gatekeepe
         record = {
             "gatekeeper": gatekeeper,
             "candidate_id": candidate,
+            "candidate_class": "paid_vendor_or_legal_commitment"
+            if gatekeeper == "ROLE-PM"
+            else "governance_or_constitutional_change",
             "disposition": "CONFIRMED_FOUNDER_BLOCKER",
             "canonical_authority": "GOV-AMD-018 §5.5",
             "affected_path_state": "stopped",
             "unaffected_work_state": "continuing",
+            "blocked_action": candidate,
+            "decision_class": candidate,
+            "founder_only_reason": "explicit Founder-only class",
+            "verified_evidence": ["issue"],
+            "attempted_resolutions": ["none available"],
+            "alternatives": ["defer"],
+            "safe_default": "do not proceed",
+            "smallest_founder_decision": "approve or decline",
         }
         assert validate_gateway_disposition(record) == []
+
+
+def test_incomplete_confirmed_blocker_and_unstopped_path_fail_closed() -> None:
+    record = {
+        "gatekeeper": "ROLE-PM",
+        "candidate_id": "paid-vendor",
+        "candidate_class": "paid_vendor_or_legal_commitment",
+        "disposition": "CONFIRMED_FOUNDER_BLOCKER",
+        "canonical_authority": "GOV-AMD-018 §5.5",
+        "affected_path_state": "continuing",
+        "unaffected_work_state": "continuing",
+    }
+    errors = validate_gateway_disposition(record)
+    assert any(error.startswith("G010_INCOMPLETE_CONFIRMED_PACKET") for error in errors)
+    assert "G011_PROTECTED_PATH_NOT_STOPPED" in errors
+
+
+def test_local_or_not_founder_disposition_requires_continuation_guidance() -> None:
+    record = {
+        "gatekeeper": "ROLE-ARCH",
+        "candidate_id": "ordinary-failure",
+        "candidate_class": "test_failure",
+        "disposition": "NOT_A_FOUNDER_BLOCKER",
+        "canonical_authority": "GOV-AMD-018 §5.5",
+        "affected_path_state": "correction",
+        "unaffected_work_state": "continuing",
+    }
+    assert "G012_CONTINUATION_GUIDANCE_REQUIRED" in validate_gateway_disposition(record)
+
+
+def test_routine_failure_cannot_be_confirmed_as_founder_blocker() -> None:
+    record = {
+        "gatekeeper": "ROLE-PM",
+        "candidate_id": "ci",
+        "candidate_class": "test_failure",
+        "disposition": "CONFIRMED_FOUNDER_BLOCKER",
+        "canonical_authority": "GOV-AMD-018 §5.5",
+        "affected_path_state": "stopped",
+        "unaffected_work_state": "continuing",
+        "blocked_action": "merge",
+        "decision_class": "test_failure",
+        "founder_only_reason": "claimed",
+        "verified_evidence": ["ci"],
+        "attempted_resolutions": ["rerun"],
+        "alternatives": ["fix"],
+        "safe_default": "stop",
+        "smallest_founder_decision": "waive",
+    }
+    errors = validate_gateway_disposition(record)
+    assert "G013_ROUTINE_FAILURE_CANNOT_BE_CONFIRMED" in errors
+    assert "G014_UNKNOWN_FOUNDER_ONLY_CLASS" in errors
+
+
+def test_founder_only_class_cannot_be_dismissed_by_arbitrary_citation() -> None:
+    record = {
+        "gatekeeper": "ROLE-PM",
+        "candidate_id": "vendor",
+        "candidate_class": "paid_vendor_or_legal_commitment",
+        "disposition": "NOT_A_FOUNDER_BLOCKER",
+        "canonical_authority": "arbitrary",
+        "affected_path_state": "stopped",
+        "unaffected_work_state": "continuing",
+        "continuation_guidance": "buy it",
+    }
+    assert "G015_FOUNDER_ONLY_CLASS_CANNOT_BE_DISMISSED" in validate_gateway_disposition(record)
 
 
 def test_conflicted_gatekeeper_routes_to_other() -> None:
     base = {
         "gatekeeper": "ROLE-PM",
         "candidate_id": "c",
+        "candidate_class": "implementation_defect",
         "disposition": "LOCAL_BLOCKER",
         "canonical_authority": "GOV-AMD-018 §5.4.1",
         "affected_path_state": "stopped",
         "unaffected_work_state": "continuing",
         "gatekeeper_conflicted": True,
+        "continuation_guidance": "route to other gatekeeper",
     }
     assert "G005_CONFLICTED_GATEKEEPER" in validate_gateway_disposition(base)
     assert validate_gateway_disposition({**base, "routed_to_other_gatekeeper": True}) == []
@@ -200,11 +335,13 @@ def test_disagreement_stops_path_and_forwards_narrow_conflict() -> None:
     record = {
         "gatekeeper": "ROLE-ARCH",
         "candidate_id": "d",
+        "candidate_class": "implementation_defect",
         "disposition": "LOCAL_BLOCKER",
         "canonical_authority": "GOV-AMD-018 §5.4.1",
         "affected_path_state": "stopped",
         "unaffected_work_state": "continuing",
         "gatekeepers_disagree": True,
+        "continuation_guidance": "keep protected path stopped",
     }
     assert "G006_DISAGREEMENT_FAILSAFE_REQUIRED" in validate_gateway_disposition(record)
     assert validate_gateway_disposition({**record, "narrow_conflict_forwarded": True}) == []
@@ -214,12 +351,14 @@ def test_gateway_unavailable_is_durable_and_fail_closed() -> None:
     record = {
         "gatekeeper": "ROLE-PM",
         "candidate_id": "u",
+        "candidate_class": "implementation_defect",
         "disposition": "LOCAL_BLOCKER",
         "canonical_authority": "GOV-AMD-018 §5.4.1",
         "affected_path_state": "stopped",
         "unaffected_work_state": "continuing",
         "gateway_available": False,
         "gateway_state": "FOUNDER_GATEWAY_UNAVAILABLE",
+        "continuation_guidance": "record unavailable state",
     }
     assert validate_gateway_disposition(record) == []
 
@@ -228,11 +367,13 @@ def test_repeat_challenge_needs_new_canonical_evidence() -> None:
     record = {
         "gatekeeper": "ROLE-ARCH",
         "candidate_id": "r",
+        "candidate_class": "implementation_defect",
         "disposition": "LOCAL_BLOCKER",
         "canonical_authority": "GOV-AMD-018 §5.4.1",
         "affected_path_state": "stopped",
         "unaffected_work_state": "continuing",
         "challenge_count": 2,
+        "continuation_guidance": "deny repeat challenge",
     }
     assert "G008_REPEAT_CHALLENGE_DENIED" in validate_gateway_disposition(record)
     assert validate_gateway_disposition({**record, "new_canonical_evidence": True}) == []
@@ -242,11 +383,13 @@ def test_both_conflicted_gatekeepers_forward_only_narrow_conflict() -> None:
     record = {
         "gatekeeper": "ROLE-PM",
         "candidate_id": "bc",
+        "candidate_class": "implementation_defect",
         "disposition": "LOCAL_BLOCKER",
         "canonical_authority": "GOV-AMD-018 §5.4.1",
         "affected_path_state": "stopped",
         "unaffected_work_state": "continuing",
         "both_gatekeepers_conflicted": True,
+        "continuation_guidance": "forward narrow conflict only",
     }
     assert "G009_BOTH_CONFLICTED_FORWARD_ONLY" in validate_gateway_disposition(record)
     assert validate_gateway_disposition({**record, "narrow_conflict_forwarded": True}) == []

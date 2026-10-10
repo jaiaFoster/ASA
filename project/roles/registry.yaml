@@ -31,6 +31,13 @@ roles:
     instructions: roles/manager/INSTRUCTIONS.md
     instantiation_prompt: roles/manager/INSTANTIATION_PROMPT.md
     authority: operational_coordination
+    hydration_actions:
+      - read
+      - consult
+      - classify
+      - sequence_work
+      - assign_work
+      - record_disposition
     instantiated: false
 
   - id: ROLE-ARCH
@@ -49,6 +56,14 @@ roles:
     instructions: roles/architect/INSTRUCTIONS.md
     instantiation_prompt: roles/architect/INSTANTIATION_PROMPT.md
     authority: architecture_design
+    hydration_actions:
+      - read
+      - consult
+      - classify
+      - define_architecture
+      - review_architecture
+      - set_acceptance_criteria
+      - record_disposition
     instantiated: false
     first_assignment: roles/architect/FIRST_ASSIGNMENT.md
 
@@ -61,6 +76,13 @@ roles:
     instructions: roles/researcher/INSTRUCTIONS.md
     instantiation_prompt: roles/researcher/INSTANTIATION_PROMPT.md
     authority: strategy_research
+    hydration_actions:
+      - read
+      - consult
+      - research
+      - characterize_evidence
+      - manage_research_taxonomy
+      - record_disposition
     instantiated: false
     owns:
       - research/
