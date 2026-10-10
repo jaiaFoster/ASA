@@ -538,6 +538,14 @@ Before acceptance it requires:
 - regression/probe evidence for §9;
 - Founder approval and personal merge.
 
+Each required review MUST be recorded before the Founder merge as one
+machine-readable `asa.r5.review.v1` record bound to the exact pull-request head.
+The record includes lens, disposition, exact head, and reviewer-instance
+identity. Independent review additionally includes its approved profile,
+author instance, assigner instance, and an independence statement. For each
+lens, the latest valid pre-merge record controls; a later HOLD supersedes an
+earlier PASS. Post-merge records cannot retroactively activate the amendment.
+
 The author/assigner of this amendment must not be the sole independent reviewer.
 
 ## 11. Acceptance Criteria

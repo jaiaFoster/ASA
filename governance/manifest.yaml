@@ -101,7 +101,7 @@ documents:
     class: amendment
     status: active
     version: "1.0.0"
-    sha256: "15d3bfb0dc3ed640a90c6d4acb2ee5482b117160fb0ed2c31e36336db7a07cba"
+    sha256: "bbf5c133c1be948fb19f28c1237f1cc905bbc6efa999c9098ac1863afae1f009"
     original_path: "governance/amendments/GOV-AMD-018.md"
     notes: "R5 amendment authorizing bounded repository-backed role hydration and the Founder-blocker gateway; effective only after exact-head reviews and Founder merge."
 
@@ -128,6 +128,6 @@ documents:
     class: execution_profile
     status: active
     version: "1.0.0"
-    sha256: "b770e387ca27df6c052b4e7ac45f8396655484b97b62d96414f89accc69f17a9"
+    sha256: "2e1ab1ae9ab4b82b936462d4a5aa09eff6cf2246cf6f35c6ccec7c730f01b829"
     original_path: "governance/execution-profiles/INDEPENDENT-REVIEWER-v1.md"
     notes: "Temporary read-only exact-head independent-review profile effective only with GOV-AMD-018 reconciliation."

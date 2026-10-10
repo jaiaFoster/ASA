@@ -68,6 +68,7 @@ ROUTINE_CLASSES = frozenset(
         "observation_wait",
     }
 )
+R5_REVIEW_MARKER = "<!-- asa-r5-review:v1 -->"
 
 
 def _roles_by_id(registry: dict[str, Any]) -> dict[str, dict[str, Any]]:
@@ -208,6 +209,9 @@ def _amendment_is_effective(repo_root: Path) -> bool:
     )
     if not isinstance(pull, dict) or not isinstance(pull.get("number"), int):
         return False
+    merged_at = pull.get("merged_at")
+    if not isinstance(merged_at, str):
+        return False
     pull_head = pull.get("head")
     reviewed_head = pull_head.get("sha") if isinstance(pull_head, dict) else None
     if not isinstance(reviewed_head, str):
@@ -217,19 +221,59 @@ def _amendment_is_effective(repo_root: Path) -> bool:
     )
     if not isinstance(comments, list):
         return False
-    bodies = [str(item.get("body", "")) for item in comments if isinstance(item, dict)]
-    required = ("Independent R5", "Structural R5", "Constitutional R5")
-
-    def has_exact_pass(label: str, body: str) -> bool:
-        disposition = re.compile(
-            rf"(?im)^\s*(?:#+\s*)?(?:\*\*)?{re.escape(label)}"
-            r"(?:\s+(?:review|disposition))?(?:\*\*)?\s*[:—-]\s*(?:\*\*)?PASS\b"
+    latest: dict[str, tuple[tuple[str, int], dict[str, Any]]] = {}
+    for comment in comments:
+        if not isinstance(comment, dict):
+            continue
+        body = comment.get("body")
+        created_at = comment.get("created_at")
+        comment_id = comment.get("id")
+        if (
+            not isinstance(body, str)
+            or not body.startswith(f"{R5_REVIEW_MARKER}\n")
+            or not isinstance(created_at, str)
+            or created_at > merged_at
+            or not isinstance(comment_id, int)
+        ):
+            continue
+        match_record = re.fullmatch(
+            rf"{re.escape(R5_REVIEW_MARKER)}\n```json\n(.+?)\n```\s*", body, flags=re.DOTALL
         )
-        return reviewed_head in body and disposition.search(body) is not None
-
-    return all(
-        any(has_exact_pass(label, body) for body in bodies)
-        for label in required
+        if match_record is None:
+            continue
+        try:
+            record = json.loads(match_record.group(1))
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(record, dict):
+            continue
+        lens = record.get("lens")
+        if (
+            record.get("schema") != "asa.r5.review.v1"
+            or lens not in {"independent", "structural", "constitutional"}
+            or record.get("exact_head_sha") != reviewed_head
+            or record.get("disposition") not in {"PASS", "HOLD"}
+            or not isinstance(record.get("reviewer_instance"), str)
+        ):
+            continue
+        key = (created_at, comment_id)
+        if lens not in latest or key > latest[lens][0]:
+            latest[lens] = (key, record)
+    if set(latest) != {"independent", "structural", "constitutional"}:
+        return False
+    records = {lens: value[1] for lens, value in latest.items()}
+    if any(record.get("disposition") != "PASS" for record in records.values()):
+        return False
+    instances = {str(record["reviewer_instance"]) for record in records.values()}
+    if len(instances) != 3:
+        return False
+    independent = records["independent"]
+    return (
+        independent.get("profile") == "INDEPENDENT-REVIEWER-v1"
+        and isinstance(independent.get("independence_statement"), str)
+        and bool(independent["independence_statement"].strip())
+        and independent.get("reviewer_instance") != independent.get("author_instance")
+        and independent.get("reviewer_instance") != independent.get("assigner_instance")
     )
 
 

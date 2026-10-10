@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import json
 import shutil
 import subprocess
 from datetime import date
@@ -291,6 +292,46 @@ def test_effectiveness_requires_default_branch_containment(
         return REAL_GIT(_root, *args)
 
     monkeypatch.setattr(role_hydration, "_git", merged)
+    reviewed_head = "d" * 40
+
+    def review_comment(
+        lens: str,
+        reviewer: str,
+        comment_id: int,
+        *,
+        disposition: str = "PASS",
+        created_at: str = "2026-10-09T23:00:00Z",
+    ) -> dict[str, object]:
+        record: dict[str, object] = {
+            "schema": "asa.r5.review.v1",
+            "lens": lens,
+            "disposition": disposition,
+            "exact_head_sha": reviewed_head,
+            "reviewer_instance": reviewer,
+        }
+        if lens == "independent":
+            record.update(
+                {
+                    "profile": "INDEPENDENT-REVIEWER-v1",
+                    "independence_statement": "distinct from author and assigner",
+                    "author_instance": "/root",
+                    "assigner_instance": "/root",
+                }
+            )
+        return {
+            "id": comment_id,
+            "created_at": created_at,
+            "body": (
+                f"{role_hydration.R5_REVIEW_MARKER}\n```json\n"
+                f"{json.dumps(record, sort_keys=True)}\n```"
+            ),
+        }
+
+    pass_comments = [
+        review_comment("independent", "/root/reviewer-i", 1),
+        review_comment("structural", "/root/reviewer-s", 2),
+        review_comment("constitutional", "/root/reviewer-c", 3),
+    ]
     monkeypatch.setattr(
         role_hydration,
         "_github_json",
@@ -299,17 +340,82 @@ def test_effectiveness_requires_default_branch_containment(
                 "number": 564,
                 "merged_at": "2026-10-10T00:00:00Z",
                 "merged_by": {"login": "jaiaFoster"},
-                "head": {"sha": "d" * 40},
+                "head": {"sha": reviewed_head},
             }]
             if endpoint.endswith("/pulls")
-            else [
-                {"body": f"Independent R5: PASS {'d' * 40}"},
-                {"body": f"Structural R5: PASS {'d' * 40}"},
-                {"body": f"Constitutional R5: PASS {'d' * 40}"},
-            ]
+            else pass_comments
         ),
     )
     assert REAL_AMENDMENT_IS_EFFECTIVE(ROOT)
+
+    quoted = {
+        "id": 4,
+        "created_at": "2026-10-09T23:30:00Z",
+        "body": "HOLD quoting Independent R5: PASS and other desired text",
+    }
+    monkeypatch.setattr(
+        role_hydration,
+        "_github_json",
+        lambda _root, endpoint: (
+            [{
+                "number": 564,
+                "merged_at": "2026-10-10T00:00:00Z",
+                "merged_by": {"login": "jaiaFoster"},
+                "head": {"sha": reviewed_head},
+            }]
+            if endpoint.endswith("/pulls")
+            else [quoted]
+        ),
+    )
+    assert not REAL_AMENDMENT_IS_EFFECTIVE(ROOT)
+
+    superseding_hold = review_comment(
+        "structural",
+        "/root/reviewer-s",
+        5,
+        disposition="HOLD",
+        created_at="2026-10-09T23:45:00Z",
+    )
+    monkeypatch.setattr(
+        role_hydration,
+        "_github_json",
+        lambda _root, endpoint: (
+            [{
+                "number": 564,
+                "merged_at": "2026-10-10T00:00:00Z",
+                "merged_by": {"login": "jaiaFoster"},
+                "head": {"sha": reviewed_head},
+            }]
+            if endpoint.endswith("/pulls")
+            else [*pass_comments, superseding_hold]
+        ),
+    )
+    assert not REAL_AMENDMENT_IS_EFFECTIVE(ROOT)
+
+    post_merge = [
+        review_comment(
+            lens,
+            f"/root/post-{lens}",
+            10 + index,
+            created_at="2026-10-10T00:01:00Z",
+        )
+        for index, lens in enumerate(("independent", "structural", "constitutional"))
+    ]
+    monkeypatch.setattr(
+        role_hydration,
+        "_github_json",
+        lambda _root, endpoint: (
+            [{
+                "number": 564,
+                "merged_at": "2026-10-10T00:00:00Z",
+                "merged_by": {"login": "jaiaFoster"},
+                "head": {"sha": reviewed_head},
+            }]
+            if endpoint.endswith("/pulls")
+            else post_merge
+        ),
+    )
+    assert not REAL_AMENDMENT_IS_EFFECTIVE(ROOT)
 
 
 def test_independent_profile_must_exist_and_sha_must_be_well_formed(tmp_path: Path) -> None:
