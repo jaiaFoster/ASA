@@ -244,7 +244,7 @@ def _amendment_is_effective(repo_root: Path) -> bool:
             not isinstance(body, str)
             or not body.startswith(f"{R5_REVIEW_MARKER}\n")
             or created_time is None
-            or created_time > merged_time
+            or created_time >= merged_time
             or not isinstance(comment_id, int)
         ):
             continue
@@ -266,6 +266,7 @@ def _amendment_is_effective(repo_root: Path) -> bool:
             or record.get("exact_head_sha") != reviewed_head
             or record.get("disposition") not in {"PASS", "HOLD"}
             or not isinstance(record.get("reviewer_instance"), str)
+            or not record["reviewer_instance"].strip()
         ):
             continue
         key = (created_time.isoformat(), comment_id)

@@ -348,6 +348,55 @@ def test_effectiveness_requires_default_branch_containment(
     )
     assert REAL_AMENDMENT_IS_EFFECTIVE(ROOT)
 
+    equal_merge_time = [
+        review_comment(
+            lens,
+            f"/root/equal-{lens}",
+            20 + index,
+            created_at="2026-10-10T00:00:00Z",
+        )
+        for index, lens in enumerate(("independent", "structural", "constitutional"))
+    ]
+    monkeypatch.setattr(
+        role_hydration,
+        "_github_json",
+        lambda _root, endpoint: (
+            [{
+                "number": 564,
+                "merged_at": "2026-10-10T00:00:00Z",
+                "merged_by": {"login": "jaiaFoster"},
+                "head": {"sha": reviewed_head},
+            }]
+            if endpoint.endswith("/pulls")
+            else equal_merge_time
+        ),
+    )
+    assert not REAL_AMENDMENT_IS_EFFECTIVE(ROOT)
+
+    blank_instance = copy.deepcopy(pass_comments)
+    structural_body = str(blank_instance[1]["body"])
+    structural_record = json.loads(structural_body.split("```json\n", 1)[1].rsplit("\n```", 1)[0])
+    structural_record["reviewer_instance"] = "   "
+    blank_instance[1]["body"] = (
+        f"{role_hydration.R5_REVIEW_MARKER}\n```json\n"
+        f"{json.dumps(structural_record, sort_keys=True)}\n```"
+    )
+    monkeypatch.setattr(
+        role_hydration,
+        "_github_json",
+        lambda _root, endpoint: (
+            [{
+                "number": 564,
+                "merged_at": "2026-10-10T00:00:00Z",
+                "merged_by": {"login": "jaiaFoster"},
+                "head": {"sha": reviewed_head},
+            }]
+            if endpoint.endswith("/pulls")
+            else blank_instance
+        ),
+    )
+    assert not REAL_AMENDMENT_IS_EFFECTIVE(ROOT)
+
     missing_identity = copy.deepcopy(pass_comments)
     independent_body = str(missing_identity[0]["body"])
     independent_record = json.loads(independent_body.split("```json\n", 1)[1].rsplit("\n```", 1)[0])
