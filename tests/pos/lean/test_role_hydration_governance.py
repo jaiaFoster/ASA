@@ -222,9 +222,7 @@ def test_caller_cannot_expand_canonical_registry_authority() -> None:
     registry = copy.deepcopy(REGISTRY)
     pm = next(r for r in registry["roles"] if r["id"] == "ROLE-PM")
     pm["hydration_actions"].append("define_architecture")
-    errors = check(
-        {**PACKET, "permitted_actions": ["read", "define_architecture"]}, registry
-    )
+    errors = check({**PACKET, "permitted_actions": ["read", "define_architecture"]}, registry)
     assert "H024_NONCANONICAL_REGISTRY" in errors
     assert "H020_ACTION_OUTSIDE_ROLE_AUTHORITY" in errors
 
@@ -336,17 +334,74 @@ def test_effectiveness_requires_default_branch_containment(
         role_hydration,
         "_github_json",
         lambda _root, endpoint: (
-            [{
-                "number": 564,
-                "merged_at": "2026-10-10T00:00:00Z",
-                "merged_by": {"login": "jaiaFoster"},
-                "head": {"sha": reviewed_head},
-            }]
+            [
+                {
+                    "number": 564,
+                    "merged_at": "2026-10-10T00:00:00Z",
+                    "merged_by": {"login": "jaiaFoster"},
+                    "head": {"sha": reviewed_head},
+                    "base": {"ref": "main"},
+                }
+            ]
             if endpoint.endswith("/pulls")
             else pass_comments
         ),
     )
     assert REAL_AMENDMENT_IS_EFFECTIVE(ROOT)
+
+    page_two_hold = review_comment(
+        "structural",
+        "/root/reviewer_s",
+        1001,
+        disposition="HOLD",
+        created_at="2026-10-09T23:50:00Z",
+    )
+    first_page = [
+        *pass_comments,
+        *[
+            {
+                "id": 100 + index,
+                "created_at": "2026-10-09T22:00:00Z",
+                "body": "ordinary comment",
+            }
+            for index in range(97)
+        ],
+    ]
+
+    def paginated(_root: Path, endpoint: str) -> object:
+        if endpoint.endswith("/pulls"):
+            return [
+                {
+                    "number": 564,
+                    "merged_at": "2026-10-10T00:00:00Z",
+                    "merged_by": {"login": "jaiaFoster"},
+                    "head": {"sha": reviewed_head},
+                    "base": {"ref": "main"},
+                }
+            ]
+        return first_page if "page=1" in endpoint else [page_two_hold]
+
+    monkeypatch.setattr(role_hydration, "_github_json", paginated)
+    assert not REAL_AMENDMENT_IS_EFFECTIVE(ROOT)
+
+    monkeypatch.setattr(
+        role_hydration,
+        "_github_json",
+        lambda _root, endpoint: (
+            [
+                {
+                    "number": 564,
+                    "merged_at": "2026-10-10T00:00:00Z",
+                    "merged_by": {"login": "jaiaFoster"},
+                    "head": {"sha": reviewed_head},
+                    "base": {"ref": "release"},
+                }
+            ]
+            if endpoint.endswith("/pulls")
+            else pass_comments
+        ),
+    )
+    assert not REAL_AMENDMENT_IS_EFFECTIVE(ROOT)
 
     equal_merge_time = [
         review_comment(
@@ -361,12 +416,15 @@ def test_effectiveness_requires_default_branch_containment(
         role_hydration,
         "_github_json",
         lambda _root, endpoint: (
-            [{
-                "number": 564,
-                "merged_at": "2026-10-10T00:00:00Z",
-                "merged_by": {"login": "jaiaFoster"},
-                "head": {"sha": reviewed_head},
-            }]
+            [
+                {
+                    "number": 564,
+                    "merged_at": "2026-10-10T00:00:00Z",
+                    "merged_by": {"login": "jaiaFoster"},
+                    "head": {"sha": reviewed_head},
+                    "base": {"ref": "main"},
+                }
+            ]
             if endpoint.endswith("/pulls")
             else equal_merge_time
         ),
@@ -381,19 +439,21 @@ def test_effectiveness_requires_default_branch_containment(
         if index == 0:
             record["author_instance"] = "/root/same"
         alias_comments[index]["body"] = (
-            f"{role_hydration.R5_REVIEW_MARKER}\n```json\n"
-            f"{json.dumps(record, sort_keys=True)}\n```"
+            f"{role_hydration.R5_REVIEW_MARKER}\n```json\n{json.dumps(record, sort_keys=True)}\n```"
         )
     monkeypatch.setattr(
         role_hydration,
         "_github_json",
         lambda _root, endpoint: (
-            [{
-                "number": 564,
-                "merged_at": "2026-10-10T00:00:00Z",
-                "merged_by": {"login": "jaiaFoster"},
-                "head": {"sha": reviewed_head},
-            }]
+            [
+                {
+                    "number": 564,
+                    "merged_at": "2026-10-10T00:00:00Z",
+                    "merged_by": {"login": "jaiaFoster"},
+                    "head": {"sha": reviewed_head},
+                    "base": {"ref": "main"},
+                }
+            ]
             if endpoint.endswith("/pulls")
             else alias_comments
         ),
@@ -412,12 +472,15 @@ def test_effectiveness_requires_default_branch_containment(
         role_hydration,
         "_github_json",
         lambda _root, endpoint: (
-            [{
-                "number": 564,
-                "merged_at": "2026-10-10T00:00:00Z",
-                "merged_by": {"login": "jaiaFoster"},
-                "head": {"sha": reviewed_head},
-            }]
+            [
+                {
+                    "number": 564,
+                    "merged_at": "2026-10-10T00:00:00Z",
+                    "merged_by": {"login": "jaiaFoster"},
+                    "head": {"sha": reviewed_head},
+                    "base": {"ref": "main"},
+                }
+            ]
             if endpoint.endswith("/pulls")
             else blank_instance
         ),
@@ -436,12 +499,15 @@ def test_effectiveness_requires_default_branch_containment(
         role_hydration,
         "_github_json",
         lambda _root, endpoint: (
-            [{
-                "number": 564,
-                "merged_at": "2026-10-10T00:00:00Z",
-                "merged_by": {"login": "jaiaFoster"},
-                "head": {"sha": reviewed_head},
-            }]
+            [
+                {
+                    "number": 564,
+                    "merged_at": "2026-10-10T00:00:00Z",
+                    "merged_by": {"login": "jaiaFoster"},
+                    "head": {"sha": reviewed_head},
+                    "base": {"ref": "main"},
+                }
+            ]
             if endpoint.endswith("/pulls")
             else missing_identity
         ),
@@ -457,12 +523,15 @@ def test_effectiveness_requires_default_branch_containment(
         role_hydration,
         "_github_json",
         lambda _root, endpoint: (
-            [{
-                "number": 564,
-                "merged_at": "2026-10-10T00:00:00Z",
-                "merged_by": {"login": "jaiaFoster"},
-                "head": {"sha": reviewed_head},
-            }]
+            [
+                {
+                    "number": 564,
+                    "merged_at": "2026-10-10T00:00:00Z",
+                    "merged_by": {"login": "jaiaFoster"},
+                    "head": {"sha": reviewed_head},
+                    "base": {"ref": "main"},
+                }
+            ]
             if endpoint.endswith("/pulls")
             else [quoted]
         ),
@@ -480,12 +549,15 @@ def test_effectiveness_requires_default_branch_containment(
         role_hydration,
         "_github_json",
         lambda _root, endpoint: (
-            [{
-                "number": 564,
-                "merged_at": "2026-10-10T00:00:00Z",
-                "merged_by": {"login": "jaiaFoster"},
-                "head": {"sha": reviewed_head},
-            }]
+            [
+                {
+                    "number": 564,
+                    "merged_at": "2026-10-10T00:00:00Z",
+                    "merged_by": {"login": "jaiaFoster"},
+                    "head": {"sha": reviewed_head},
+                    "base": {"ref": "main"},
+                }
+            ]
             if endpoint.endswith("/pulls")
             else [*pass_comments, superseding_hold]
         ),
@@ -505,12 +577,15 @@ def test_effectiveness_requires_default_branch_containment(
         role_hydration,
         "_github_json",
         lambda _root, endpoint: (
-            [{
-                "number": 564,
-                "merged_at": "2026-10-10T00:00:00Z",
-                "merged_by": {"login": "jaiaFoster"},
-                "head": {"sha": reviewed_head},
-            }]
+            [
+                {
+                    "number": 564,
+                    "merged_at": "2026-10-10T00:00:00Z",
+                    "merged_by": {"login": "jaiaFoster"},
+                    "head": {"sha": reviewed_head},
+                    "base": {"ref": "main"},
+                }
+            ]
             if endpoint.endswith("/pulls")
             else post_merge
         ),

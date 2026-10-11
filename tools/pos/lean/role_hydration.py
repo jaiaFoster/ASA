@@ -147,15 +147,25 @@ def _github_json(repo_root: Path, endpoint: str) -> object | None:
         return None
 
 
+def _github_paginated_items(repo_root: Path, endpoint: str) -> list[object] | None:
+    items: list[object] = []
+    separator = "&" if "?" in endpoint else "?"
+    for page in range(1, 101):
+        payload = _github_json(repo_root, f"{endpoint}{separator}per_page=100&page={page}")
+        if not isinstance(payload, list):
+            return None
+        items.extend(payload)
+        if len(payload) < 100:
+            return items
+    return None
+
+
 def _anchor_exists(text: str, reference: str) -> bool:
     if "#" not in reference:
         return False
     anchor = reference.split("#", maxsplit=1)[1]
     headings = re.findall(r"^#{1,6}\s+(.+?)\s*$", text, flags=re.MULTILINE)
-    slugs = {
-        re.sub(r"[^a-z0-9 -]", "", heading.lower()).replace(" ", "-")
-        for heading in headings
-    }
+    slugs = {re.sub(r"[^a-z0-9 -]", "", heading.lower()).replace(" ", "-") for heading in headings}
     return anchor in slugs
 
 
@@ -217,6 +227,9 @@ def _amendment_is_effective(repo_root: Path) -> bool:
     )
     if not isinstance(pull, dict) or not isinstance(pull.get("number"), int):
         return False
+    base = pull.get("base")
+    if not isinstance(base, dict) or base.get("ref") != state.get("default_branch"):
+        return False
     merged_at = pull.get("merged_at")
     if not isinstance(merged_at, str):
         return False
@@ -228,8 +241,8 @@ def _amendment_is_effective(repo_root: Path) -> bool:
     reviewed_head = pull_head.get("sha") if isinstance(pull_head, dict) else None
     if not isinstance(reviewed_head, str):
         return False
-    comments = _github_json(
-        repo_root, f"repos/{owner}/{repository}/issues/{pull['number']}/comments?per_page=100"
+    comments = _github_paginated_items(
+        repo_root, f"repos/{owner}/{repository}/issues/{pull['number']}/comments"
     )
     if not isinstance(comments, list):
         return False
@@ -425,10 +438,9 @@ def validate_hydration_packet(
     ):
         errors.append("H023_LIFECYCLE_AUTHORITY_MISSING")
     authority = _authority_by_role(repo_root).get(str(target), {})
-    if (
-        authority.get("lifecycle_authority") != role.get("lifecycle_authority")
-        or authority.get("required_registry_status") != role.get("status")
-    ):
+    if authority.get("lifecycle_authority") != role.get("lifecycle_authority") or authority.get(
+        "required_registry_status"
+    ) != role.get("status"):
         errors.append("H025_LIFECYCLE_AUTHORITY_CONFLICT")
     configured_actions = authority.get("allowed_actions")
     allowed_actions = (
