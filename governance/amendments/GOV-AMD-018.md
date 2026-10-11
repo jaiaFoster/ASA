@@ -548,13 +548,15 @@ Before acceptance it requires:
 - regression/probe evidence for §9;
 - Founder approval and personal merge.
 
-Each required review MUST be recorded before the Founder merge as one
-machine-readable `asa.r5.review.v1` record bound to the exact pull-request head.
+Each required review MUST be submitted before the Founder merge as one
+machine-readable `asa.r5.review.v1` GitHub pull-request review object bound to
+the exact pull-request head commit. Issue comments are not lifecycle evidence.
 The record includes lens, disposition, exact head, and reviewer-instance
 identity. Independent review additionally includes its applicable review function,
 author instance, assigner instance, and an independence statement. For each
 lens, the latest valid pre-merge record controls; a later HOLD supersedes an
-earlier PASS. Post-merge records cannot retroactively activate the amendment.
+earlier PASS. Dismissed reviews fail closed. Post-merge records cannot
+retroactively activate the amendment.
 
 The author/assigner of this amendment must not be the sole independent reviewer.
 

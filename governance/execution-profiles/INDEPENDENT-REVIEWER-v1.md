@@ -134,9 +134,9 @@ For R5 or multi-lens governance reviews, each required lens receives its own dis
 
 The review is posted to GitHub/POS as required by current acceptance rules before the instance terminates.
 
-For an R5 lifecycle gate, the durable GitHub record uses the structured
-`asa.r5.review.v1` format required by GOV-AMD-018 §10. Free-form prose may
-accompany that record but cannot substitute for it.
+For an R5 lifecycle gate, the durable GitHub pull-request review uses the
+structured `asa.r5.review.v1` format required by GOV-AMD-018 §10. Issue
+comments and free-form prose cannot substitute for that submitted review.
 
 ## 9. Failure Behavior
 

@@ -319,8 +319,9 @@ def test_effectiveness_requires_default_branch_containment(
             )
         return {
             "id": comment_id,
-            "created_at": created_at,
-            "updated_at": created_at,
+            "submitted_at": created_at,
+            "commit_id": reviewed_head,
+            "state": "COMMENTED",
             "body": (
                 f"{role_hydration.R5_REVIEW_MARKER}\n```json\n"
                 f"{json.dumps(record, sort_keys=True)}\n```"
@@ -351,6 +352,27 @@ def test_effectiveness_requires_default_branch_containment(
     )
     assert REAL_AMENDMENT_IS_EFFECTIVE(ROOT)
 
+    dismissed = copy.deepcopy(pass_comments)
+    dismissed[1]["state"] = "DISMISSED"
+    monkeypatch.setattr(
+        role_hydration,
+        "_github_json",
+        lambda _root, endpoint: (
+            [
+                {
+                    "number": 564,
+                    "merged_at": "2026-10-10T00:00:00Z",
+                    "merged_by": {"login": "jaiaFoster"},
+                    "head": {"sha": reviewed_head},
+                    "base": {"ref": "main"},
+                }
+            ]
+            if endpoint.endswith("/pulls")
+            else dismissed
+        ),
+    )
+    assert not REAL_AMENDMENT_IS_EFFECTIVE(ROOT)
+
     page_two_hold = review_comment(
         "structural",
         "/root/reviewer_s",
@@ -363,8 +385,9 @@ def test_effectiveness_requires_default_branch_containment(
         *[
             {
                 "id": 100 + index,
-                "created_at": "2026-10-09T22:00:00Z",
-                "updated_at": "2026-10-09T22:00:00Z",
+                "submitted_at": "2026-10-09T22:00:00Z",
+                "commit_id": reviewed_head,
+                "state": "COMMENTED",
                 "body": "ordinary comment",
             }
             for index in range(97)
@@ -385,27 +408,6 @@ def test_effectiveness_requires_default_branch_containment(
         return first_page if "page=1" in endpoint else [page_two_hold]
 
     monkeypatch.setattr(role_hydration, "_github_json", paginated)
-    assert not REAL_AMENDMENT_IS_EFFECTIVE(ROOT)
-
-    post_merge_edit = copy.deepcopy(pass_comments)
-    post_merge_edit[0]["updated_at"] = "2026-10-10T00:01:00Z"
-    monkeypatch.setattr(
-        role_hydration,
-        "_github_json",
-        lambda _root, endpoint: (
-            [
-                {
-                    "number": 564,
-                    "merged_at": "2026-10-10T00:00:00Z",
-                    "merged_by": {"login": "jaiaFoster"},
-                    "head": {"sha": reviewed_head},
-                    "base": {"ref": "main"},
-                }
-            ]
-            if endpoint.endswith("/pulls")
-            else post_merge_edit
-        ),
-    )
     assert not REAL_AMENDMENT_IS_EFFECTIVE(ROOT)
 
     monkeypatch.setattr(
@@ -540,7 +542,9 @@ def test_effectiveness_requires_default_branch_containment(
 
     quoted = {
         "id": 4,
-        "created_at": "2026-10-09T23:30:00Z",
+        "submitted_at": "2026-10-09T23:30:00Z",
+        "commit_id": reviewed_head,
+        "state": "COMMENTED",
         "body": "HOLD quoting Independent R5: PASS and other desired text",
     }
     monkeypatch.setattr(

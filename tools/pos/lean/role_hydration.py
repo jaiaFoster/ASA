@@ -241,44 +241,33 @@ def _amendment_is_effective(repo_root: Path) -> bool:
     reviewed_head = pull_head.get("sha") if isinstance(pull_head, dict) else None
     if not isinstance(reviewed_head, str):
         return False
-    comments = _github_paginated_items(
-        repo_root, f"repos/{owner}/{repository}/issues/{pull['number']}/comments"
+    reviews = _github_paginated_items(
+        repo_root, f"repos/{owner}/{repository}/pulls/{pull['number']}/reviews"
     )
-    if not isinstance(comments, list):
+    if not isinstance(reviews, list):
         return False
     latest: dict[str, tuple[tuple[str, int], dict[str, Any]]] = {}
-    for comment in comments:
-        if not isinstance(comment, dict):
+    for review in reviews:
+        if not isinstance(review, dict):
             continue
-        body = comment.get("body")
-        created_at = comment.get("created_at")
-        updated_at = comment.get("updated_at")
-        comment_id = comment.get("id")
+        body = review.get("body")
+        submitted_at = review.get("submitted_at")
+        review_id = review.get("id")
         try:
-            created_time = (
-                datetime.fromisoformat(created_at.replace("Z", "+00:00"))
-                if isinstance(created_at, str)
+            submitted_time = (
+                datetime.fromisoformat(submitted_at.replace("Z", "+00:00"))
+                if isinstance(submitted_at, str)
                 else None
             )
         except ValueError:
-            created_time = None
-        try:
-            updated_time = (
-                datetime.fromisoformat(updated_at.replace("Z", "+00:00"))
-                if isinstance(updated_at, str)
-                else None
-            )
-        except ValueError:
-            updated_time = None
+            submitted_time = None
         if (
             not isinstance(body, str)
             or not body.startswith(f"{R5_REVIEW_MARKER}\n")
-            or created_time is None
-            or updated_time is None
-            or created_time >= merged_time
-            or updated_time >= merged_time
-            or updated_time < created_time
-            or not isinstance(comment_id, int)
+            or submitted_time is None
+            or submitted_time >= merged_time
+            or not isinstance(review_id, int)
+            or review.get("commit_id") != reviewed_head
         ):
             continue
         match_record = re.fullmatch(
@@ -301,11 +290,13 @@ def _amendment_is_effective(repo_root: Path) -> bool:
             or _normalize_instance(record.get("reviewer_instance")) is None
         ):
             continue
+        if review.get("state") == "DISMISSED":
+            return False
         record = {
             **record,
             "reviewer_instance": _normalize_instance(record["reviewer_instance"]),
         }
-        key = (created_time.isoformat(), comment_id)
+        key = (submitted_time.isoformat(), review_id)
         if lens not in latest or key > latest[lens][0]:
             latest[lens] = (key, record)
     if set(latest) != {"independent", "structural", "constitutional"}:
