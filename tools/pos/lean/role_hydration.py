@@ -252,6 +252,7 @@ def _amendment_is_effective(repo_root: Path) -> bool:
             continue
         body = comment.get("body")
         created_at = comment.get("created_at")
+        updated_at = comment.get("updated_at")
         comment_id = comment.get("id")
         try:
             created_time = (
@@ -261,11 +262,22 @@ def _amendment_is_effective(repo_root: Path) -> bool:
             )
         except ValueError:
             created_time = None
+        try:
+            updated_time = (
+                datetime.fromisoformat(updated_at.replace("Z", "+00:00"))
+                if isinstance(updated_at, str)
+                else None
+            )
+        except ValueError:
+            updated_time = None
         if (
             not isinstance(body, str)
             or not body.startswith(f"{R5_REVIEW_MARKER}\n")
             or created_time is None
+            or updated_time is None
             or created_time >= merged_time
+            or updated_time >= merged_time
+            or updated_time < created_time
             or not isinstance(comment_id, int)
         ):
             continue
