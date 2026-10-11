@@ -308,7 +308,8 @@ def _amendment_is_effective(repo_root: Path) -> bool:
     author_instance = _normalize_instance(independent.get("author_instance"))
     assigner_instance = _normalize_instance(independent.get("assigner_instance"))
     return (
-        independent.get("profile") == "INDEPENDENT-REVIEWER-v1"
+        independent.get("profile") == "PRE-EFFECTIVENESS-R5"
+        and independent.get("authority_source") == "GOV-AMD-018-transition"
         and isinstance(independent.get("independence_statement"), str)
         and bool(independent["independence_statement"].strip())
         and author_instance is not None

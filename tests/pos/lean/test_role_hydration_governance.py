@@ -310,7 +310,8 @@ def test_effectiveness_requires_default_branch_containment(
         if lens == "independent":
             record.update(
                 {
-                    "profile": "INDEPENDENT-REVIEWER-v1",
+                    "profile": "PRE-EFFECTIVENESS-R5",
+                    "authority_source": "GOV-AMD-018-transition",
                     "independence_statement": "distinct from author and assigner",
                     "author_instance": "/root",
                     "assigner_instance": "/root",

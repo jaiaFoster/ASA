@@ -19,6 +19,16 @@ Founder approval and activation direction were explicitly reconfirmed on
 floor or personal-merge requirement. Before the exact reviewed change reaches
 `main`, all mechanisms remain fail-closed.
 
+For this amendment's one-time activation review only, the Founder assigns a
+fresh bounded, read-only Independent R5 reviewer function under the existing
+RES-002 temporary-function model and RISK-001 review floor. That reviewer is
+not instantiated through `INDEPENDENT-REVIEWER-v1`, which remains ineffective
+until this amendment completes activation. The transitional reviewer has no
+standing authority, may not edit, commit, push, merge, or deploy, and
+terminates after its exact-head disposition is durably recorded. Its
+structured record uses `profile: PRE-EFFECTIVENESS-R5` and
+`authority_source: GOV-AMD-018-transition`.
+
 ### Lifecycle completion resubmission
 
 The Founder-merged corrective version in PR #561 did not receive the required
@@ -541,7 +551,7 @@ Before acceptance it requires:
 Each required review MUST be recorded before the Founder merge as one
 machine-readable `asa.r5.review.v1` record bound to the exact pull-request head.
 The record includes lens, disposition, exact head, and reviewer-instance
-identity. Independent review additionally includes its approved profile,
+identity. Independent review additionally includes its applicable review function,
 author instance, assigner instance, and an independence statement. For each
 lens, the latest valid pre-merge record controls; a later HOLD supersedes an
 earlier PASS. Post-merge records cannot retroactively activate the amendment.
