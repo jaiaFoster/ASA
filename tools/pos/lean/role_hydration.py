@@ -269,6 +269,10 @@ def _amendment_is_effective(repo_root: Path) -> bool:
             or not record["reviewer_instance"].strip()
         ):
             continue
+        record = {
+            **record,
+            "reviewer_instance": record["reviewer_instance"].strip(),
+        }
         key = (created_time.isoformat(), comment_id)
         if lens not in latest or key > latest[lens][0]:
             latest[lens] = (key, record)
@@ -281,8 +285,10 @@ def _amendment_is_effective(repo_root: Path) -> bool:
     if len(instances) != 3:
         return False
     independent = records["independent"]
-    author_instance = independent.get("author_instance")
-    assigner_instance = independent.get("assigner_instance")
+    author_raw = independent.get("author_instance")
+    assigner_raw = independent.get("assigner_instance")
+    author_instance = author_raw.strip() if isinstance(author_raw, str) else None
+    assigner_instance = assigner_raw.strip() if isinstance(assigner_raw, str) else None
     return (
         independent.get("profile") == "INDEPENDENT-REVIEWER-v1"
         and isinstance(independent.get("independence_statement"), str)
