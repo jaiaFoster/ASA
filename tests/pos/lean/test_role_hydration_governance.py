@@ -328,9 +328,9 @@ def test_effectiveness_requires_default_branch_containment(
         }
 
     pass_comments = [
-        review_comment("independent", "/root/reviewer-i", 1),
-        review_comment("structural", "/root/reviewer-s", 2),
-        review_comment("constitutional", "/root/reviewer-c", 3),
+        review_comment("independent", "/root/reviewer_i", 1),
+        review_comment("structural", "/root/reviewer_s", 2),
+        review_comment("constitutional", "/root/reviewer_c", 3),
     ]
     monkeypatch.setattr(
         role_hydration,
@@ -471,7 +471,7 @@ def test_effectiveness_requires_default_branch_containment(
 
     superseding_hold = review_comment(
         "structural",
-        "/root/reviewer-s",
+        "/root/reviewer_s",
         5,
         disposition="HOLD",
         created_at="2026-10-09T23:45:00Z",

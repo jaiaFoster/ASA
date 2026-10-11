@@ -6,6 +6,7 @@ import hashlib
 import json
 import re
 import subprocess
+import unicodedata
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any
@@ -69,6 +70,13 @@ ROUTINE_CLASSES = frozenset(
     }
 )
 R5_REVIEW_MARKER = "<!-- asa-r5-review:v1 -->"
+
+
+def _normalize_instance(value: object) -> str | None:
+    if not isinstance(value, str):
+        return None
+    normalized = unicodedata.normalize("NFKC", value).strip().casefold()
+    return normalized if re.fullmatch(r"/root(?:/[a-z0-9_]+)*", normalized) else None
 
 
 def _roles_by_id(registry: dict[str, Any]) -> dict[str, dict[str, Any]]:
@@ -265,13 +273,12 @@ def _amendment_is_effective(repo_root: Path) -> bool:
             or lens not in {"independent", "structural", "constitutional"}
             or record.get("exact_head_sha") != reviewed_head
             or record.get("disposition") not in {"PASS", "HOLD"}
-            or not isinstance(record.get("reviewer_instance"), str)
-            or not record["reviewer_instance"].strip()
+            or _normalize_instance(record.get("reviewer_instance")) is None
         ):
             continue
         record = {
             **record,
-            "reviewer_instance": record["reviewer_instance"].strip(),
+            "reviewer_instance": _normalize_instance(record["reviewer_instance"]),
         }
         key = (created_time.isoformat(), comment_id)
         if lens not in latest or key > latest[lens][0]:
@@ -285,18 +292,14 @@ def _amendment_is_effective(repo_root: Path) -> bool:
     if len(instances) != 3:
         return False
     independent = records["independent"]
-    author_raw = independent.get("author_instance")
-    assigner_raw = independent.get("assigner_instance")
-    author_instance = author_raw.strip() if isinstance(author_raw, str) else None
-    assigner_instance = assigner_raw.strip() if isinstance(assigner_raw, str) else None
+    author_instance = _normalize_instance(independent.get("author_instance"))
+    assigner_instance = _normalize_instance(independent.get("assigner_instance"))
     return (
         independent.get("profile") == "INDEPENDENT-REVIEWER-v1"
         and isinstance(independent.get("independence_statement"), str)
         and bool(independent["independence_statement"].strip())
-        and isinstance(author_instance, str)
-        and bool(author_instance.strip())
-        and isinstance(assigner_instance, str)
-        and bool(assigner_instance.strip())
+        and author_instance is not None
+        and assigner_instance is not None
         and independent.get("reviewer_instance") != author_instance
         and independent.get("reviewer_instance") != assigner_instance
     )
