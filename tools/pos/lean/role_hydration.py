@@ -6,7 +6,7 @@ import hashlib
 import json
 import re
 import subprocess
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
@@ -212,6 +212,10 @@ def _amendment_is_effective(repo_root: Path) -> bool:
     merged_at = pull.get("merged_at")
     if not isinstance(merged_at, str):
         return False
+    try:
+        merged_time = datetime.fromisoformat(merged_at.replace("Z", "+00:00"))
+    except ValueError:
+        return False
     pull_head = pull.get("head")
     reviewed_head = pull_head.get("sha") if isinstance(pull_head, dict) else None
     if not isinstance(reviewed_head, str):
@@ -228,11 +232,19 @@ def _amendment_is_effective(repo_root: Path) -> bool:
         body = comment.get("body")
         created_at = comment.get("created_at")
         comment_id = comment.get("id")
+        try:
+            created_time = (
+                datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+                if isinstance(created_at, str)
+                else None
+            )
+        except ValueError:
+            created_time = None
         if (
             not isinstance(body, str)
             or not body.startswith(f"{R5_REVIEW_MARKER}\n")
-            or not isinstance(created_at, str)
-            or created_at > merged_at
+            or created_time is None
+            or created_time > merged_time
             or not isinstance(comment_id, int)
         ):
             continue
@@ -256,7 +268,7 @@ def _amendment_is_effective(repo_root: Path) -> bool:
             or not isinstance(record.get("reviewer_instance"), str)
         ):
             continue
-        key = (created_at, comment_id)
+        key = (created_time.isoformat(), comment_id)
         if lens not in latest or key > latest[lens][0]:
             latest[lens] = (key, record)
     if set(latest) != {"independent", "structural", "constitutional"}:
@@ -268,12 +280,18 @@ def _amendment_is_effective(repo_root: Path) -> bool:
     if len(instances) != 3:
         return False
     independent = records["independent"]
+    author_instance = independent.get("author_instance")
+    assigner_instance = independent.get("assigner_instance")
     return (
         independent.get("profile") == "INDEPENDENT-REVIEWER-v1"
         and isinstance(independent.get("independence_statement"), str)
         and bool(independent["independence_statement"].strip())
-        and independent.get("reviewer_instance") != independent.get("author_instance")
-        and independent.get("reviewer_instance") != independent.get("assigner_instance")
+        and isinstance(author_instance, str)
+        and bool(author_instance.strip())
+        and isinstance(assigner_instance, str)
+        and bool(assigner_instance.strip())
+        and independent.get("reviewer_instance") != author_instance
+        and independent.get("reviewer_instance") != assigner_instance
     )
 
 

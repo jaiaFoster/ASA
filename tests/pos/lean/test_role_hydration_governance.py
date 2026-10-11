@@ -348,6 +348,30 @@ def test_effectiveness_requires_default_branch_containment(
     )
     assert REAL_AMENDMENT_IS_EFFECTIVE(ROOT)
 
+    missing_identity = copy.deepcopy(pass_comments)
+    independent_body = str(missing_identity[0]["body"])
+    independent_record = json.loads(independent_body.split("```json\n", 1)[1].rsplit("\n```", 1)[0])
+    independent_record.pop("author_instance")
+    missing_identity[0]["body"] = (
+        f"{role_hydration.R5_REVIEW_MARKER}\n```json\n"
+        f"{json.dumps(independent_record, sort_keys=True)}\n```"
+    )
+    monkeypatch.setattr(
+        role_hydration,
+        "_github_json",
+        lambda _root, endpoint: (
+            [{
+                "number": 564,
+                "merged_at": "2026-10-10T00:00:00Z",
+                "merged_by": {"login": "jaiaFoster"},
+                "head": {"sha": reviewed_head},
+            }]
+            if endpoint.endswith("/pulls")
+            else missing_identity
+        ),
+    )
+    assert not REAL_AMENDMENT_IS_EFFECTIVE(ROOT)
+
     quoted = {
         "id": 4,
         "created_at": "2026-10-09T23:30:00Z",
