@@ -341,12 +341,19 @@ def test_effectiveness_requires_default_branch_containment(
                 {
                     "number": 564,
                     "merged_at": "2026-10-10T00:00:00Z",
-                    "merged_by": {"login": "jaiaFoster"},
                     "head": {"sha": reviewed_head},
                     "base": {"ref": "main"},
                 }
             ]
             if endpoint.endswith("/pulls")
+            else {
+                "number": 564,
+                "merged_at": "2026-10-10T00:00:00Z",
+                "merged_by": {"login": "jaiaFoster"},
+                "head": {"sha": reviewed_head},
+                "base": {"ref": "main"},
+            }
+            if endpoint.endswith("/pulls/564")
             else pass_comments
         ),
     )

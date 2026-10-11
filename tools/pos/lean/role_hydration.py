@@ -214,18 +214,31 @@ def _amendment_is_effective(repo_root: Path) -> bool:
     if not isinstance(pulls, list):
         return False
     founder = _canonical_roles(repo_root).get("ROLE-FOUNDER", {}).get("github_login")
-    pull = next(
-        (
-            item
-            for item in pulls
-            if isinstance(item, dict)
-            and item.get("merged_at")
-            and isinstance(item.get("merged_by"), dict)
-            and item["merged_by"].get("login") == founder
-        ),
-        None,
-    )
-    if not isinstance(pull, dict) or not isinstance(pull.get("number"), int):
+    pull: dict[str, Any] | None = None
+    # GitHub's commit-associated-pulls endpoint can omit ``merged_by`` even
+    # for a merged PR. Resolve the authoritative PR resource before checking
+    # Founder identity instead of treating that projection omission as a
+    # failed governance lifecycle.
+    for item in pulls:
+        if (
+            not isinstance(item, dict)
+            or not item.get("merged_at")
+            or not isinstance(item.get("number"), int)
+        ):
+            continue
+        candidate = item
+        if not isinstance(candidate.get("merged_by"), dict):
+            detail = _github_json(
+                repo_root, f"repos/{owner}/{repository}/pulls/{candidate['number']}"
+            )
+            if not isinstance(detail, dict):
+                continue
+            candidate = detail
+        merged_by = candidate.get("merged_by")
+        if isinstance(merged_by, dict) and merged_by.get("login") == founder:
+            pull = candidate
+            break
+    if pull is None:
         return False
     base = pull.get("base")
     if not isinstance(base, dict) or base.get("ref") != state.get("default_branch"):
