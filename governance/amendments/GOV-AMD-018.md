@@ -19,6 +19,27 @@ Founder approval and activation direction were explicitly reconfirmed on
 floor or personal-merge requirement. Before the exact reviewed change reaches
 `main`, all mechanisms remain fail-closed.
 
+For this amendment's one-time activation review only, the Founder assigns a
+fresh bounded, read-only Independent R5 reviewer function under the existing
+RES-002 temporary-function model and RISK-001 review floor. That reviewer is
+not instantiated through `INDEPENDENT-REVIEWER-v1`, which remains ineffective
+until this amendment completes activation. The transitional reviewer has no
+standing authority, may not edit, commit, push, merge, or deploy, and
+terminates after its exact-head disposition is durably recorded. Its
+structured record uses `profile: PRE-EFFECTIVENESS-R5` and
+`authority_source: GOV-AMD-018-transition`.
+
+### Lifecycle completion resubmission
+
+The Founder-merged corrective version in PR #561 did not receive the required
+exact-head Independent, Structural, and Constitutional PASS records before it
+was merged. That merge therefore did not satisfy this amendment's explicit
+effectiveness condition. This reconciled version is resubmitted without a
+waiver: GOV-AMD-018, its section 8 reconciliation, and
+`INDEPENDENT-REVIEWER-v1` remain ineffective until this exact version receives
+all three R5 PASS dispositions and the Founder personally merges it to the
+default branch.
+
 ## 1. Purpose
 
 ASA repeatedly needs bounded consultation, review, verification, and decision support from existing organizational roles while an implementation worker is active.
@@ -526,6 +547,16 @@ Before acceptance it requires:
 - Constitutional Review;
 - regression/probe evidence for §9;
 - Founder approval and personal merge.
+
+Each required review MUST be submitted before the Founder merge as one
+machine-readable `asa.r5.review.v1` GitHub pull-request review object bound to
+the exact pull-request head commit. Issue comments are not lifecycle evidence.
+The record includes lens, disposition, exact head, and reviewer-instance
+identity. Independent review additionally includes its applicable review function,
+author instance, assigner instance, and an independence statement. For each
+lens, the latest valid pre-merge record controls; a later HOLD supersedes an
+earlier PASS. Dismissed reviews fail closed. Post-merge records cannot
+retroactively activate the amendment.
 
 The author/assigner of this amendment must not be the sole independent reviewer.
 

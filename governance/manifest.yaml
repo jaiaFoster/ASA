@@ -101,15 +101,33 @@ documents:
     class: amendment
     status: active
     version: "1.0.0"
-    sha256: "60f6e52360216a9a4414ad9abc05af7a024afe9f4e8123603318460045bb1bb9"
+    sha256: "d696762624d33080a826fd41dcd5489f363a7a74da47981c5f5f4e76eb928442"
     original_path: "governance/amendments/GOV-AMD-018.md"
     notes: "R5 amendment authorizing bounded repository-backed role hydration and the Founder-blocker gateway; effective only after exact-head reviews and Founder merge."
+
+  - id: GOV-AMD-018-ROLE-HYDRATION-AUTHORITY
+    filename: governance/role-hydration-authority.yaml
+    class: governance_compilation
+    status: active
+    version: "1.0.0"
+    sha256: "f12ee5cbbdfbe09a6ba7fc6157946a81f5ade6a8a946059389c70a2f3f634a21"
+    original_path: "governance/role-hydration-authority.yaml"
+    notes: "Canonical executable action and lifecycle compilation for GOV-AMD-018 hydration."
+
+  - id: GOV-AMD-018-EFFECTIVENESS
+    filename: governance/effectiveness/GOV-AMD-018.yaml
+    class: effectiveness_record
+    status: active
+    version: "1.0.0"
+    sha256: "a7ef76b5a4438bcd3f0a1a665a5a61c5f7025422368cd5705b66c172bc0471ac"
+    original_path: "governance/effectiveness/GOV-AMD-018.yaml"
+    notes: "Fail-closed effectiveness record; operational only when checked-out commit is contained by origin/main."
 
   - id: INDEPENDENT-REVIEWER-v1
     filename: governance/execution-profiles/INDEPENDENT-REVIEWER-v1.md
     class: execution_profile
     status: active
     version: "1.0.0"
-    sha256: "b770e387ca27df6c052b4e7ac45f8396655484b97b62d96414f89accc69f17a9"
+    sha256: "c4c3b97d2b069516367959bf04b18a26bcf5866c6d48dccfc7992f3f5591fbbd"
     original_path: "governance/execution-profiles/INDEPENDENT-REVIEWER-v1.md"
     notes: "Temporary read-only exact-head independent-review profile effective only with GOV-AMD-018 reconciliation."

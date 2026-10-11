@@ -1,0 +1,36 @@
+---
+id: GOV-AMD-018-ROLE-HYDRATION-AUTHORITY
+status: active_on_gov_amd_018_effectiveness
+authority: governance/amendments/GOV-AMD-018.md
+roles:
+  - id: ROLE-PM
+    lifecycle_authority: governance/amendments/GOV-AMD-018.md#21-existing-repository-role
+    required_registry_status: prepared
+    allowed_actions:
+      - read
+      - consult
+      - classify
+      - sequence_work
+      - assign_work
+      - record_disposition
+  - id: ROLE-ARCH
+    lifecycle_authority: governance/amendments/GOV-AMD-018.md#21-existing-repository-role
+    required_registry_status: prepared
+    allowed_actions:
+      - read
+      - consult
+      - classify
+      - define_architecture
+      - review_architecture
+      - set_acceptance_criteria
+      - record_disposition
+  - id: ROLE-RESEARCH
+    lifecycle_authority: governance/amendments/GOV-AMD-017.md#part-a--role-research-rolespec-v100
+    required_registry_status: trial
+    allowed_actions:
+      - read
+      - consult
+      - research
+      - characterize_evidence
+      - manage_research_taxonomy
+      - record_disposition

@@ -134,6 +134,10 @@ For R5 or multi-lens governance reviews, each required lens receives its own dis
 
 The review is posted to GitHub/POS as required by current acceptance rules before the instance terminates.
 
+For an R5 lifecycle gate, the durable GitHub pull-request review uses the
+structured `asa.r5.review.v1` format required by GOV-AMD-018 §10. Issue
+comments and free-form prose cannot substitute for that submitted review.
+
 ## 9. Failure Behavior
 
 - Missing required canonical artifact -> HOLD affected review; identify missing evidence.
@@ -180,3 +184,9 @@ This profile becomes effective only when:
 - GOV-AMD-018 §8 operational reconciliation is complete on `main`.
 
 Until then it grants no review-instantiation authority.
+
+The one-time pre-effectiveness Independent R5 review that activates
+GOV-AMD-018 is not an invocation of this profile. It is the bounded
+Founder-assigned transitional review defined in GOV-AMD-018's Activation
+Record under existing RES-002 / RISK-001 authority. After activation, all
+worker-driven independent review uses this profile.
