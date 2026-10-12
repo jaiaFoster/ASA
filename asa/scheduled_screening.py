@@ -56,6 +56,8 @@ from asa.integrations.postgres import create_postgres_engine
 from asa.integrations.refresh_schedule_postgres import (
     PostgresRefreshScheduleClaimRepository,
     PostgresSubjectRefreshRepository,
+    ScheduleSlotClaim,
+    ScheduleSlotOwnershipLost,
     ScheduleSlotState,
 )
 from asa.integrations.runs_postgres import PostgresRunPublicationRepository
@@ -351,11 +353,11 @@ class FormationScheduleStateRepository(RefreshScheduleClaimRepository, Protocol)
 
     def claim_due_slot(
         self, slot_id: str, claimed_at: datetime, lease: timedelta = timedelta(minutes=30)
-    ) -> bool: ...
+    ) -> ScheduleSlotClaim | None: ...
 
     def complete(
         self,
-        slot_id: str,
+        claim: ScheduleSlotClaim,
         *,
         completed_at: datetime,
         state: ScheduleSlotState,
@@ -1132,7 +1134,7 @@ def run_scheduled_complete_family_refresh(
         create_postgres_engine(Settings().database_url)
     )
     formation_date = run_at.astimezone(ZoneInfo("America/New_York")).date().isoformat()
-    claimed_families: dict[str, tuple[str, ...]] = {}
+    claimed_families: dict[str, tuple[tuple[str, ...], ScheduleSlotClaim]] = {}
     for family_id in sorted(families):
         strategy_ids = tuple(families[family_id])
         is_due = False
@@ -1145,12 +1147,13 @@ def run_scheduled_complete_family_refresh(
         if not is_due:
             resolved_claim_repository.observe_not_due(slot_id, run_at)
             continue
-        if resolved_claim_repository.claim_due_slot(slot_id, run_at):
-            claimed_families[family_id] = strategy_ids
+        claim = resolved_claim_repository.claim_due_slot(slot_id, run_at)
+        if claim is not None:
+            claimed_families[family_id] = (strategy_ids, claim)
     due_strategy_ids = tuple(
         strategy_id
         for family_id in sorted(claimed_families)
-        for strategy_id in claimed_families[family_id]
+        for strategy_id in claimed_families[family_id][0]
     )
     if not due_strategy_ids:
         return ()
@@ -1179,9 +1182,9 @@ def run_scheduled_complete_family_refresh(
             or PostgresLatestResultRepository(create_postgres_engine(Settings().database_url)),
             run_at=run_at,
         )
-        for family_id in claimed_families:
+        for _strategy_ids, claim in claimed_families.values():
             resolved_claim_repository.complete(
-                f"complete-family:{family_id}:{formation_date}",
+                claim,
                 completed_at=run_at,
                 state=ScheduleSlotState.DUE_TYPED_DEFERRED,
                 reason_code=COMPLETE_FAMILY_CAPACITY_DEFERRED,
@@ -1200,20 +1203,28 @@ def run_scheduled_complete_family_refresh(
             now=run_at,
         )
     except Exception as exc:
-        for family_id in claimed_families:
-            resolved_claim_repository.complete(
-                f"complete-family:{family_id}:{formation_date}",
-                completed_at=run_at,
-                state=ScheduleSlotState.DUE_ASA_EXCEPTION,
-                reason_code="complete_family_refresh_failed",
-                failure_class=type(exc).__name__,
-            )
+        for _strategy_ids, claim in claimed_families.values():
+            try:
+                resolved_claim_repository.complete(
+                    claim,
+                    completed_at=run_at,
+                    state=ScheduleSlotState.DUE_ASA_EXCEPTION,
+                    reason_code="complete_family_refresh_failed",
+                    failure_class=type(exc).__name__,
+                )
+            except ScheduleSlotOwnershipLost:
+                # A successor owns the reclaimed lease. Preserve its active
+                # state and the original execution exception.
+                _LOGGER.warning(
+                    "complete_family_claim_ownership_lost",
+                    extra={"slot_id": claim.slot_id, "attempt_count": claim.attempt_count},
+                )
         raise
-    for family_id, strategy_ids in claimed_families.items():
+    for strategy_ids, claim in claimed_families.values():
         family_outcomes = tuple(item for item in outcomes if item.signal_id in strategy_ids)
         failures = tuple(item for item in family_outcomes if item.error is not None)
         resolved_claim_repository.complete(
-            f"complete-family:{family_id}:{formation_date}",
+            claim,
             completed_at=run_at,
             state=(
                 ScheduleSlotState.DUE_ASA_EXCEPTION

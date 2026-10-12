@@ -1,12 +1,17 @@
 """SP-07A anti-shelving proof for all seven research-selected strategies."""
 
 import json
-from datetime import UTC, date, datetime, time
+from datetime import UTC, date, datetime, time, timedelta
 from pathlib import Path
 
 import pytest
 
-from asa.integrations.refresh_schedule_postgres import ScheduleSlotState
+from asa.integrations.refresh_schedule_postgres import (
+    InMemoryRefreshScheduleClaimRepository,
+    ScheduleSlotClaim,
+    ScheduleSlotOwnershipLost,
+    ScheduleSlotState,
+)
 from asa.scheduled_screening import (
     FIXED_SUBJECT_OPTION_UNIVERSE,
     PRODUCTION_SCREENING_UNIVERSE,
@@ -64,6 +69,7 @@ class _ClaimOnce:
     def __init__(self) -> None:
         self.claimed: list[str] = []
         self.states: dict[str, ScheduleSlotState] = {}
+        self.attempts: dict[str, int] = {}
 
     def claim(self, slot_id: str, claimed_at: datetime) -> bool:
         del claimed_at
@@ -76,21 +82,25 @@ class _ClaimOnce:
         del observed_at
         self.states.setdefault(slot_id, ScheduleSlotState.NOT_DUE)
 
-    def claim_due_slot(self, slot_id: str, claimed_at: datetime, lease: object = None) -> bool:
+    def claim_due_slot(
+        self, slot_id: str, claimed_at: datetime, lease: object = None
+    ) -> ScheduleSlotClaim | None:
         del claimed_at, lease
         if self.states.get(slot_id) not in {
             None,
             ScheduleSlotState.NOT_DUE,
             ScheduleSlotState.DUE_ASA_EXCEPTION,
         }:
-            return False
+            return None
         self.claimed.append(slot_id)
         self.states[slot_id] = ScheduleSlotState.DUE_UNOBSERVED
-        return True
+        attempt = self.attempts.get(slot_id, 0) + 1
+        self.attempts[slot_id] = attempt
+        return ScheduleSlotClaim(slot_id, attempt)
 
     def complete(
         self,
-        slot_id: str,
+        claim: ScheduleSlotClaim,
         *,
         completed_at: datetime,
         state: ScheduleSlotState,
@@ -98,7 +108,8 @@ class _ClaimOnce:
         failure_class: str | None = None,
     ) -> None:
         del completed_at, reason_code, failure_class
-        self.states[slot_id] = state
+        assert self.attempts[claim.slot_id] == claim.attempt_count
+        self.states[claim.slot_id] = state
 
 
 def _no_transport(provider_id: str) -> object:
@@ -181,6 +192,30 @@ def test_failure_after_claim_is_typed_and_retryable(monkeypatch: pytest.MonkeyPa
     ) == ()
     assert attempts == 2
     assert claims.states[slot_id] == ScheduleSlotState.DUE_EVALUATED
+
+
+def test_scheduler_cannot_complete_after_its_lease_is_reclaimed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import asa.scheduled_screening as scheduled
+
+    claims = InMemoryRefreshScheduleClaimRepository()
+    run_at = datetime(2026, 10, 16, 21, tzinfo=UTC)
+    slot = "complete-family:heston_straddle_momentum_v1:2026-10-16"
+
+    def _reclaim_during_execution(*_args: object, **_kwargs: object) -> tuple[object, ...]:
+        successor = claims.claim_due_slot(slot, run_at + timedelta(minutes=31))
+        assert successor is not None and successor.attempt_count == 2
+        return ()
+
+    monkeypatch.setattr(scheduled, "run_scheduled_refresh", _reclaim_during_execution)
+    with pytest.raises(ScheduleSlotOwnershipLost):
+        scheduled.run_scheduled_complete_family_refresh(
+            claim_repository=claims, now=run_at, maximum_subjects=10_000
+        )
+    current = claims.observations(slot)[0]
+    assert current.state == ScheduleSlotState.DUE_UNOBSERVED
+    assert current.attempt_count == 2
 
 
 def _cron_ticks(day: date) -> tuple[datetime, ...]:

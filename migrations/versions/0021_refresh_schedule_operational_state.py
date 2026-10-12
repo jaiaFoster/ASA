@@ -44,12 +44,13 @@ def upgrade() -> None:
         "refresh_schedule_claims",
         sa.Column("attempt_count", sa.Integer(), nullable=False, server_default="1"),
     )
-    # Pre-migration rows were successful one-shot delivery claims. They carry
-    # no evidence of an abandoned complete-family attempt and must not be
-    # relabelled as due-but-unobserved.
+    # A legacy row proves admission only, not successful execution. Preserve
+    # that uncertainty and make the old owner immediately reclaimable rather
+    # than fabricating a completed evaluation during migration.
     op.execute(
         "UPDATE refresh_schedule_claims "
-        "SET observed_at = claimed_at, operational_state = 'DUE_EVALUATED'"
+        "SET observed_at = claimed_at, claim_expires_at = claimed_at, "
+        "operational_state = 'DUE_UNOBSERVED'"
     )
     op.alter_column("refresh_schedule_claims", "observed_at", nullable=False)
     op.create_check_constraint(
