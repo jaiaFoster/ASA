@@ -211,6 +211,40 @@ def _rows(fetch: Fetch, strategy_id: str) -> list[JsonObject]:
     return rows
 
 
+def _formation_operational_state(
+    strategy_id: str,
+    formation_slots: list[JsonObject],
+    window_start: datetime,
+    window_end: datetime,
+) -> str | None:
+    """Canonical scheduler state for a complete family in this window."""
+    from strategy_runtime.adapters import build_migrated_shadow_registry
+
+    registry = build_migrated_shadow_registry(window_end)
+    if not registry.is_registered(strategy_id):
+        return None
+    family_id = registry.binding_for(strategy_id).cross_subject_family_id
+    if family_id is None:
+        return None
+    dates: set[str] = set()
+    day = window_start.astimezone(_NEW_YORK).date()
+    last_day = window_end.astimezone(_NEW_YORK).date()
+    while day <= last_day:
+        dates.add(day.isoformat())
+        day += timedelta(days=1)
+    prefix = f"complete-family:{family_id}:"
+    matching = [
+        item
+        for item in formation_slots
+        if str(item.get("slot_id", "")).startswith(prefix)
+        and str(item["slot_id"]).removeprefix(prefix) in dates
+    ]
+    if not matching:
+        return None
+    matching.sort(key=lambda item: str(item.get("observed_at", "")))
+    return str(matching[-1].get("state") or "") or None
+
+
 def classify_release(
     fetch: Fetch,
     *,
@@ -230,6 +264,10 @@ def classify_release(
     if status != 200:
         raise RuntimeError(f"capabilities returned HTTP {status}")
     registered = {str(item["signal_id"]) for item in capabilities["signals"]}
+    operations_status, operations = fetch("/api/v1/screening/operations")
+    formation_slots = (
+        list(operations.get("formation_slots") or ()) if operations_status == 200 else []
+    )
     strategies: dict[str, JsonObject] = {}
     for strategy_id in SELECTED_STRATEGIES:
         in_window = [
@@ -242,8 +280,15 @@ def classify_release(
             blocker_code(str(item)) for row in in_window for item in row.get("blockers") or ()
         )
         classification = classify_strategy(in_window)
-        family_not_due = not in_window and not family_due_in_window(
-            strategy_id, window_start, window_end
+        formation_state = _formation_operational_state(
+            strategy_id, formation_slots, window_start, window_end
+        )
+        family_not_due = not in_window and (
+            formation_state == "NOT_DUE"
+            or (
+                formation_state is None
+                and not family_due_in_window(strategy_id, window_start, window_end)
+            )
         )
         if family_not_due:
             classification = NOT_DUE
@@ -252,6 +297,7 @@ def classify_release(
             "rows_in_window": len(in_window),
             "classification": classification,
             "family_not_due_in_window": family_not_due,
+            "formation_operational_state": formation_state,
             "row_classes": dict(sorted(row_classes.items())),
             "exception_rows": sorted(
                 str(row["symbol"]) for row in in_window if classify_row(row) == "EXCEPTION"
@@ -295,6 +341,7 @@ def classify_release(
             "refresh_failure_lines": refresh_failures,
             "traceback_lines": tracebacks,
         },
+        "formation_slots": formation_slots,
         "failures": failures,
         "verdict": "pass" if not failures else "fail",
     }

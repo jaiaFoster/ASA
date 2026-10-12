@@ -40,12 +40,19 @@ def _row(strategy: str, symbol: str = "SPX", **fields: object) -> JsonObject:
     return row
 
 
-def _fetcher(rows: dict[str, list[JsonObject]], *, sha: str = SHA):
+def _fetcher(
+    rows: dict[str, list[JsonObject]],
+    *,
+    sha: str = SHA,
+    formation_slots: list[JsonObject] | None = None,
+):
     def fetch(path: str) -> FetchResponse:
         if path == "/api/v1/version":
             return 200, {"release_sha": sha}
         if path == "/api/v1/capabilities":
             return 200, {"signals": [{"signal_id": item} for item in SELECTED_STRATEGIES]}
+        if path == "/api/v1/screening/operations":
+            return 200, {"formation_slots": formation_slots or []}
         query = parse_qs(urlparse(path).query)
         signal_rows = rows.get(query["signal"][0], [])
         offset, limit = int(query["offset"][0]), int(query["limit"][0])
@@ -170,6 +177,31 @@ def test_complete_family_without_rows_is_not_due_only_off_formation() -> None:
     heston = formation["strategies"]["xs_option_heston_straddle_momentum_lowcost"]
     assert heston["classification"] == UNOBSERVED
     assert "unobserved:xs_option_heston_straddle_momentum_lowcost" in formation["failures"]
+
+
+def test_due_unobserved_is_read_from_canonical_scheduler_state() -> None:
+    rows = {strategy: [_row(strategy)] for strategy in SELECTED_STRATEGIES}
+    heston = "xs_option_heston_straddle_momentum_lowcost"
+    rows[heston] = []
+    artifact = classify_release(
+        _fetcher(
+            rows,
+            formation_slots=[
+                {
+                    "slot_id": "complete-family:heston_straddle_momentum_v1:2026-10-16",
+                    "state": "DUE_UNOBSERVED",
+                    "observed_at": "2026-10-16T21:00:00Z",
+                }
+            ],
+        ),
+        production_sha=SHA,
+        window_start=datetime(2026, 10, 16, 13, 30, tzinfo=UTC),
+        window_end=datetime(2026, 10, 16, 21, 50, tzinfo=UTC),
+        captured_at=END,
+        cron_lines=CLEAN_CRON,
+    )
+    assert artifact["strategies"][heston]["classification"] == UNOBSERVED
+    assert artifact["strategies"][heston]["formation_operational_state"] == "DUE_UNOBSERVED"
 
 
 def test_knowledge_construction_failure_is_an_exception_not_a_data_blocker() -> None:

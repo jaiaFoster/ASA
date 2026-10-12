@@ -39,7 +39,10 @@ from asa.integrations.providers.deterministic_fake_broker import (
     DeterministicFakeBrokerPortfolioProvider,
 )
 from asa.integrations.providers.robinhood import RobinhoodPortfolioProvider
-from asa.integrations.refresh_schedule_postgres import PostgresSubjectRefreshRepository
+from asa.integrations.refresh_schedule_postgres import (
+    PostgresRefreshScheduleClaimRepository,
+    PostgresSubjectRefreshRepository,
+)
 from asa.integrations.runs_postgres import PostgresRunPublicationRepository
 from asa.integrations.screening_acquisition_attempts_postgres import (
     PostgresAcquisitionAttemptRepository,
@@ -123,9 +126,13 @@ def build_application(
     subject_refresh_repository = PostgresSubjectRefreshRepository(
         engine_factory(settings.database_url)
     )
+    schedule_claim_repository = PostgresRefreshScheduleClaimRepository(
+        engine_factory(settings.database_url)
+    )
 
     def postgres_screening_operational_health() -> dict[str, object]:
         health = subject_refresh_repository.operational_health(as_of=datetime.now(UTC))
+        formation_slots = schedule_claim_repository.observations("complete-family:")
         return {
             "last_attempted_batch_at": health.last_attempted_batch_at,
             "last_successful_batch_at": health.last_successful_batch_at,
@@ -137,6 +144,18 @@ def build_application(
             "last_batch_incomplete_diagnostic_count": (
                 health.last_batch_incomplete_diagnostic_count
             ),
+            "formation_slots": [
+                {
+                    "slot_id": item.slot_id,
+                    "state": item.state.value,
+                    "claimed_at": item.claimed_at,
+                    "observed_at": item.observed_at,
+                    "reason_code": item.reason_code,
+                    "failure_class": item.failure_class,
+                    "attempt_count": item.attempt_count,
+                }
+                for item in formation_slots
+            ],
         }
 
     screening_operational_health = (

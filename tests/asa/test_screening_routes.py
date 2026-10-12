@@ -270,6 +270,7 @@ class TestScreeningOperations:
             "last_batch_pair_count": 90,
             "last_batch_failure_count": 0,
             "last_batch_incomplete_diagnostic_count": 0,
+            "formation_slots": [],
         }
 
     def test_screening_liveness_requires_authorization(self) -> None:

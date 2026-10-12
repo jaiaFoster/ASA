@@ -117,6 +117,16 @@ class CapabilitiesResponse(BaseModel):
     signals: list[SignalCapabilityResponse]
 
 
+class FormationSlotObservationResponse(BaseModel):
+    slot_id: str
+    state: str
+    claimed_at: datetime | None
+    observed_at: datetime
+    reason_code: str | None
+    failure_class: str | None
+    attempt_count: int
+
+
 class ScreeningOperationalHealthResponse(BaseModel):
     last_attempted_batch_at: datetime | None
     last_successful_batch_at: datetime | None
@@ -126,6 +136,7 @@ class ScreeningOperationalHealthResponse(BaseModel):
     last_batch_pair_count: int
     last_batch_failure_count: int
     last_batch_incomplete_diagnostic_count: int
+    formation_slots: list[FormationSlotObservationResponse] = Field(default_factory=list)
 
 
 class ReasonCountResponse(BaseModel):

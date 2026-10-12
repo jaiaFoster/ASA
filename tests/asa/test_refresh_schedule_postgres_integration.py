@@ -10,7 +10,11 @@ from alembic import command
 from alembic.config import Config
 from sqlalchemy import create_engine, text
 
-from asa.integrations.refresh_schedule_postgres import PostgresSubjectRefreshRepository
+from asa.integrations.refresh_schedule_postgres import (
+    PostgresRefreshScheduleClaimRepository,
+    PostgresSubjectRefreshRepository,
+    ScheduleSlotState,
+)
 
 pytestmark = [
     pytest.mark.postgres,
@@ -106,3 +110,37 @@ def test_completion_backoff_and_operational_health(
         maximum_subjects=2,
         lease=timedelta(minutes=30),
     ) == ("AAPL",)
+
+
+def test_due_slot_crash_lease_and_exception_retry_are_durable() -> None:
+    database_url = os.environ["ASA_TEST_DATABASE_URL"]
+    os.environ["ASA_DATABASE_URL"] = database_url
+    command.upgrade(Config("alembic.ini"), "head")
+    engine = create_engine(database_url)
+    with engine.begin() as connection:
+        connection.execute(text("TRUNCATE refresh_schedule_claims"))
+    repository = PostgresRefreshScheduleClaimRepository(engine)
+    slot = "complete-family:test-family:2026-10-16"
+
+    assert repository.claim_due_slot(slot, NOW, lease=timedelta(minutes=30))
+    assert not repository.claim_due_slot(slot, NOW + timedelta(minutes=1))
+    assert repository.observations("complete-family:")[0].state == (
+        ScheduleSlotState.DUE_UNOBSERVED
+    )
+    assert repository.claim_due_slot(slot, NOW + timedelta(minutes=31))
+    repository.complete(
+        slot,
+        completed_at=NOW + timedelta(minutes=32),
+        state=ScheduleSlotState.DUE_ASA_EXCEPTION,
+        reason_code="injected_failure",
+        failure_class="RuntimeError",
+    )
+    assert repository.claim_due_slot(slot, NOW + timedelta(minutes=33))
+    repository.complete(
+        slot,
+        completed_at=NOW + timedelta(minutes=34),
+        state=ScheduleSlotState.DUE_EVALUATED,
+    )
+    observation = repository.observations("complete-family:")[0]
+    assert observation.state == ScheduleSlotState.DUE_EVALUATED
+    assert observation.attempt_count == 3

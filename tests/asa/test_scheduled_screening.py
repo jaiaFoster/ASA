@@ -522,6 +522,15 @@ class _SingleUseClaimRepository:
         self.claimed.add(slot_id)
         return True
 
+    def observe_not_due(self, slot_id: str, observed_at: datetime) -> None:
+        del slot_id, observed_at
+
+    def claim_due_slot(self, slot_id: str, claimed_at: datetime, lease: object = None) -> bool:
+        return self.claim(slot_id, claimed_at)
+
+    def complete(self, slot_id: str, **kwargs: object) -> None:
+        del slot_id, kwargs
+
 
 class _InMemorySubjectRefreshRepository:
     def __init__(self) -> None:
