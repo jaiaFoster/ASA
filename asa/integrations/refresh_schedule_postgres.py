@@ -141,7 +141,7 @@ class PostgresRefreshScheduleClaimRepository:
                     SET operational_state = :state,
                         observed_at = :completed_at,
                         claim_expires_at = CASE
-                            WHEN :state = 'DUE_ASA_EXCEPTION' THEN :completed_at
+                            WHEN :release_lease THEN :completed_at
                             ELSE claim_expires_at
                         END,
                         reason_code = :reason_code,
@@ -152,6 +152,7 @@ class PostgresRefreshScheduleClaimRepository:
                 {
                     "slot_id": slot_id,
                     "state": state.value,
+                    "release_lease": state is ScheduleSlotState.DUE_ASA_EXCEPTION,
                     "completed_at": completed_at,
                     "reason_code": reason_code,
                     "failure_class": failure_class,
