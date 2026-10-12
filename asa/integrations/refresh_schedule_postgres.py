@@ -6,7 +6,6 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import StrEnum
-from threading import Lock
 
 from sqlalchemy import Engine, ScalarResult, text
 
@@ -62,63 +61,59 @@ class InMemoryRefreshScheduleClaimRepository:
     def __init__(self) -> None:
         self._observations: dict[str, ScheduleSlotObservation] = {}
         self._expires: dict[str, datetime | None] = {}
-        self._lock = Lock()
 
     def observe_not_due(self, slot_id: str, observed_at: datetime) -> None:
-        with self._lock:
-            current = self._observations.get(slot_id)
-            if current is None or current.state is ScheduleSlotState.NOT_DUE:
-                self._observations[slot_id] = ScheduleSlotObservation(
-                    slot_id, ScheduleSlotState.NOT_DUE, None, observed_at, None, None, 0
-                )
-                self._expires[slot_id] = None
-
-    def claim(self, slot_id: str, claimed_at: datetime) -> bool:
-        with self._lock:
-            if slot_id in self._observations:
-                return False
+        current = self._observations.get(slot_id)
+        if current is None or current.state is ScheduleSlotState.NOT_DUE:
             self._observations[slot_id] = ScheduleSlotObservation(
-                slot_id,
-                ScheduleSlotState.DUE_UNOBSERVED,
-                claimed_at,
-                claimed_at,
-                None,
-                None,
-                1,
+                slot_id, ScheduleSlotState.NOT_DUE, None, observed_at, None, None, 0
             )
             self._expires[slot_id] = None
-            return True
+
+    def claim(self, slot_id: str, claimed_at: datetime) -> bool:
+        if slot_id in self._observations:
+            return False
+        self._observations[slot_id] = ScheduleSlotObservation(
+            slot_id,
+            ScheduleSlotState.DUE_UNOBSERVED,
+            claimed_at,
+            claimed_at,
+            None,
+            None,
+            1,
+        )
+        self._expires[slot_id] = None
+        return True
 
     def claim_due_slot(
         self, slot_id: str, claimed_at: datetime, lease: timedelta = timedelta(minutes=30)
     ) -> ScheduleSlotClaim | None:
-        with self._lock:
-            current = self._observations.get(slot_id)
-            expiry = self._expires.get(slot_id)
-            eligible = current is None or current.state in {
-                ScheduleSlotState.NOT_DUE,
-                ScheduleSlotState.DUE_ASA_EXCEPTION,
-            }
-            eligible = eligible or (
-                current is not None
-                and current.state is ScheduleSlotState.DUE_UNOBSERVED
-                and expiry is not None
-                and expiry <= claimed_at
-            )
-            if not eligible:
-                return None
-            attempt = 1 if current is None else current.attempt_count + 1
-            self._observations[slot_id] = ScheduleSlotObservation(
-                slot_id,
-                ScheduleSlotState.DUE_UNOBSERVED,
-                claimed_at,
-                claimed_at,
-                None,
-                None,
-                attempt,
-            )
-            self._expires[slot_id] = claimed_at + lease
-            return ScheduleSlotClaim(slot_id, attempt)
+        current = self._observations.get(slot_id)
+        expiry = self._expires.get(slot_id)
+        eligible = current is None or current.state in {
+            ScheduleSlotState.NOT_DUE,
+            ScheduleSlotState.DUE_ASA_EXCEPTION,
+        }
+        eligible = eligible or (
+            current is not None
+            and current.state is ScheduleSlotState.DUE_UNOBSERVED
+            and expiry is not None
+            and expiry <= claimed_at
+        )
+        if not eligible:
+            return None
+        attempt = 1 if current is None else current.attempt_count + 1
+        self._observations[slot_id] = ScheduleSlotObservation(
+            slot_id,
+            ScheduleSlotState.DUE_UNOBSERVED,
+            claimed_at,
+            claimed_at,
+            None,
+            None,
+            attempt,
+        )
+        self._expires[slot_id] = claimed_at + lease
+        return ScheduleSlotClaim(slot_id, attempt)
 
     def complete(
         self,
@@ -130,35 +125,33 @@ class InMemoryRefreshScheduleClaimRepository:
         failure_class: str | None = None,
     ) -> None:
         _validate_terminal_state(state)
-        with self._lock:
-            current = self._observations.get(claim.slot_id)
-            if (
-                current is None
-                or current.state is not ScheduleSlotState.DUE_UNOBSERVED
-                or current.attempt_count != claim.attempt_count
-            ):
-                raise ScheduleSlotOwnershipLost(
-                    f"due slot {claim.slot_id!r} attempt {claim.attempt_count} is not active"
-                )
-            self._observations[claim.slot_id] = ScheduleSlotObservation(
-                claim.slot_id,
-                state,
-                current.claimed_at,
-                completed_at,
-                reason_code,
-                failure_class,
-                current.attempt_count,
+        current = self._observations.get(claim.slot_id)
+        if (
+            current is None
+            or current.state is not ScheduleSlotState.DUE_UNOBSERVED
+            or current.attempt_count != claim.attempt_count
+        ):
+            raise ScheduleSlotOwnershipLost(
+                f"due slot {claim.slot_id!r} attempt {claim.attempt_count} is not active"
             )
-            if state is ScheduleSlotState.DUE_ASA_EXCEPTION:
-                self._expires[claim.slot_id] = completed_at
+        self._observations[claim.slot_id] = ScheduleSlotObservation(
+            claim.slot_id,
+            state,
+            current.claimed_at,
+            completed_at,
+            reason_code,
+            failure_class,
+            current.attempt_count,
+        )
+        if state is ScheduleSlotState.DUE_ASA_EXCEPTION:
+            self._expires[claim.slot_id] = completed_at
 
     def observations(self, slot_prefix: str) -> tuple[ScheduleSlotObservation, ...]:
-        with self._lock:
-            return tuple(
-                self._observations[key]
-                for key in sorted(self._observations)
-                if key.startswith(slot_prefix)
-            )
+        return tuple(
+            self._observations[key]
+            for key in sorted(self._observations)
+            if key.startswith(slot_prefix)
+        )
 
 
 def _validate_terminal_state(state: ScheduleSlotState) -> None:
