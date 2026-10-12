@@ -66,6 +66,9 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    # The old table represents acquired claims only. New projection-only
+    # observations have no claim and cannot be represented in that schema.
+    op.execute("DELETE FROM refresh_schedule_claims WHERE claimed_at IS NULL")
     op.drop_constraint(
         "ck_refresh_schedule_attempt_count", "refresh_schedule_claims", type_="check"
     )
