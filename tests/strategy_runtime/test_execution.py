@@ -14,6 +14,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
+from strategies.errors import ComponentContractError, GraphExecutionError
 from strategy_runtime import (
     NO_LIFECYCLE,
     DataRequirement,
@@ -141,6 +142,28 @@ class TestRunStrategies:
 
         assert result.error_detail == "ValueError: unhandled adapter exception"
         assert "sandbox-secret-token" not in (result.error_detail or "")
+
+    def test_graph_failure_preserves_safe_cause_category(self) -> None:
+        def _adapter_with_graph_failure(context: RuntimeContext) -> str:
+            raise GraphExecutionError("sandbox-secret-token") from ComponentContractError(
+                "provider-secret-payload"
+            )
+
+        registry = StrategyRegistry(((_contract("alpha"), _adapter_with_graph_failure),))
+        clock = _IncrementingClock(datetime(2026, 1, 1, tzinfo=UTC))
+
+        (result,) = run_strategies(registry, clock, subjects=("AAPL",))
+
+        assert result.error_detail == "GraphExecutionError: component contract failure"
+
+    def test_graph_failure_never_projects_arbitrary_exception_text(self) -> None:
+        def adapter(context: RuntimeContext) -> str:
+            raise GraphExecutionError("sandbox-secret-token")
+
+        registry = StrategyRegistry(((_contract("alpha"), adapter),))
+        clock = _IncrementingClock(datetime(2026, 1, 1, tzinfo=UTC))
+        (result,) = run_strategies(registry, clock, subjects=("AAPL",))
+        assert result.error_detail == "GraphExecutionError: unhandled adapter exception"
 
     def test_duration_seconds_reflects_the_injected_clock(self) -> None:
         registry = StrategyRegistry(((_contract("alpha"), _succeeding_adapter),))

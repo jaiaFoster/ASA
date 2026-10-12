@@ -21,6 +21,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Generic, TypeVar
 
+from strategies.errors import ComponentContractError, GraphExecutionError
 from strategy_runtime.clock import Clock
 from strategy_runtime.context import RuntimeContext
 from strategy_runtime.errors import StrategyContractViolationError
@@ -122,6 +123,24 @@ def _run_one(
             status=ExecutionStatus.ADAPTER_EXCEPTION,
             result=None,
             error_detail=f"{type(exc).__name__}: {exc}",
+            duration_seconds=max(0.0, (finished_at - started_at).total_seconds()),
+        )
+    except GraphExecutionError as exc:
+        # Components can raise GraphExecutionError with arbitrary messages.
+        # Project only a recognized cause category, never exception text.
+        detail = (
+            "GraphExecutionError: component contract failure"
+            if isinstance(exc.__cause__, ComponentContractError)
+            else "GraphExecutionError: unhandled adapter exception"
+        )
+        finished_at = clock.now()
+        return StrategyExecutionResult(
+            strategy_id=strategy_id,
+            subject=subject,
+            run_id=run_id,
+            status=ExecutionStatus.ADAPTER_EXCEPTION,
+            result=None,
+            error_detail=detail,
             duration_seconds=max(0.0, (finished_at - started_at).total_seconds()),
         )
     except Exception as exc:

@@ -131,6 +131,13 @@ def select_earnings_calendar_structure(
         return UnknownReason(
             "no_call_contracts_at_selected_expiration", demand_ids=no_calls_demand_ids
         )
+    # Reject an impossible calendar before graph execution. Keep the existing
+    # independent ATM evidence selection and graph target policy unchanged.
+    if not set(front_strikes) & set(back_strikes):
+        return UnknownReason(
+            "no_common_strike",
+            demand_ids=(front_chain_demand_id, back_chain_demand_id),
+        )
     front_strike = select_atm_strike(front_strikes, spot_price)
     back_strike = select_atm_strike(back_strikes, spot_price)
     front_contract = select_canonical_contract(

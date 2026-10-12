@@ -28,6 +28,7 @@ from screening import APPROVED_LIVE_UNIVERSE, EARNINGS_CALENDAR_UNIVERSE
 from screening.universe_membership import SP500_MEMBERSHIP
 from strategy_runtime.orchestration import ShadowParityDiagnostic
 from tests.asa._fixture_market_data_access import (
+    DisjointCalendarStrikeFixtureProvider,
     DuplicateEarningsFixtureProvider,
     WatchEarningsFixtureProvider,
     build_fixture_market_data_access_factory,
@@ -38,6 +39,23 @@ from tests.asa.fakes import InMemoryLatestResultRepository, InMemoryObservationH
 from tests.asa.market_data_ops.fakes import ScriptedTransport, tradier_quote_response
 
 
+@pytest.fixture
+def isolated_cli_subsystems(monkeypatch: pytest.MonkeyPatch) -> None:
+    """CLI exit tests replace external roots, not the runner under test."""
+    import asa.scheduled_screening as module
+
+    for name in (
+        "run_scheduled_stock_benchmark_refresh",
+        "run_scheduled_fixed_subject_option_refresh",
+        "run_scheduled_complete_family_refresh",
+        "run_scheduled_portfolio_refresh",
+        "run_scheduled_proposal_enrollment",
+        "run_scheduled_outcome_collection",
+    ):
+        monkeypatch.setattr(module, name, lambda *args, **kwargs: ())
+
+
+@pytest.mark.usefixtures("isolated_cli_subsystems")
 def test_operational_json_labels_bounded_cohort_semantics(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
@@ -59,6 +77,93 @@ def test_operational_json_labels_bounded_cohort_semantics(
     report = json.loads(capsys.readouterr().out)
     assert report["artifact_type"] == "bounded_run_cohort"
     assert report["total"] == 1
+    assert report["terminal_state"] == "completed"
+    assert report["process_exit_code"] == 0
+
+
+@pytest.mark.usefixtures("isolated_cli_subsystems")
+def test_operational_json_freezes_completed_with_pair_failures_exit_contract(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """PT-01: final artifact exists, isolated failure remains visible, exit 1."""
+    import asa.scheduled_screening as scheduled_screening_module
+
+    monkeypatch.setattr(
+        scheduled_screening_module,
+        "run_scheduled_refresh",
+        lambda **_kwargs: (
+            scheduled_screening_module.PairOutcome(
+                "earnings_calendar",
+                "HST",
+                None,
+                None,
+                "GraphExecutionError: component evaluation failed at calendar "
+                "(ComponentContractError)",
+                False,
+            ),
+            scheduled_screening_module.PairOutcome(
+                "forward_factor", "HST", "no_signal", 3, None, True
+            ),
+        ),
+    )
+    monkeypatch.setattr(scheduled_screening_module, "run_scheduled_portfolio_refresh", lambda: None)
+
+    assert scheduled_screening_module.main(["--json"]) == 1
+    report = json.loads(capsys.readouterr().out)
+    assert report["terminal_state"] == "completed_with_pair_failures"
+    assert report["process_exit_code"] == 1
+    assert report["failed"] == 1
+    assert report["results"][0]["symbol"] == "HST"
+    assert report["results"][0]["error"].startswith(
+        "GraphExecutionError: component evaluation failed at calendar"
+    )
+    assert report["results"][1]["error"] is None
+
+
+@pytest.mark.parametrize(
+    ("runner", "failure_code"),
+    (
+        ("run_scheduled_stock_benchmark_refresh", "stock_benchmark_refresh_failed"),
+        ("run_scheduled_fixed_subject_option_refresh", "fixed_subject_option_refresh_failed"),
+        ("run_scheduled_complete_family_refresh", "complete_family_refresh_failed"),
+        ("run_scheduled_portfolio_refresh", "portfolio_refresh_failed"),
+        ("run_scheduled_proposal_enrollment", "proposal_outcome_enrollment_failed"),
+        ("run_scheduled_outcome_collection", "forward_outcome_collection_failed"),
+    ),
+)
+def test_isolated_subsystem_failure_cannot_report_successful_process(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    caplog: pytest.LogCaptureFixture,
+    runner: str,
+    failure_code: str,
+) -> None:
+    import asa.scheduled_screening as module
+
+    monkeypatch.setattr(module, "run_scheduled_refresh", lambda **kwargs: ())
+    for name in (
+        "run_scheduled_stock_benchmark_refresh",
+        "run_scheduled_fixed_subject_option_refresh",
+        "run_scheduled_complete_family_refresh",
+        "run_scheduled_portfolio_refresh",
+        "run_scheduled_proposal_enrollment",
+        "run_scheduled_outcome_collection",
+    ):
+        monkeypatch.setattr(module, name, lambda *args, **kwargs: ())
+
+    def fail(*args: object, **kwargs: object) -> None:
+        raise RuntimeError("sensitive-provider-payload")
+
+    monkeypatch.setattr(module, runner, fail)
+    assert module.main(["--json"]) == 1
+    output = capsys.readouterr().out
+    report = json.loads(output)
+    assert report["terminal_state"] == "completed_with_subsystem_failures"
+    assert report["subsystem_failures"] == [failure_code]
+    assert report["process_exit_code"] == 1
+    assert "sensitive-provider-payload" not in output
+    assert "sensitive-provider-payload" not in caplog.text
 
 
 def _tradier_option(
@@ -1530,6 +1635,38 @@ def test_production_root_prepares_all_three_strategies_from_one_subject_snapshot
     )
 
 
+def test_production_root_classifies_disjoint_calendar_strikes_without_pair_exception(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """PT-01 production-shaped reproduction; historic HST cause is unconfirmed."""
+    import asa.scheduled_screening as scheduled_screening_module
+
+    monkeypatch.setattr(
+        scheduled_screening_module,
+        "build_shared_market_data_access",
+        build_fixture_market_data_access_factory(
+            provider_cls_by_symbol={"HST": DisjointCalendarStrikeFixtureProvider}
+        ),
+    )
+    monkeypatch.setenv("ASA_TRADIER_ENABLED", "true")
+    monkeypatch.setenv("ASA_TRADIER_ACCESS_TOKEN", "sandbox-secret-token")
+
+    repository = InMemoryLatestResultRepository()
+    outcomes = run_scheduled_refresh(
+        (("earnings_calendar", "HST"),),
+        repository=repository,
+        acquisition_attempt_repository=InMemoryAcquisitionAttemptRepository(),
+        historical_skew_repository=_RecordingHistoricalSkewRepository(),
+    )
+
+    assert len(outcomes) == 1
+    assert outcomes[0].error is None
+    assert outcomes[0].outcome == "missing_data"
+    persisted = repository.get_one("earnings_calendar", "HST")
+    assert persisted is not None
+    assert persisted.blockers == ("typed unknown evidence gap: no_common_strike",)
+
+
 def test_duplicate_provider_earnings_cannot_destroy_sibling_strategy_preparation(
     monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
 ) -> None:
@@ -2413,6 +2550,7 @@ def test_scheduled_forward_factor_unaffected_by_earnings_cutover(
     assert forward_factor_persisted is not None
 
 
+@pytest.mark.usefixtures("isolated_cli_subsystems")
 def test_main_also_runs_the_stock_benchmark_refresh_on_the_same_tick(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -2455,6 +2593,7 @@ def test_main_also_runs_the_stock_benchmark_refresh_on_the_same_tick(
     assert payload["total"] == 3
 
 
+@pytest.mark.usefixtures("isolated_cli_subsystems")
 def test_main_reports_options_outcomes_even_when_the_stock_benchmark_refresh_fails(
     monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
 ) -> None:
@@ -2479,7 +2618,7 @@ def test_main_reports_options_outcomes_even_when_the_stock_benchmark_refresh_fai
 
     exit_code = main(["--json"])
 
-    assert exit_code == 0
+    assert exit_code == 1
     assert any(record.message == "stock_benchmark_refresh_failed" for record in caplog.records)
 
 
@@ -2504,6 +2643,7 @@ def test_fixed_subject_option_pairs_run_isolated_and_are_api_active() -> None:
     }
 
 
+@pytest.mark.usefixtures("isolated_cli_subsystems")
 def test_main_reports_other_outcomes_when_the_fixed_subject_option_refresh_fails(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
@@ -2532,7 +2672,7 @@ def test_main_reports_other_outcomes_when_the_fixed_subject_option_refresh_fails
     )
     caplog.set_level(logging.WARNING)
 
-    assert scheduled_screening_module.main(["--json"]) == 0
+    assert scheduled_screening_module.main(["--json"]) == 1
     payload = json.loads(capsys.readouterr().out)
     assert payload["total"] == 2
     assert "fixed_subject_option_refresh_failed" in caplog.text
