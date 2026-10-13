@@ -30,6 +30,7 @@ asa/scheduled_screening.py or asa/api/screening_routes.py yet.
 
 from __future__ import annotations
 
+import dataclasses
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import date, datetime
@@ -64,6 +65,7 @@ from strategies.earnings_calendar_planning import (
     historical_bars_demand,
     quote_demand,
 )
+from strategies.earnings_calendar_structure import select_earnings_calendar_structure
 from strategies.knowledge_contracts import KnowledgeMapping
 from strategy_runtime.adapters.earnings_calendar import EARNINGS_CALENDAR_CONTRACT
 from strategy_runtime.adapters.earnings_calendar_subject_first import (
@@ -87,6 +89,8 @@ from strategy_runtime.subject_preparation import (
 )
 from tests.market_data.test_fulfillment import CAPABILITY, provider, service
 from tests.strategy_runtime.test_earnings_calendar_generic_composition import (
+    BACK_EXPIRATION,
+    FRONT_EXPIRATION,
     NOW,
     STRATEGY_ID,
     SYMBOL,
@@ -173,6 +177,51 @@ class TestPrepareEarningsCalendarKnowledgeMapping:
     directly -- the production function that now performs every mechanic
     the deleted test-only ``_select_structure()`` harness stood in for.
     """
+
+    def test_disjoint_front_and_back_strikes_are_typed_unknown_before_graph_execution(
+        self,
+    ) -> None:
+        """Production-shaped disjoint strike regression for PT-01.
+
+        Both expirations contain usable calls, but no executable calendar
+        strike is shared.  Before PT-01 this passed structural preparation
+        and crashed later inside the manifest's ``calendar`` node.
+        """
+        base = _chain(Decimal("0.50"), Decimal("0.20"))
+        chain = dataclasses.replace(
+            base,
+            contracts=tuple(
+                dataclasses.replace(item, strike=item.strike + Decimal("5"))
+                if item.expiration == BACK_EXPIRATION
+                else item
+                for item in base.contracts
+            ),
+        )
+        front_cycle, back_cycle = _expiration_collection().cycles
+
+        result = select_earnings_calendar_structure(
+            quote=_quote(),
+            event=_earnings_event(),
+            chain=chain,
+            bars_closes=_daily_closes(30),
+            bars_observation_id="bars",
+            quote_observation_id="quote",
+            earnings_observation_id="earnings",
+            chain_observation_id="chain",
+            front_expiration=FRONT_EXPIRATION,
+            back_expiration=BACK_EXPIRATION,
+            front_cycle=front_cycle,
+            back_cycle=back_cycle,
+            as_of=NOW.date(),
+            quote_demand_id="quote-demand",
+            historical_bars_demand_id="bars-demand",
+            front_chain_demand_id="front-demand",
+            back_chain_demand_id="back-demand",
+        )
+
+        assert isinstance(result, UnknownReason)
+        assert result.code == "no_common_strike"
+        assert set(result.demand_ids) == {"front-demand", "back-demand"}
 
     def test_pass_or_watch_parity_with_legacy_verdict_and_score(self) -> None:
         front_iv = Decimal("0.50")

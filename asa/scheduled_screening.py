@@ -1199,6 +1199,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     outcomes = run_scheduled_refresh(enforce_schedule=True)
+    subsystem_failures: list[str] = []
     # STOCK-RUNTIME-001 STK-06: B001/B002 ride the same cron tick as a
     # second, independent call -- never merged into the SP500 options
     # universe or its due-slot gating (see STOCK_BENCHMARK_UNIVERSE's own
@@ -1210,34 +1211,34 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         outcomes = outcomes + run_scheduled_stock_benchmark_refresh()
     except Exception as exc:
+        subsystem_failures.append("stock_benchmark_refresh_failed")
         _LOGGER.warning(
             "stock_benchmark_refresh_failed",
-            extra={"failure_class": type(exc).__name__, "detail": str(exc)[:500]},
-            exc_info=True,
+            extra={"failure_class": type(exc).__name__},
         )
     try:
         outcomes = outcomes + run_scheduled_fixed_subject_option_refresh()
     except Exception as exc:
+        subsystem_failures.append("fixed_subject_option_refresh_failed")
         _LOGGER.warning(
             "fixed_subject_option_refresh_failed",
-            extra={"failure_class": type(exc).__name__, "detail": str(exc)[:500]},
-            exc_info=True,
+            extra={"failure_class": type(exc).__name__},
         )
     try:
         outcomes = outcomes + run_scheduled_complete_family_refresh()
     except Exception as exc:
+        subsystem_failures.append("complete_family_refresh_failed")
         _LOGGER.warning(
             "complete_family_refresh_failed",
-            extra={"failure_class": type(exc).__name__, "detail": str(exc)[:500]},
-            exc_info=True,
+            extra={"failure_class": type(exc).__name__},
         )
     try:
         run_scheduled_portfolio_refresh()
     except Exception as exc:
+        subsystem_failures.append("portfolio_refresh_failed")
         _LOGGER.warning(
             "portfolio_refresh_failed",
-            extra={"failure_class": type(exc).__name__, "detail": str(exc)[:500]},
-            exc_info=True,
+            extra={"failure_class": type(exc).__name__},
         )
     # ND-01: enroll this tick's system-actionable proposals, isolated and
     # before collection. Qualifying pairs only; the canonical-proposal check
@@ -1249,20 +1250,20 @@ def main(argv: Sequence[str] | None = None) -> int:
             if item.error is None and item.outcome == "pass" and item.observation_id is not None
         )
     except Exception as exc:
+        subsystem_failures.append("proposal_outcome_enrollment_failed")
         _LOGGER.warning(
             "proposal_outcome_enrollment_failed",
-            extra={"failure_class": type(exc).__name__, "detail": str(exc)[:500]},
-            exc_info=True,
+            extra={"failure_class": type(exc).__name__},
         )
     # OUTCOME-INTELLIGENCE OI-03: forward outcomes run last, isolated, and do
     # not change this tick's screening report.
     try:
         run_scheduled_outcome_collection()
     except Exception as exc:
+        subsystem_failures.append("forward_outcome_collection_failed")
         _LOGGER.warning(
             "forward_outcome_collection_failed",
-            extra={"failure_class": type(exc).__name__, "detail": str(exc)[:500]},
-            exc_info=True,
+            extra={"failure_class": type(exc).__name__},
         )
     failures = [item for item in outcomes if item.error is not None]
     incomplete_diagnostics = [item for item in outcomes if not item.attempts_recorded]
@@ -1270,6 +1271,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     for item in outcomes:
         key = "infrastructure_failure" if item.error is not None else (item.outcome or "unknown")
         outcome_counts[key] = outcome_counts.get(key, 0) + 1
+    exit_code = 1 if failures or subsystem_failures else 0
+    terminal_state = (
+        "completed_with_subsystem_failures"
+        if subsystem_failures
+        else "completed_with_pair_failures"
+        if failures
+        else "completed"
+    )
 
     if not args.json:
         print(f"SCHEDULED SCREENING RUN -- {len(outcomes)} pairs")
@@ -1290,6 +1299,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         json.dumps(
             {
                 "artifact_type": "bounded_run_cohort",
+                # PT-01 terminal contract: this artifact proves the bounded
+                # runner itself reached completion. Pair failures remain
+                # visible and intentionally keep exit 1 until a separately
+                # governed operations-health channel owns alert severity.
+                "terminal_state": terminal_state,
+                "process_exit_code": exit_code,
+                "subsystem_failures": subsystem_failures,
                 "total": len(outcomes),
                 "failed": len(failures),
                 # Never silently report complete acquisition accounting
@@ -1318,7 +1334,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             }
         )
     )
-    return 1 if failures else 0
+    return exit_code
 
 
 if __name__ == "__main__":

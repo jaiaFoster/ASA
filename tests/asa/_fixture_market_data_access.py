@@ -134,6 +134,33 @@ class DuplicateEarningsFixtureProvider(MultiExpirationFixtureProvider):
         )
 
 
+class DisjointCalendarStrikeFixtureProvider(MultiExpirationFixtureProvider):
+    """HST/WRB-shaped valid call panels with no shared calendar strike."""
+
+    def _value(
+        self,
+        subject: MarketDataSubject,
+        address: str,
+        observed_at: datetime,
+        evidence: tuple[EvidenceReference, ...],
+    ) -> Quote | OHLCVBar | OptionChain | EarningsEvent:
+        value: Quote | OHLCVBar | OptionChain | EarningsEvent = super()._value(  # type: ignore[no-untyped-call]
+            subject, address, observed_at, evidence
+        )
+        if not isinstance(value, OptionChain):
+            return value
+        back_expiration = observed_at.date() + timedelta(days=40)
+        return dataclasses.replace(
+            value,
+            contracts=tuple(
+                dataclasses.replace(contract, strike=contract.strike + Decimal("1"))
+                if contract.expiration == back_expiration
+                else contract
+                for contract in value.contracts
+            ),
+        )
+
+
 @dataclass(frozen=True, slots=True)
 class _FrozenClock:
     """A truly frozen clock -- the same reading on every call. Both the
