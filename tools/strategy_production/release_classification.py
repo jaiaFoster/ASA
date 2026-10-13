@@ -283,12 +283,12 @@ def classify_release(
         formation_state = _formation_operational_state(
             strategy_id, formation_slots, window_start, window_end
         )
-        family_not_due = not in_window and (
-            formation_state == "NOT_DUE"
-            or (
-                formation_state is None
-                and not family_due_in_window(strategy_id, window_start, window_end)
-            )
+        # NOT_DUE proves only the observed tick. It cannot cancel a later
+        # canonical formation obligation when the due tick was never observed.
+        family_not_due = (
+            not in_window
+            and formation_state in (None, "NOT_DUE")
+            and not family_due_in_window(strategy_id, window_start, window_end)
         )
         if family_not_due:
             classification = NOT_DUE

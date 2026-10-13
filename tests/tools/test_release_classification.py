@@ -179,6 +179,34 @@ def test_complete_family_without_rows_is_not_due_only_off_formation() -> None:
     assert "unobserved:xs_option_heston_straddle_momentum_lowcost" in formation["failures"]
 
 
+def test_pre_due_observation_cannot_mask_missed_formation() -> None:
+    heston = "xs_option_heston_straddle_momentum_lowcost"
+    rows = {strategy: [_row(strategy)] for strategy in SELECTED_STRATEGIES}
+    rows[heston] = []
+    for end_hour in (20, 21):
+        end = datetime(2026, 10, 16, end_hour, 50, tzinfo=UTC)
+        artifact = classify_release(
+            _fetcher(
+                rows,
+                formation_slots=[
+                    {
+                        "slot_id": "complete-family:heston_straddle_momentum_v1:2026-10-16",
+                        "state": "NOT_DUE",
+                        "observed_at": "2026-10-16T19:00:00Z",
+                    }
+                ],
+            ),
+            production_sha=SHA,
+            window_start=datetime(2026, 10, 16, 13, 30, tzinfo=UTC),
+            window_end=end,
+            captured_at=end,
+            cron_lines=CLEAN_CRON,
+        )
+        assert artifact["strategies"][heston]["classification"] == UNOBSERVED
+        assert f"unobserved:{heston}" in artifact["failures"]
+        assert artifact["strategies"][heston]["formation_operational_state"] == "NOT_DUE"
+
+
 def test_due_unobserved_is_read_from_canonical_scheduler_state() -> None:
     rows = {strategy: [_row(strategy)] for strategy in SELECTED_STRATEGIES}
     heston = "xs_option_heston_straddle_momentum_lowcost"
@@ -202,6 +230,31 @@ def test_due_unobserved_is_read_from_canonical_scheduler_state() -> None:
     )
     assert artifact["strategies"][heston]["classification"] == UNOBSERVED
     assert artifact["strategies"][heston]["formation_operational_state"] == "DUE_UNOBSERVED"
+
+
+def test_not_due_observation_remains_valid_off_formation_date() -> None:
+    heston = "xs_option_heston_straddle_momentum_lowcost"
+    rows = {strategy: [_row(strategy)] for strategy in SELECTED_STRATEGIES}
+    rows[heston] = []
+    artifact = classify_release(
+        _fetcher(
+            rows,
+            formation_slots=[
+                {
+                    "slot_id": "complete-family:heston_straddle_momentum_v1:2026-10-05",
+                    "state": "NOT_DUE",
+                    "observed_at": "2026-10-05T19:00:00Z",
+                }
+            ],
+        ),
+        production_sha=SHA,
+        window_start=START,
+        window_end=END,
+        captured_at=END,
+        cron_lines=CLEAN_CRON,
+    )
+    assert artifact["strategies"][heston]["classification"] == NOT_DUE
+    assert f"unobserved:{heston}" not in artifact["failures"]
 
 
 def test_knowledge_construction_failure_is_an_exception_not_a_data_blocker() -> None:
