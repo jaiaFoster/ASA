@@ -119,8 +119,11 @@ from strategy_runtime.orchestration import (
     refresh_with_shadow,
 )
 from strategy_runtime.persistence import (
+    FamilyLatestResultRepository,
     LatestResultRepository,
     ObservationHistoryRepository,
+    StagedFamilyResultRepository,
+    StagedObservationHistoryRepository,
     lifecycle_position_identities,
     lifecycle_position_states,
 )
@@ -1133,77 +1136,99 @@ def run_scheduled_complete_family_refresh(
     resolved_claim_repository = claim_repository or PostgresRefreshScheduleClaimRepository(
         create_postgres_engine(Settings().database_url)
     )
-    formation_date = run_at.astimezone(ZoneInfo("America/New_York")).date().isoformat()
-    claimed_families: dict[str, tuple[tuple[str, ...], ScheduleSlotClaim]] = {}
+    formation_date = run_at.astimezone(ZoneInfo("America/New_York")).date()
+    resolved_repository = repository or PostgresLatestResultRepository(
+        create_postgres_engine(Settings().database_url)
+    )
+    if not isinstance(resolved_repository, FamilyLatestResultRepository):
+        raise TypeError("complete-family refresh requires atomic family publication repository")
+    resolved_history_repository = history_repository or PostgresObservationHistoryRepository(
+        create_postgres_engine(Settings().database_url)
+    )
+    subjects = SP500_MEMBERSHIP.symbols
+    all_outcomes: list[PairOutcome] = []
     for family_id in sorted(families):
-        strategy_ids = tuple(families[family_id])
-        is_due = False
-        for strategy_id in strategy_ids:
-            due_callback = registry.binding_for(strategy_id).cross_subject_family_due
-            if due_callback is not None and due_callback(run_at):
-                is_due = True
-                break
-        slot_id = f"complete-family:{family_id}:{formation_date}"
+        strategy_ids = tuple(sorted(families[family_id]))
+        is_due = any(
+            (due_callback := registry.binding_for(strategy_id).cross_subject_family_due)
+            is not None
+            and due_callback(run_at)
+            for strategy_id in strategy_ids
+        )
+        slot_id = f"complete-family:{family_id}:{formation_date.isoformat()}"
         if not is_due:
             resolved_claim_repository.observe_not_due(slot_id, run_at)
             continue
         claim = resolved_claim_repository.claim_due_slot(slot_id, run_at)
-        if claim is not None:
-            claimed_families[family_id] = (strategy_ids, claim)
-    due_strategy_ids = tuple(
-        strategy_id
-        for family_id in sorted(claimed_families)
-        for strategy_id in claimed_families[family_id][0]
-    )
-    if not due_strategy_ids:
-        return ()
-    subjects = SP500_MEMBERSHIP.symbols
-    pairs = tuple((strategy_id, symbol) for strategy_id in due_strategy_ids for symbol in subjects)
-    if len(subjects) > maximum_subjects:
-        _LOGGER.info(
-            "complete_family_capacity_release_summary",
-            extra={
-                "strategy_ids": due_strategy_ids,
-                "due_strategy_count": len(due_strategy_ids),
-                "formation_date": formation_date,
-                "expected_subject_count": len(subjects),
-                "maximum_subjects": maximum_subjects,
-                "admitted_subject_count": 0,
-                "deferred_pair_count": len(pairs),
-                "provider_request_count": 0,
-                "partial_family_materializations": 0,
-                "reason": COMPLETE_FAMILY_CAPACITY_DEFERRED,
-            },
-        )
-        deferred = _persist_typed_family_deferral(
-            pairs,
-            UnknownReason(COMPLETE_FAMILY_CAPACITY_DEFERRED),
-            repository=repository
-            or PostgresLatestResultRepository(create_postgres_engine(Settings().database_url)),
-            run_at=run_at,
-        )
-        for _strategy_ids, claim in claimed_families.values():
+        if claim is None:
+            continue
+        pairs = tuple((strategy_id, symbol) for strategy_id in strategy_ids for symbol in subjects)
+        staged_results = StagedFamilyResultRepository(resolved_repository)
+        staged_history = StagedObservationHistoryRepository(resolved_history_repository)
+        terminal_state = ScheduleSlotState.DUE_EVALUATED
+        reason_code: str | None = None
+        try:
+            if len(subjects) > maximum_subjects:
+                _LOGGER.info(
+                    "complete_family_capacity_release_summary",
+                    extra={
+                        "strategy_ids": strategy_ids,
+                        "due_strategy_count": len(strategy_ids),
+                        "formation_date": formation_date.isoformat(),
+                        "expected_subject_count": len(subjects),
+                        "maximum_subjects": maximum_subjects,
+                        "admitted_subject_count": 0,
+                        "deferred_pair_count": len(pairs),
+                        "provider_request_count": 0,
+                        "partial_family_materializations": 0,
+                        "reason": COMPLETE_FAMILY_CAPACITY_DEFERRED,
+                    },
+                )
+                outcomes = _persist_typed_family_deferral(
+                    pairs,
+                    UnknownReason(COMPLETE_FAMILY_CAPACITY_DEFERRED),
+                    repository=staged_results,
+                    run_at=run_at,
+                )
+                terminal_state = ScheduleSlotState.DUE_TYPED_DEFERRED
+                reason_code = COMPLETE_FAMILY_CAPACITY_DEFERRED
+            else:
+                outcomes = run_scheduled_refresh(
+                    pairs,
+                    repository=staged_results,
+                    history_repository=staged_history,
+                    acquisition_attempt_repository=acquisition_attempt_repository,
+                    historical_skew_repository=historical_skew_repository,
+                    # Readiness may only be projected after authoritative latest-state commit.
+                    portfolio_lifecycle_repository=None,
+                    transport_factory=transport_factory,
+                    enforce_schedule=False,
+                    now=run_at,
+                )
+            failures = tuple(outcome for outcome in outcomes if outcome.error is not None)
+            if failures:
+                resolved_claim_repository.complete(
+                    claim,
+                    completed_at=run_at,
+                    state=ScheduleSlotState.DUE_ASA_EXCEPTION,
+                    reason_code="complete_family_pair_exception",
+                    failure_class="pair_exception",
+                )
+                all_outcomes.extend(outcomes)
+                continue
+            staged_results.publish(
+                family_id=family_id,
+                formation_date=formation_date,
+                expected_members=tuple(sorted(pairs)),
+            )
+            staged_history.flush()
             resolved_claim_repository.complete(
                 claim,
                 completed_at=run_at,
-                state=ScheduleSlotState.DUE_TYPED_DEFERRED,
-                reason_code=COMPLETE_FAMILY_CAPACITY_DEFERRED,
+                state=terminal_state,
+                reason_code=reason_code,
             )
-        return deferred
-    try:
-        outcomes = run_scheduled_refresh(
-            pairs,
-            repository=repository,
-            history_repository=history_repository,
-            acquisition_attempt_repository=acquisition_attempt_repository,
-            historical_skew_repository=historical_skew_repository,
-            portfolio_lifecycle_repository=portfolio_lifecycle_repository,
-            transport_factory=transport_factory,
-            enforce_schedule=False,
-            now=run_at,
-        )
-    except Exception as exc:
-        for _strategy_ids, claim in claimed_families.values():
+        except Exception as exc:
             try:
                 resolved_claim_repository.complete(
                     claim,
@@ -1219,22 +1244,9 @@ def run_scheduled_complete_family_refresh(
                     "complete_family_claim_ownership_lost",
                     extra={"slot_id": claim.slot_id, "attempt_count": claim.attempt_count},
                 )
-        raise
-    for strategy_ids, claim in claimed_families.values():
-        family_outcomes = tuple(item for item in outcomes if item.signal_id in strategy_ids)
-        failures = tuple(item for item in family_outcomes if item.error is not None)
-        resolved_claim_repository.complete(
-            claim,
-            completed_at=run_at,
-            state=(
-                ScheduleSlotState.DUE_ASA_EXCEPTION
-                if failures
-                else ScheduleSlotState.DUE_EVALUATED
-            ),
-            reason_code="complete_family_pair_exception" if failures else None,
-            failure_class="pair_exception" if failures else None,
-        )
-    return outcomes
+            raise
+        all_outcomes.extend(outcomes)
+    return tuple(all_outcomes)
 
 
 def run_scheduled_portfolio_refresh(

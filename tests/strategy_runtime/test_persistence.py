@@ -17,6 +17,8 @@ from __future__ import annotations
 from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
 
+import pytest
+
 from strategy_runtime.lifecycle import (
     OpportunityHistory,
     OpportunityObservation,
@@ -24,6 +26,7 @@ from strategy_runtime.lifecycle import (
     compute_opportunity_id,
 )
 from strategy_runtime.persistence import (
+    FamilyPublication,
     LatestResultRepository,
     ObservationHistoryRepository,
     UniversalSignalRow,
@@ -96,6 +99,36 @@ def _row(signal_id: str, symbol: str, verdict: str = "pass") -> UniversalSignalR
             observed_at=NOW,
         )
     )
+
+
+def test_family_publication_identity_binds_keys_and_manifest_binds_observations() -> None:
+    first = FamilyPublication(
+        "synthetic-family",
+        date(2026, 1, 2),
+        (("alpha", "AAPL"),),
+        (_row("alpha", "AAPL"),),
+    )
+    changed = replace(first, rows=(replace(first.rows[0], observation_id="new-observation"),))
+
+    assert changed.publication_id == first.publication_id
+    assert changed.manifest_digest != first.manifest_digest
+
+
+def test_family_publication_rejects_noncanonical_or_incomplete_members() -> None:
+    with pytest.raises(ValueError, match="unique and sorted"):
+        FamilyPublication(
+            "synthetic-family",
+            date(2026, 1, 2),
+            (("beta", "MSFT"), ("alpha", "AAPL")),
+            (_row("alpha", "AAPL"), _row("beta", "MSFT")),
+        )
+    with pytest.raises(ValueError, match="expected 2 unique members"):
+        FamilyPublication(
+            "synthetic-family",
+            date(2026, 1, 2),
+            (("alpha", "AAPL"), ("beta", "MSFT")),
+            (_row("alpha", "AAPL"),),
+        )
 
 
 def test_complete_lifecycle_position_state_round_trips_without_identity_parsing() -> None:

@@ -26,9 +26,79 @@ from datetime import date, datetime
 from sqlalchemy import Engine, text
 from sqlalchemy.engine import RowMapping
 
-from strategy_runtime.persistence import UniversalSignalRow
+from strategy_runtime.persistence import (
+    CommittedFamilyPublication,
+    FamilyPublication,
+    FamilyPublicationConflictError,
+    FamilyPublicationMember,
+    FamilyPublicationOrderingError,
+    UniversalSignalRow,
+    should_replace_latest,
+)
 from strategy_runtime.result import ResultTemporalMetadata
 from strategy_runtime.values import TypedValue
+
+_UPSERT = text("""
+    INSERT INTO universal_screening_state (
+        signal_id, symbol, signal_version, observation_id,
+        opportunity_id, row_type, verdict, evaluation_state,
+        lifecycle_stage, recommendation_state, data_quality,
+        metrics, economics, blockers, warnings, provenance, observed_at,
+        temporal, source_observed_at
+    ) VALUES (
+        :signal_id, :symbol, :signal_version, :observation_id,
+        :opportunity_id, :row_type, :verdict, :evaluation_state,
+        :lifecycle_stage, :recommendation_state, :data_quality,
+        :metrics, :economics, :blockers, :warnings, :provenance, :observed_at,
+        :temporal, :source_observed_at
+    )
+    ON CONFLICT (signal_id, symbol) DO UPDATE SET
+        signal_version = EXCLUDED.signal_version,
+        observation_id = EXCLUDED.observation_id,
+        opportunity_id = EXCLUDED.opportunity_id,
+        row_type = EXCLUDED.row_type,
+        verdict = EXCLUDED.verdict,
+        evaluation_state = EXCLUDED.evaluation_state,
+        lifecycle_stage = EXCLUDED.lifecycle_stage,
+        recommendation_state = EXCLUDED.recommendation_state,
+        data_quality = EXCLUDED.data_quality,
+        metrics = EXCLUDED.metrics,
+        economics = EXCLUDED.economics,
+        blockers = EXCLUDED.blockers,
+        warnings = EXCLUDED.warnings,
+        provenance = EXCLUDED.provenance,
+        observed_at = EXCLUDED.observed_at,
+        temporal = EXCLUDED.temporal,
+        source_observed_at = EXCLUDED.source_observed_at
+    WHERE
+        (
+            COALESCE(
+                (EXCLUDED.temporal ->> 'subject_snapshot_at')::timestamptz,
+                EXCLUDED.observed_at
+            ),
+            COALESCE(
+                (EXCLUDED.temporal ->> 'evaluated_at')::timestamptz,
+                EXCLUDED.observed_at
+            ),
+            EXCLUDED.observation_id
+        ) >= (
+            COALESCE(
+                (
+                    universal_screening_state.temporal
+                    ->> 'subject_snapshot_at'
+                )::timestamptz,
+                universal_screening_state.observed_at
+            ),
+            COALESCE(
+                (
+                    universal_screening_state.temporal
+                    ->> 'evaluated_at'
+                )::timestamptz,
+                universal_screening_state.observed_at
+            ),
+            universal_screening_state.observation_id
+        )
+""")
 
 
 class PostgresLatestResultRepository:
@@ -37,70 +107,146 @@ class PostgresLatestResultRepository:
 
     def upsert(self, row: UniversalSignalRow) -> None:
         with self._engine.begin() as connection:
+            connection.execute(_UPSERT, _to_params(row))
+
+    def publish_family(self, publication: FamilyPublication) -> None:
+        """Publish ledger and exact latest-row manifest in one transaction."""
+        with self._engine.begin() as connection:
             connection.execute(
-                text("""
-                    INSERT INTO universal_screening_state (
-                        signal_id, symbol, signal_version, observation_id,
-                        opportunity_id, row_type, verdict, evaluation_state,
-                        lifecycle_stage, recommendation_state, data_quality,
-                        metrics, economics, blockers, warnings, provenance, observed_at,
-                        temporal, source_observed_at
-                    ) VALUES (
-                        :signal_id, :symbol, :signal_version, :observation_id,
-                        :opportunity_id, :row_type, :verdict, :evaluation_state,
-                        :lifecycle_stage, :recommendation_state, :data_quality,
-                        :metrics, :economics, :blockers, :warnings, :provenance, :observed_at,
-                        :temporal, :source_observed_at
-                    )
-                    ON CONFLICT (signal_id, symbol) DO UPDATE SET
-                        signal_version = EXCLUDED.signal_version,
-                        observation_id = EXCLUDED.observation_id,
-                        opportunity_id = EXCLUDED.opportunity_id,
-                        row_type = EXCLUDED.row_type,
-                        verdict = EXCLUDED.verdict,
-                        evaluation_state = EXCLUDED.evaluation_state,
-                        lifecycle_stage = EXCLUDED.lifecycle_stage,
-                        recommendation_state = EXCLUDED.recommendation_state,
-                        data_quality = EXCLUDED.data_quality,
-                        metrics = EXCLUDED.metrics,
-                        economics = EXCLUDED.economics,
-                        blockers = EXCLUDED.blockers,
-                        warnings = EXCLUDED.warnings,
-                        provenance = EXCLUDED.provenance,
-                        observed_at = EXCLUDED.observed_at,
-                        temporal = EXCLUDED.temporal,
-                        source_observed_at = EXCLUDED.source_observed_at
-                    WHERE
-                        (
-                            COALESCE(
-                                (EXCLUDED.temporal ->> 'subject_snapshot_at')::timestamptz,
-                                EXCLUDED.observed_at
-                            ),
-                            COALESCE(
-                                (EXCLUDED.temporal ->> 'evaluated_at')::timestamptz,
-                                EXCLUDED.observed_at
-                            ),
-                            EXCLUDED.observation_id
-                        ) >= (
-                            COALESCE(
-                                (
-                                    universal_screening_state.temporal
-                                    ->> 'subject_snapshot_at'
-                                )::timestamptz,
-                                universal_screening_state.observed_at
-                            ),
-                            COALESCE(
-                                (
-                                    universal_screening_state.temporal
-                                    ->> 'evaluated_at'
-                                )::timestamptz,
-                                universal_screening_state.observed_at
-                            ),
-                            universal_screening_state.observation_id
-                        )
-                """),
-                _to_params(row),
+                text("SELECT pg_advisory_xact_lock(hashtext(:publication_id))"),
+                {"publication_id": publication.publication_id},
             )
+            existing = (
+                connection.execute(
+                    text(
+                        "SELECT * FROM screening_family_publications "
+                        "WHERE publication_id = :publication_id"
+                    ),
+                    {"publication_id": publication.publication_id},
+                )
+                .mappings()
+                .first()
+            )
+            if existing is not None:
+                if existing["manifest_digest"] != publication.manifest_digest:
+                    raise FamilyPublicationConflictError(
+                        f"publication {publication.publication_id!r} has a different manifest"
+                    )
+                return
+            keys = tuple((row.signal_id, row.symbol) for row in publication.rows)
+            current = {
+                (mapping["signal_id"], mapping["symbol"]): _to_row(mapping)
+                for mapping in connection.execute(
+                    text(
+                        "SELECT * FROM universal_screening_state "
+                        "WHERE (signal_id, symbol) IN "
+                        "(SELECT * FROM unnest(CAST(:signal_ids AS text[]), "
+                        "CAST(:symbols AS text[]))) FOR UPDATE"
+                    ),
+                    {
+                        "signal_ids": [key[0] for key in keys],
+                        "symbols": [key[1] for key in keys],
+                    },
+                ).mappings()
+            }
+            stale = [
+                key
+                for key, row in zip(keys, publication.rows, strict=True)
+                if not should_replace_latest(current.get(key), row)
+            ]
+            if stale:
+                raise FamilyPublicationOrderingError(
+                    f"family publication would regress latest members: {stale!r}"
+                )
+            connection.execute(
+                text(
+                    "INSERT INTO screening_family_publications "
+                    "(publication_id, family_id, formation_date, identity_version, "
+                    "manifest_digest, member_manifest) VALUES "
+                    "(:publication_id, :family_id, :formation_date, :identity_version, "
+                    ":manifest_digest, CAST(:member_manifest AS jsonb))"
+                ),
+                {
+                    "publication_id": publication.publication_id,
+                    "family_id": publication.family_id,
+                    "formation_date": publication.formation_date,
+                    "identity_version": publication.identity_version,
+                    "manifest_digest": publication.manifest_digest,
+                    "member_manifest": json.dumps(
+                        [
+                            {
+                                "signal_id": member.signal_id,
+                                "symbol": member.symbol,
+                                "observation_id": member.observation_id,
+                            }
+                            for member in publication.members
+                        ],
+                        sort_keys=True,
+                        separators=(",", ":"),
+                    ),
+                },
+            )
+            for row in publication.rows:
+                connection.execute(_UPSERT, _to_params(row))
+            observed = tuple(
+                (
+                    mapping["signal_id"],
+                    mapping["symbol"],
+                    mapping["observation_id"],
+                )
+                for mapping in connection.execute(
+                    text(
+                        "SELECT signal_id, symbol, observation_id "
+                        "FROM universal_screening_state "
+                        "WHERE (signal_id, symbol) IN "
+                        "(SELECT * FROM unnest(CAST(:signal_ids AS text[]), "
+                        "CAST(:symbols AS text[]))) ORDER BY signal_id, symbol"
+                    ),
+                    {
+                        "signal_ids": [key[0] for key in keys],
+                        "symbols": [key[1] for key in keys],
+                    },
+                ).mappings()
+            )
+            expected = tuple(
+                (member.signal_id, member.symbol, member.observation_id)
+                for member in publication.members
+            )
+            if observed != expected:
+                raise FamilyPublicationConflictError(
+                    "post-write latest rows do not match committed family manifest"
+                )
+
+    def get_family_publication(
+        self, publication_id: str
+    ) -> CommittedFamilyPublication | None:
+        with self._engine.connect() as connection:
+            row = (
+                connection.execute(
+                    text(
+                        "SELECT * FROM screening_family_publications "
+                        "WHERE publication_id = :publication_id"
+                    ),
+                    {"publication_id": publication_id},
+                )
+                .mappings()
+                .first()
+            )
+        if row is None:
+            return None
+        return CommittedFamilyPublication(
+            publication_id=row["publication_id"],
+            family_id=row["family_id"],
+            formation_date=row["formation_date"],
+            identity_version=row["identity_version"],
+            manifest_digest=row["manifest_digest"],
+            members=tuple(
+                FamilyPublicationMember(
+                    member["signal_id"], member["symbol"], member["observation_id"]
+                )
+                for member in row["member_manifest"]
+            ),
+        )
 
     def get_all(self) -> tuple[UniversalSignalRow, ...]:
         with self._engine.connect() as connection:
