@@ -5,6 +5,8 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from urllib.parse import parse_qs, urlparse
 
+import pytest
+
 from tools.options_product.founder_utility import FetchResponse, JsonObject
 from tools.strategy_production.release_classification import (
     LIVE_EVALUABLE,
@@ -230,6 +232,133 @@ def test_due_unobserved_is_read_from_canonical_scheduler_state() -> None:
     )
     assert artifact["strategies"][heston]["classification"] == UNOBSERVED
     assert artifact["strategies"][heston]["formation_operational_state"] == "DUE_UNOBSERVED"
+
+
+@pytest.mark.parametrize(
+    "state",
+    [
+        "NOT_DUE",
+        "DUE_UNOBSERVED",
+        "DUE_ASA_EXCEPTION",
+        "DUE_EVALUATED",
+        "DUE_TYPED_DEFERRED",
+    ],
+)
+@pytest.mark.parametrize("row_kind", ["evaluated", "typed", "exception", "absent"])
+def test_formation_state_row_precedence_matrix(state: str, row_kind: str) -> None:
+    heston = "xs_option_heston_straddle_momentum_lowcost"
+    rows = {
+        strategy: [_row(strategy, updated_at="2026-10-16T21:00:00Z")]
+        for strategy in SELECTED_STRATEGIES
+    }
+    if row_kind == "absent":
+        rows[heston] = []
+    elif row_kind == "typed":
+        rows[heston][0].update(evaluation_state="missing_data", blockers=["upstream_no_data"])
+    elif row_kind == "exception":
+        rows[heston][0].update(evaluation_state="missing_data", blockers=[])
+    artifact = classify_release(
+        _fetcher(
+            rows,
+            formation_slots=[
+                {
+                    "slot_id": "complete-family:heston_straddle_momentum_v1:2026-10-16",
+                    "state": state,
+                    "observed_at": "2026-10-16T21:10:00Z",
+                    "reason_code": "CAPACITY_DEFERRED_INCOMPLETE_COHORT"
+                    if state == "DUE_TYPED_DEFERRED"
+                    else None,
+                }
+            ],
+        ),
+        production_sha=SHA,
+        window_start=datetime(2026, 10, 16, 13, 30, tzinfo=UTC),
+        window_end=datetime(2026, 10, 16, 21, 50, tzinfo=UTC),
+        captured_at=END,
+        cron_lines=CLEAN_CRON,
+    )
+    result = artifact["strategies"][heston]
+    if state in ("NOT_DUE", "DUE_UNOBSERVED", "DUE_ASA_EXCEPTION"):
+        assert result["classification"] == UNOBSERVED
+        assert result["formation_operational_failures"]
+    elif state == "DUE_TYPED_DEFERRED":
+        assert result["classification"] == LIVE_TYPED_DATA_BLOCKER
+    else:
+        expected = {
+            "evaluated": LIVE_EVALUABLE,
+            "typed": LIVE_TYPED_DATA_BLOCKER,
+            "exception": UNOBSERVED,
+            "absent": UNOBSERVED,
+        }[row_kind]
+        assert result["classification"] == expected
+    can_close = state in ("DUE_EVALUATED", "DUE_TYPED_DEFERRED") and row_kind != "exception"
+    if state == "DUE_EVALUATED" and row_kind == "absent":
+        can_close = False
+    assert (artifact["verdict"] == "pass") == can_close
+
+
+@pytest.mark.parametrize("later_state", ["NOT_DUE", "DUE_EVALUATED"])
+@pytest.mark.parametrize("earlier_state", ["DUE_UNOBSERVED", "DUE_EVALUATED"])
+def test_later_date_cannot_erase_prior_unobserved_formation(
+    later_state: str, earlier_state: str
+) -> None:
+    heston = "xs_option_heston_straddle_momentum_lowcost"
+    rows = {
+        strategy: [_row(strategy, updated_at="2026-10-19T21:00:00Z")]
+        for strategy in SELECTED_STRATEGIES
+    }
+    artifact = classify_release(
+        _fetcher(
+            rows,
+            formation_slots=[
+                {
+                    "slot_id": "complete-family:heston_straddle_momentum_v1:2026-10-16",
+                    "state": earlier_state,
+                    "observed_at": "2026-10-16T21:10:00Z",
+                },
+                {
+                    "slot_id": "complete-family:heston_straddle_momentum_v1:2026-10-19",
+                    "state": later_state,
+                    "observed_at": "2026-10-19T21:10:00Z",
+                },
+            ],
+        ),
+        production_sha=SHA,
+        window_start=datetime(2026, 10, 16, 13, 30, tzinfo=UTC),
+        window_end=datetime(2026, 10, 19, 21, 50, tzinfo=UTC),
+        captured_at=END,
+        cron_lines=CLEAN_CRON,
+    )
+    assert artifact["strategies"][heston]["classification"] == UNOBSERVED
+    assert artifact["verdict"] == "fail"
+
+
+@pytest.mark.parametrize("slot_case", ["missing", "future", "unknown_deferral", "invalid_time"])
+def test_unproven_formation_cannot_be_discharged_by_latest_rows(slot_case: str) -> None:
+    heston = "xs_option_heston_straddle_momentum_lowcost"
+    rows = {
+        strategy: [_row(strategy, updated_at="2026-10-16T21:00:00Z")]
+        for strategy in SELECTED_STRATEGIES
+    }
+    slot = {
+        "slot_id": "complete-family:heston_straddle_momentum_v1:2026-10-16",
+        "state": "DUE_EVALUATED",
+        "observed_at": "2026-10-16T23:00:00Z",
+    }
+    if slot_case == "unknown_deferral":
+        slot.update(state="DUE_TYPED_DEFERRED", observed_at="2026-10-16T21:10:00Z")
+    if slot_case == "invalid_time":
+        slot["observed_at"] = "malformed"
+    artifact = classify_release(
+        _fetcher(rows, formation_slots=[] if slot_case == "missing" else [slot]),
+        production_sha=SHA,
+        window_start=datetime(2026, 10, 16, 13, 30, tzinfo=UTC),
+        window_end=datetime(2026, 10, 16, 21, 50, tzinfo=UTC),
+        captured_at=END,
+        cron_lines=CLEAN_CRON,
+    )
+    assert artifact["strategies"][heston]["classification"] == UNOBSERVED
+    assert artifact["verdict"] == "fail"
 
 
 def test_not_due_observation_remains_valid_off_formation_date() -> None:

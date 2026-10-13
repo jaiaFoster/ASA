@@ -211,38 +211,92 @@ def _rows(fetch: Fetch, strategy_id: str) -> list[JsonObject]:
     return rows
 
 
-def _formation_operational_state(
+def _formation_operational_evidence(
     strategy_id: str,
     formation_slots: list[JsonObject],
     window_start: datetime,
     window_end: datetime,
-) -> str | None:
-    """Canonical scheduler state for a complete family in this window."""
+    rows: list[JsonObject],
+) -> tuple[str | None, tuple[str, ...], bool]:
+    """Reconcile every family/date obligation, independently of latest rows.
+
+    A latest row is not linked to a formation slot and cannot prove completion
+    of a missing/failed slot. Nor can a later date erase an earlier obligation.
+    """
     from strategy_runtime.adapters import build_migrated_shadow_registry
 
     registry = build_migrated_shadow_registry(window_end)
     if not registry.is_registered(strategy_id):
-        return None
+        return None, (), False
     family_id = registry.binding_for(strategy_id).cross_subject_family_id
     if family_id is None:
-        return None
-    dates: set[str] = set()
+        return None, (), False
+    dates: list[datetime] = []
     day = window_start.astimezone(_NEW_YORK).date()
     last_day = window_end.astimezone(_NEW_YORK).date()
     while day <= last_day:
-        dates.add(day.isoformat())
+        dates.append(datetime.combine(day, time(0), tzinfo=_NEW_YORK))
         day += timedelta(days=1)
     prefix = f"complete-family:{family_id}:"
-    matching = [
-        item
-        for item in formation_slots
-        if str(item.get("slot_id", "")).startswith(prefix)
-        and str(item["slot_id"]).removeprefix(prefix) in dates
-    ]
-    if not matching:
-        return None
-    matching.sort(key=lambda item: str(item.get("observed_at", "")))
-    return str(matching[-1].get("state") or "") or None
+    failures: list[str] = []
+    states: list[str] = []
+    deferred = False
+    for midnight in dates:
+        date_key = midnight.date().isoformat()
+        due = family_due_in_window(
+            strategy_id, midnight, midnight + timedelta(days=1, microseconds=-1)
+        )
+        matching = [item for item in formation_slots if item.get("slot_id") == prefix + date_key]
+        if not matching:
+            if due:
+                failures.append(f"{date_key}:missing_due_observation")
+            continue
+        if len(matching) != 1:
+            failures.append(f"{date_key}:ambiguous_slot_evidence")
+            continue
+        item = matching[0]
+        state = str(item.get("state") or "")
+        try:
+            observed = _parse(str(item.get("observed_at") or ""))
+            valid_time = (
+                observed.tzinfo is not None
+                and window_start <= observed <= window_end
+                and observed.astimezone(_NEW_YORK).date() == midnight.date()
+            )
+        except ValueError:
+            valid_time = False
+        if not valid_time:
+            failures.append(f"{date_key}:slot_evidence_outside_window")
+            continue
+        states.append(state)
+        if state == "NOT_DUE":
+            if due:
+                failures.append(f"{date_key}:missing_due_observation")
+        elif state in ("DUE_UNOBSERVED", "DUE_ASA_EXCEPTION"):
+            failures.append(f"{date_key}:{state.lower()}")
+        elif state == "DUE_TYPED_DEFERRED":
+            if item.get("reason_code") == "CAPACITY_DEFERRED_INCOMPLETE_COHORT":
+                deferred = True
+            else:
+                failures.append(f"{date_key}:unrecognized_deferral")
+        elif state == "DUE_EVALUATED":
+            if not any(
+                _parse(str(row["updated_at"])).astimezone(_NEW_YORK).date() == midnight.date()
+                for row in rows
+            ):
+                failures.append(f"{date_key}:missing_formation_result")
+        else:
+            failures.append(f"{date_key}:invalid_slot_state")
+    # Deterministic aggregate for display only. Closure uses every obligation.
+    precedence = (
+        "DUE_ASA_EXCEPTION",
+        "DUE_UNOBSERVED",
+        "DUE_TYPED_DEFERRED",
+        "DUE_EVALUATED",
+        "NOT_DUE",
+    )
+    aggregate = next((state for state in precedence if state in states), None)
+    return aggregate, tuple(failures), deferred
 
 
 def classify_release(
@@ -280,8 +334,8 @@ def classify_release(
             blocker_code(str(item)) for row in in_window for item in row.get("blockers") or ()
         )
         classification = classify_strategy(in_window)
-        formation_state = _formation_operational_state(
-            strategy_id, formation_slots, window_start, window_end
+        formation_state, formation_failures, formation_deferred = _formation_operational_evidence(
+            strategy_id, formation_slots, window_start, window_end, in_window
         )
         # NOT_DUE proves only the observed tick. It cannot cancel a later
         # canonical formation obligation when the due tick was never observed.
@@ -290,7 +344,11 @@ def classify_release(
             and formation_state in (None, "NOT_DUE")
             and not family_due_in_window(strategy_id, window_start, window_end)
         )
-        if family_not_due:
+        if formation_failures:
+            classification = UNOBSERVED
+        elif formation_deferred:
+            classification = LIVE_TYPED_DATA_BLOCKER
+        elif family_not_due:
             classification = NOT_DUE
         strategies[strategy_id] = {
             "registered": strategy_id in registered,
@@ -298,6 +356,7 @@ def classify_release(
             "classification": classification,
             "family_not_due_in_window": family_not_due,
             "formation_operational_state": formation_state,
+            "formation_operational_failures": list(formation_failures),
             "row_classes": dict(sorted(row_classes.items())),
             "exception_rows": sorted(
                 str(row["symbol"]) for row in in_window if classify_row(row) == "EXCEPTION"
@@ -324,6 +383,10 @@ def classify_release(
             failures.append(f"unobserved:{strategy_id}")
         if item["exception_rows"]:
             failures.append(f"exceptions:{strategy_id}:{len(item['exception_rows'])}")
+        failures.extend(
+            f"formation:{strategy_id}:{failure}"
+            for failure in item["formation_operational_failures"]
+        )
     return {
         "artifact_kind": ARTIFACT_KIND,
         "artifact_version": ARTIFACT_VERSION,
