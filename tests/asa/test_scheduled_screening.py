@@ -8,6 +8,7 @@ from datetime import UTC, date, datetime, timedelta
 
 import pytest
 
+from asa.integrations.refresh_schedule_postgres import ScheduleSlotClaim
 from asa.scheduled_screening import (
     PRODUCTION_SCREENING_UNIVERSE,
     SP500_COHORT_MAXIMUM_SUBJECTS,
@@ -521,6 +522,17 @@ class _SingleUseClaimRepository:
             return False
         self.claimed.add(slot_id)
         return True
+
+    def observe_not_due(self, slot_id: str, observed_at: datetime) -> None:
+        del slot_id, observed_at
+
+    def claim_due_slot(
+        self, slot_id: str, claimed_at: datetime, lease: object = None
+    ) -> ScheduleSlotClaim | None:
+        return ScheduleSlotClaim(slot_id, 1) if self.claim(slot_id, claimed_at) else None
+
+    def complete(self, claim: ScheduleSlotClaim, **kwargs: object) -> None:
+        del claim, kwargs
 
 
 class _InMemorySubjectRefreshRepository:

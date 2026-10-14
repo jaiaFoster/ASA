@@ -56,6 +56,9 @@ from asa.integrations.postgres import create_postgres_engine
 from asa.integrations.refresh_schedule_postgres import (
     PostgresRefreshScheduleClaimRepository,
     PostgresSubjectRefreshRepository,
+    ScheduleSlotClaim,
+    ScheduleSlotOwnershipLost,
+    ScheduleSlotState,
 )
 from asa.integrations.runs_postgres import PostgresRunPublicationRepository
 from asa.integrations.screening_acquisition_attempts_postgres import (
@@ -343,6 +346,24 @@ class PairOutcome:
 
 class RefreshScheduleClaimRepository(Protocol):
     def claim(self, slot_id: str, claimed_at: datetime) -> bool: ...
+
+
+class FormationScheduleStateRepository(RefreshScheduleClaimRepository, Protocol):
+    def observe_not_due(self, slot_id: str, observed_at: datetime) -> None: ...
+
+    def claim_due_slot(
+        self, slot_id: str, claimed_at: datetime, lease: timedelta = timedelta(minutes=30)
+    ) -> ScheduleSlotClaim | None: ...
+
+    def complete(
+        self,
+        claim: ScheduleSlotClaim,
+        *,
+        completed_at: datetime,
+        state: ScheduleSlotState,
+        reason_code: str | None = None,
+        failure_class: str | None = None,
+    ) -> None: ...
 
 
 class SubjectRefreshRepository(Protocol):
@@ -1082,7 +1103,7 @@ def run_scheduled_complete_family_refresh(
     acquisition_attempt_repository: AcquisitionAttemptRepository | None = None,
     historical_skew_repository: HistoricalSkewRepository | None = None,
     portfolio_lifecycle_repository: PortfolioLifecycleRepository | None = None,
-    claim_repository: RefreshScheduleClaimRepository | None = None,
+    claim_repository: FormationScheduleStateRepository | None = None,
     transport_factory: Callable[[str], object] = build_live_transport,
     now: datetime | None = None,
     maximum_subjects: int = SP500_COHORT_MAXIMUM_SUBJECTS,
@@ -1098,27 +1119,41 @@ def run_scheduled_complete_family_refresh(
     """
     run_at = now or datetime.now(UTC)
     registry = build_migrated_shadow_registry(run_at)
-    due: dict[str, list[str]] = {}
+    families: dict[str, list[str]] = {}
     for strategy_id in registry.strategy_ids():
         binding = registry.binding_for(strategy_id)
         if (
             binding.requires_complete_cross_subject_universe
             and binding.cross_subject_family_id is not None
             and binding.cross_subject_family_due is not None
-            and binding.cross_subject_family_due(run_at)
         ):
-            due.setdefault(binding.cross_subject_family_id, []).append(strategy_id)
-    if not due:
+            families.setdefault(binding.cross_subject_family_id, []).append(strategy_id)
+    if not families:
         return ()
     resolved_claim_repository = claim_repository or PostgresRefreshScheduleClaimRepository(
         create_postgres_engine(Settings().database_url)
     )
     formation_date = run_at.astimezone(ZoneInfo("America/New_York")).date().isoformat()
+    claimed_families: dict[str, tuple[tuple[str, ...], ScheduleSlotClaim]] = {}
+    for family_id in sorted(families):
+        strategy_ids = tuple(families[family_id])
+        is_due = False
+        for strategy_id in strategy_ids:
+            due_callback = registry.binding_for(strategy_id).cross_subject_family_due
+            if due_callback is not None and due_callback(run_at):
+                is_due = True
+                break
+        slot_id = f"complete-family:{family_id}:{formation_date}"
+        if not is_due:
+            resolved_claim_repository.observe_not_due(slot_id, run_at)
+            continue
+        claim = resolved_claim_repository.claim_due_slot(slot_id, run_at)
+        if claim is not None:
+            claimed_families[family_id] = (strategy_ids, claim)
     due_strategy_ids = tuple(
         strategy_id
-        for family_id in sorted(due)
-        if resolved_claim_repository.claim(f"complete-family:{family_id}:{formation_date}", run_at)
-        for strategy_id in due[family_id]
+        for family_id in sorted(claimed_families)
+        for strategy_id in claimed_families[family_id][0]
     )
     if not due_strategy_ids:
         return ()
@@ -1140,24 +1175,66 @@ def run_scheduled_complete_family_refresh(
                 "reason": COMPLETE_FAMILY_CAPACITY_DEFERRED,
             },
         )
-        return _persist_typed_family_deferral(
+        deferred = _persist_typed_family_deferral(
             pairs,
             UnknownReason(COMPLETE_FAMILY_CAPACITY_DEFERRED),
             repository=repository
             or PostgresLatestResultRepository(create_postgres_engine(Settings().database_url)),
             run_at=run_at,
         )
-    return run_scheduled_refresh(
-        pairs,
-        repository=repository,
-        history_repository=history_repository,
-        acquisition_attempt_repository=acquisition_attempt_repository,
-        historical_skew_repository=historical_skew_repository,
-        portfolio_lifecycle_repository=portfolio_lifecycle_repository,
-        transport_factory=transport_factory,
-        enforce_schedule=False,
-        now=run_at,
-    )
+        for _strategy_ids, claim in claimed_families.values():
+            resolved_claim_repository.complete(
+                claim,
+                completed_at=run_at,
+                state=ScheduleSlotState.DUE_TYPED_DEFERRED,
+                reason_code=COMPLETE_FAMILY_CAPACITY_DEFERRED,
+            )
+        return deferred
+    try:
+        outcomes = run_scheduled_refresh(
+            pairs,
+            repository=repository,
+            history_repository=history_repository,
+            acquisition_attempt_repository=acquisition_attempt_repository,
+            historical_skew_repository=historical_skew_repository,
+            portfolio_lifecycle_repository=portfolio_lifecycle_repository,
+            transport_factory=transport_factory,
+            enforce_schedule=False,
+            now=run_at,
+        )
+    except Exception as exc:
+        for _strategy_ids, claim in claimed_families.values():
+            try:
+                resolved_claim_repository.complete(
+                    claim,
+                    completed_at=run_at,
+                    state=ScheduleSlotState.DUE_ASA_EXCEPTION,
+                    reason_code="complete_family_refresh_failed",
+                    failure_class=type(exc).__name__,
+                )
+            except ScheduleSlotOwnershipLost:
+                # A successor owns the reclaimed lease. Preserve its active
+                # state and the original execution exception.
+                _LOGGER.warning(
+                    "complete_family_claim_ownership_lost",
+                    extra={"slot_id": claim.slot_id, "attempt_count": claim.attempt_count},
+                )
+        raise
+    for strategy_ids, claim in claimed_families.values():
+        family_outcomes = tuple(item for item in outcomes if item.signal_id in strategy_ids)
+        failures = tuple(item for item in family_outcomes if item.error is not None)
+        resolved_claim_repository.complete(
+            claim,
+            completed_at=run_at,
+            state=(
+                ScheduleSlotState.DUE_ASA_EXCEPTION
+                if failures
+                else ScheduleSlotState.DUE_EVALUATED
+            ),
+            reason_code="complete_family_pair_exception" if failures else None,
+            failure_class="pair_exception" if failures else None,
+        )
+    return outcomes
 
 
 def run_scheduled_portfolio_refresh(

@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from enum import StrEnum
 
 from sqlalchemy import Engine, ScalarResult, text
 
@@ -21,22 +22,289 @@ class ScreeningOperationalHealth:
     last_batch_incomplete_diagnostic_count: int
 
 
+class ScheduleSlotState(StrEnum):
+    """Strategy-neutral operational state for one externally scheduled slot."""
+
+    NOT_DUE = "NOT_DUE"
+    DUE_UNOBSERVED = "DUE_UNOBSERVED"
+    DUE_EVALUATED = "DUE_EVALUATED"
+    DUE_TYPED_DEFERRED = "DUE_TYPED_DEFERRED"
+    DUE_ASA_EXCEPTION = "DUE_ASA_EXCEPTION"
+
+
+@dataclass(frozen=True, slots=True)
+class ScheduleSlotObservation:
+    slot_id: str
+    state: ScheduleSlotState
+    claimed_at: datetime | None
+    observed_at: datetime
+    reason_code: str | None
+    failure_class: str | None
+    attempt_count: int
+
+
+@dataclass(frozen=True, slots=True)
+class ScheduleSlotClaim:
+    """Fencing token for exactly one lease-owning execution attempt."""
+
+    slot_id: str
+    attempt_count: int
+
+
+class ScheduleSlotOwnershipLost(RuntimeError):
+    """The claim was completed or superseded before this worker finished."""
+
+
+class InMemoryRefreshScheduleClaimRepository:
+    """Behavioral twin used by production-shaped scheduler tests."""
+
+    def __init__(self) -> None:
+        self._observations: dict[str, ScheduleSlotObservation] = {}
+        self._expires: dict[str, datetime | None] = {}
+
+    def observe_not_due(self, slot_id: str, observed_at: datetime) -> None:
+        current = self._observations.get(slot_id)
+        if current is None or current.state is ScheduleSlotState.NOT_DUE:
+            self._observations[slot_id] = ScheduleSlotObservation(
+                slot_id, ScheduleSlotState.NOT_DUE, None, observed_at, None, None, 0
+            )
+            self._expires[slot_id] = None
+
+    def claim(self, slot_id: str, claimed_at: datetime) -> bool:
+        if slot_id in self._observations:
+            return False
+        self._observations[slot_id] = ScheduleSlotObservation(
+            slot_id,
+            ScheduleSlotState.DUE_UNOBSERVED,
+            claimed_at,
+            claimed_at,
+            None,
+            None,
+            1,
+        )
+        self._expires[slot_id] = None
+        return True
+
+    def claim_due_slot(
+        self, slot_id: str, claimed_at: datetime, lease: timedelta = timedelta(minutes=30)
+    ) -> ScheduleSlotClaim | None:
+        current = self._observations.get(slot_id)
+        expiry = self._expires.get(slot_id)
+        eligible = current is None or current.state in {
+            ScheduleSlotState.NOT_DUE,
+            ScheduleSlotState.DUE_ASA_EXCEPTION,
+        }
+        eligible = eligible or (
+            current is not None
+            and current.state is ScheduleSlotState.DUE_UNOBSERVED
+            and expiry is not None
+            and expiry <= claimed_at
+        )
+        if not eligible:
+            return None
+        attempt = 1 if current is None else current.attempt_count + 1
+        self._observations[slot_id] = ScheduleSlotObservation(
+            slot_id,
+            ScheduleSlotState.DUE_UNOBSERVED,
+            claimed_at,
+            claimed_at,
+            None,
+            None,
+            attempt,
+        )
+        self._expires[slot_id] = claimed_at + lease
+        return ScheduleSlotClaim(slot_id, attempt)
+
+    def complete(
+        self,
+        claim: ScheduleSlotClaim,
+        *,
+        completed_at: datetime,
+        state: ScheduleSlotState,
+        reason_code: str | None = None,
+        failure_class: str | None = None,
+    ) -> None:
+        _validate_terminal_state(state)
+        current = self._observations.get(claim.slot_id)
+        if (
+            current is None
+            or current.state is not ScheduleSlotState.DUE_UNOBSERVED
+            or current.attempt_count != claim.attempt_count
+        ):
+            raise ScheduleSlotOwnershipLost(
+                f"due slot {claim.slot_id!r} attempt {claim.attempt_count} is not active"
+            )
+        self._observations[claim.slot_id] = ScheduleSlotObservation(
+            claim.slot_id,
+            state,
+            current.claimed_at,
+            completed_at,
+            reason_code,
+            failure_class,
+            current.attempt_count,
+        )
+        if state is ScheduleSlotState.DUE_ASA_EXCEPTION:
+            self._expires[claim.slot_id] = completed_at
+
+    def observations(self, slot_prefix: str) -> tuple[ScheduleSlotObservation, ...]:
+        return tuple(
+            self._observations[key]
+            for key in sorted(self._observations)
+            if key.startswith(slot_prefix)
+        )
+
+
+def _validate_terminal_state(state: ScheduleSlotState) -> None:
+    if state not in {
+        ScheduleSlotState.DUE_EVALUATED,
+        ScheduleSlotState.DUE_TYPED_DEFERRED,
+        ScheduleSlotState.DUE_ASA_EXCEPTION,
+    }:
+        raise ValueError(f"{state} is not a terminal due-slot state")
+
+
 class PostgresRefreshScheduleClaimRepository:
     def __init__(self, engine: Engine) -> None:
         self._engine = engine
 
+    def observe_not_due(self, slot_id: str, observed_at: datetime) -> None:
+        """Record a scheduler observation without fabricating a strategy result."""
+        with self._engine.begin() as connection:
+            connection.execute(
+                text("""
+                    INSERT INTO refresh_schedule_claims (
+                        slot_id, operational_state, observed_at, attempt_count
+                    ) VALUES (:slot_id, 'NOT_DUE', :observed_at, 0)
+                    ON CONFLICT (slot_id) DO UPDATE
+                    SET operational_state = 'NOT_DUE',
+                        observed_at = EXCLUDED.observed_at,
+                        reason_code = NULL,
+                        failure_class = NULL
+                    WHERE refresh_schedule_claims.operational_state = 'NOT_DUE'
+                """),
+                {"slot_id": slot_id, "observed_at": observed_at},
+            )
+
     def claim(self, slot_id: str, claimed_at: datetime) -> bool:
+        """Retain one-shot idempotency for ordinary external schedule slots."""
         with self._engine.begin() as connection:
             result = connection.execute(
                 text("""
-                    INSERT INTO refresh_schedule_claims (slot_id, claimed_at)
-                    VALUES (:slot_id, :claimed_at)
+                    INSERT INTO refresh_schedule_claims (
+                        slot_id, claimed_at, operational_state, observed_at, attempt_count
+                    ) VALUES (:slot_id, :claimed_at, 'DUE_UNOBSERVED', :claimed_at, 1)
                     ON CONFLICT (slot_id) DO NOTHING
                     RETURNING slot_id
                 """),
                 {"slot_id": slot_id, "claimed_at": claimed_at},
             )
             return result.first() is not None
+
+    def claim_due_slot(
+        self, slot_id: str, claimed_at: datetime, lease: timedelta = timedelta(minutes=30)
+    ) -> ScheduleSlotClaim | None:
+        with self._engine.begin() as connection:
+            result = connection.execute(
+                text("""
+                    INSERT INTO refresh_schedule_claims (
+                        slot_id, claimed_at, claim_expires_at, operational_state,
+                        observed_at, attempt_count
+                    ) VALUES (
+                        :slot_id, :claimed_at, :claim_expires_at, 'DUE_UNOBSERVED',
+                        :claimed_at, 1
+                    )
+                    ON CONFLICT (slot_id) DO UPDATE
+                    SET claimed_at = EXCLUDED.claimed_at,
+                        claim_expires_at = EXCLUDED.claim_expires_at,
+                        operational_state = 'DUE_UNOBSERVED',
+                        observed_at = EXCLUDED.observed_at,
+                        reason_code = NULL,
+                        failure_class = NULL,
+                        attempt_count = refresh_schedule_claims.attempt_count + 1
+                    WHERE (
+                        refresh_schedule_claims.operational_state = 'NOT_DUE'
+                        OR refresh_schedule_claims.operational_state = 'DUE_ASA_EXCEPTION'
+                        OR (
+                            refresh_schedule_claims.operational_state = 'DUE_UNOBSERVED'
+                            AND refresh_schedule_claims.claim_expires_at <= :claimed_at
+                        )
+                    )
+                    RETURNING slot_id, attempt_count
+                """),
+                {
+                    "slot_id": slot_id,
+                    "claimed_at": claimed_at,
+                    "claim_expires_at": claimed_at + lease,
+                },
+            )
+            row = result.first()
+            return ScheduleSlotClaim(str(row[0]), int(row[1])) if row is not None else None
+
+    def complete(
+        self,
+        claim: ScheduleSlotClaim,
+        *,
+        completed_at: datetime,
+        state: ScheduleSlotState,
+        reason_code: str | None = None,
+        failure_class: str | None = None,
+    ) -> None:
+        _validate_terminal_state(state)
+        with self._engine.begin() as connection:
+            result = connection.execute(
+                text("""
+                    UPDATE refresh_schedule_claims
+                    SET operational_state = :state,
+                        observed_at = :completed_at,
+                        claim_expires_at = CASE
+                            WHEN :release_lease THEN :completed_at
+                            ELSE claim_expires_at
+                        END,
+                        reason_code = :reason_code,
+                        failure_class = :failure_class
+                    WHERE slot_id = :slot_id
+                      AND operational_state = 'DUE_UNOBSERVED'
+                      AND attempt_count = :attempt_count
+                """),
+                {
+                    "slot_id": claim.slot_id,
+                    "attempt_count": claim.attempt_count,
+                    "state": state.value,
+                    "release_lease": state is ScheduleSlotState.DUE_ASA_EXCEPTION,
+                    "completed_at": completed_at,
+                    "reason_code": reason_code,
+                    "failure_class": failure_class,
+                },
+            )
+            if result.rowcount != 1:
+                raise ScheduleSlotOwnershipLost(
+                    f"due slot {claim.slot_id!r} attempt {claim.attempt_count} is not active"
+                )
+
+    def observations(self, slot_prefix: str) -> tuple[ScheduleSlotObservation, ...]:
+        with self._engine.connect() as connection:
+            rows = connection.execute(
+                text("""
+                    SELECT slot_id, operational_state, claimed_at, observed_at,
+                           reason_code, failure_class, attempt_count
+                    FROM refresh_schedule_claims
+                    WHERE slot_id LIKE :prefix
+                    ORDER BY slot_id
+                """),
+                {"prefix": f"{slot_prefix}%"},
+            ).mappings()
+            return tuple(
+                ScheduleSlotObservation(
+                    slot_id=row["slot_id"],
+                    state=ScheduleSlotState(row["operational_state"]),
+                    claimed_at=row["claimed_at"],
+                    observed_at=row["observed_at"],
+                    reason_code=row["reason_code"],
+                    failure_class=row["failure_class"],
+                    attempt_count=row["attempt_count"],
+                )
+                for row in rows
+            )
 
 
 class PostgresSubjectRefreshRepository:

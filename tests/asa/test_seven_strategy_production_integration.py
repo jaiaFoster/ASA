@@ -1,11 +1,17 @@
 """SP-07A anti-shelving proof for all seven research-selected strategies."""
 
 import json
-from datetime import UTC, date, datetime, time
+from datetime import UTC, date, datetime, time, timedelta
 from pathlib import Path
 
 import pytest
 
+from asa.integrations.refresh_schedule_postgres import (
+    InMemoryRefreshScheduleClaimRepository,
+    ScheduleSlotClaim,
+    ScheduleSlotOwnershipLost,
+    ScheduleSlotState,
+)
 from asa.scheduled_screening import (
     FIXED_SUBJECT_OPTION_UNIVERSE,
     PRODUCTION_SCREENING_UNIVERSE,
@@ -62,6 +68,8 @@ def test_all_seven_have_normal_scheduled_production_paths() -> None:
 class _ClaimOnce:
     def __init__(self) -> None:
         self.claimed: list[str] = []
+        self.states: dict[str, ScheduleSlotState] = {}
+        self.attempts: dict[str, int] = {}
 
     def claim(self, slot_id: str, claimed_at: datetime) -> bool:
         del claimed_at
@@ -69,6 +77,39 @@ class _ClaimOnce:
             return False
         self.claimed.append(slot_id)
         return True
+
+    def observe_not_due(self, slot_id: str, observed_at: datetime) -> None:
+        del observed_at
+        self.states.setdefault(slot_id, ScheduleSlotState.NOT_DUE)
+
+    def claim_due_slot(
+        self, slot_id: str, claimed_at: datetime, lease: object = None
+    ) -> ScheduleSlotClaim | None:
+        del claimed_at, lease
+        if self.states.get(slot_id) not in {
+            None,
+            ScheduleSlotState.NOT_DUE,
+            ScheduleSlotState.DUE_ASA_EXCEPTION,
+        }:
+            return None
+        self.claimed.append(slot_id)
+        self.states[slot_id] = ScheduleSlotState.DUE_UNOBSERVED
+        attempt = self.attempts.get(slot_id, 0) + 1
+        self.attempts[slot_id] = attempt
+        return ScheduleSlotClaim(slot_id, attempt)
+
+    def complete(
+        self,
+        claim: ScheduleSlotClaim,
+        *,
+        completed_at: datetime,
+        state: ScheduleSlotState,
+        reason_code: str | None = None,
+        failure_class: str | None = None,
+    ) -> None:
+        del completed_at, reason_code, failure_class
+        assert self.attempts[claim.slot_id] == claim.attempt_count
+        self.states[claim.slot_id] = state
 
 
 def _no_transport(provider_id: str) -> object:
@@ -112,6 +153,69 @@ def test_complete_family_deferral_is_persisted_typed_and_provider_free() -> None
     )
     assert again == ()
     assert claims.claimed == ["complete-family:zhan_delta_neutral_call_v1:2026-09-30"]
+    assert claims.states[claims.claimed[0]] == ScheduleSlotState.DUE_TYPED_DEFERRED
+
+
+def test_complete_family_not_due_is_canonical_operational_state() -> None:
+    claims = _ClaimOnce()
+    assert run_scheduled_complete_family_refresh(
+        claim_repository=claims,
+        now=datetime(2026, 10, 5, 21, tzinfo=UTC),
+    ) == ()
+    assert set(claims.states.values()) == {ScheduleSlotState.NOT_DUE}
+
+
+def test_failure_after_claim_is_typed_and_retryable(monkeypatch: pytest.MonkeyPatch) -> None:
+    import asa.scheduled_screening as scheduled
+
+    claims = _ClaimOnce()
+    run_at = datetime(2026, 10, 16, 21, tzinfo=UTC)
+    attempts = 0
+
+    def _fail_then_succeed(*_args: object, **_kwargs: object) -> tuple[object, ...]:
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            raise RuntimeError("injected after claim")
+        return ()
+
+    monkeypatch.setattr(scheduled, "run_scheduled_refresh", _fail_then_succeed)
+    with pytest.raises(RuntimeError, match="injected after claim"):
+        scheduled.run_scheduled_complete_family_refresh(
+            claim_repository=claims, now=run_at, maximum_subjects=10_000
+        )
+    slot_id = "complete-family:heston_straddle_momentum_v1:2026-10-16"
+    assert claims.states[slot_id] == ScheduleSlotState.DUE_ASA_EXCEPTION
+
+    assert scheduled.run_scheduled_complete_family_refresh(
+        claim_repository=claims, now=run_at, maximum_subjects=10_000
+    ) == ()
+    assert attempts == 2
+    assert claims.states[slot_id] == ScheduleSlotState.DUE_EVALUATED
+
+
+def test_scheduler_cannot_complete_after_its_lease_is_reclaimed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import asa.scheduled_screening as scheduled
+
+    claims = InMemoryRefreshScheduleClaimRepository()
+    run_at = datetime(2026, 10, 16, 21, tzinfo=UTC)
+    slot = "complete-family:heston_straddle_momentum_v1:2026-10-16"
+
+    def _reclaim_during_execution(*_args: object, **_kwargs: object) -> tuple[object, ...]:
+        successor = claims.claim_due_slot(slot, run_at + timedelta(minutes=31))
+        assert successor is not None and successor.attempt_count == 2
+        return ()
+
+    monkeypatch.setattr(scheduled, "run_scheduled_refresh", _reclaim_during_execution)
+    with pytest.raises(ScheduleSlotOwnershipLost):
+        scheduled.run_scheduled_complete_family_refresh(
+            claim_repository=claims, now=run_at, maximum_subjects=10_000
+        )
+    current = claims.observations(slot)[0]
+    assert current.state == ScheduleSlotState.DUE_UNOBSERVED
+    assert current.attempt_count == 2
 
 
 def _cron_ticks(day: date) -> tuple[datetime, ...]:
