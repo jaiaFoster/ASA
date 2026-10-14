@@ -15,10 +15,8 @@ from domain import (
 )
 from strategies.bxm_evaluation import evaluate_bxm
 from strategies.bxm_manifest import bxm_parameter
-from strategies.cboe_put_planning import (
-    expand_demands as expand_monthly_chain_demands,
-)
-from strategies.cboe_put_planning import (
+from strategies.monthly_option_planning import (
+    expand_monthly_chain_demands,
     expirations_demand,
     quote_demand,
 )
@@ -98,8 +96,9 @@ def bootstrap_demands(now: datetime) -> tuple[CapabilityDemand, ...]:
 def expand_demands(
     evidence: Mapping[str, ResolvedCapabilityEvidence], *, now: datetime
 ) -> DemandExpansion:
-    expanded = expand_monthly_chain_demands(evidence, now=now)
-    return DemandExpansion(expanded.demands, expanded.selections, expanded.unknown_reasons)
+    return expand_monthly_chain_demands(
+        evidence, now=now, unknown_code="G_BXM_STRIKE_EXISTS_UNKNOWN"
+    )
 
 
 def expand_post_selection_demands(
@@ -139,6 +138,8 @@ def expand_post_selection_demands(
             else (("roll_date", roll_date.isoformat()),)
         )
     tape = trade_tape_demand(now, decision.selected_call.identity)
+    # The evaluator selects a call only for a resolved roll date.
+    assert isinstance(roll_date, date)
     return DemandExpansion(
         demands=(tape,),
         selections=(
