@@ -2,9 +2,9 @@
 
 - **Verdict:** `evidence_insufficient`
   - insufficient: unclassified_reasons CBOE_PUT_REQUIRED_EVIDENCE_UNUSABLE,G_CBOE_SPX_REF_BEFORE_1100_UNKNOWN,G_GXZ_EA_DATE_KNOWN_UNKNOWN,G_GXZ_ENTRY_SESSION_UNKNOWN,G_GXZ_HOLD_TO_EXPIRY_DTE_FAIL,G_GXZ_HOLD_TO_EXPIRY_DTE_UNKNOWN,G_SCS_STRIKE_UNIQUE_UNKNOWN,strategy_gates_rejected,strategy_knowledge_construction_failed,unusable_phase_two_evidence
-- **Eligible sessions:** 15 (required 5)
+- **Eligible sessions:** 16 (required 5)
 - **Data-adequacy artifact:** `sha256:b4c5ba84c0b889de980191669dc668890e2e7fd6ea712d888322aa31f4c3d4c7`
-- **Report checksum:** `5795146b0c2ac79e71f4b9204a8eb801bb1391e359e49994dc1b277b28689792`
+- **Report checksum:** `c5ec4de9230b72f29d7fcf7a418cfce892611cfa2e566bd9d0cbd0ba33602d7d`
 - **Procurement:** none; this report informs a later Founder decision only
 
 ## Sessions
@@ -26,90 +26,91 @@
 | 2026-10-12 | `ba1e253` | 2026-10-12T22:38:52.074401+00:00 | yes |
 | 2026-10-13 | `70ec994` | 2026-10-13T22:39:06.175887+00:00 | yes |
 | 2026-10-14 | `fd18952` | 2026-10-14T22:38:49.301805+00:00 | yes |
+| 2026-10-15 | `6be2b15` | 2026-10-15T22:38:46.800168+00:00 | yes |
 
 ## Opportunity counts by strategy
 
 | Strategy | Asset | Sessions | Qualifying | Actionable | Actionable / session |
 |---|---|---|---|---|---|
-| B001 | stock | 15 | 6 | 6 | 0.4 |
-| B002 | stock | 15 | 0 | 0 | 0.0 |
-| earnings_calendar | option | 15 | 285 | 261 | 17.4 |
-| event_vol_gxz_preea_straddle_to_expiry | option | 9 | 0 | 0 | 0.0 |
-| forward_factor | option | 15 | 81 | 0 | 0.0 |
-| index_buywrite_cboe_bxm | option | 10 | 0 | 0 | 0.0 |
-| index_putwrite_cboe_put | option | 13 | 0 | 0 | 0.0 |
-| index_putwrite_cboe_puty | option | 13 | 0 | 0 | 0.0 |
-| index_short_vol_scs_near_atm_straddle | option | 9 | 0 | 0 | 0.0 |
-| skew_momentum | option | 15 | 0 | 0 | 0.0 |
-| spy_put_credit_spread | option | 15 | 6 | 6 | 0.4 |
+| B001 | stock | 16 | 6 | 6 | 0.375 |
+| B002 | stock | 16 | 0 | 0 | 0.0 |
+| earnings_calendar | option | 16 | 286 | 261 | 16.3125 |
+| event_vol_gxz_preea_straddle_to_expiry | option | 10 | 0 | 0 | 0.0 |
+| forward_factor | option | 16 | 86 | 0 | 0.0 |
+| index_buywrite_cboe_bxm | option | 11 | 0 | 0 | 0.0 |
+| index_putwrite_cboe_put | option | 14 | 0 | 0 | 0.0 |
+| index_putwrite_cboe_puty | option | 14 | 0 | 0 | 0.0 |
+| index_short_vol_scs_near_atm_straddle | option | 10 | 0 | 0 | 0.0 |
+| skew_momentum | option | 16 | 0 | 0 | 0.0 |
+| spy_put_credit_spread | option | 16 | 6 | 6 | 0.375 |
 
 ## Lost opportunities by cause
 
 | Category | Rows |
 |---|---|
-| asa_internal | 15 |
-| market_structure_or_policy | 3361 |
-| provider_capability | 708 |
-| strategy_semantics | 18267 |
-| unclassified | 4628 |
+| asa_internal | 19 |
+| market_structure_or_policy | 3699 |
+| provider_capability | 768 |
+| strategy_semantics | 19376 |
+| unclassified | 5136 |
 
 Provider-capability losses by capability:
 
-- `earnings_calendar_v1`: 388
+- `earnings_calendar_v1`: 421
 - `historical_bars_v1`: 15
-- `option_chain_v1`: 207
-- `real_time_quote_v1`: 98
+- `option_chain_v1`: 224
+- `real_time_quote_v1`: 108
 
 | Strategy | Reason | Rows | Sessions | Category | Capability | Paid data could resolve |
 |---|---|---|---|---|---|---|
-| B001 | `unusable_quote` | 9 | 9 | provider_capability | real_time_quote_v1 | partially |
+| B001 | `unusable_quote` | 10 | 10 | provider_capability | real_time_quote_v1 | partially |
 | B002 | `unusable_historical_bars` | 6 | 6 | provider_capability | historical_bars_v1 | yes |
-| B002 | `unusable_quote` | 9 | 9 | provider_capability | real_time_quote_v1 | partially |
-| earnings_calendar | `missing_earnings_date` | 307 | 15 | provider_capability | earnings_calendar_v1 | partially |
-| earnings_calendar | `missing_implied_volatility` | 18 | 14 | provider_capability | option_chain_v1 | yes |
-| earnings_calendar | `no_compatible_contract` | 24 | 11 | market_structure_or_policy | — | no |
-| earnings_calendar | `no_valid_expiration_pair` | 2001 | 15 | market_structure_or_policy | — | no |
+| B002 | `unusable_quote` | 10 | 10 | provider_capability | real_time_quote_v1 | partially |
+| earnings_calendar | `missing_earnings_date` | 335 | 16 | provider_capability | earnings_calendar_v1 | partially |
+| earnings_calendar | `missing_implied_volatility` | 19 | 15 | provider_capability | option_chain_v1 | yes |
+| earnings_calendar | `no_compatible_contract` | 25 | 12 | market_structure_or_policy | — | no |
+| earnings_calendar | `no_valid_expiration_pair` | 2323 | 16 | market_structure_or_policy | — | no |
 | earnings_calendar | `strategy_knowledge_construction_failed` | 1 | 1 | unclassified | — | no |
-| earnings_calendar | `subject_preparation_failed` | 2 | 2 | asa_internal | — | no |
-| earnings_calendar | `unusable_phase_two_evidence` | 64 | 13 | unclassified | — | no |
-| earnings_calendar | `verdict` | 4867 | 15 | strategy_semantics | — | no |
-| event_vol_gxz_preea_straddle_to_expiry | `G_GXZ_EA_DATE_KNOWN_UNKNOWN` | 148 | 9 | unclassified | — | no |
-| event_vol_gxz_preea_straddle_to_expiry | `G_GXZ_ENTRY_SESSION_UNKNOWN` | 219 | 9 | unclassified | — | no |
-| event_vol_gxz_preea_straddle_to_expiry | `G_GXZ_HOLD_TO_EXPIRY_DTE_FAIL` | 4137 | 9 | unclassified | — | no |
-| event_vol_gxz_preea_straddle_to_expiry | `G_GXZ_HOLD_TO_EXPIRY_DTE_UNKNOWN` | 21 | 9 | unclassified | — | no |
-| event_vol_gxz_preea_straddle_to_expiry | `subject_preparation_failed` | 2 | 2 | asa_internal | — | no |
-| forward_factor | `earnings_clearance` | 81 | 15 | provider_capability | earnings_calendar_v1 | partially |
-| forward_factor | `missing_implied_volatility` | 166 | 15 | provider_capability | option_chain_v1 | yes |
+| earnings_calendar | `subject_preparation_failed` | 3 | 3 | asa_internal | — | no |
+| earnings_calendar | `unusable_phase_two_evidence` | 66 | 14 | unclassified | — | no |
+| earnings_calendar | `verdict` | 5015 | 16 | strategy_semantics | — | no |
+| event_vol_gxz_preea_straddle_to_expiry | `G_GXZ_EA_DATE_KNOWN_UNKNOWN` | 176 | 10 | unclassified | — | no |
+| event_vol_gxz_preea_straddle_to_expiry | `G_GXZ_ENTRY_SESSION_UNKNOWN` | 266 | 10 | unclassified | — | no |
+| event_vol_gxz_preea_straddle_to_expiry | `G_GXZ_HOLD_TO_EXPIRY_DTE_FAIL` | 4562 | 10 | unclassified | — | no |
+| event_vol_gxz_preea_straddle_to_expiry | `G_GXZ_HOLD_TO_EXPIRY_DTE_UNKNOWN` | 23 | 10 | unclassified | — | no |
+| event_vol_gxz_preea_straddle_to_expiry | `subject_preparation_failed` | 3 | 3 | asa_internal | — | no |
+| forward_factor | `earnings_clearance` | 86 | 16 | provider_capability | earnings_calendar_v1 | partially |
+| forward_factor | `missing_implied_volatility` | 181 | 16 | provider_capability | option_chain_v1 | yes |
 | forward_factor | `no_usable_expiration_pair` | 3 | 3 | market_structure_or_policy | — | no |
-| forward_factor | `no_valid_expiration_pair` | 1247 | 15 | market_structure_or_policy | — | no |
-| forward_factor | `non_positive_forward_variance` | 26 | 12 | market_structure_or_policy | — | no |
-| forward_factor | `subject_preparation_failed` | 2 | 2 | asa_internal | — | no |
+| forward_factor | `no_valid_expiration_pair` | 1251 | 16 | market_structure_or_policy | — | no |
+| forward_factor | `non_positive_forward_variance` | 34 | 13 | market_structure_or_policy | — | no |
+| forward_factor | `subject_preparation_failed` | 3 | 3 | asa_internal | — | no |
 | forward_factor | `unusable_option_chain` | 5 | 5 | provider_capability | option_chain_v1 | partially |
-| forward_factor | `unusable_quote` | 28 | 15 | provider_capability | real_time_quote_v1 | partially |
-| forward_factor | `verdict` | 5987 | 15 | strategy_semantics | — | no |
-| index_buywrite_cboe_bxm | `G_CBOE_SPX_REF_BEFORE_1100_UNKNOWN` | 6 | 6 | unclassified | — | no |
+| forward_factor | `unusable_quote` | 31 | 16 | provider_capability | real_time_quote_v1 | partially |
+| forward_factor | `verdict` | 6454 | 16 | strategy_semantics | — | no |
+| index_buywrite_cboe_bxm | `G_CBOE_SPX_REF_BEFORE_1100_UNKNOWN` | 7 | 7 | unclassified | — | no |
 | index_buywrite_cboe_bxm | `strategy_gates_rejected` | 2 | 2 | unclassified | — | no |
 | index_buywrite_cboe_bxm | `subject_preparation_failed` | 2 | 2 | asa_internal | — | no |
 | index_putwrite_cboe_put | `CBOE_PUT_REQUIRED_EVIDENCE_UNUSABLE` | 1 | 1 | unclassified | — | no |
-| index_putwrite_cboe_put | `G_CBOE_SPX_REF_BEFORE_1100_UNKNOWN` | 8 | 8 | unclassified | — | no |
+| index_putwrite_cboe_put | `G_CBOE_SPX_REF_BEFORE_1100_UNKNOWN` | 9 | 9 | unclassified | — | no |
 | index_putwrite_cboe_put | `strategy_gates_rejected` | 2 | 2 | unclassified | — | no |
 | index_putwrite_cboe_put | `subject_preparation_failed` | 2 | 2 | asa_internal | — | no |
 | index_putwrite_cboe_puty | `CBOE_PUT_REQUIRED_EVIDENCE_UNUSABLE` | 1 | 1 | unclassified | — | no |
-| index_putwrite_cboe_puty | `G_CBOE_SPX_REF_BEFORE_1100_UNKNOWN` | 8 | 8 | unclassified | — | no |
+| index_putwrite_cboe_puty | `G_CBOE_SPX_REF_BEFORE_1100_UNKNOWN` | 9 | 9 | unclassified | — | no |
 | index_putwrite_cboe_puty | `strategy_gates_rejected` | 2 | 2 | unclassified | — | no |
 | index_putwrite_cboe_puty | `subject_preparation_failed` | 2 | 2 | asa_internal | — | no |
-| index_short_vol_scs_near_atm_straddle | `G_SCS_STRIKE_UNIQUE_UNKNOWN` | 6 | 6 | unclassified | — | no |
+| index_short_vol_scs_near_atm_straddle | `G_SCS_STRIKE_UNIQUE_UNKNOWN` | 7 | 7 | unclassified | — | no |
 | index_short_vol_scs_near_atm_straddle | `strategy_gates_rejected` | 2 | 2 | unclassified | — | no |
 | index_short_vol_scs_near_atm_straddle | `subject_preparation_failed` | 1 | 1 | asa_internal | — | no |
-| skew_momentum | `missing_implied_volatility` | 12 | 7 | provider_capability | option_chain_v1 | yes |
+| skew_momentum | `missing_implied_volatility` | 13 | 8 | provider_capability | option_chain_v1 | yes |
 | skew_momentum | `no_call_contracts_at_selected_expiration` | 7 | 5 | market_structure_or_policy | — | no |
-| skew_momentum | `no_future_expiration` | 53 | 15 | market_structure_or_policy | — | no |
-| skew_momentum | `subject_preparation_failed` | 2 | 2 | asa_internal | — | no |
+| skew_momentum | `no_future_expiration` | 56 | 16 | market_structure_or_policy | — | no |
+| skew_momentum | `subject_preparation_failed` | 3 | 3 | asa_internal | — | no |
 | skew_momentum | `unusable_historical_bars` | 9 | 1 | provider_capability | historical_bars_v1 | yes |
 | skew_momentum | `unusable_option_chain` | 6 | 6 | provider_capability | option_chain_v1 | partially |
-| skew_momentum | `unusable_quote` | 43 | 15 | provider_capability | real_time_quote_v1 | partially |
-| skew_momentum | `verdict` | 7413 | 15 | strategy_semantics | — | no |
-| spy_put_credit_spread | `unusable_quote` | 9 | 9 | provider_capability | real_time_quote_v1 | partially |
+| skew_momentum | `unusable_quote` | 47 | 16 | provider_capability | real_time_quote_v1 | partially |
+| skew_momentum | `verdict` | 7907 | 16 | strategy_semantics | — | no |
+| spy_put_credit_spread | `unusable_quote` | 10 | 10 | provider_capability | real_time_quote_v1 | partially |
 
 ## Forward-outcome sample sizes: user-tracked
 
@@ -126,8 +127,8 @@ Ledger: `available`
 
 | Strategy | Subjects | Distinct opportunities | Distinct leg sets | Horizon statuses | Observed with modeled P&L | Due coverage | Meets guard |
 |---|---|---|---|---|---|---|---|
-| earnings_calendar | 83 | 60 | 69 | {"missed": 2, "observed": 172, "pending": 92} | 172 | 0.9885 | yes |
-| spy_put_credit_spread | 14 | 14 | 14 | {"observed": 26, "pending": 30} | 26 | 1.0 | no |
+| earnings_calendar | 86 | 63 | 72 | {"missed": 3, "observed": 184, "pending": 89} | 184 | 0.984 | yes |
+| spy_put_credit_spread | 15 | 15 | 15 | {"observed": 29, "pending": 31} | 29 | 1.0 | no |
 
 ## Decisions blocked by missing data
 
@@ -176,7 +177,7 @@ Ledger: `available`
 - Blocked by: Provider earnings coverage. Some events are genuinely unannounced, and no source can resolve those.
 - Unlock: A confirmed earnings calendar with announcement status
 - Paid data could resolve: **partially**
-- Latest-session observed rows: 23 {"missing_earnings_date": 20, "earnings_clearance": 3}
+- Latest-session observed rows: 33 {"missing_earnings_date": 28, "earnings_clearance": 5}
 - Evidence: `project/reports/DATA-RELIABILITY-001-REL-05.md`, `project/reports/OPTIONS-TRUTH-001-OT-06.md`
 
 ### BD-07: Evaluate option strategies on symbols whose chain lacks IV, Greeks, or a usable quote
@@ -202,22 +203,22 @@ Ledger: `available`
 - Strategies affected: earnings_calendar, forward_factor_execution_readiness
 - Would better data solve it: only provider-confirmed coverage/entitlement cases; genuinely unannounced events remain unknown
 - Observed rows a source could resolve: {"latest_session": 0, "mean_per_session": 0.0}
-- Observed rows only partially resolvable: {"latest_session": 23, "mean_per_session": 25.8667}
+- Observed rows only partially resolvable: {"latest_session": 33, "mean_per_session": 26.3125}
 - Blocked decisions: BD-06
 
 ### complete option expiration, contract, quote, Greek, and implied-volatility evidence
 
 - Strategies affected: forward_factor, skew_momentum, earnings_calendar
 - Would better data solve it: provider coverage gaps yes; declared expiration policy ineligibility no
-- Observed rows a source could resolve: {"latest_session": 17, "mean_per_session": 13.0667}
-- Observed rows only partially resolvable: {"latest_session": 10, "mean_per_session": 7.2667}
+- Observed rows a source could resolve: {"latest_session": 17, "mean_per_session": 13.3125}
+- Observed rows only partially resolvable: {"latest_session": 10, "mean_per_session": 7.4375}
 - Blocked decisions: BD-07
 
 ### split-and-dividend-adjusted or authoritative total-return history
 
 - Strategies affected: B002, S001, TGSM-RESEARCH-001
 - Would better data solve it: yes, if semantics, depth, timestamps, and redistribution treatment are explicit
-- Observed rows a source could resolve: {"latest_session": 0, "mean_per_session": 1.0}
+- Observed rows a source could resolve: {"latest_session": 0, "mean_per_session": 0.9375}
 - Observed rows only partially resolvable: {"latest_session": 0, "mean_per_session": 0.0}
 - Blocked decisions: BD-02, BD-08
 
