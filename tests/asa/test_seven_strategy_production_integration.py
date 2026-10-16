@@ -26,6 +26,7 @@ from strategy_runtime.adapters import (
     build_migrated_signal_catalog,
     build_migrated_strategy_registry,
 )
+from strategy_runtime.persistence import FamilyPublication
 from tests.asa.fakes import InMemoryLatestResultRepository, InMemoryObservationHistoryRepository
 
 SELECTED = frozenset(
@@ -120,6 +121,45 @@ ZHAN = "xs_option_zhan_neg_lnprice_dn_call"
 HESTON = "xs_option_heston_straddle_momentum_lowcost"
 
 
+class _FailFirstFamilyRepository(InMemoryLatestResultRepository):
+    def __init__(self) -> None:
+        super().__init__()
+        self.publish_attempts = 0
+
+    def publish_family(self, publication: FamilyPublication) -> None:
+        self.publish_attempts += 1
+        if self.publish_attempts == 1:
+            raise RuntimeError("injected atomic publication failure")
+        super().publish_family(publication)
+
+
+def test_atomic_publication_failure_marks_exception_and_retry_commits_whole_family() -> None:
+    repository = _FailFirstFamilyRepository()
+    claims = _ClaimOnce()
+    run_at = datetime(2026, 9, 30, 21, tzinfo=UTC)
+    slot_id = "complete-family:zhan_delta_neutral_call_v1:2026-09-30"
+
+    with pytest.raises(RuntimeError, match="injected atomic publication failure"):
+        run_scheduled_complete_family_refresh(
+            repository=repository,
+            claim_repository=claims,
+            transport_factory=_no_transport,
+            now=run_at,
+        )
+    assert repository.get_all() == ()
+    assert claims.states[slot_id] is ScheduleSlotState.DUE_ASA_EXCEPTION
+
+    outcomes = run_scheduled_complete_family_refresh(
+        repository=repository,
+        claim_repository=claims,
+        transport_factory=_no_transport,
+        now=run_at,
+    )
+    assert len(outcomes) == len(SP500_MEMBERSHIP.symbols)
+    assert len(repository.get_all()) == len(SP500_MEMBERSHIP.symbols)
+    assert claims.states[slot_id] is ScheduleSlotState.DUE_TYPED_DEFERRED
+
+
 def test_complete_family_deferral_is_persisted_typed_and_provider_free() -> None:
     repository = InMemoryLatestResultRepository()
     claims = _ClaimOnce()
@@ -144,6 +184,9 @@ def test_complete_family_deferral_is_persisted_typed_and_provider_free() -> None
         for row in rows
     )
     assert all(row.opportunity_id is None for row in rows)  # nothing ranked or entered
+    publication = next(iter(repository._publications.values()))  # noqa: SLF001
+    assert publication.family_id == "zhan_delta_neutral_call_v1"
+    assert len(publication.members) == len(members)
     # A repeated after-close tick on the same formation date is claimed once.
     again = run_scheduled_complete_family_refresh(
         repository=repository,
@@ -180,6 +223,11 @@ def test_failure_after_claim_is_typed_and_retryable(monkeypatch: pytest.MonkeyPa
         return ()
 
     monkeypatch.setattr(scheduled, "run_scheduled_refresh", _fail_then_succeed)
+    monkeypatch.setattr(
+        scheduled.StagedFamilyResultRepository,
+        "publish",
+        lambda self, **_kwargs: None,
+    )
     with pytest.raises(RuntimeError, match="injected after claim"):
         scheduled.run_scheduled_complete_family_refresh(
             claim_repository=claims, now=run_at, maximum_subjects=10_000
@@ -209,6 +257,11 @@ def test_scheduler_cannot_complete_after_its_lease_is_reclaimed(
         return ()
 
     monkeypatch.setattr(scheduled, "run_scheduled_refresh", _reclaim_during_execution)
+    monkeypatch.setattr(
+        scheduled.StagedFamilyResultRepository,
+        "publish",
+        lambda self, **_kwargs: None,
+    )
     with pytest.raises(ScheduleSlotOwnershipLost):
         scheduled.run_scheduled_complete_family_refresh(
             claim_repository=claims, now=run_at, maximum_subjects=10_000
@@ -263,6 +316,11 @@ def test_complete_family_admission_is_atomic_and_full_universe(
         return ()
 
     monkeypatch.setattr(scheduled, "run_scheduled_refresh", _capture)
+    monkeypatch.setattr(
+        scheduled.StagedFamilyResultRepository,
+        "publish",
+        lambda self, **_kwargs: None,
+    )
     scheduled.run_scheduled_complete_family_refresh(
         now=datetime(2026, 9, 30, 21, tzinfo=UTC),
         maximum_subjects=10_000,

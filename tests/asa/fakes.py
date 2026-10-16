@@ -1,6 +1,13 @@
 from asa.contracts.market import MarketObservation
 from strategy_runtime.lifecycle import OpportunityHistory, OpportunityObservation
-from strategy_runtime.persistence import UniversalSignalRow, should_replace_latest
+from strategy_runtime.persistence import (
+    CommittedFamilyPublication,
+    FamilyPublication,
+    FamilyPublicationConflictError,
+    FamilyPublicationOrderingError,
+    UniversalSignalRow,
+    should_replace_latest,
+)
 
 
 class InMemoryObservationRepository:
@@ -24,11 +31,39 @@ class InMemoryLatestResultRepository:
 
     def __init__(self) -> None:
         self._rows: dict[tuple[str, str], UniversalSignalRow] = {}
+        self._publications: dict[str, CommittedFamilyPublication] = {}
 
     def upsert(self, row: UniversalSignalRow) -> None:
         key = (row.signal_id, row.symbol)
         if should_replace_latest(self._rows.get(key), row):
             self._rows[key] = row
+
+    def publish_family(self, publication: FamilyPublication) -> None:
+        committed = self._publications.get(publication.publication_id)
+        if committed is not None:
+            if committed.manifest_digest != publication.manifest_digest:
+                raise FamilyPublicationConflictError("publication manifest conflict")
+            return
+        staged = dict(self._rows)
+        for row in publication.rows:
+            key = (row.signal_id, row.symbol)
+            if not should_replace_latest(staged.get(key), row):
+                raise FamilyPublicationOrderingError(f"stale family member: {key!r}")
+            staged[key] = row
+        self._rows = staged
+        self._publications[publication.publication_id] = CommittedFamilyPublication(
+            publication.publication_id,
+            publication.family_id,
+            publication.formation_date,
+            publication.identity_version,
+            publication.manifest_digest,
+            publication.members,
+        )
+
+    def get_family_publication(
+        self, publication_id: str
+    ) -> CommittedFamilyPublication | None:
+        return self._publications.get(publication_id)
 
     def get_all(self) -> tuple[UniversalSignalRow, ...]:
         return tuple(sorted(self._rows.values(), key=lambda item: (item.signal_id, item.symbol)))

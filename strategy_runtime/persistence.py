@@ -48,9 +48,11 @@ delete, only append() and read), not merely by convention.
 
 from __future__ import annotations
 
+import hashlib
+import json
 from dataclasses import dataclass
 from datetime import date, datetime
-from typing import Protocol
+from typing import Protocol, runtime_checkable
 
 from strategy_runtime.lifecycle import OpportunityHistory, OpportunityObservation
 from strategy_runtime.result import (
@@ -155,6 +157,174 @@ class LatestResultRepository(Protocol):
     def get_for_signal(self, signal_id: str) -> tuple[UniversalSignalRow, ...]: ...
 
     def get_one(self, signal_id: str, symbol: str) -> UniversalSignalRow | None: ...
+
+
+class IncompleteFamilyPublicationError(ValueError):
+    """A staged family does not contain its exact declared member set."""
+
+
+class FamilyPublicationConflictError(RuntimeError):
+    """A publication identity is already bound to a different member manifest."""
+
+
+class FamilyPublicationOrderingError(RuntimeError):
+    """At least one family member would regress canonical latest-state ordering."""
+
+
+@dataclass(frozen=True, slots=True, order=True)
+class FamilyPublicationMember:
+    signal_id: str
+    symbol: str
+    observation_id: str
+
+
+@dataclass(frozen=True, slots=True)
+class FamilyPublication:
+    """One immutable, deterministic complete-family publication boundary."""
+
+    family_id: str
+    formation_date: date
+    expected_members: tuple[tuple[str, str], ...]
+    rows: tuple[UniversalSignalRow, ...]
+
+    identity_version = "1.0.0"
+
+    def __post_init__(self) -> None:
+        expected = tuple(sorted(set(self.expected_members)))
+        actual = tuple((row.signal_id, row.symbol) for row in self.rows)
+        if not self.family_id or self.family_id != self.family_id.strip():
+            raise ValueError("FamilyPublication requires a normalized family_id")
+        if expected != self.expected_members:
+            raise ValueError("FamilyPublication expected_members must be unique and sorted")
+        if tuple(sorted(actual)) != actual:
+            raise ValueError("FamilyPublication rows must use canonical member ordering")
+        if len(actual) != len(set(actual)) or actual != expected:
+            raise IncompleteFamilyPublicationError(
+                f"family {self.family_id!r} expected {len(expected)} unique members, "
+                f"received {len(actual)}"
+            )
+
+    @property
+    def publication_id(self) -> str:
+        payload = {
+            "identity_version": self.identity_version,
+            "family_id": self.family_id,
+            "formation_date": self.formation_date.isoformat(),
+            "members": [list(item) for item in self.expected_members],
+        }
+        encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
+        return f"family_{hashlib.sha256(encoded).hexdigest()}"
+
+    @property
+    def members(self) -> tuple[FamilyPublicationMember, ...]:
+        return tuple(
+            FamilyPublicationMember(row.signal_id, row.symbol, row.observation_id)
+            for row in self.rows
+        )
+
+    @property
+    def manifest_digest(self) -> str:
+        payload = {
+            "identity_version": self.identity_version,
+            "publication_id": self.publication_id,
+            "members": [
+                [member.signal_id, member.symbol, member.observation_id]
+                for member in self.members
+            ],
+        }
+        encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
+        return hashlib.sha256(encoded).hexdigest()
+
+
+@dataclass(frozen=True, slots=True)
+class CommittedFamilyPublication:
+    publication_id: str
+    family_id: str
+    formation_date: date
+    identity_version: str
+    manifest_digest: str
+    members: tuple[FamilyPublicationMember, ...]
+
+
+@runtime_checkable
+class FamilyLatestResultRepository(LatestResultRepository, Protocol):
+    """Latest-state owner capable of one atomic family commit."""
+
+    def publish_family(self, publication: FamilyPublication) -> None: ...
+
+    def get_family_publication(
+        self, publication_id: str
+    ) -> CommittedFamilyPublication | None: ...
+
+
+class StagedFamilyResultRepository:
+    """Collect pair refreshes until one exact family can commit atomically."""
+
+    def __init__(self, delegate: FamilyLatestResultRepository) -> None:
+        self._delegate = delegate
+        self._rows: dict[tuple[str, str], UniversalSignalRow] = {}
+
+    def upsert(self, row: UniversalSignalRow) -> None:
+        key = (row.signal_id, row.symbol)
+        existing = self._rows.get(key)
+        if should_replace_latest(existing, row):
+            self._rows[key] = row
+
+    def get_all(self) -> tuple[UniversalSignalRow, ...]:
+        rows = {(row.signal_id, row.symbol): row for row in self._delegate.get_all()}
+        rows.update(self._rows)
+        return tuple(rows[key] for key in sorted(rows))
+
+    def get_for_signal(self, signal_id: str) -> tuple[UniversalSignalRow, ...]:
+        return tuple(row for row in self.get_all() if row.signal_id == signal_id)
+
+    def get_one(self, signal_id: str, symbol: str) -> UniversalSignalRow | None:
+        return self._rows.get((signal_id, symbol)) or self._delegate.get_one(signal_id, symbol)
+
+    def publish(
+        self,
+        *,
+        family_id: str,
+        formation_date: date,
+        expected_members: tuple[tuple[str, str], ...],
+    ) -> FamilyPublication:
+        publication = FamilyPublication(
+            family_id,
+            formation_date,
+            expected_members,
+            tuple(self._rows[key] for key in expected_members if key in self._rows),
+        )
+        self._delegate.publish_family(publication)
+        for member in expected_members:
+            self._rows.pop(member, None)
+        return publication
+
+
+class StagedObservationHistoryRepository:
+    """Buffer append-only lifecycle observations until family publication succeeds."""
+
+    def __init__(self, delegate: ObservationHistoryRepository) -> None:
+        self._delegate = delegate
+        self._observations: list[OpportunityObservation] = []
+
+    def append(self, observation: OpportunityObservation) -> None:
+        if observation not in self._observations:
+            self._observations.append(observation)
+
+    def history_for(self, opportunity_id: str) -> OpportunityHistory | None:
+        existing = self._delegate.history_for(opportunity_id)
+        values = list(existing.observations if existing is not None else ())
+        values.extend(
+            observation
+            for observation in self._observations
+            if observation.opportunity_id == opportunity_id and observation not in values
+        )
+        return OpportunityHistory(opportunity_id, tuple(values)) if values else None
+
+    def flush(self) -> None:
+        for observation in self._observations:
+            self._delegate.append(observation)
+        self._observations.clear()
 
 
 def lifecycle_position_identities(
