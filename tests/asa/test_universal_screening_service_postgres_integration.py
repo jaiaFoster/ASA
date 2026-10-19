@@ -12,17 +12,25 @@ raw-SQL/JSON-serialization layer, not just that each works in isolation.
 from __future__ import annotations
 
 import os
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
 
 import pytest
 from alembic import command
 from alembic.config import Config
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, event, text
 
 from asa.integrations.universal_screening_postgres import PostgresLatestResultRepository
 from strategy_runtime.adapters.skew_momentum_vertical import SKEW_MOMENTUM_VERTICAL_CONTRACT
 from strategy_runtime.context import RuntimeContext
-from strategy_runtime.persistence import UniversalSignalRow, should_replace_latest
+from strategy_runtime.persistence import (
+    FamilyPublication,
+    FamilyPublicationConflictError,
+    FamilyPublicationOrderingError,
+    UniversalSignalRow,
+    should_replace_latest,
+)
 from strategy_runtime.registry import StrategyRegistry
 from strategy_runtime.result import (
     EvaluationState,
@@ -62,7 +70,9 @@ def repository() -> PostgresLatestResultRepository:
     command.upgrade(Config("alembic.ini"), "head")
     engine = create_engine(database_url)
     with engine.begin() as connection:
-        connection.execute(text("TRUNCATE universal_screening_state"))
+        connection.execute(
+            text("TRUNCATE screening_family_publications, universal_screening_state")
+        )
     return PostgresLatestResultRepository(engine)
 
 
@@ -288,3 +298,116 @@ def test_postgres_write_guard_rejects_replayed_older_subject_snapshot(
     stored = repository.get_one(STRATEGY_ID, SYMBOL)
     assert stored is not None
     assert stored.observation_id == "aaa"
+
+
+def _family(*rows: UniversalSignalRow) -> FamilyPublication:
+    ordered = tuple(sorted(rows, key=lambda row: (row.signal_id, row.symbol)))
+    return FamilyPublication(
+        "synthetic-family",
+        date(2026, 7, 27),
+        tuple((row.signal_id, row.symbol) for row in ordered),
+        ordered,
+    )
+
+
+def test_family_publication_rolls_back_ledger_and_rows_after_nth_write_failure(
+    repository: PostgresLatestResultRepository,
+) -> None:
+    now = datetime(2026, 7, 27, 18, tzinfo=UTC)
+    publication = _family(
+        _signal_row(observation_id="aapl", source=now, evaluated=now),
+        replace(
+            _signal_row(observation_id="msft", source=now, evaluated=now), symbol="MSFT"
+        ),
+    )
+    writes = 0
+
+    def fail_second_write(
+        _connection: object,
+        _cursor: object,
+        statement: str,
+        _parameters: object,
+        _context: object,
+        _executemany: bool,
+    ) -> None:
+        nonlocal writes
+        if statement.lstrip().startswith("INSERT INTO universal_screening_state"):
+            writes += 1
+            if writes == 2:
+                raise RuntimeError("injected second-member failure")
+
+    event.listen(repository._engine, "before_cursor_execute", fail_second_write)  # noqa: SLF001
+    try:
+        with pytest.raises(RuntimeError, match="injected second-member failure"):
+            repository.publish_family(publication)
+    finally:
+        event.remove(repository._engine, "before_cursor_execute", fail_second_write)  # noqa: SLF001
+
+    assert repository.get_all() == ()
+    assert repository.get_family_publication(publication.publication_id) is None
+    repository.publish_family(publication)
+    repository.publish_family(publication)
+    assert tuple(row.observation_id for row in repository.get_all()) == ("aapl", "msft")
+
+
+def test_family_publication_conflict_and_stale_veto_are_atomic(
+    repository: PostgresLatestResultRepository,
+) -> None:
+    now = datetime(2026, 7, 27, 18, tzinfo=UTC)
+    publication = _family(_signal_row(observation_id="first", source=now, evaluated=now))
+    repository.publish_family(publication)
+    conflict = replace(
+        publication,
+        rows=(replace(publication.rows[0], observation_id="different"),),
+    )
+    with pytest.raises(FamilyPublicationConflictError):
+        repository.publish_family(conflict)
+
+    repository.upsert(
+        _signal_row(
+            observation_id="newer",
+            source=now + timedelta(hours=1),
+            evaluated=now + timedelta(hours=1),
+        )
+    )
+    stale = FamilyPublication(
+        "different-family",
+        date(2026, 7, 28),
+        ((STRATEGY_ID, SYMBOL),),
+        (_signal_row(observation_id="stale", source=now, evaluated=now),),
+    )
+    with pytest.raises(FamilyPublicationOrderingError):
+        repository.publish_family(stale)
+    assert repository.get_family_publication(stale.publication_id) is None
+    assert repository.get_one(STRATEGY_ID, SYMBOL).observation_id == "newer"  # type: ignore[union-attr]
+
+
+def test_concurrent_family_publishers_are_idempotent_or_deterministic_conflict(
+    repository: PostgresLatestResultRepository,
+) -> None:
+    now = datetime(2026, 7, 27, 18, tzinfo=UTC)
+    publication = _family(_signal_row(observation_id="first", source=now, evaluated=now))
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        identical = tuple(executor.map(repository.publish_family, (publication, publication)))
+    assert identical == (None, None)
+
+    # New formation identity: simultaneous differing manifests serialize on
+    # publication identity; one wins, one receives the typed conflict.
+    second = replace(publication, formation_date=date(2026, 7, 28))
+    second_changed = replace(
+        second,
+        rows=(replace(second.rows[0], observation_id="second-different"),),
+    )
+
+    def publish(candidate: FamilyPublication) -> Exception | None:
+        try:
+            repository.publish_family(candidate)
+        except Exception as failure:
+            return failure
+        return None
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        outcomes = tuple(executor.map(publish, (second, second_changed)))
+    assert sum(outcome is None for outcome in outcomes) == 1
+    assert sum(isinstance(outcome, FamilyPublicationConflictError) for outcome in outcomes) == 1
