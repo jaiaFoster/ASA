@@ -2,30 +2,30 @@
   "aoy": {
     "option": {
       "max": 34.0,
-      "mean": 13.0455,
-      "median": 8.5,
+      "mean": 12.5652,
+      "median": 7.0,
       "min": 0.0,
-      "n": 22
+      "n": 23
     },
     "stock": {
       "max": 1.0,
-      "mean": 0.2727,
+      "mean": 0.2609,
       "median": 0.0,
       "min": 0.0,
-      "n": 22
+      "n": 23
     },
     "total": {
       "max": 34.0,
-      "mean": 13.3182,
-      "median": 9.0,
+      "mean": 12.8261,
+      "median": 7.0,
       "min": 0.0,
-      "n": 22
+      "n": 23
     }
   },
-  "data_value_checksum": "2f5e2c64808aa4b8640b2516886dd961e94035d6f13a8a0409ce0cb891715b39",
+  "data_value_checksum": "10f43479303ffb846d58421efd2a9c5472f5350650844177934f7913b21e23ce",
   "data_value_verdict": "evidence_insufficient",
   "forward_outcomes": {
-    "as_of_session": "2026-10-23",
+    "as_of_session": "2026-10-26",
     "by_strategy": {
       "forward_factor": {
         "distinct_exact_leg_sets": 1,
@@ -68,12 +68,12 @@
       "state": "pass"
     },
     {
-      "detail": "observed horizons in the latest readable ledgers, by source (never pooled): user_tracked=4, system_actionable=322",
+      "detail": "observed horizons in the latest readable ledgers, by source (never pooled): user_tracked=4, system_actionable=339",
       "gate": "forward_outcome_observed",
       "state": "pass"
     },
     {
-      "detail": "22 eligible session(s), required 5",
+      "detail": "23 eligible session(s), required 5",
       "gate": "aoy_measured",
       "state": "pass"
     },
@@ -124,8 +124,8 @@
         "BD-06"
       ],
       "observed_rows_partially_resolvable": {
-        "latest_session": 132,
-        "mean_per_session": 39.0909
+        "latest_session": 137,
+        "mean_per_session": 43.3478
       },
       "observed_rows_resolvable": {
         "latest_session": 0,
@@ -138,12 +138,12 @@
         "BD-07"
       ],
       "observed_rows_partially_resolvable": {
-        "latest_session": 10,
-        "mean_per_session": 8.3182
+        "latest_session": 12,
+        "mean_per_session": 8.4783
       },
       "observed_rows_resolvable": {
         "latest_session": 16,
-        "mean_per_session": 14.3182
+        "mean_per_session": 14.3913
       },
       "required_capability": "complete option expiration, contract, quote, Greek, and implied-volatility evidence"
     },
@@ -158,7 +158,7 @@
       },
       "observed_rows_resolvable": {
         "latest_session": 0,
-        "mean_per_session": 0.6818
+        "mean_per_session": 0.6522
       },
       "required_capability": "split-and-dividend-adjusted or authoritative total-return history"
     },
@@ -638,10 +638,30 @@
       "trade_card_completeness": 0.1667,
       "trade_card_defects": 0,
       "unexplained_drop_count": 0
+    },
+    {
+      "aoy": 2,
+      "aoy_option": 2,
+      "aoy_stock": 0,
+      "constructible_rate_after_qualifying": 0.1053,
+      "evaluation_coverage": 1.0,
+      "median_actionable_evidence_age_at_close_seconds": 7674.2,
+      "production_sha": "34508daab52b7acd5b3ab7f8266f1c62eec4dfe8",
+      "provider_limited_rate_by_capability": {
+        "earnings_calendar_v1": 0.0543,
+        "option_chain_v1": 0.0071,
+        "real_time_quote_v1": 0.004
+      },
+      "session_date": "2026-10-26",
+      "stock_proposal_defects": 0,
+      "strategy_evaluation_completion_rate": 0.3814,
+      "trade_card_completeness": 0.1053,
+      "trade_card_defects": 0,
+      "unexplained_drop_count": 0
     }
   ],
   "program": "ASA-OPTIONS-TO-OUTCOMES-2026Q4",
-  "report_checksum": "1cc9c40a00138338656a2905dc8ff935b2222b22f231b021593181c348083b8e",
+  "report_checksum": "20f6fae308bdc9c27ded9c2745e3824acb5b0e30f6f27d9335e97c015ec18e8e",
   "report_kind": "program_closure",
   "report_version": "1.0.0",
   "sprints": [
@@ -672,21 +692,21 @@
     }
   ],
   "system_forward_outcomes": {
-    "as_of_session": "2026-10-23",
+    "as_of_session": "2026-10-26",
     "by_strategy": {
       "earnings_calendar": {
-        "distinct_exact_leg_sets": 108,
-        "distinct_opportunities": 84,
-        "due_horizon_coverage": 0.8831,
+        "distinct_exact_leg_sets": 113,
+        "distinct_opportunities": 87,
+        "due_horizon_coverage": 0.8882,
         "meets_sample_guard": true,
-        "observed_with_modeled_pnl": 272,
+        "observed_with_modeled_pnl": 286,
         "status_counts": {
           "missed": 36,
-          "observed": 272,
-          "pending": 68
+          "observed": 286,
+          "pending": 71
         },
-        "tracked": 123,
-        "with_frozen_proposal": 123
+        "tracked": 128,
+        "with_frozen_proposal": 128
       },
       "index_putwrite_cboe_put": {
         "distinct_exact_leg_sets": 1,
@@ -715,23 +735,23 @@
         "with_frozen_proposal": 1
       },
       "spy_put_credit_spread": {
-        "distinct_exact_leg_sets": 21,
-        "distinct_opportunities": 21,
-        "due_horizon_coverage": 0.9583,
+        "distinct_exact_leg_sets": 22,
+        "distinct_opportunities": 22,
+        "due_horizon_coverage": 0.9608,
         "meets_sample_guard": true,
-        "observed_with_modeled_pnl": 46,
+        "observed_with_modeled_pnl": 49,
         "status_counts": {
           "missed": 2,
-          "observed": 46,
-          "pending": 36
+          "observed": 49,
+          "pending": 37
         },
-        "tracked": 21,
-        "with_frozen_proposal": 21
+        "tracked": 22,
+        "with_frozen_proposal": 22
       }
     },
     "ledger_status": "available",
     "sample_guard": 30,
-    "tracked_total": 146
+    "tracked_total": 152
   },
   "unmet_targets": [
     {
