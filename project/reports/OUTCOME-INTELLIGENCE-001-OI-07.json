@@ -94,10 +94,10 @@
       ],
       "id": "BD-06",
       "latest_session_observed_counts": {
-        "earnings_clearance": 21,
-        "missing_earnings_date": 213
+        "earnings_clearance": 24,
+        "missing_earnings_date": 271
       },
-      "latest_session_observed_total": 234,
+      "latest_session_observed_total": 295,
       "observed_reason_codes": [
         "missing_earnings_date",
         "earnings_clearance"
@@ -119,10 +119,10 @@
       "latest_session_observed_counts": {
         "missing_actual_delta": 0,
         "missing_implied_volatility": 17,
-        "unusable_option_chain": 0,
+        "unusable_option_chain": 1,
         "unusable_quote": 10
       },
-      "latest_session_observed_total": 27,
+      "latest_session_observed_total": 28,
       "observed_reason_codes": [
         "missing_implied_volatility",
         "missing_actual_delta",
@@ -239,26 +239,26 @@
     ],
     "category_totals": {
       "asa_internal": 27,
-      "market_structure_or_policy": 7540,
-      "provider_capability": 2175,
-      "strategy_semantics": 29210,
-      "unclassified": 15238
+      "market_structure_or_policy": 7778,
+      "provider_capability": 2498,
+      "strategy_semantics": 30157,
+      "unclassified": 16752
     },
     "provider_capability_totals": {
-      "earnings_calendar_v1": 1553,
+      "earnings_calendar_v1": 1848,
       "historical_bars_v1": 15,
-      "option_chain_v1": 399,
-      "real_time_quote_v1": 208
+      "option_chain_v1": 417,
+      "real_time_quote_v1": 218
     },
     "reasons": [
       {
         "capability": "real_time_quote_v1",
         "category": "provider_capability",
-        "count": 20,
+        "count": 21,
         "gap": "complete option expiration, contract, quote, Greek, and implied-volatility evidence",
         "paid_data_could_resolve": "partially",
         "reason": "unusable_quote",
-        "sessions": 20,
+        "sessions": 21,
         "strategy": "B001"
       },
       {
@@ -274,51 +274,51 @@
       {
         "capability": "real_time_quote_v1",
         "category": "provider_capability",
-        "count": 20,
+        "count": 21,
         "gap": "complete option expiration, contract, quote, Greek, and implied-volatility evidence",
         "paid_data_could_resolve": "partially",
         "reason": "unusable_quote",
-        "sessions": 20,
+        "sessions": 21,
         "strategy": "B002"
       },
       {
         "capability": "earnings_calendar_v1",
         "category": "provider_capability",
-        "count": 1360,
+        "count": 1631,
         "gap": "confirmed earnings calendar with announcement status and effective timestamps",
         "paid_data_could_resolve": "partially",
         "reason": "missing_earnings_date",
-        "sessions": 26,
+        "sessions": 27,
         "strategy": "earnings_calendar"
       },
       {
         "capability": "option_chain_v1",
         "category": "provider_capability",
-        "count": 21,
+        "count": 22,
         "gap": "complete option expiration, contract, quote, Greek, and implied-volatility evidence",
         "paid_data_could_resolve": "yes",
         "reason": "missing_implied_volatility",
-        "sessions": 17,
+        "sessions": 18,
         "strategy": "earnings_calendar"
       },
       {
         "capability": null,
         "category": "market_structure_or_policy",
-        "count": 45,
+        "count": 51,
         "gap": null,
         "paid_data_could_resolve": "no",
         "reason": "no_compatible_contract",
-        "sessions": 22,
+        "sessions": 23,
         "strategy": "earnings_calendar"
       },
       {
         "capability": null,
         "category": "market_structure_or_policy",
-        "count": 5552,
+        "count": 5720,
         "gap": null,
         "paid_data_could_resolve": "no",
         "reason": "no_valid_expiration_pair",
-        "sessions": 26,
+        "sessions": 27,
         "strategy": "earnings_calendar"
       },
       {
@@ -344,61 +344,61 @@
       {
         "capability": null,
         "category": "unclassified",
-        "count": 68,
+        "count": 69,
         "gap": null,
         "paid_data_could_resolve": "no",
         "reason": "unusable_phase_two_evidence",
-        "sessions": 15,
+        "sessions": 16,
         "strategy": "earnings_calendar"
       },
       {
         "capability": null,
         "category": "strategy_semantics",
-        "count": 5737,
+        "count": 5790,
         "gap": null,
         "paid_data_could_resolve": "no",
         "reason": "verdict",
-        "sessions": 26,
+        "sessions": 27,
         "strategy": "earnings_calendar"
       },
       {
         "capability": null,
         "category": "unclassified",
-        "count": 1201,
+        "count": 1472,
         "gap": null,
         "paid_data_could_resolve": "no",
         "reason": "G_GXZ_EA_DATE_KNOWN_UNKNOWN",
-        "sessions": 20,
+        "sessions": 21,
         "strategy": "event_vol_gxz_preea_straddle_to_expiry"
       },
       {
         "capability": null,
         "category": "unclassified",
-        "count": 1108,
+        "count": 1168,
         "gap": null,
         "paid_data_could_resolve": "no",
         "reason": "G_GXZ_ENTRY_SESSION_UNKNOWN",
-        "sessions": 20,
+        "sessions": 21,
         "strategy": "event_vol_gxz_preea_straddle_to_expiry"
       },
       {
         "capability": null,
         "category": "unclassified",
-        "count": 7708,
+        "count": 7879,
         "gap": null,
         "paid_data_could_resolve": "no",
         "reason": "G_GXZ_HOLD_TO_EXPIRY_DTE_FAIL",
-        "sessions": 20,
+        "sessions": 21,
         "strategy": "event_vol_gxz_preea_straddle_to_expiry"
       },
       {
         "capability": null,
         "category": "unclassified",
-        "count": 38,
+        "count": 39,
         "gap": null,
         "paid_data_could_resolve": "no",
         "reason": "G_GXZ_HOLD_TO_EXPIRY_DTE_UNKNOWN",
-        "sessions": 20,
+        "sessions": 21,
         "strategy": "event_vol_gxz_preea_straddle_to_expiry"
       },
       {
@@ -414,21 +414,21 @@
       {
         "capability": "earnings_calendar_v1",
         "category": "provider_capability",
-        "count": 193,
+        "count": 217,
         "gap": "confirmed earnings calendar with announcement status and effective timestamps",
         "paid_data_could_resolve": "partially",
         "reason": "earnings_clearance",
-        "sessions": 26,
+        "sessions": 27,
         "strategy": "forward_factor"
       },
       {
         "capability": "option_chain_v1",
         "category": "provider_capability",
-        "count": 326,
+        "count": 340,
         "gap": "complete option expiration, contract, quote, Greek, and implied-volatility evidence",
         "paid_data_could_resolve": "yes",
         "reason": "missing_implied_volatility",
-        "sessions": 26,
+        "sessions": 27,
         "strategy": "forward_factor"
       },
       {
@@ -444,21 +444,21 @@
       {
         "capability": null,
         "category": "market_structure_or_policy",
-        "count": 1750,
+        "count": 1805,
         "gap": null,
         "paid_data_could_resolve": "no",
         "reason": "no_valid_expiration_pair",
-        "sessions": 26,
+        "sessions": 27,
         "strategy": "forward_factor"
       },
       {
         "capability": null,
         "category": "market_structure_or_policy",
-        "count": 94,
+        "count": 99,
         "gap": null,
         "paid_data_could_resolve": "no",
         "reason": "non_positive_forward_variance",
-        "sessions": 23,
+        "sessions": 24,
         "strategy": "forward_factor"
       },
       {
@@ -484,31 +484,31 @@
       {
         "capability": "real_time_quote_v1",
         "category": "provider_capability",
-        "count": 61,
+        "count": 64,
         "gap": "complete option expiration, contract, quote, Greek, and implied-volatility evidence",
         "paid_data_could_resolve": "partially",
         "reason": "unusable_quote",
-        "sessions": 26,
+        "sessions": 27,
         "strategy": "forward_factor"
       },
       {
         "capability": null,
         "category": "strategy_semantics",
-        "count": 10635,
+        "count": 11037,
         "gap": null,
         "paid_data_could_resolve": "no",
         "reason": "verdict",
-        "sessions": 26,
+        "sessions": 27,
         "strategy": "forward_factor"
       },
       {
         "capability": null,
         "category": "unclassified",
-        "count": 16,
+        "count": 17,
         "gap": null,
         "paid_data_could_resolve": "no",
         "reason": "G_CBOE_SPX_REF_BEFORE_1100_UNKNOWN",
-        "sessions": 16,
+        "sessions": 17,
         "strategy": "index_buywrite_cboe_bxm"
       },
       {
@@ -544,11 +544,11 @@
       {
         "capability": null,
         "category": "unclassified",
-        "count": 18,
+        "count": 19,
         "gap": null,
         "paid_data_could_resolve": "no",
         "reason": "G_CBOE_SPX_REF_BEFORE_1100_UNKNOWN",
-        "sessions": 18,
+        "sessions": 19,
         "strategy": "index_putwrite_cboe_put"
       },
       {
@@ -584,11 +584,11 @@
       {
         "capability": null,
         "category": "unclassified",
-        "count": 18,
+        "count": 19,
         "gap": null,
         "paid_data_could_resolve": "no",
         "reason": "G_CBOE_SPX_REF_BEFORE_1100_UNKNOWN",
-        "sessions": 18,
+        "sessions": 19,
         "strategy": "index_putwrite_cboe_puty"
       },
       {
@@ -624,11 +624,11 @@
       {
         "capability": null,
         "category": "unclassified",
-        "count": 15,
+        "count": 16,
         "gap": null,
         "paid_data_could_resolve": "no",
         "reason": "G_SCS_STRIKE_UNIQUE_UNKNOWN",
-        "sessions": 15,
+        "sessions": 16,
         "strategy": "index_short_vol_scs_near_atm_straddle"
       },
       {
@@ -654,31 +654,31 @@
       {
         "capability": "option_chain_v1",
         "category": "provider_capability",
-        "count": 33,
+        "count": 35,
         "gap": "complete option expiration, contract, quote, Greek, and implied-volatility evidence",
         "paid_data_could_resolve": "yes",
         "reason": "missing_implied_volatility",
-        "sessions": 18,
+        "sessions": 19,
         "strategy": "skew_momentum"
       },
       {
         "capability": null,
         "category": "market_structure_or_policy",
-        "count": 8,
+        "count": 9,
         "gap": null,
         "paid_data_could_resolve": "no",
         "reason": "no_call_contracts_at_selected_expiration",
-        "sessions": 6,
+        "sessions": 7,
         "strategy": "skew_momentum"
       },
       {
         "capability": null,
         "category": "market_structure_or_policy",
-        "count": 86,
+        "count": 89,
         "gap": null,
         "paid_data_could_resolve": "no",
         "reason": "no_future_expiration",
-        "sessions": 26,
+        "sessions": 27,
         "strategy": "skew_momentum"
       },
       {
@@ -714,52 +714,62 @@
       {
         "capability": "option_chain_v1",
         "category": "provider_capability",
-        "count": 10,
+        "count": 11,
         "gap": "complete option expiration, contract, quote, Greek, and implied-volatility evidence",
         "paid_data_could_resolve": "partially",
         "reason": "unusable_option_chain",
-        "sessions": 10,
+        "sessions": 11,
         "strategy": "skew_momentum"
       },
       {
         "capability": "real_time_quote_v1",
         "category": "provider_capability",
-        "count": 87,
+        "count": 91,
         "gap": "complete option expiration, contract, quote, Greek, and implied-volatility evidence",
         "paid_data_could_resolve": "partially",
         "reason": "unusable_quote",
-        "sessions": 26,
+        "sessions": 27,
         "strategy": "skew_momentum"
       },
       {
         "capability": null,
         "category": "strategy_semantics",
-        "count": 12838,
+        "count": 13330,
         "gap": null,
         "paid_data_could_resolve": "no",
         "reason": "verdict",
-        "sessions": 26,
+        "sessions": 27,
         "strategy": "skew_momentum"
       },
       {
         "capability": "real_time_quote_v1",
         "category": "provider_capability",
-        "count": 20,
+        "count": 21,
         "gap": "complete option expiration, contract, quote, Greek, and implied-volatility evidence",
         "paid_data_could_resolve": "partially",
         "reason": "unusable_quote",
-        "sessions": 20,
+        "sessions": 21,
         "strategy": "spy_put_credit_spread"
       },
       {
         "capability": null,
         "category": "unclassified",
-        "count": 5030,
+        "count": 5533,
         "gap": null,
         "paid_data_could_resolve": "no",
         "reason": "CAPACITY_DEFERRED_INCOMPLETE_COHORT",
-        "sessions": 10,
+        "sessions": 11,
         "strategy": "xs_option_heston_straddle_momentum_lowcost"
+      },
+      {
+        "capability": null,
+        "category": "unclassified",
+        "count": 503,
+        "gap": null,
+        "paid_data_could_resolve": "no",
+        "reason": "CAPACITY_DEFERRED_INCOMPLETE_COHORT",
+        "sessions": 1,
+        "strategy": "xs_option_zhan_neg_lnprice_dn_call"
       }
     ],
     "unclassified": [
@@ -776,61 +786,61 @@
       {
         "capability": null,
         "category": "unclassified",
-        "count": 68,
+        "count": 69,
         "gap": null,
         "paid_data_could_resolve": "no",
         "reason": "unusable_phase_two_evidence",
-        "sessions": 15,
+        "sessions": 16,
         "strategy": "earnings_calendar"
       },
       {
         "capability": null,
         "category": "unclassified",
-        "count": 1201,
+        "count": 1472,
         "gap": null,
         "paid_data_could_resolve": "no",
         "reason": "G_GXZ_EA_DATE_KNOWN_UNKNOWN",
-        "sessions": 20,
+        "sessions": 21,
         "strategy": "event_vol_gxz_preea_straddle_to_expiry"
       },
       {
         "capability": null,
         "category": "unclassified",
-        "count": 1108,
+        "count": 1168,
         "gap": null,
         "paid_data_could_resolve": "no",
         "reason": "G_GXZ_ENTRY_SESSION_UNKNOWN",
-        "sessions": 20,
+        "sessions": 21,
         "strategy": "event_vol_gxz_preea_straddle_to_expiry"
       },
       {
         "capability": null,
         "category": "unclassified",
-        "count": 7708,
+        "count": 7879,
         "gap": null,
         "paid_data_could_resolve": "no",
         "reason": "G_GXZ_HOLD_TO_EXPIRY_DTE_FAIL",
-        "sessions": 20,
+        "sessions": 21,
         "strategy": "event_vol_gxz_preea_straddle_to_expiry"
       },
       {
         "capability": null,
         "category": "unclassified",
-        "count": 38,
+        "count": 39,
         "gap": null,
         "paid_data_could_resolve": "no",
         "reason": "G_GXZ_HOLD_TO_EXPIRY_DTE_UNKNOWN",
-        "sessions": 20,
+        "sessions": 21,
         "strategy": "event_vol_gxz_preea_straddle_to_expiry"
       },
       {
         "capability": null,
         "category": "unclassified",
-        "count": 16,
+        "count": 17,
         "gap": null,
         "paid_data_could_resolve": "no",
         "reason": "G_CBOE_SPX_REF_BEFORE_1100_UNKNOWN",
-        "sessions": 16,
+        "sessions": 17,
         "strategy": "index_buywrite_cboe_bxm"
       },
       {
@@ -856,11 +866,11 @@
       {
         "capability": null,
         "category": "unclassified",
-        "count": 18,
+        "count": 19,
         "gap": null,
         "paid_data_could_resolve": "no",
         "reason": "G_CBOE_SPX_REF_BEFORE_1100_UNKNOWN",
-        "sessions": 18,
+        "sessions": 19,
         "strategy": "index_putwrite_cboe_put"
       },
       {
@@ -886,11 +896,11 @@
       {
         "capability": null,
         "category": "unclassified",
-        "count": 18,
+        "count": 19,
         "gap": null,
         "paid_data_could_resolve": "no",
         "reason": "G_CBOE_SPX_REF_BEFORE_1100_UNKNOWN",
-        "sessions": 18,
+        "sessions": 19,
         "strategy": "index_putwrite_cboe_puty"
       },
       {
@@ -916,11 +926,11 @@
       {
         "capability": null,
         "category": "unclassified",
-        "count": 15,
+        "count": 16,
         "gap": null,
         "paid_data_could_resolve": "no",
         "reason": "G_SCS_STRIKE_UNIQUE_UNKNOWN",
-        "sessions": 15,
+        "sessions": 16,
         "strategy": "index_short_vol_scs_near_atm_straddle"
       },
       {
@@ -946,18 +956,28 @@
       {
         "capability": null,
         "category": "unclassified",
-        "count": 5030,
+        "count": 5533,
         "gap": null,
         "paid_data_could_resolve": "no",
         "reason": "CAPACITY_DEFERRED_INCOMPLETE_COHORT",
-        "sessions": 10,
+        "sessions": 11,
         "strategy": "xs_option_heston_straddle_momentum_lowcost"
+      },
+      {
+        "capability": null,
+        "category": "unclassified",
+        "count": 503,
+        "gap": null,
+        "paid_data_could_resolve": "no",
+        "reason": "CAPACITY_DEFERRED_INCOMPLETE_COHORT",
+        "sessions": 1,
+        "strategy": "xs_option_zhan_neg_lnprice_dn_call"
       }
     ]
   },
-  "eligible_session_count": 26,
+  "eligible_session_count": 27,
   "forward_outcomes": {
-    "as_of_session": "2026-10-29",
+    "as_of_session": "2026-10-30",
     "by_strategy": {
       "forward_factor": {
         "distinct_exact_leg_sets": 1,
@@ -995,88 +1015,95 @@
   "opportunity_counts": {
     "by_strategy": {
       "B001": {
-        "actionable_mean_per_session": 0.2308,
+        "actionable_mean_per_session": 0.2222,
         "actionable_total": 6,
         "asset_class": "stock",
         "qualifying_total": 6,
-        "sessions_observed": 26
+        "sessions_observed": 27
       },
       "B002": {
         "actionable_mean_per_session": 0.0,
         "actionable_total": 0,
         "asset_class": "stock",
         "qualifying_total": 0,
-        "sessions_observed": 26
+        "sessions_observed": 27
       },
       "earnings_calendar": {
-        "actionable_mean_per_session": 11.1154,
-        "actionable_total": 289,
+        "actionable_mean_per_session": 10.8148,
+        "actionable_total": 292,
         "asset_class": "option",
-        "qualifying_total": 334,
-        "sessions_observed": 26
+        "qualifying_total": 343,
+        "sessions_observed": 27
       },
       "event_vol_gxz_preea_straddle_to_expiry": {
         "actionable_mean_per_session": 0.0,
         "actionable_total": 0,
         "asset_class": "option",
         "qualifying_total": 0,
-        "sessions_observed": 20
+        "sessions_observed": 21
       },
       "forward_factor": {
         "actionable_mean_per_session": 0.0,
         "actionable_total": 0,
         "asset_class": "option",
-        "qualifying_total": 193,
-        "sessions_observed": 26
+        "qualifying_total": 217,
+        "sessions_observed": 27
       },
       "index_buywrite_cboe_bxm": {
         "actionable_mean_per_session": 0.0,
         "actionable_total": 0,
         "asset_class": "option",
         "qualifying_total": 0,
-        "sessions_observed": 21
+        "sessions_observed": 22
       },
       "index_putwrite_cboe_put": {
         "actionable_mean_per_session": 0.0,
         "actionable_total": 0,
         "asset_class": "option",
         "qualifying_total": 0,
-        "sessions_observed": 24
+        "sessions_observed": 25
       },
       "index_putwrite_cboe_puty": {
         "actionable_mean_per_session": 0.0,
         "actionable_total": 0,
         "asset_class": "option",
         "qualifying_total": 0,
-        "sessions_observed": 24
+        "sessions_observed": 25
       },
       "index_short_vol_scs_near_atm_straddle": {
         "actionable_mean_per_session": 0.0,
         "actionable_total": 0,
         "asset_class": "option",
         "qualifying_total": 0,
-        "sessions_observed": 20
+        "sessions_observed": 21
       },
       "skew_momentum": {
         "actionable_mean_per_session": 0.0,
         "actionable_total": 0,
         "asset_class": "option",
         "qualifying_total": 0,
-        "sessions_observed": 26
+        "sessions_observed": 27
       },
       "spy_put_credit_spread": {
-        "actionable_mean_per_session": 0.2308,
+        "actionable_mean_per_session": 0.2222,
         "actionable_total": 6,
         "asset_class": "option",
         "qualifying_total": 6,
-        "sessions_observed": 26
+        "sessions_observed": 27
       },
       "xs_option_heston_straddle_momentum_lowcost": {
         "actionable_mean_per_session": 0.0,
         "actionable_total": 0,
         "asset_class": "option",
         "qualifying_total": 0,
-        "sessions_observed": 10
+        "sessions_observed": 11
+      },
+      "xs_option_zhan_neg_lnprice_dn_call": {
+        "actionable_mean_per_session": 0.0,
+        "actionable_total": 0,
+        "asset_class": "option",
+        "qualifying_total": 0,
+        "sessions_observed": 1
       }
     },
     "per_session": {
@@ -2781,6 +2808,86 @@
           "asset_class": "option",
           "qualifying": 0
         }
+      },
+      "2026-10-30": {
+        "B001": {
+          "actionable": 0,
+          "active": 1,
+          "asset_class": "stock",
+          "qualifying": 0
+        },
+        "B002": {
+          "actionable": 0,
+          "active": 1,
+          "asset_class": "stock",
+          "qualifying": 0
+        },
+        "earnings_calendar": {
+          "actionable": 3,
+          "active": 503,
+          "asset_class": "option",
+          "qualifying": 9
+        },
+        "event_vol_gxz_preea_straddle_to_expiry": {
+          "actionable": 0,
+          "active": 503,
+          "asset_class": "option",
+          "qualifying": 0
+        },
+        "forward_factor": {
+          "actionable": 0,
+          "active": 503,
+          "asset_class": "option",
+          "qualifying": 24
+        },
+        "index_buywrite_cboe_bxm": {
+          "actionable": 0,
+          "active": 1,
+          "asset_class": "option",
+          "qualifying": 0
+        },
+        "index_putwrite_cboe_put": {
+          "actionable": 0,
+          "active": 1,
+          "asset_class": "option",
+          "qualifying": 0
+        },
+        "index_putwrite_cboe_puty": {
+          "actionable": 0,
+          "active": 1,
+          "asset_class": "option",
+          "qualifying": 0
+        },
+        "index_short_vol_scs_near_atm_straddle": {
+          "actionable": 0,
+          "active": 1,
+          "asset_class": "option",
+          "qualifying": 0
+        },
+        "skew_momentum": {
+          "actionable": 0,
+          "active": 503,
+          "asset_class": "option",
+          "qualifying": 0
+        },
+        "spy_put_credit_spread": {
+          "actionable": 0,
+          "active": 1,
+          "asset_class": "option",
+          "qualifying": 0
+        },
+        "xs_option_heston_straddle_momentum_lowcost": {
+          "actionable": 0,
+          "active": 503,
+          "asset_class": "option",
+          "qualifying": 0
+        },
+        "xs_option_zhan_neg_lnprice_dn_call": {
+          "actionable": 0,
+          "active": 503,
+          "asset_class": "option",
+          "qualifying": 0
+        }
       }
     }
   },
@@ -2791,8 +2898,8 @@
       ],
       "cause": "genuinely unknown or unannounced events after bounded acquisition",
       "observed_rows_partially_resolvable": {
-        "latest_session": 234,
-        "mean_per_session": 59.7308
+        "latest_session": 295,
+        "mean_per_session": 68.4444
       },
       "observed_rows_resolvable": {
         "latest_session": 0,
@@ -2812,12 +2919,12 @@
       ],
       "cause": "provider coverage/entitlement for the external subset; declared expiration policy and temporal absence for the much larger legitimate subset",
       "observed_rows_partially_resolvable": {
-        "latest_session": 10,
-        "mean_per_session": 8.7308
+        "latest_session": 11,
+        "mean_per_session": 8.8148
       },
       "observed_rows_resolvable": {
         "latest_session": 17,
-        "mean_per_session": 14.6154
+        "mean_per_session": 14.7037
       },
       "remaining_missingness": "18 current active provider entitlement/coverage gaps; option-policy and temporal absence remain separately typed",
       "required_capability": "complete option expiration, contract, quote, Greek, and implied-volatility evidence",
@@ -2840,7 +2947,7 @@
       },
       "observed_rows_resolvable": {
         "latest_session": 0,
-        "mean_per_session": 0.5769
+        "mean_per_session": 0.5556
       },
       "remaining_missingness": "no qualified sealed long-history corpus; Alpha Vantage adjusted-history entitlement remains unresolved",
       "required_capability": "split-and-dividend-adjusted or authoritative total-return history",
@@ -2895,7 +3002,7 @@
   ],
   "procurement": "none; this report informs a later Founder decision only",
   "registry_version": "1.0.0",
-  "report_checksum": "a031fe79f5310f2be0a8de62d8b87f9ed75ff24f6edd0a290a069e46250765a3",
+  "report_checksum": "42d93fa7eaaa5803732101b71e684d30c9ce945944f336787593d36153083b63",
   "report_kind": "oi07_data_value_report",
   "report_version": "1.0.0",
   "sessions": [
@@ -3080,34 +3187,41 @@
       "ineligible_reason": null,
       "production_sha": "3a79b96e66b9f8727a6e0a548598c2348dd1b68e",
       "session_date": "2026-10-29"
+    },
+    {
+      "captured_at": "2026-10-30T22:38:08.590480+00:00",
+      "eligible": true,
+      "ineligible_reason": null,
+      "production_sha": "d83b538a83a70c2149481ed6b03db426312276bd",
+      "session_date": "2026-10-30"
     }
   ],
   "system_forward_outcomes": {
-    "as_of_session": "2026-10-29",
+    "as_of_session": "2026-10-30",
     "by_strategy": {
       "earnings_calendar": {
-        "distinct_exact_leg_sets": 124,
-        "distinct_opportunities": 92,
-        "due_horizon_coverage": 0.8992,
+        "distinct_exact_leg_sets": 129,
+        "distinct_opportunities": 93,
+        "due_horizon_coverage": 0.9013,
         "meets_sample_guard": true,
-        "observed_with_modeled_pnl": 321,
+        "observed_with_modeled_pnl": 356,
         "status_counts": {
-          "missed": 36,
-          "observed": 321,
-          "pending": 78
+          "missed": 39,
+          "observed": 356,
+          "pending": 52
         },
-        "tracked": 142,
-        "with_frozen_proposal": 142
+        "tracked": 147,
+        "with_frozen_proposal": 147
       },
       "index_putwrite_cboe_put": {
         "distinct_exact_leg_sets": 1,
         "distinct_opportunities": 1,
         "due_horizon_coverage": 1.0,
         "meets_sample_guard": false,
-        "observed_with_modeled_pnl": 2,
+        "observed_with_modeled_pnl": 3,
         "status_counts": {
-          "observed": 2,
-          "pending": 2
+          "observed": 3,
+          "pending": 1
         },
         "tracked": 1,
         "with_frozen_proposal": 1
@@ -3117,32 +3231,32 @@
         "distinct_opportunities": 1,
         "due_horizon_coverage": 1.0,
         "meets_sample_guard": false,
-        "observed_with_modeled_pnl": 2,
+        "observed_with_modeled_pnl": 3,
         "status_counts": {
-          "observed": 2,
-          "pending": 2
+          "observed": 3,
+          "pending": 1
         },
         "tracked": 1,
         "with_frozen_proposal": 1
       },
       "spy_put_credit_spread": {
-        "distinct_exact_leg_sets": 25,
-        "distinct_opportunities": 25,
-        "due_horizon_coverage": 0.9667,
+        "distinct_exact_leg_sets": 26,
+        "distinct_opportunities": 26,
+        "due_horizon_coverage": 0.9706,
         "meets_sample_guard": true,
-        "observed_with_modeled_pnl": 58,
+        "observed_with_modeled_pnl": 66,
         "status_counts": {
           "missed": 2,
-          "observed": 58,
-          "pending": 40
+          "observed": 66,
+          "pending": 36
         },
-        "tracked": 25,
-        "with_frozen_proposal": 25
+        "tracked": 26,
+        "with_frozen_proposal": 26
       }
     },
     "ledger_status": "available",
     "sample_guard": 30,
-    "tracked_total": 169
+    "tracked_total": 175
   },
   "verdict": "evidence_insufficient"
 }
