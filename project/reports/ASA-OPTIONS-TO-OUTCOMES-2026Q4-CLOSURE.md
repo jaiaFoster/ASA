@@ -1,8 +1,8 @@
 # ASA-OPTIONS-TO-OUTCOMES-2026Q4 — Program Closure Report
 
 - **Verdict:** `observation_pending`
-- **Report checksum:** `09426de1ad07c28a55375a5bfba3eaae1f1f2fcbe4df83a6850c0e9aa68a16de`
-- **OI-07 data-value verdict:** `evidence_insufficient` (`f3acb40016ce`)
+- **Report checksum:** `45dcde51c7044c672f9388fca14f90ffdef0fce27730d9f26d901dd3130740e5`
+- **OI-07 data-value verdict:** `evidence_insufficient` (`cdefcb9ff200`)
 
 ## Evidence gates
 
@@ -10,8 +10,8 @@
 |---|---|---|
 | prior_sprints_closed | **pass** | all closed |
 | forward_ledger_deployed | **pass** | latest eligible capture ledger_status=available |
-| forward_outcome_observed | **pass** | observed horizons in the latest readable ledgers, by source (never pooled): user_tracked=4, system_actionable=531 |
-| aoy_measured | **pass** | 33 eligible session(s), required 5 |
+| forward_outcome_observed | **pass** | observed horizons in the latest readable ledgers, by source (never pooled): user_tracked=4, system_actionable=548 |
+| aoy_measured | **pass** | 34 eligible session(s), required 5 |
 | zero_unexplained_drops | **pass** | 0 unexplained drop(s) across eligible sessions |
 | presentation_defect_free | **pass** | 0 trade-card/stock-proposal defect(s) across eligible sessions |
 | oi07_data_value_complete | **pending** | OI-07 verdict=evidence_insufficient |
@@ -35,14 +35,14 @@
 
 AOY is the count of complete, currently actionable proposals per eligible session, measured without lowering any gate.
 
-- AOY total: {"n": 33, "mean": 10.8182, "median": 6.0, "min": 0.0, "max": 34.0}
-- AOY options: {"n": 33, "mean": 10.4545, "median": 5.0, "min": 0.0, "max": 34.0}
-- AOY stocks: {"n": 33, "mean": 0.3636, "median": 0.0, "min": 0.0, "max": 1.0}
+- AOY total: {"n": 34, "mean": 10.6471, "median": 5.5, "min": 0.0, "max": 34.0}
+- AOY options: {"n": 34, "mean": 10.2647, "median": 4.5, "min": 0.0, "max": 34.0}
+- AOY stocks: {"n": 34, "mean": 0.3824, "median": 0.0, "min": 0.0, "max": 1.0}
 - Evaluation coverage (mean): 1.0
-- Strategy evaluation completion rate (mean): 0.5237
-- Constructible rate after qualifying signals (mean): 0.3739
-- Trade-card completeness (mean): 0.3739
-- Median actionable evidence age at session close, seconds (mean of sessions): 3695.3581
+- Strategy evaluation completion rate (mean): 0.5178
+- Constructible rate after qualifying signals (mean): 0.3648
+- Trade-card completeness (mean): 0.3648
+- Median actionable evidence age at session close, seconds (mean of sessions): 3649.7219
 - Unexplained drops (total): 0
 
 | Session | SHA | AOY | Options | Stocks | Coverage | Completion | Constructible | Provider-limited |
@@ -80,24 +80,25 @@ AOY is the count of complete, currently actionable proposals per eligible sessio
 | 2026-11-05 | `9f7b2e8` | 10 | 9 | 1 | 1.0 | 0.3236 | 0.0968 | {"earnings_calendar_v1": 0.1451, "historical_bars_v1": 0.0003, "option_chain_v1": 0.0053, "real_time_quote_v1": 0.003} |
 | 2026-11-06 | `a536809` | 12 | 11 | 1 | 1.0 | 0.324 | 0.1279 | {"earnings_calendar_v1": 0.1507, "historical_bars_v1": 0.0003, "option_chain_v1": 0.0056, "real_time_quote_v1": 0.003} |
 | 2026-11-09 | `d51e2ef` | 11 | 10 | 1 | 1.0 | 0.321 | 0.1515 | {"earnings_calendar_v1": 0.1464, "historical_bars_v1": 0.0003, "option_chain_v1": 0.0053, "real_time_quote_v1": 0.003} |
+| 2026-11-10 | `4770820` | 5 | 4 | 1 | 1.0 | 0.3223 | 0.0625 | {"earnings_calendar_v1": 0.1484, "historical_bars_v1": 0.0003, "option_chain_v1": 0.006, "real_time_quote_v1": 0.003} |
 
 ## Forward-outcome corpus
 
 - **System-actionable (ND-01)**, ledger `available`
-  - earnings_calendar: 180 subject(s); horizons {"missed": 39, "observed": 435, "pending": 79}; n=435 with modeled P&L
-  - forward_factor: 5 subject(s); horizons {"observed": 3, "pending": 17}; n=3 with modeled P&L
+  - earnings_calendar: 187 subject(s); horizons {"missed": 39, "observed": 447, "pending": 89}; n=447 with modeled P&L
+  - forward_factor: 5 subject(s); horizons {"observed": 5, "pending": 15}; n=5 with modeled P&L
   - index_putwrite_cboe_put: 1 subject(s); horizons {"observed": 3, "pending": 1}; n=3 with modeled P&L
   - index_putwrite_cboe_puty: 1 subject(s); horizons {"observed": 3, "pending": 1}; n=3 with modeled P&L
-  - spy_put_credit_spread: 31 subject(s); horizons {"missed": 2, "observed": 87, "pending": 35}; n=87 with modeled P&L
+  - spy_put_credit_spread: 32 subject(s); horizons {"missed": 2, "observed": 90, "pending": 36}; n=90 with modeled P&L
 - **User-tracked**, ledger `available`
   - forward_factor: 1 subject(s); horizons {"missed": 3}; n=0 with modeled P&L
   - spy_put_credit_spread: 1 subject(s); horizons {"observed": 4}; n=4 with modeled P&L
 
 ## Remaining quantified data/provider blockers
 
-- confirmed earnings calendar with announcement status and effective timestamps: resolvable rows {"latest_session": 0, "mean_per_session": 0.0}; partially {"latest_session": 443, "mean_per_session": 128.8788}; blocks BD-06
-- complete option expiration, contract, quote, Greek, and implied-volatility evidence: resolvable rows {"latest_session": 16, "mean_per_session": 15.0606}; partially {"latest_session": 9, "mean_per_session": 8.8485}; blocks BD-07
-- split-and-dividend-adjusted or authoritative total-return history: resolvable rows {"latest_session": 1, "mean_per_session": 0.6364}; partially {"latest_session": 0, "mean_per_session": 0.0}; blocks BD-02, BD-08
+- confirmed earnings calendar with announcement status and effective timestamps: resolvable rows {"latest_session": 0, "mean_per_session": 0.0}; partially {"latest_session": 449, "mean_per_session": 138.2941}; blocks BD-06
+- complete option expiration, contract, quote, Greek, and implied-volatility evidence: resolvable rows {"latest_session": 18, "mean_per_session": 15.1471}; partially {"latest_session": 9, "mean_per_session": 8.8529}; blocks BD-07
+- split-and-dividend-adjusted or authoritative total-return history: resolvable rows {"latest_session": 1, "mean_per_session": 0.6471}; partially {"latest_session": 0, "mean_per_session": 0.0}; blocks BD-02, BD-08
 - canonical three-month Treasury total-return history: resolvable rows {"latest_session": 0, "mean_per_session": 0.0}; partially {"latest_session": 0, "mean_per_session": 0.0}; blocks BD-08
 - authoritative point-in-time sector membership and historical exchange calendar: resolvable rows {"latest_session": 0, "mean_per_session": 0.0}; partially {"latest_session": 0, "mean_per_session": 0.0}; blocks BD-08
 
