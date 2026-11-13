@@ -360,3 +360,15 @@ This worker succeeds when the backlog of briefs becomes progressively less usefu
 The north star is:
 
 > A morning brief should consume ASA truth, not debug ASA truth.
+
+## 14. Claude Routine execution profile (2026-11-13)
+
+This assignment is executed unattended by two Claude Routines that split, but do not enlarge, the
+authority above: **Routine A (triage)** performs §§3–6 and §12 (dispositions, canonical issues,
+ledger); **Routine B (engineering)** performs §§7–9 for one `engineering-ready` issue per run.
+Procedures: `claude-morning-briefs/routines/`. State model and ownership:
+`claude-morning-briefs/WORKER_OWNERSHIP.md`. The binary-archive fallback in §4.1.1 is obsolete for
+the initial backlog (already extracted as 26 Markdown files). Neither routine may merge, deploy, or
+change governance; ROLE-ARCH hydration (§5 Step D) is replaced in unattended runs by labelling the
+issue `needs-architect` and stopping that path.
+
