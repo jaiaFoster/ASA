@@ -83,6 +83,16 @@ If the cursor marks a backlog archive as unprocessed:
 - process oldest to newest so recurring defects and later fixes are distinguishable;
 - record the archive blob SHA and processed date range in the cursor when complete.
 
+### 4.1.1 Binary archive retrieval fallback
+
+For the initial historical ZIP (and any later binary archive), do not interpret raw ZIP bytes as UTF-8 text.
+
+- Prefer a normal repository checkout and local ZIP extraction when a working checkout is available.
+- If checkout or direct binary download is unavailable, use the GitHub connector `fetch_file` for the archive path on current `main` with explicit `encoding: "base64"`. The ordinary `fetch_blob` path may raise a `UnicodeDecodeError` on ZIP data; this does not indicate a GitHub permission failure.
+- Decode the returned Base64 payload to **bytes** (not a text string), and extract the ZIP in a binary-capable runtime. Validate archive integrity, reject unsafe absolute or parent-traversal member paths, and compare the fetched blob SHA with the cursor's recorded SHA before processing.
+- If the connector response is too large for the runtime or cannot be decoded/extracted safely, report the precise remaining execution limitation; do not mark the archive processed, fabricate observations, or repeatedly retry the same failing text-decoding path.
+- This is an intake transport workaround only; it does not change canonical source authority, engineering scope, or merge/deployment boundaries.
+
 ### 4.2 Incremental briefs
 
 For normal daily operation:
