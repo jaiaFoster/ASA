@@ -180,7 +180,7 @@ def test_extension_ticks_preserve_close_and_option_work(tick, expect_benchmarks)
         temporal=SimpleNamespace(
             usability_status="usable",
             market_session_date=tick.date(),
-            observed_at=close,
+            observed_at=close + timedelta(seconds=1),
             input_time_skew_seconds=0,
         ),
     )
@@ -188,6 +188,13 @@ def test_extension_ticks_preserve_close_and_option_work(tick, expect_benchmarks)
     assert (
         scheduler._scheduled_fixed_pairs(scheduler.SCHEDULED_FIXED_SUBJECT_PAIRS, tick, repository)
         == expected + scheduler.FIXED_SUBJECT_OPTION_UNIVERSE
+    )
+
+    # Inputs at close - 100ms and close + 100ms persist with zero whole seconds of skew.
+    repository.get_one.return_value.temporal.observed_at = close + timedelta(milliseconds=100)
+    assert (
+        scheduler._scheduled_fixed_pairs(STOCK_BENCHMARK_UNIVERSE, tick, repository)
+        == STOCK_BENCHMARK_UNIVERSE
     )
 
 

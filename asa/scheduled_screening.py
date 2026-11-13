@@ -1021,8 +1021,9 @@ def _scheduled_fixed_pairs(
                 in (UsabilityStatus.USABLE, UsabilityStatus.USABLE_WITH_WARNING)
                 and row.temporal.market_session_date == session.trading_date
                 and row.temporal.observed_at <= run_at
+                # Persisted skew is rounded down to whole seconds.
                 and row.temporal.observed_at
-                - timedelta(seconds=row.temporal.input_time_skew_seconds)
+                - timedelta(seconds=row.temporal.input_time_skew_seconds + 1)
                 >= session.closes_at
             ):
                 continue
