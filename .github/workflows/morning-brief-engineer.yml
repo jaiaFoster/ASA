@@ -1,18 +1,20 @@
 name: Morning Brief Intake (no AI API)
 
+# Deterministic intake only. Claude routines own semantic triage (09:00 America/Phoenix) and
+# engineering (10:00); this runs first so triage sees a fresh queue. No AI API, no code writes.
 on:
   schedule:
-    - cron: "0 16 * * *" # 09:00 America/Phoenix year-round
+    - cron: "0 15 * * *" # 08:00 America/Phoenix year-round (Phoenix has no DST)
   workflow_dispatch:
     inputs:
       batch_size:
-        description: "Maximum new briefs to enqueue"
+        description: "Maximum new/revised briefs to enqueue"
         required: false
         default: "3"
 
 permissions:
   contents: read
-  issues: write
+  issues: write # create intake issues/labels/comments only
 
 concurrency:
   group: morning-brief-intake
@@ -24,11 +26,16 @@ jobs:
     timeout-minutes: 15
     env:
       GH_TOKEN: ${{ github.token }}
+      GITHUB_REPOSITORY: ${{ github.repository }}
       BRIEF_BATCH_SIZE: ${{ inputs.batch_size || '3' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Enqueue new or modified briefs as GitHub issues
-        run: python tools/morning_brief_agent/run.py
+      - name: Unit tests for intake/state code (fail closed before touching issues)
+        run: |
+          python -m pip install "pytest>=8.3,<9"
+          python -m pytest tests/tools/morning_brief_agent -q
+      - name: Enqueue new or revised briefs as GitHub issues (idempotent)
+        run: python tools/morning_brief_agent/run.py intake

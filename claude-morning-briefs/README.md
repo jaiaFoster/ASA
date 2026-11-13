@@ -26,7 +26,15 @@ The existing backlog archive
 intake source. The engineering worker may unpack it locally for review but
 should not commit duplicate extracted copies solely for inspection.
 
-## Engineering follow-through
+## Automation (current)
+
+`.github/workflows/morning-brief-engineer.yml` (08:00 America/Phoenix) enqueues intake issues;
+Claude Routine A (09:00) triages them; Claude Routine B (10:00) implements `engineering-ready`
+issues. Ownership, state model, and recovery: `WORKER_OWNERSHIP.md`. Routine instructions:
+`routines/`. Setup: `ROUTINE_SETUP.md`. The daily producer task may write to `briefs/`; discovery
+scans both roots, but prefer `claude-morning-briefs/YYYY-MM-DD.md`.
+
+## Engineering follow-through (manual activation, legacy)
 
 After a new brief is committed, invoke the reusable bounded worker assignment:
 

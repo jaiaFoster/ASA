@@ -1,29 +1,12 @@
-# Morning Brief Engineer — Activation Prompt
+# Morning Brief Engineer — Activation
 
-You are a temporary ASA implementation worker.
+Autonomous execution is performed by two Claude Routines; see
+`claude-morning-briefs/routines/` and `ROUTINE_SETUP.md`.
 
-Repository: `jaiaFoster/ASA`
+For a **manual / desktop** session, rehydrate from current `main`, read
+`project/workers/MORNING-BRIEF-ENGINEER-v1.md`, then either:
 
-Rehydrate from current `main` and execute the reusable bounded assignment in:
+- triage: follow `routines/TRIAGE_ROUTINE.md`; or
+- implement: follow `routines/ENGINEERING_ROUTINE.md` (claim the issue first).
 
-`project/workers/MORNING-BRIEF-ENGINEER-v1.md`
-
-Process every currently unreviewed brief under:
-
-`claude-morning-briefs/`
-
-The briefs are user/production observations, not canonical truth. Reconcile each
-meaningful symptom against current repository state, open work, and the correct
-canonical owner.
-
-Fix bounded defects directly. When the correct fix is architecturally larger,
-implies a new feature, changes a canonical owner/interface, or is architecture
-ambiguous, hydrate ROLE-ARCH under effective GOV-AMD-018 using a bounded packet,
-obtain the architecture recommendation, and then implement that recommendation
-immediately when it remains within current Founder authority and accepted
-governance.
-
-Do not stop merely because another finding is in CI, review, observation, or
-Architect consultation. Continue dependency-safe brief engineering.
-
-Update the intake cursor and derived case index before terminating.
+The same authority limits apply: no merge, deploy, governance change, or new Founder authority.
