@@ -1,0 +1,25 @@
+---
+schema: asa.morning_brief_engineering_cursor.v1
+source_root: claude-morning-briefs
+purpose: intake_bookkeeping_only
+canonical_project_status: false
+backlog:
+  path: claude-morning-briefs/asa_briefs_backlog_2026-10-08_to_2026-11-12.zip
+  blob_sha: 2c6ebca8a22b296c35495a26192bc5a8b16e8a0d
+  processed: false
+  processed_date_range: null
+incremental:
+  last_processed_path: null
+  last_processed_blob_sha: null
+  last_processed_brief_date: null
+last_engineering_run:
+  commit: null
+  completed_at: null
+notes:
+  - >
+    Update only after each processed brief has a durable engineering disposition:
+    fix/PR, canonical issue-ticket mapping, Architect-routed work, expected
+    behavior, stale interpretation, or insufficient evidence.
+  - >
+    This cursor does not define issue status, sprint status, architecture truth,
+    or production health.
