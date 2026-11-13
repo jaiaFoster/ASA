@@ -108,6 +108,7 @@ def build_b001_subject_preparation_binding(now: datetime) -> SubjectPreparationB
     )
     return SubjectPreparationBinding(
         consumer=consumer,
+        skip_repeated_after_close_ticks=True,
         prepare_knowledge_mapping=_prepare_b001,
         build_shadow_adapter=build_b001_subject_first_adapter,
     )
@@ -121,6 +122,7 @@ def build_b002_subject_preparation_binding(now: datetime) -> SubjectPreparationB
     )
     return SubjectPreparationBinding(
         consumer=consumer,
+        skip_repeated_after_close_ticks=True,
         prepare_knowledge_mapping=_prepare_b002,
         build_shadow_adapter=build_b002_subject_first_adapter,
     )

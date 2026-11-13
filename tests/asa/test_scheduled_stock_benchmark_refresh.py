@@ -150,3 +150,91 @@ def test_stock_benchmark_refresh_runs_both_pairs_end_to_end(
     assert b002 is not None
     assert b002.verdict == "PASS"
     assert b002.metrics["sma_10m_completed_months"].native() == Decimal("405.5")
+
+
+@pytest.mark.parametrize(
+    ("tick", "expect_benchmarks"),
+    [
+        (datetime(2026, 10, 9, 20, 51, tzinfo=UTC), True),  # original cron window
+        *(
+            (datetime(2026, 10, 9, 21, minute, tzinfo=UTC), False)
+            for minute in (1, 11, 21, 31, 41, 51)
+        ),
+        (datetime(2026, 11, 13, 21, 9, 59, tzinfo=UTC), True),  # delayed close tick
+        (datetime(2026, 11, 13, 21, 10, tzinfo=UTC), False),
+        (datetime(2026, 11, 27, 18, 1, tzinfo=UTC), True),  # early close
+        (datetime(2026, 11, 27, 21, 1, tzinfo=UTC), False),
+    ],
+)
+def test_extension_ticks_preserve_close_and_option_work(tick, expect_benchmarks):
+    from types import SimpleNamespace
+    from unittest.mock import Mock
+
+    from asa import scheduled_screening as scheduler
+    from market_data.session_calendar import UsEquitySessionCalendar
+
+    close = UsEquitySessionCalendar().session(tick.date()).closes_at
+    repository = Mock()
+    repository.get_one.return_value = SimpleNamespace(
+        evaluation_state="pass",
+        temporal=SimpleNamespace(
+            usability_status="usable",
+            market_session_date=tick.date(),
+            observed_at=close + timedelta(seconds=1),
+            input_time_skew_seconds=0,
+        ),
+    )
+    expected = STOCK_BENCHMARK_UNIVERSE if expect_benchmarks else ()
+    assert (
+        scheduler._scheduled_fixed_pairs(scheduler.SCHEDULED_FIXED_SUBJECT_PAIRS, tick, repository)
+        == expected + scheduler.FIXED_SUBJECT_OPTION_UNIVERSE
+    )
+
+    # Inputs at close - 100ms and close + 100ms persist with zero whole seconds of skew.
+    repository.get_one.return_value.temporal.observed_at = close + timedelta(milliseconds=100)
+    assert (
+        scheduler._scheduled_fixed_pairs(STOCK_BENCHMARK_UNIVERSE, tick, repository)
+        == STOCK_BENCHMARK_UNIVERSE
+    )
+
+
+def test_missed_close_retries_only_unfinished_benchmarks(monkeypatch):
+    from dataclasses import replace
+
+    from asa import scheduled_screening as scheduler
+
+    class Clock(datetime):
+        tick = datetime(2026, 11, 13, 21, 11, tzinfo=UTC)
+
+        @classmethod
+        def now(cls, tz=None):
+            return cls.tick.astimezone(tz)
+
+    monkeypatch.setattr(scheduler, "datetime", Clock)
+    monkeypatch.setattr(
+        scheduler, "build_shared_market_data_access", _build_stock_benchmark_access()
+    )
+    monkeypatch.setenv("ASA_TRADIER_ENABLED", "true")
+    monkeypatch.setenv("ASA_TRADIER_ACCESS_TOKEN", "fixture")
+    repo = InMemoryLatestResultRepository()
+
+    def run():
+        return run_scheduled_stock_benchmark_refresh(
+            now=Clock.tick,
+            repository=repo,
+            history_repository=InMemoryObservationHistoryRepository(),
+            historical_skew_repository=_RecordingHistoricalSkewRepository(),
+            acquisition_attempt_repository=InMemoryAcquisitionAttemptRepository(),
+        )
+
+    assert [x.signal_id for x in run()] == ["B001", "B002"]
+    row = repo.get_one("B002", "SPY")
+    assert row.evaluation_state == "pass"
+    Clock.tick += timedelta(minutes=1)
+    repo.upsert(
+        replace(row, evaluation_state="missing_data", observed_at=Clock.tick, temporal=None)
+    )
+    Clock.tick += timedelta(minutes=10)
+    assert [x.signal_id for x in run()] == ["B002"]
+    Clock.tick += timedelta(minutes=10)
+    assert run() == ()
