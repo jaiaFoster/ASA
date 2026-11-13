@@ -618,3 +618,39 @@ def test_fixed_spx_root_projects_typed_readiness_for_not_due_index_strategies(
         assert assessment.status is ExecutableStructureStatus.UNKNOWN
         assert assessment.reason_code == "strategy_did_not_select_structure"
         assert assessment.subject == "SPX"
+
+
+def test_extension_cron_publishes_due_family_while_benchmarks_skip(monkeypatch):
+    from functools import partial
+
+    import asa.scheduled_screening as scheduler
+
+    tick = datetime(2026, 9, 30, 21, 1, tzinfo=UTC)
+    repository = InMemoryLatestResultRepository()
+    monkeypatch.setattr(
+        scheduler,
+        "run_scheduled_stock_benchmark_refresh",
+        partial(scheduler.run_scheduled_stock_benchmark_refresh, now=tick),
+    )
+    monkeypatch.setattr(
+        scheduler,
+        "run_scheduled_complete_family_refresh",
+        partial(
+            scheduler.run_scheduled_complete_family_refresh,
+            repository=repository,
+            claim_repository=_ClaimOnce(),
+            transport_factory=_no_transport,
+            now=tick,
+        ),
+    )
+    # Only the independent S&P cohort may reach this acquisition boundary.
+    monkeypatch.setattr(scheduler, "run_scheduled_refresh", lambda *, enforce_schedule: ())
+    for name in (
+        "run_scheduled_fixed_subject_option_refresh",
+        "run_scheduled_portfolio_refresh",
+        "run_scheduled_proposal_enrollment",
+        "run_scheduled_outcome_collection",
+    ):
+        monkeypatch.setattr(scheduler, name, lambda *args: ())
+    assert scheduler.main(["--json"]) == 0
+    assert {row.symbol for row in repository.get_for_signal(ZHAN)} == set(SP500_MEMBERSHIP.symbols)

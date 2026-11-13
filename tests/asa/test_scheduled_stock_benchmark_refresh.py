@@ -150,3 +150,34 @@ def test_stock_benchmark_refresh_runs_both_pairs_end_to_end(
     assert b002 is not None
     assert b002.verdict == "PASS"
     assert b002.metrics["sma_10m_completed_months"].native() == Decimal("405.5")
+
+
+@pytest.mark.parametrize(
+    ("tick", "expect_benchmarks"),
+    [
+        (datetime(2026, 10, 9, 20, 51, tzinfo=UTC), True),  # original cron window
+        *(
+            (datetime(2026, 10, 9, 21, minute, tzinfo=UTC), False)
+            for minute in (1, 11, 21, 31, 41, 51)
+        ),
+        (datetime(2026, 11, 13, 21, 9, 59, tzinfo=UTC), True),  # delayed close tick
+        (datetime(2026, 11, 13, 21, 10, tzinfo=UTC), False),
+        (datetime(2026, 11, 27, 18, 1, tzinfo=UTC), True),  # early close
+        (datetime(2026, 11, 27, 21, 1, tzinfo=UTC), False),
+    ],
+)
+def test_extension_ticks_preserve_close_and_option_work(monkeypatch, tick, expect_benchmarks):
+    from asa import scheduled_screening as scheduler
+
+    admitted = []
+
+    def record(universe, **kwargs):
+        assert kwargs["now"] == tick
+        admitted.extend(universe)
+        return ()
+
+    monkeypatch.setattr(scheduler, "run_scheduled_refresh", record)
+    scheduler.run_scheduled_stock_benchmark_refresh(now=tick)
+    scheduler.run_scheduled_fixed_subject_option_refresh(now=tick)
+    expected = STOCK_BENCHMARK_UNIVERSE if expect_benchmarks else ()
+    assert tuple(admitted) == expected + scheduler.FIXED_SUBJECT_OPTION_UNIVERSE

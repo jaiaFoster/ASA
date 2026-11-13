@@ -116,6 +116,7 @@ class SubjectPreparationBinding(Generic[TPayload]):  # noqa: UP046
     requires_complete_cross_subject_universe: bool = False
     cross_subject_family_due: CrossSubjectFamilyDue | None = None
     build_execution_assessment: BuildExecutionAssessment[TPayload] | None = None
+    skip_repeated_after_close_ticks: bool = False
 
     def __post_init__(self) -> None:
         callbacks = (
