@@ -127,10 +127,14 @@ def triage(state: dict, files: list[Path]) -> None:
                     "issues. Brief statements are observations, not accepted facts. "
                     "Follow architecture and Founder approval gates.\n"
                 )
-                issue = gh_json("issue", "create", "--title", item["title"][:180],
-                                "--body", body, "--json", "number")
-                references.append(issue["number"])
-                existing.append({"number": issue["number"], "title": item["title"]})
+                issue_url = run("gh", "issue", "create", "--title", item["title"][:180],
+                                "--body", body).stdout.strip()
+                match = re.search(r"/issues/(\\d+)$", issue_url)
+                if not match:
+                    raise RuntimeError("Issue created but could not parse number: " + issue_url)
+                issue_number = int(match.group(1))
+                references.append(issue_number)
+                existing.append({"number": issue_number, "title": item["title"]})
         state["briefs"][file.name] = {
             "sha256": hashlib.sha256(file.read_bytes()).hexdigest(),
             "reviewed_at": datetime.now(timezone.utc).isoformat(),
