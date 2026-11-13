@@ -166,18 +166,68 @@ def test_stock_benchmark_refresh_runs_both_pairs_end_to_end(
         (datetime(2026, 11, 27, 21, 1, tzinfo=UTC), False),
     ],
 )
-def test_extension_ticks_preserve_close_and_option_work(monkeypatch, tick, expect_benchmarks):
+def test_extension_ticks_preserve_close_and_option_work(tick, expect_benchmarks):
+    from types import SimpleNamespace
+    from unittest.mock import Mock
+
+    from asa import scheduled_screening as scheduler
+    from market_data.session_calendar import UsEquitySessionCalendar
+
+    close = UsEquitySessionCalendar().session(tick.date()).closes_at
+    repository = Mock()
+    repository.get_one.return_value = SimpleNamespace(
+        evaluation_state="pass",
+        temporal=SimpleNamespace(
+            usability_status="usable",
+            market_session_date=tick.date(),
+            observed_at=close,
+            input_time_skew_seconds=0,
+        ),
+    )
+    expected = STOCK_BENCHMARK_UNIVERSE if expect_benchmarks else ()
+    assert (
+        scheduler._scheduled_fixed_pairs(scheduler.SCHEDULED_FIXED_SUBJECT_PAIRS, tick, repository)
+        == expected + scheduler.FIXED_SUBJECT_OPTION_UNIVERSE
+    )
+
+
+def test_missed_close_retries_only_unfinished_benchmarks(monkeypatch):
+    from dataclasses import replace
+
     from asa import scheduled_screening as scheduler
 
-    admitted = []
+    class Clock(datetime):
+        tick = datetime(2026, 11, 13, 21, 11, tzinfo=UTC)
 
-    def record(universe, **kwargs):
-        assert kwargs["now"] == tick
-        admitted.extend(universe)
-        return ()
+        @classmethod
+        def now(cls, tz=None):
+            return cls.tick.astimezone(tz)
 
-    monkeypatch.setattr(scheduler, "run_scheduled_refresh", record)
-    scheduler.run_scheduled_stock_benchmark_refresh(now=tick)
-    scheduler.run_scheduled_fixed_subject_option_refresh(now=tick)
-    expected = STOCK_BENCHMARK_UNIVERSE if expect_benchmarks else ()
-    assert tuple(admitted) == expected + scheduler.FIXED_SUBJECT_OPTION_UNIVERSE
+    monkeypatch.setattr(scheduler, "datetime", Clock)
+    monkeypatch.setattr(
+        scheduler, "build_shared_market_data_access", _build_stock_benchmark_access()
+    )
+    monkeypatch.setenv("ASA_TRADIER_ENABLED", "true")
+    monkeypatch.setenv("ASA_TRADIER_ACCESS_TOKEN", "fixture")
+    repo = InMemoryLatestResultRepository()
+
+    def run():
+        return run_scheduled_stock_benchmark_refresh(
+            now=Clock.tick,
+            repository=repo,
+            history_repository=InMemoryObservationHistoryRepository(),
+            historical_skew_repository=_RecordingHistoricalSkewRepository(),
+            acquisition_attempt_repository=InMemoryAcquisitionAttemptRepository(),
+        )
+
+    assert [x.signal_id for x in run()] == ["B001", "B002"]
+    row = repo.get_one("B002", "SPY")
+    assert row.evaluation_state == "pass"
+    Clock.tick += timedelta(minutes=1)
+    repo.upsert(
+        replace(row, evaluation_state="missing_data", observed_at=Clock.tick, temporal=None)
+    )
+    Clock.tick += timedelta(minutes=10)
+    assert [x.signal_id for x in run()] == ["B002"]
+    Clock.tick += timedelta(minutes=10)
+    assert run() == ()

@@ -73,6 +73,7 @@ from market_data.attempts import AcquisitionAttemptRepository
 from market_data.live_transport import build_live_transport
 from market_data.session_calendar import NEW_YORK, UsEquitySessionCalendar
 from market_data.session_schedule import ScheduledRefreshSlot, SessionRefreshSchedule
+from market_data.temporal import UsabilityStatus
 from screening import APPROVED_LIVE_UNIVERSE, EARNINGS_CALENDAR_UNIVERSE
 from screening.cycle_identity import (
     manual_invocation_slot_id,
@@ -129,6 +130,7 @@ from strategy_runtime.persistence import (
     lifecycle_position_states,
 )
 from strategy_runtime.preparation_diagnostics import classify_subject_preparation_exception
+from strategy_runtime.result import SUCCESS_EVALUATION_STATES
 from strategy_runtime.service import record_opportunity_observation
 
 # The production screening universe (project/reports/SPRINT-008D-SCREENING-
@@ -406,6 +408,7 @@ def run_scheduled_refresh(
     claim_repository: RefreshScheduleClaimRepository | None = None,
     subject_refresh_repository: SubjectRefreshRepository | None = None,
     enforce_schedule: bool = False,
+    apply_fixed_pair_cadence: bool = False,
     now: datetime | None = None,
 ) -> tuple[PairOutcome, ...]:
     """Run one bounded refresh per pair in ``universe``, in order,
@@ -505,6 +508,10 @@ def run_scheduled_refresh(
     resolved_repository = repository or PostgresLatestResultRepository(
         create_postgres_engine(Settings().database_url)
     )
+    if apply_fixed_pair_cadence:
+        universe = _scheduled_fixed_pairs(universe, run_at, resolved_repository)
+        if not universe:
+            return ()
     resolved_history_repository = history_repository or PostgresObservationHistoryRepository(
         create_postgres_engine(Settings().database_url)
     )
@@ -989,7 +996,7 @@ def run_scheduled_refresh(
 
 
 def _scheduled_fixed_pairs(
-    pairs: tuple[tuple[str, str], ...], run_at: datetime
+    pairs: tuple[tuple[str, str], ...], run_at: datetime, repository: LatestResultRepository
 ) -> tuple[tuple[str, str], ...]:
     # PT-04 only trims the 21 UTC extension added for after-close formations.
     if run_at.astimezone(UTC).hour != 21:
@@ -999,12 +1006,28 @@ def _scheduled_fixed_pairs(
     if session is None or run_at < session.closes_at + timedelta(minutes=10):
         return pairs
     registry = build_migrated_shadow_registry(run_at)
-    return tuple(
-        (strategy_id, symbol)
-        for strategy_id, symbol in pairs
-        if not registry.is_registered(strategy_id)
-        or not registry.binding_for(strategy_id).skip_repeated_after_close_ticks
-    )
+    due = []
+    for strategy_id, symbol in pairs:
+        if (
+            registry.is_registered(strategy_id)
+            and registry.binding_for(strategy_id).skip_repeated_after_close_ticks
+        ):
+            row = repository.get_one(strategy_id, symbol)
+            if (
+                row is not None
+                and row.evaluation_state in SUCCESS_EVALUATION_STATES
+                and row.temporal is not None
+                and row.temporal.usability_status
+                in (UsabilityStatus.USABLE, UsabilityStatus.USABLE_WITH_WARNING)
+                and row.temporal.market_session_date == session.trading_date
+                and row.temporal.observed_at <= run_at
+                and row.temporal.observed_at
+                - timedelta(seconds=row.temporal.input_time_skew_seconds)
+                >= session.closes_at
+            ):
+                continue
+        due.append((strategy_id, symbol))
+    return tuple(due)
 
 
 def run_scheduled_stock_benchmark_refresh(
@@ -1018,20 +1041,16 @@ def run_scheduled_stock_benchmark_refresh(
     now: datetime | None = None,
 ) -> tuple[PairOutcome, ...]:
     """Refresh eligible fixed pairs independently of S&P cohort rotation."""
-    run_at = now or datetime.now(UTC)
-    pairs = _scheduled_fixed_pairs(STOCK_BENCHMARK_UNIVERSE, run_at)
-    if not pairs:
-        return ()
     return run_scheduled_refresh(
-        pairs,
+        STOCK_BENCHMARK_UNIVERSE,
         repository=repository,
         history_repository=history_repository,
         acquisition_attempt_repository=acquisition_attempt_repository,
         historical_skew_repository=historical_skew_repository,
         portfolio_lifecycle_repository=portfolio_lifecycle_repository,
         transport_factory=transport_factory,
-        enforce_schedule=False,
-        now=run_at,
+        apply_fixed_pair_cadence=True,
+        now=now,
     )
 
 
@@ -1046,20 +1065,16 @@ def run_scheduled_fixed_subject_option_refresh(
     now: datetime | None = None,
 ) -> tuple[PairOutcome, ...]:
     """Refresh eligible fixed pairs independently of S&P cohort rotation."""
-    run_at = now or datetime.now(UTC)
-    pairs = _scheduled_fixed_pairs(FIXED_SUBJECT_OPTION_UNIVERSE, run_at)
-    if not pairs:
-        return ()
     return run_scheduled_refresh(
-        pairs,
+        FIXED_SUBJECT_OPTION_UNIVERSE,
         repository=repository,
         history_repository=history_repository,
         acquisition_attempt_repository=acquisition_attempt_repository,
         historical_skew_repository=historical_skew_repository,
         portfolio_lifecycle_repository=portfolio_lifecycle_repository,
         transport_factory=transport_factory,
-        enforce_schedule=False,
-        now=run_at,
+        apply_fixed_pair_cadence=True,
+        now=now,
     )
 
 
