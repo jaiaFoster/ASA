@@ -91,6 +91,7 @@ def acquire(
     ttl: int = DEFAULT_TTL_MINUTES,
     now: datetime | None = None,
 ) -> tuple[bool, str]:
+    injected = now is not None
     now = now or datetime.now(UTC)
     ttl = min(ttl, MAX_TTL_MINUTES)
     status = claim_status(client.list_comments(number), now)
@@ -100,7 +101,8 @@ def acquire(
     if prs:
         return False, f"open PR(s) already reference this issue: {prs}"
     posted = client.create_comment(number, render_claim("claim", owner, run_id, ttl))
-    after = claim_status(client.list_comments(number), datetime.now(UTC))
+    # Re-evaluate on the same clock the caller supplied (tests); real runs use wall time.
+    after = claim_status(client.list_comments(number), now if injected else datetime.now(UTC))
     if after.state == "held" and (after.owner, after.run_id) == (owner, run_id):
         note = "recovered stale claim" if status.state == "stale" else "acquired"
         return True, note
