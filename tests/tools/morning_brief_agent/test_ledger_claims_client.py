@@ -245,3 +245,18 @@ def test_ensure_label_tolerates_existing_but_not_other_errors():
 
     with pytest.raises(GitHubError):
         GitHubClient("o/r", denied).ensure_label("x", "fff", "d")
+
+
+def test_acquire_does_not_depend_on_wall_clock(gh, monkeypatch):
+    """Regression: acquire() re-checked on real time while comments carried fake time,
+    so the suite passed on the day it was written and failed days later in CI."""
+    import datetime as dt
+
+    class Future(dt.datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return super().now(tz) + dt.timedelta(days=365)
+
+    monkeypatch.setattr(claims, "datetime", Future)
+    gh.seed_issue(7, "eng", "body")
+    assert claims.acquire(gh, 7, "A", "r1", now=gh.clock)[0] is True
