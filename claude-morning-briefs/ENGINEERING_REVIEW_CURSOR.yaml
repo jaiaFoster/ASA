@@ -9,7 +9,7 @@ backlog:
   path: claude-morning-briefs/asa_briefs_backlog_2026-10-08_to_2026-11-12.zip
   blob_sha: 2c6ebca8a22b296c35495a26192bc5a8b16e8a0d
   processed: false
-  reviewed_count: 3
+  reviewed_count: 6
   total_count: 26
 briefs:
   '2026-10-08':
@@ -30,3 +30,21 @@ briefs:
     intake_issue: 605
     reviewed_at: '2026-11-17T05:14:15+00:00'
     observations: 9
+  '2026-10-13':
+    sha256: 826cc95cecd7c4f917159ab2bdb333f57ef89173fed37359acea84d4b06c6312
+    state: completed
+    intake_issue: 606
+    reviewed_at: '2026-11-17T05:16:08+00:00'
+    observations: 8
+  '2026-10-14':
+    sha256: c2e4209ffb590b374f7693851625dd85dc4f60f629ec7e21dd956b0898383959
+    state: completed
+    intake_issue: 607
+    reviewed_at: '2026-11-17T05:16:54+00:00'
+    observations: 10
+  '2026-10-15':
+    sha256: b270a8c7a714fc87458080301b26b5f495ab8717eaba0f19da418e83b2bf958c
+    state: completed
+    intake_issue: 608
+    reviewed_at: '2026-11-17T05:17:49+00:00'
+    observations: 10
