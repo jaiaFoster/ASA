@@ -9,7 +9,7 @@ backlog:
   path: claude-morning-briefs/asa_briefs_backlog_2026-10-08_to_2026-11-12.zip
   blob_sha: 2c6ebca8a22b296c35495a26192bc5a8b16e8a0d
   processed: false
-  reviewed_count: 6
+  reviewed_count: 21
   total_count: 26
 briefs:
   '2026-10-08':
@@ -48,3 +48,93 @@ briefs:
     intake_issue: 608
     reviewed_at: '2026-11-17T05:17:49+00:00'
     observations: 10
+  '2026-10-16':
+    sha256: 302d8bec733b9fd9a53982b08d55b6392dd3788601413f451c7ba32aef775cbe
+    state: completed
+    intake_issue: 616
+    reviewed_at: '2026-11-17T16:07:20+00:00'
+    observations: 11
+  '2026-10-19':
+    sha256: 95ecb7d0a7b9fc6cceaa89208875ee89ac7567a277faa5514e9fdd523ba06a68
+    state: completed
+    intake_issue: 617
+    reviewed_at: '2026-11-17T16:07:35+00:00'
+    observations: 9
+  '2026-10-20':
+    sha256: 3dd04898bcb5eac8d48620ce4107011e446d3b9523cd964e138fc9039b4fa1e0
+    state: completed
+    intake_issue: 618
+    reviewed_at: '2026-11-17T16:07:49+00:00'
+    observations: 9
+  '2026-10-21':
+    sha256: d33ad0465c5a8da4968a5ef288e92cb2930ab646b409eaff63cea59120ff9c43
+    state: completed
+    intake_issue: 624
+    reviewed_at: '2026-11-18T16:07:56+00:00'
+    observations: 5
+  '2026-10-22':
+    sha256: c6babbd31dabb34a54d95fb3e45dac28c57c7b6c596a27697e5eb64a1b7cace2
+    state: completed
+    intake_issue: 625
+    reviewed_at: '2026-11-18T16:08:09+00:00'
+    observations: 11
+  '2026-10-23':
+    sha256: 0acd8a5def37062899f1a8abe72644e2b0518f83a01cf928af602fcee56f4d77
+    state: completed
+    intake_issue: 626
+    reviewed_at: '2026-11-18T16:08:21+00:00'
+    observations: 8
+  '2026-10-26':
+    sha256: 01dfc7952cc5ee3bbb29678dec457f914155eb55ce167183049dd3d74327a098
+    state: completed
+    intake_issue: 629
+    reviewed_at: '2026-11-19T16:09:17+00:00'
+    observations: 12
+  '2026-10-27':
+    sha256: 0a490ad7a81d3df1822e35fd5fb80ef5a18e24bae3ceec0e49f7f1cce1bdd965
+    state: completed
+    intake_issue: 630
+    reviewed_at: '2026-11-19T16:09:31+00:00'
+    observations: 12
+  '2026-10-28':
+    sha256: 0334be264be226c0f107bc7072e59fb1231f258ac4ed1315ab44a883ae775402
+    state: completed
+    intake_issue: 631
+    reviewed_at: '2026-11-19T16:09:44+00:00'
+    observations: 10
+  '2026-10-29':
+    sha256: 9db4b0df20bad56c4147756e8b9f11c4da503e2fc1c2e663bacf9e5b55e7e2f9
+    state: completed
+    intake_issue: 634
+    reviewed_at: '2026-11-20T16:07:38+00:00'
+    observations: 8
+  '2026-10-30':
+    sha256: 71f7a94a60e3036ce04ea6bb7006c4597ec5052c53093f88e7f3b4c94e795ada
+    state: completed
+    intake_issue: 635
+    reviewed_at: '2026-11-20T16:07:50+00:00'
+    observations: 8
+  '2026-11-02':
+    sha256: 2fe99c1a22a32a20bac47912bc6158a91810cbf4a7b1ec5a7cca0a6310fc13a0
+    state: completed
+    intake_issue: 636
+    reviewed_at: '2026-11-20T16:08:02+00:00'
+    observations: 8
+  '2026-11-03':
+    sha256: 9ada1ee389c96c79633fc7b7436ed6fa3344343b781d1d56332314f98762c744
+    state: completed
+    intake_issue: 638
+    reviewed_at: '2026-11-21T16:08:26+00:00'
+    observations: 12
+  '2026-11-04':
+    sha256: 03e495a598355a64c00e370129539d413e9362688e5bb70029e665c0ab241c22
+    state: completed
+    intake_issue: 639
+    reviewed_at: '2026-11-21T16:08:38+00:00'
+    observations: 12
+  '2026-11-05':
+    sha256: c96f60d18769b80040edbdef6f0c18f611582e503f4854e9aa2691806d1311fd
+    state: completed
+    intake_issue: 640
+    reviewed_at: '2026-11-21T16:08:50+00:00'
+    observations: 12
