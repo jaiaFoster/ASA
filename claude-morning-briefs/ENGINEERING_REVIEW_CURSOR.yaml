@@ -8,8 +8,8 @@ regenerate_with: python tools/morning_brief_agent/run.py sync-cursor
 backlog:
   path: claude-morning-briefs/asa_briefs_backlog_2026-10-08_to_2026-11-12.zip
   blob_sha: 2c6ebca8a22b296c35495a26192bc5a8b16e8a0d
-  processed: false
-  reviewed_count: 21
+  processed: true
+  reviewed_count: 26
   total_count: 26
 briefs:
   '2026-10-08':
@@ -138,3 +138,33 @@ briefs:
     intake_issue: 640
     reviewed_at: '2026-11-21T16:08:50+00:00'
     observations: 12
+  '2026-11-06':
+    sha256: 644df92aeeb8f5d35c7cdbf106da136639e295e0b5b5c3ee6096e8546a6a714d
+    state: completed
+    intake_issue: 643
+    reviewed_at: '2026-11-22T16:08:42+00:00'
+    observations: 13
+  '2026-11-09':
+    sha256: ff1e7cee9755967cf054cb8a912f8f415e5f8959b0f72dc15458b2a9a7a3954c
+    state: completed
+    intake_issue: 644
+    reviewed_at: '2026-11-22T16:08:53+00:00'
+    observations: 12
+  '2026-11-10':
+    sha256: 6efc43772a4cd2974df0d26d8c19208c715f03a66f9b4a64b12058b96b868a77
+    state: completed
+    intake_issue: 645
+    reviewed_at: '2026-11-22T16:09:04+00:00'
+    observations: 12
+  '2026-11-11':
+    sha256: 7ce62748bd47e32eff32c35dc4d2b79d2799c6d05e60fee252f8697278766091
+    state: completed
+    intake_issue: 648
+    reviewed_at: '2026-11-23T16:07:41+00:00'
+    observations: 8
+  '2026-11-12':
+    sha256: c5f918b063ce3b2cd8f80892493ad1f56d2cd7adc2b5e3817dfd95013a8b53c2
+    state: completed
+    intake_issue: 649
+    reviewed_at: '2026-11-23T16:07:54+00:00'
+    observations: 13
